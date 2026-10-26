@@ -1,0 +1,58 @@
+[project]
+name = "trishul-api"
+version = "0.1.0"
+description = "Trishul ERP REST API (FastAPI, SQL Server on Amazon RDS)"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.161.1",
+    "pydantic-settings>=2.16.1",
+    "pyjwt[crypto]>=2.15.1",
+    "pyodbc>=5.3.0",
+    "sqlalchemy>=2.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+trishul-api = "trishul_api:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.0",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+# Written by scripts/generate_models.py; checked by mypy and tests/test_models.py instead.
+extend-exclude = ["src/trishul_api/db/models/generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101"]  # assert is how pytest checks
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S603", "RUF012"]
+# SQLAlchemy's declarative convention: __table_args__ = {"schema": ...}
+"src/trishul_api/db/models/**" = ["RUF012"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests", "migrations", "scripts"]
+
+[[tool.mypy.overrides]]
+# SQLAlchemy's SQL Server types (DATETIME2, ROWVERSION, TINYINT, TIME) have no annotations.
+module = "trishul_api.db.models.generated.*"
+disallow_untyped_calls = false

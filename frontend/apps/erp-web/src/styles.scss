@@ -1,0 +1,52 @@
+@use '@angular/material' as mat;
+
+// Material 3 theme. Change brand colours here only; components read the --mat-sys-* tokens.
+html {
+  color-scheme: light;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: (
+        plain-family: 'Inter, Roboto, "Segoe UI", sans-serif',
+        brand-family: 'Inter, Roboto, "Segoe UI", sans-serif',
+      ),
+      // ERP screens are data-dense: tighter than Material's default.
+      density: -3,
+    )
+  );
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface);
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+// Status colours shared by badges and highlights (Material 3 has no success / warning roles).
+:root {
+  --trishul-success: #1b7a3d;
+  --trishul-success-container: #d7f5df;
+  --trishul-info: #1458a8;
+  --trishul-info-container: #dbe8fb;
+  --trishul-warn: #8a5300;
+  --trishul-warn-container: #fdecc8;
+  --trishul-danger: var(--mat-sys-error);
+  --trishul-danger-container: var(--mat-sys-error-container);
+  --trishul-neutral: var(--mat-sys-on-surface-variant);
+  --trishul-neutral-container: var(--mat-sys-surface-container-high);
+}
+
+.trishul-snack-error {
+  --mat-snack-bar-container-color: var(--mat-sys-error-container);
+  --mat-snack-bar-supporting-text-color: var(--mat-sys-on-error-container);
+  --mat-snack-bar-button-color: var(--mat-sys-on-error-container);
+}

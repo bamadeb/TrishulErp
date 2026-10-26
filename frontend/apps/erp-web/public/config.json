@@ -1,0 +1,9 @@
+{
+  "apiBaseUrl": "/api/v1",
+  "useMockApi": false,
+  "auth": {
+    "mode": "cognito",
+    "userPoolId": "us-east-1_GNryikCqr",
+    "userPoolClientId": "2hvfa9brojnompjpj814n91ftf"
+  }
+}

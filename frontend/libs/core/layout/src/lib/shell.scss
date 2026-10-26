@@ -1,0 +1,74 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  gap: 0.75rem;
+  height: 3.5rem;
+  background: var(--mat-sys-surface);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.brand {
+  font: var(--mat-sys-title-medium);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+}
+
+.context {
+  display: flex;
+  gap: 0.5rem;
+  // Compact selects that fit inside the toolbar.
+  --mat-form-field-container-height: 36px;
+  --mat-form-field-container-vertical-padding: 6px;
+  --mat-select-trigger-text-size: 13px;
+
+  mat-form-field {
+    width: 11rem;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.user-name {
+  font: var(--mat-sys-body-medium);
+}
+
+.body {
+  flex: 1;
+}
+
+.sidebar {
+  width: 15rem;
+  background: var(--mat-sys-surface);
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0;
+}
+
+// In the slide-out menu on small screens, the selects stack above the links.
+.sidebar .context {
+  flex-direction: column;
+  padding: 0.75rem 0.75rem 0;
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.content {
+  padding: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .content {
+    padding: 1rem;
+  }
+}

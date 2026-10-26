@@ -1,0 +1,652 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Trishul ERP API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/me": {
+      "get": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Signed-in user with permissions, branches and brands",
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/lookups/{type_code}": {
+      "get": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Values of an editable dropdown list",
+        "operationId": "lookup_values",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "type_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[A-Z0-9_]+$",
+              "title": "Type Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LookupValueOut"
+                  },
+                  "title": "Response Lookup Values"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-calls": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Call register for the selected branch and brand",
+        "operationId": "list_service_calls",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Logged",
+                  "Assigned",
+                  "Call ID linked",
+                  "Customer contacted",
+                  "Trip started",
+                  "Reached site",
+                  "In progress",
+                  "Report submitted",
+                  "Awaiting parts",
+                  "Parts ready",
+                  "Revisit scheduled",
+                  "Closed",
+                  "Pending OEM closure",
+                  "Completed",
+                  "Reopened",
+                  "Cancelled"
+                ],
+                "type": "string"
+              },
+              "title": "Status"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Critical",
+                  "High",
+                  "Normal",
+                  "Low"
+                ],
+                "type": "string"
+              },
+              "title": "Priority"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ServiceCallListItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BranchRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "BranchRef"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LookupValueOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "title": "Sortorder"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "sortOrder"
+        ],
+        "title": "LookupValueOut"
+      },
+      "Me": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "defaultBranchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbranchid"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/BranchRef"
+            },
+            "type": "array",
+            "title": "Branches"
+          },
+          "principals": {
+            "items": {
+              "$ref": "#/components/schemas/PrincipalRef"
+            },
+            "type": "array",
+            "title": "Principals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "email",
+          "defaultBranchId",
+          "permissions",
+          "branches",
+          "principals"
+        ],
+        "title": "Me",
+        "description": "The signed-in user, as the Angular AuthStore expects it."
+      },
+      "Page_ServiceCallListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceCallListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[ServiceCallListItem]"
+      },
+      "PrincipalRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "PrincipalRef"
+      },
+      "ServiceCallListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Receivedat"
+          },
+          "principalCode": {
+            "type": "string",
+            "title": "Principalcode"
+          },
+          "customerName": {
+            "type": "string",
+            "title": "Customername"
+          },
+          "machineSerialNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineserialno"
+          },
+          "machineModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machinemodel"
+          },
+          "complaintDescription": {
+            "type": "string",
+            "title": "Complaintdescription"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Normal",
+              "Low"
+            ],
+            "title": "Priority"
+          },
+          "isMachineDown": {
+            "type": "boolean",
+            "title": "Ismachinedown"
+          },
+          "isAscPriority": {
+            "type": "boolean",
+            "title": "Isascpriority"
+          },
+          "coverageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Warranty",
+                  "Contract",
+                  "Chargeable",
+                  "Goodwill"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragetype"
+          },
+          "currentStatus": {
+            "type": "string",
+            "enum": [
+              "Logged",
+              "Assigned",
+              "Call ID linked",
+              "Customer contacted",
+              "Trip started",
+              "Reached site",
+              "In progress",
+              "Report submitted",
+              "Awaiting parts",
+              "Parts ready",
+              "Revisit scheduled",
+              "Closed",
+              "Pending OEM closure",
+              "Completed",
+              "Reopened",
+              "Cancelled"
+            ],
+            "title": "Currentstatus"
+          },
+          "assignedEngineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignedengineername"
+          },
+          "oemCallId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oemcallid"
+          },
+          "slaDueAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sladueat"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "callNo",
+          "receivedAt",
+          "principalCode",
+          "customerName",
+          "machineSerialNo",
+          "machineModel",
+          "complaintDescription",
+          "priority",
+          "isMachineDown",
+          "isAscPriority",
+          "coverageType",
+          "currentStatus",
+          "assignedEngineerName",
+          "oemCallId",
+          "slaDueAt",
+          "rowVersion"
+        ],
+        "title": "ServiceCallListItem",
+        "description": "A row of the call register."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "Cognito access token",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+  box-sizing: border-box;
+  background:
+    radial-gradient(
+      circle at 20% 0%,
+      var(--mat-sys-primary-container),
+      transparent 55%
+    ),
+    var(--mat-sys-surface-container-low);
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+  overflow: hidden;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-large);
+  box-shadow: var(--mat-sys-level2);
+}
+
+// Reserves the bar's height so the card doesn't jump while working.
+.progress {
+  height: 4px;
+}
+
+.content {
+  padding: 1.75rem 2rem 2rem;
+}
+
+.brand {
+  font: var(--mat-sys-title-large);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--mat-sys-primary);
+}
+
+h1 {
+  margin: 1.25rem 0 0.25rem;
+  font: var(--mat-sys-headline-small);
+}
+
+.lead {
+  margin: 0 0 1.25rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.submit {
+  height: 2.75rem;
+  margin-top: 0.5rem;
+}
+
+.link {
+  align-self: center;
+  margin-top: 0.25rem;
+}
+
+.alert {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: var(--mat-sys-corner-small);
+  font: var(--mat-sys-body-medium);
+
+  mat-icon {
+    flex-shrink: 0;
+  }
+
+  &.info {
+    color: var(--trishul-info);
+    background: var(--trishul-info-container);
+  }
+
+  &.success {
+    color: var(--trishul-success);
+    background: var(--trishul-success-container);
+  }
+
+  &.error {
+    color: var(--mat-sys-on-error-container);
+    background: var(--mat-sys-error-container);
+  }
+}
+
+.field-error {
+  margin: -0.25rem 0 0.25rem;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-error);
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+}

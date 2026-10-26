@@ -1,0 +1,11 @@
+# Add files here to ignore them from prettier formatting
+/dist
+/coverage
+/.nx/cache
+/.nx/workspace-data
+.nx/self-healing
+.angular
+
+# Written by backend/scripts/export_openapi.py and nx run core-api:generate
+/libs/core/api/openapi.json
+/libs/core/api/src/generated

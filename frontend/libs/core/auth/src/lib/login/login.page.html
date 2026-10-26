@@ -1,0 +1,285 @@
+<main class="page">
+  <section class="card" aria-labelledby="login-title">
+    <div class="progress">
+      @if (busy()) {
+      <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+
+    <div class="content">
+      <div class="brand">TRISHUL</div>
+
+      @switch (view()) { @case ('sign-in') {
+      <h1 id="login-title">Sign in</h1>
+      <p class="lead">Use your Trishul ERP account.</p>
+      } @case ('new-password') {
+      <h1 id="login-title">Choose a new password</h1>
+      <p class="lead">
+        You signed in with a temporary password. Choose your own to continue.
+      </p>
+      } @case ('mfa-code') {
+      <h1 id="login-title">Enter your code</h1>
+      <p class="lead">
+        Enter the 6-digit code from your authenticator app or message.
+      </p>
+      } @case ('forgot') {
+      <h1 id="login-title">Reset your password</h1>
+      <p class="lead">
+        We'll send a code to the e-mail or phone on your account.
+      </p>
+      } @case ('forgot-confirm') {
+      <h1 id="login-title">Reset your password</h1>
+      <p class="lead">Enter the code sent to {{ codeDestination() }}.</p>
+      } } @if (!usesPassword) {
+      <div class="alert info" role="note">
+        <mat-icon>science</mat-icon>
+        <span>
+          Development sign-in: enter an ERP username such as
+          <strong>demo.admin</strong>. No password is needed; this works only
+          with an API running in dev mode.
+        </span>
+      </div>
+      } @if (sessionEnded()) {
+      <div class="alert info" role="status">
+        <mat-icon>schedule</mat-icon>
+        <span>Your session has ended. Sign in again to continue.</span>
+      </div>
+      } @if (notice(); as message) {
+      <div class="alert success" role="status">
+        <mat-icon>check_circle</mat-icon><span>{{ message }}</span>
+      </div>
+      } @if (error(); as message) {
+      <div class="alert error" role="alert">
+        <mat-icon>error</mat-icon><span>{{ message }}</span>
+      </div>
+      } @switch (view()) { @case ('sign-in') {
+      <form [formGroup]="signInForm" (ngSubmit)="signIn()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ usernameLabel }}</mat-label>
+          <input
+            matInput
+            formControlName="username"
+            autocomplete="username"
+            [attr.inputmode]="usesPassword ? 'email' : null"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+          <mat-error>Enter your {{ usernameLabel.toLowerCase() }}.</mat-error>
+        </mat-form-field>
+
+        @if (usesPassword) {
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input
+            matInput
+            formControlName="password"
+            autocomplete="current-password"
+            [type]="showPassword() ? 'text' : 'password'"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showPassword()"
+            (click)="showPassword.set(!showPassword())"
+          >
+            <mat-icon
+              >{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon
+            >
+          </button>
+          <mat-error>Enter your password.</mat-error>
+        </mat-form-field>
+        }
+
+        <button
+          mat-flat-button
+          type="submit"
+          class="submit"
+          [disabled]="busy()"
+        >
+          Sign in
+        </button>
+        @if (usesPassword) {
+        <button
+          mat-button
+          type="button"
+          class="link"
+          (click)="forgotPassword()"
+        >
+          Forgot password?
+        </button>
+        }
+      </form>
+      } @case ('new-password') {
+      <form
+        [formGroup]="newPasswordForm"
+        (ngSubmit)="setNewPassword()"
+        novalidate
+      >
+        <mat-form-field appearance="outline">
+          <mat-label>New password</mat-label>
+          <input
+            matInput
+            formControlName="password"
+            autocomplete="new-password"
+            [type]="showPassword() ? 'text' : 'password'"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showPassword()"
+            (click)="showPassword.set(!showPassword())"
+          >
+            <mat-icon
+              >{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon
+            >
+          </button>
+          <mat-hint>At least {{ passwordMinLength }} characters.</mat-hint>
+          <mat-error>At least {{ passwordMinLength }} characters.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm new password</mat-label>
+          <input
+            matInput
+            formControlName="confirm"
+            autocomplete="new-password"
+            [type]="showPassword() ? 'text' : 'password'"
+          />
+          <mat-error>Confirm the new password.</mat-error>
+        </mat-form-field>
+        @if (newPasswordForm.hasError('mismatch') &&
+        newPasswordForm.controls.confirm.touched) {
+        <p class="field-error" role="alert">The passwords don't match.</p>
+        }
+        <button
+          mat-flat-button
+          type="submit"
+          class="submit"
+          [disabled]="busy()"
+        >
+          Set password and sign in
+        </button>
+        <button mat-button type="button" class="link" (click)="backToSignIn()">
+          Back to sign in
+        </button>
+      </form>
+      } @case ('mfa-code') {
+      <form [formGroup]="codeForm" (ngSubmit)="confirmCode()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>6-digit code</mat-label>
+          <input
+            matInput
+            formControlName="code"
+            autocomplete="one-time-code"
+            inputmode="numeric"
+            maxlength="6"
+          />
+          <mat-error>Enter the 6 digits.</mat-error>
+        </mat-form-field>
+        <button
+          mat-flat-button
+          type="submit"
+          class="submit"
+          [disabled]="busy()"
+        >
+          Verify
+        </button>
+        <button mat-button type="button" class="link" (click)="backToSignIn()">
+          Back to sign in
+        </button>
+      </form>
+      } @case ('forgot') {
+      <form [formGroup]="signInForm" (ngSubmit)="sendResetCode()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ usernameLabel }}</mat-label>
+          <input
+            matInput
+            formControlName="username"
+            autocomplete="username"
+            [attr.inputmode]="usesPassword ? 'email' : null"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+          <mat-error>Enter your {{ usernameLabel.toLowerCase() }}.</mat-error>
+        </mat-form-field>
+        <button
+          mat-flat-button
+          type="submit"
+          class="submit"
+          [disabled]="busy()"
+        >
+          Send code
+        </button>
+        <button mat-button type="button" class="link" (click)="backToSignIn()">
+          Back to sign in
+        </button>
+      </form>
+      } @case ('forgot-confirm') {
+      <form [formGroup]="resetForm" (ngSubmit)="resetPassword()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>Code</mat-label>
+          <input
+            matInput
+            formControlName="code"
+            autocomplete="one-time-code"
+            inputmode="numeric"
+            maxlength="6"
+          />
+          <mat-error>Enter the 6-digit code.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>New password</mat-label>
+          <input
+            matInput
+            formControlName="password"
+            autocomplete="new-password"
+            [type]="showPassword() ? 'text' : 'password'"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showPassword()"
+            (click)="showPassword.set(!showPassword())"
+          >
+            <mat-icon
+              >{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon
+            >
+          </button>
+          <mat-hint>At least {{ passwordMinLength }} characters.</mat-hint>
+          <mat-error>At least {{ passwordMinLength }} characters.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm new password</mat-label>
+          <input
+            matInput
+            formControlName="confirm"
+            autocomplete="new-password"
+            [type]="showPassword() ? 'text' : 'password'"
+          />
+          <mat-error>Confirm the new password.</mat-error>
+        </mat-form-field>
+        @if (resetForm.hasError('mismatch') &&
+        resetForm.controls.confirm.touched) {
+        <p class="field-error" role="alert">The passwords don't match.</p>
+        }
+        <button
+          mat-flat-button
+          type="submit"
+          class="submit"
+          [disabled]="busy()"
+        >
+          Change password
+        </button>
+        <button mat-button type="button" class="link" (click)="backToSignIn()">
+          Back to sign in
+        </button>
+      </form>
+      } }
+    </div>
+  </section>
+</main>

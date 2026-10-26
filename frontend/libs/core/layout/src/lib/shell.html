@@ -1,0 +1,110 @@
+<mat-toolbar class="topbar">
+  @if (isCompact()) {
+  <button
+    mat-icon-button
+    aria-label="Toggle menu"
+    (click)="menuOpen.set(!menuOpen())"
+  >
+    <mat-icon>menu</mat-icon>
+  </button>
+  }
+  <a class="brand" routerLink="/">TRISHUL</a>
+
+  @if (!isCompact()) {
+  <ng-container [ngTemplateOutlet]="contextSelects" />
+  }
+
+  <span class="spacer"></span>
+  @if (!isCompact()) {
+  <span class="user-name">{{ auth.user()?.displayName }}</span>
+  }
+  <button
+    mat-icon-button
+    aria-label="Sign out"
+    matTooltip="Sign out"
+    (click)="logout()"
+  >
+    <mat-icon>logout</mat-icon>
+  </button>
+</mat-toolbar>
+
+<mat-sidenav-container class="body">
+  <mat-sidenav
+    class="sidebar"
+    [mode]="isCompact() ? 'over' : 'side'"
+    [opened]="!isCompact() || menuOpen()"
+    (closed)="menuOpen.set(false)"
+  >
+    @if (isCompact()) {
+    <ng-container [ngTemplateOutlet]="contextSelects" />
+    }
+    <mat-nav-list aria-label="Main menu">
+      @for (item of menu(); track item.label) { @if (item.children) {
+      <div mat-subheader>{{ item.label }}</div>
+      @for (child of item.children; track child.label) {
+      <a
+        mat-list-item
+        [routerLink]="child.route"
+        routerLinkActive
+        #childLink="routerLinkActive"
+        [activated]="childLink.isActive"
+        (click)="closeMenuOnCompact()"
+      >
+        <span matListItemTitle>{{ child.label }}</span>
+      </a>
+      } } @else {
+      <a
+        mat-list-item
+        [routerLink]="item.route"
+        routerLinkActive
+        #link="routerLinkActive"
+        [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+        [activated]="link.isActive"
+        (click)="closeMenuOnCompact()"
+      >
+        @if (item.icon) {
+        <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+        }
+        <span matListItemTitle>{{ item.label }}</span>
+      </a>
+      } }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <main class="content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+
+<ng-template #contextSelects>
+  <div class="context">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-select
+        aria-label="Branch"
+        placeholder="Branch"
+        [value]="auth.branchId()"
+        (valueChange)="auth.selectBranch($event)"
+      >
+        @for (branch of auth.user()?.branches ?? []; track branch.id) {
+        <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-select
+        aria-label="Brand"
+        [value]="auth.principalId() ?? ALL_BRANDS"
+        (valueChange)="
+          auth.selectPrincipal($event === ALL_BRANDS ? null : $event)
+        "
+      >
+        <mat-option [value]="ALL_BRANDS">All brands</mat-option>
+        @for (principal of auth.user()?.principals ?? []; track principal.id) {
+        <mat-option [value]="principal.id">{{ principal.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+</ng-template>

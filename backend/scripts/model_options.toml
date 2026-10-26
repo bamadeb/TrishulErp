@@ -1,0 +1,39 @@
+# Hand-maintained settings applied by scripts/generate_models.py to the generated ORM models.
+# Table and column names are checked against the SQL scripts; a typo fails the generator.
+
+# Inserts, updates and deletes of these tables are written to core.audit_log (db/audit.py).
+audited = [
+    # Users and access
+    "core.app_user",
+    "core.role",
+    "core.permission",
+    "core.role_permission",
+    "core.user_role",
+    "core.user_principal_access",
+    "core.approval_rule",
+    # Masters
+    "core.principal",
+    "core.branch",
+    "core.customer",
+    "core.supplier",
+    "core.item",
+    "core.lookup_value",
+    "core.number_series",
+    # Documents and money
+    "svc.service_call",
+    "sal.sales_invoice",
+    "sal.receipt",
+    "sal.credit_note",
+    "sal.credit_limit_change",
+    "pur.purchase_order",
+    "pur.supplier_invoice",
+    "acc.journal",
+    "acc.cash_reconciliation",
+    # Employees
+    "hr.employee_profile",
+]
+
+# Columns recorded as *** in the audit trail.
+[masked]
+"hr.employee_profile" = ["pan", "bank_account_no"]
+"core.supplier" = ["bank_account_no"]

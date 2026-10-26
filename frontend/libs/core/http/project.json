@@ -1,0 +1,10 @@
+{
+  "name": "core-http",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/core/http/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:core", "type:core"],
+  "// targets": "to see all targets run: nx show project core-http --web",
+  "targets": {}
+}

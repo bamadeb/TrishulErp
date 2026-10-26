@@ -1,0 +1,163 @@
+<trishul-page-header
+  title="Service calls"
+  subtitle="Call register for the selected branch and brand"
+>
+  <button mat-flat-button *trishulHasPermission="'svc.call.create'">
+    <mat-icon>add</mat-icon>
+    New call
+  </button>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="Call no, customer, machine, OEM ID"
+      aria-label="Search calls"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select
+      multiple
+      [value]="store.query().status ?? []"
+      (valueChange)="store.updateQuery({ status: $event })"
+    >
+      @for (status of statuses; track status) {
+      <mat-option [value]="status">{{ status }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Priority</mat-label>
+    <mat-select
+      multiple
+      [value]="store.query().priority ?? []"
+      (valueChange)="store.updateQuery({ priority: $event })"
+    >
+      @for (priority of priorities; track priority) {
+      <mat-option [value]="priority">{{ priority }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+
+  <div class="table-scroll">
+    <table
+      mat-table
+      [dataSource]="store.items()"
+      matSort
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="callNo">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Call</th>
+        <td mat-cell *matCellDef="let call">
+          <div class="strong">{{ call.callNo }}</div>
+          <div class="muted">
+            {{ call.receivedAt | date: 'dd MMM, HH:mm' }} · {{
+            call.principalCode }}
+          </div>
+          @if (call.oemCallId) {
+          <div class="muted">OEM {{ call.oemCallId }}</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="customerName">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Customer</th>
+        <td mat-cell *matCellDef="let call">{{ call.customerName }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="machine">
+        <th mat-header-cell *matHeaderCellDef>Machine</th>
+        <td mat-cell *matCellDef="let call">
+          <div>{{ call.machineModel ?? '—' }}</div>
+          <div class="muted">{{ call.machineSerialNo }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="complaint">
+        <th mat-header-cell *matHeaderCellDef>Complaint</th>
+        <td
+          mat-cell
+          *matCellDef="let call"
+          class="complaint"
+          [matTooltip]="call.complaintDescription"
+        >
+          {{ call.complaintDescription }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="priority">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Priority</th>
+        <td mat-cell *matCellDef="let call">
+          <trishul-status-badge
+            [status]="call.priority"
+            [severities]="prioritySeverity"
+          />
+          @if (call.isMachineDown) {
+          <div class="down">
+            <mat-icon inline>warning</mat-icon> Machine down
+          </div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let call">
+          <trishul-status-badge
+            [status]="call.currentStatus"
+            [severities]="statusSeverity"
+          />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="engineer">
+        <th mat-header-cell *matHeaderCellDef>Engineer</th>
+        <td mat-cell *matCellDef="let call">
+          {{ call.assignedEngineerName ?? 'Unassigned' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="slaDueAt">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>SLA due</th>
+        <td
+          mat-cell
+          *matCellDef="let call"
+          [class.breached]="isSlaBreached(call)"
+        >
+          {{ call.slaDueAt ? (call.slaDueAt | date: 'dd MMM, HH:mm') : '—' }}
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="columns.length">
+          {{ store.loading() ? 'Loading…' : 'No calls match these filters.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <mat-paginator
+    [length]="store.total()"
+    [pageIndex]="store.query().page - 1"
+    [pageSize]="store.query().pageSize"
+    [pageSizeOptions]="[20, 50, 100]"
+    showFirstLastButtons
+    aria-label="Pages of calls"
+    (page)="onPage($event)"
+  />
+</div>

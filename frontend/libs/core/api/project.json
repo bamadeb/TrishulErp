@@ -1,0 +1,20 @@
+{
+  "name": "core-api",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/core/api/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:core", "type:api"],
+  "// targets": "to see all targets run: nx show project core-api --web",
+  "targets": {
+    "generate": {
+      "command": "ng-openapi-gen --config libs/core/api/ng-openapi-gen.json",
+      "inputs": [
+        "{projectRoot}/openapi.json",
+        "{projectRoot}/ng-openapi-gen.json"
+      ],
+      "outputs": ["{projectRoot}/src/generated"],
+      "cache": true
+    }
+  }
+}

@@ -1,0 +1,90 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+
+  .search {
+    flex: 1 1 18rem;
+  }
+
+  mat-form-field:not(.search) {
+    flex: 1 1 10rem;
+    max-width: 14rem;
+  }
+}
+
+// Identifiers and dates read badly when wrapped; let the table scroll instead.
+.mat-column-callNo,
+.mat-column-machine,
+.mat-column-engineer,
+.mat-column-slaDueAt {
+  white-space: nowrap;
+}
+
+.table-card {
+  overflow: hidden;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+}
+
+// Reserve the bar's height so rows don't jump while loading.
+.progress {
+  height: 4px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  min-width: 960px;
+}
+
+th,
+td {
+  padding: 0 0.625rem;
+}
+
+td {
+  vertical-align: top;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.muted {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.complaint {
+  max-width: 16rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.down {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-error);
+}
+
+.breached {
+  font-weight: 600;
+  color: var(--mat-sys-error);
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}

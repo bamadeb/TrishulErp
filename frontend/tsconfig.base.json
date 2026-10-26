@@ -1,0 +1,61 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": false,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2022",
+    "module": "esnext",
+    "lib": [
+      "es2022",
+      "dom"
+    ],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "paths": {
+      "@trishul/core-auth": [
+        "./libs/core/auth/src/index.ts"
+      ],
+      "@trishul/core-http": [
+        "./libs/core/http/src/index.ts"
+      ],
+      "@trishul/core-config": [
+        "./libs/core/config/src/index.ts"
+      ],
+      "@trishul/core-api": [
+        "./libs/core/api/src/index.ts"
+      ],
+      "@trishul/core-layout": [
+        "./libs/core/layout/src/index.ts"
+      ],
+      "@trishul/shared-ui": [
+        "./libs/shared/ui/src/index.ts"
+      ],
+      "@trishul/shared-util": [
+        "./libs/shared/util/src/index.ts"
+      ],
+      "@trishul/shared-data-access": [
+        "./libs/shared/data-access/src/index.ts"
+      ],
+      "@trishul/service-data-access": [
+        "./libs/domains/service/data-access/src/index.ts"
+      ],
+      "@trishul/service-feature-calls": [
+        "./libs/domains/service/feature-calls/src/index.ts"
+      ]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "tmp"
+  ]
+}
