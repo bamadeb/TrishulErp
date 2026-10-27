@@ -34,6 +34,18 @@ class Settings(BaseSettings):
     migration_db_user: str | None = None
     migration_db_password: SecretStr | None = None
 
+    # AWS Secrets Manager. When db_secret_id is set, the DB username and password are read from that
+    # secret (RDS JSON: {"username","password",...}) instead of TRISHUL_DB_USER/PASSWORD, and are
+    # refreshed in the background so a rotated password is picked up without a restart. Leave empty for
+    # local development, which uses the env values above. Only non-secret identifiers live here.
+    db_secret_id: str | None = None
+    migration_db_secret_id: str | None = None
+    # Region for Secrets Manager; falls back to the Cognito region. Credentials come from the ECS task
+    # role (the default provider chain), or from aws_profile locally — never from hardcoded keys.
+    secrets_region: str | None = None
+    # How long a fetched secret is cached before the next physical DB connection re-reads it.
+    secrets_cache_seconds: int = 300
+
     # Sign-in. "dev" accepts any bearer token and acts as dev_username; never allowed in prod.
     auth_mode: Literal["cognito", "dev"] = "cognito"
     cognito_region: str = "ap-south-1"
@@ -49,6 +61,11 @@ class Settings(BaseSettings):
     @property
     def cognito_issuer(self) -> str:
         return f"https://cognito-idp.{self.cognito_region}.amazonaws.com/{self.cognito_user_pool_id}"
+
+    @property
+    def aws_region(self) -> str:
+        """Region for AWS SDK calls (Secrets Manager); defaults to the Cognito region."""
+        return self.secrets_region or self.cognito_region
 
     @model_validator(mode="after")
     def _check_auth(self) -> "Settings":

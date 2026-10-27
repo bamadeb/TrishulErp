@@ -17,6 +17,7 @@ from trishul_api.db import create_db_engine
 from trishul_api.modules.core.router import router as core_router
 from trishul_api.modules.core.users.router import router as users_router
 from trishul_api.modules.service.router import router as service_router
+from trishul_api.secrets import SecretProvider, create_secret_provider
 
 # One router per module. A new module is added here and nowhere else.
 V1_ROUTERS: list[APIRouter] = [core_router, users_router, service_router]
@@ -45,18 +46,22 @@ def create_app(
     engine: Engine | None = None,
     token_verifier: TokenVerifier | None = None,
     identity_provider: IdentityProvider | None = None,
+    secret_provider: SecretProvider | None = None,
 ) -> FastAPI:
-    """Application factory and composition root. Tests pass their own engine, token verifier and
-    identity provider."""
+    """Application factory and composition root. Tests pass their own engine, token verifier, identity
+    provider and secret provider."""
     settings = settings or get_settings()
     logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     api = create_api_v1(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        db_engine = engine or create_db_engine(settings)
+        secrets = secret_provider or create_secret_provider(settings)
+        db_engine = engine or create_db_engine(settings, secrets)
+        app.state.secret_provider = secrets
         app.state.engine = db_engine
         # Request dependencies run inside the mounted API and read its state.
+        api.state.secret_provider = secrets
         api.state.engine = db_engine
         api.state.token_verifier = token_verifier or create_token_verifier(settings)
         api.state.user_directory = UserDirectory(database_user_loader(db_engine), settings.user_cache_seconds)
