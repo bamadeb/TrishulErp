@@ -187,13 +187,17 @@ class UserRepository:
     # ------------------------------------------------------------------ checks
 
     def username_exists(self, username: str) -> bool:
-        return self._session.scalar(select(exists().where(AppUser.username == username))) or False
+        # select(...).limit(1), not select(exists()): SQL Server has no SELECT EXISTS(...) scalar form.
+        return self._session.scalar(select(AppUser.id).where(AppUser.username == username).limit(1)) is not None
 
     def subject_in_use(self, subject: str) -> bool:
-        return self._session.scalar(select(exists().where(AppUser.cognito_sub == subject))) or False
+        return self._session.scalar(select(AppUser.id).where(AppUser.cognito_sub == subject).limit(1)) is not None
 
     def employee_is_active(self, employee_id: int) -> bool:
-        return self._session.scalar(select(exists().where(Employee.id == employee_id, Employee.is_active))) or False
+        return (
+            self._session.scalar(select(Employee.id).where(Employee.id == employee_id, Employee.is_active).limit(1))
+            is not None
+        )
 
     def user_linked_to(self, employee_id: int) -> AppUser | None:
         return self._session.scalar(select(AppUser).where(AppUser.employee_id == employee_id))

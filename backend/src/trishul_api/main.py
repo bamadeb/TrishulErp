@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import Engine, text
 
+from trishul_api.auth.cognito_secret import apply_cognito_secret
 from trishul_api.auth.identity import IdentityProvider, create_identity_provider
 from trishul_api.auth.tokens import TokenVerifier, create_token_verifier
 from trishul_api.auth.users import UserDirectory, database_user_loader
@@ -57,15 +58,17 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         secrets = secret_provider or create_secret_provider(settings)
-        db_engine = engine or create_db_engine(settings, secrets)
+        # Fill the Cognito identifiers from Secrets Manager when configured; env values are the fallback.
+        resolved = apply_cognito_secret(settings, secrets)
+        db_engine = engine or create_db_engine(resolved, secrets)
         app.state.secret_provider = secrets
         app.state.engine = db_engine
         # Request dependencies run inside the mounted API and read its state.
         api.state.secret_provider = secrets
         api.state.engine = db_engine
-        api.state.token_verifier = token_verifier or create_token_verifier(settings)
-        api.state.user_directory = UserDirectory(database_user_loader(db_engine), settings.user_cache_seconds)
-        api.state.identity_provider = identity_provider or create_identity_provider(settings)
+        api.state.token_verifier = token_verifier or create_token_verifier(resolved)
+        api.state.user_directory = UserDirectory(database_user_loader(db_engine), resolved.user_cache_seconds)
+        api.state.identity_provider = identity_provider or create_identity_provider(resolved)
         yield
         db_engine.dispose()
 

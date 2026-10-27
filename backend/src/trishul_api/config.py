@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     cognito_region: str = "ap-south-1"
     cognito_user_pool_id: str = ""
     cognito_app_client_id: str = ""
+    # The Cognito identifiers can instead be read from a Secrets Manager secret at startup
+    # (keys: region, userPoolId, appClientId). They are public identifiers (also sent to the browser),
+    # so this just centralises config like the DB secret does; the values above are the fallback.
+    cognito_secret_id: str | None = None
     dev_username: str = ""
     # Local development only: the AWS CLI profile for Cognito admin calls (user management).
     # In AWS the ECS task role supplies credentials, so leave it empty there.
@@ -71,8 +75,14 @@ class Settings(BaseSettings):
     def _check_auth(self) -> "Settings":
         if self.auth_mode == "dev" and self.environment in ("uat", "prod"):
             raise ValueError("TRISHUL_AUTH_MODE=dev is not allowed in uat or prod")
-        if self.auth_mode == "cognito" and not (self.cognito_user_pool_id and self.cognito_app_client_id):
-            raise ValueError("Set TRISHUL_COGNITO_USER_POOL_ID and TRISHUL_COGNITO_APP_CLIENT_ID")
+        if (
+            self.auth_mode == "cognito"
+            and not self.cognito_secret_id
+            and not (self.cognito_user_pool_id and self.cognito_app_client_id)
+        ):
+            raise ValueError(
+                "Set TRISHUL_COGNITO_USER_POOL_ID and TRISHUL_COGNITO_APP_CLIENT_ID, or TRISHUL_COGNITO_SECRET_ID"
+            )
         if self.auth_mode == "dev" and not self.dev_username:
             raise ValueError("Set TRISHUL_DEV_USERNAME to a core.app_user username for dev sign-in")
         return self

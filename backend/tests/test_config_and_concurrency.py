@@ -16,6 +16,12 @@ def test_cognito_settings_are_required() -> None:
         Settings(environment="prod", auth_mode="cognito", _env_file=None)
 
 
+def test_a_cognito_secret_id_satisfies_the_requirement() -> None:
+    # A Secrets Manager secret id is an accepted alternative to the inline pool/client ids.
+    s = Settings(environment="prod", auth_mode="cognito", cognito_secret_id="trishul/prod/cognito", _env_file=None)
+    assert s.cognito_secret_id == "trishul/prod/cognito"
+
+
 def test_if_match_accepts_quoted_and_weak_etags() -> None:
     assert if_match_row_version('"AAAAAAAAB9E="') == b"\x00\x00\x00\x00\x00\x00\x07\xd1"
     assert if_match_row_version('W/"AAAAAAAAB9E="') == b"\x00\x00\x00\x00\x00\x00\x07\xd1"

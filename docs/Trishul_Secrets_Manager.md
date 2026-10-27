@@ -7,13 +7,21 @@ It reads secrets at runtime through the AWS SDK (`boto3`) using the **ECS task r
 Lambda functions in the application. The only AWS-managed Lambda involved is the one Secrets Manager
 provisions for RDS rotation, which is part of the Secrets Manager service, not of this application.
 
-> **Already provisioned (dev).** The secret **`trishul/dev/db-app`** exists in **us-east-1**
-> (account `886375648882`), holding the dev DB connection in the §3 JSON format. The backend is wired to
-> it: `TRISHUL_DB_SECRET_ID=trishul/dev/db-app` is the **only** DB setting in the local `.env` — host,
-> port, database name, username and password all come from the secret (verified with a live connection to
-> `TrishulDev`). The `.env` no longer stores any DB credentials or host. The `prod`/`uat` secrets and the
-> dedicated least-privilege logins are still to be created (§11); the logins script is
-> `database/20_least_privilege_logins.sql`.
+> **Already provisioned (dev).** In **us-east-1** (account `886375648882`):
+> - **`trishul/dev/db-app`** holds the application login **`trishul_app`** (data rights, subject to RLS).
+> - **`trishul/dev/db-migration`** holds the migration login **`trishul_migrator`** (DDL rights).
+> - **`trishul/dev/cognito`** holds the Cognito identifiers (region, userPoolId, appClientId). These are
+>   public, so this secret centralises config rather than hiding anything; verified the API resolves them
+>   and reaches Cognito (`admindemo` = active). The local `.env` holds only `TRISHUL_COGNITO_SECRET_ID`
+>   and `TRISHUL_SECRETS_REGION=us-east-1` for auth, plus `TRISHUL_AUTH_MODE`/`TRISHUL_DEV_USERNAME`.
+>
+> Both logins were created from `database/20_least_privilege_logins.sql`; their passwords were generated,
+> set on the logins, and stored only in these secrets (no human ever typed them). The local `.env` holds
+> **only** `TRISHUL_DB_SECRET_ID=trishul/dev/db-app` and `TRISHUL_MIGRATION_DB_SECRET_ID=trishul/dev/db-migration`
+> for the database — host, port, database name and the login all come from the secrets. Verified: the API
+> connects as `trishul_app` (not `db_owner`), and `alembic upgrade head` runs as `trishul_migrator`
+> (head `0003`). The RDS master user `admin` is no longer used by the app or stored in the project. The
+> `prod`/`uat` secrets and logins are still to be created (§11).
 
 ---
 
@@ -24,7 +32,7 @@ provisions for RDS rotation, which is part of the Secrets Manager service, not o
 | Application DB password | **Yes** | Secrets Manager (`TRISHUL_DB_SECRET_ID`) |
 | Migration (DDL) DB password | **Yes** | Secrets Manager (`TRISHUL_MIGRATION_DB_SECRET_ID`) |
 | Integration credentials (Tally, GSP, DMS, WhatsApp), search-hash key | **Yes** (later) | Secrets Manager |
-| Cognito **User Pool ID** and **App Client ID** | No — they are public identifiers | Env vars / `config.json` |
+| Cognito region, **User Pool ID**, **App Client ID** | No — public identifiers | Secrets Manager (`TRISHUL_COGNITO_SECRET_ID`) to centralise config, or env; the browser still gets them via `config.json` |
 | DB host, port, database name | No | Env vars |
 | CORS origins, log level, cache TTLs | No | Env vars |
 
@@ -81,12 +89,15 @@ Set these as **ECS task environment variables** (identifiers only — never secr
 TRISHUL_ENVIRONMENT=prod
 TRISHUL_DB_SECRET_ID=trishul/prod/db-app
 TRISHUL_MIGRATION_DB_SECRET_ID=trishul/prod/db-migration
-TRISHUL_SECRETS_REGION=us-east-1          # optional; defaults to the Cognito region
+TRISHUL_COGNITO_SECRET_ID=trishul/prod/cognito
+TRISHUL_SECRETS_REGION=us-east-1          # region for ALL Secrets Manager reads; set it explicitly
 TRISHUL_SECRETS_CACHE_SECONDS=300         # optional; default 300
-TRISHUL_COGNITO_REGION=us-east-1
-TRISHUL_COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
-TRISHUL_COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+Set `TRISHUL_SECRETS_REGION` explicitly: it is the region used to reach Secrets Manager, and once the
+Cognito region comes from a secret it can no longer be the fallback for it. The Cognito identifiers may
+instead be given inline (`TRISHUL_COGNITO_REGION`/`USER_POOL_ID`/`APP_CLIENT_ID`) if you prefer not to use
+a secret for them.
 
 The secret supplies host, port, database name, username and password, so **no `TRISHUL_DB_*` values are
 needed** when `TRISHUL_DB_SECRET_ID` is set. (`TRISHUL_DB_HOST`/`PORT`/`NAME` may still be set as a
@@ -124,7 +135,8 @@ secrets this service uses:
       "Action": ["secretsmanager:GetSecretValue"],
       "Resource": [
         "arn:aws:secretsmanager:us-east-1:<account>:secret:trishul/prod/db-app-*",
-        "arn:aws:secretsmanager:us-east-1:<account>:secret:trishul/prod/db-migration-*"
+        "arn:aws:secretsmanager:us-east-1:<account>:secret:trishul/prod/db-migration-*",
+        "arn:aws:secretsmanager:us-east-1:<account>:secret:trishul/prod/cognito-*"
       ]
     },
     {
@@ -210,6 +222,9 @@ Because the secret path is opt-in per environment, rollback is config-only and n
   TTL cache, JSON parsing, safe errors that never contain secret values.
 - `backend/src/trishul_api/db/credentials.py` — parses the RDS-format DB secret; redacts the password in
   `repr`.
+- `backend/src/trishul_api/auth/cognito_secret.py` — fills the Cognito region/userPoolId/appClientId from
+  a secret at startup (env fallback). Config, `main.py` and `.env` updated accordingly; `config.py` accepts
+  `TRISHUL_COGNITO_SECRET_ID` as an alternative to the inline Cognito ids.
 - `backend/tests/test_secrets.py` — caching, JSON parsing, AWS fetcher (fake client), credential parsing,
   connection-string assembly, engine wiring.
 - `docs/Trishul_Secrets_Manager.md` — this document.
@@ -238,7 +253,7 @@ Because the secret path is opt-in per environment, rollback is config-only and n
 - Supports rotation without downtime and recovers automatically from a rejected login.
 - Public config (Cognito IDs, host) kept separate from confidential values.
 
-**Test results** — `uv run pytest`: **172 passed**. `ruff check` + `ruff format --check`: clean. `mypy`
+**Test results** — `uv run pytest`: **176 passed**. `ruff check` + `ruff format --check`: clean. `mypy`
 (strict): clean. `alembic upgrade head --sql`: renders. Live read-only connection via the env path to RDS:
 OK (DB `TrishulDev`).
 

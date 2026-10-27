@@ -9,6 +9,7 @@ from typing import Any, cast
 import pytest
 from botocore.exceptions import ClientError
 
+from trishul_api.auth.cognito_secret import apply_cognito_secret
 from trishul_api.config import Settings
 from trishul_api.db.credentials import DbCredentials, db_credentials
 from trishul_api.db.engine import (
@@ -234,6 +235,25 @@ def test_engine_falls_back_to_env_for_fields_the_secret_omits() -> None:
     engine = create_db_engine(settings(db_secret_id=DB_SECRET, db_host="rds.example", db_name="TrishulDev"), provider)
     assert engine.url.host == "rds.example"
     assert engine.url.database == "TrishulDev"
+
+
+# ------------------------------------------------------------------ cognito identifiers
+
+
+def test_cognito_identifiers_are_read_from_the_secret() -> None:
+    body = json.dumps({"region": "us-east-1", "userPoolId": "us-east-1_abc", "appClientId": "client123"})
+    provider = SecretProvider(StaticSecretFetcher({"trishul/dev/cognito": body}), ttl_seconds=300)
+    resolved = apply_cognito_secret(settings(auth_mode="cognito", cognito_secret_id="trishul/dev/cognito"), provider)
+    assert resolved.cognito_region == "us-east-1"
+    assert resolved.cognito_user_pool_id == "us-east-1_abc"
+    assert resolved.cognito_app_client_id == "client123"
+    assert resolved.cognito_issuer.endswith("us-east-1_abc")
+
+
+def test_cognito_secret_is_ignored_without_an_id() -> None:
+    provider = SecretProvider(StaticSecretFetcher({}), ttl_seconds=300)
+    s = settings(auth_mode="cognito", cognito_user_pool_id="p", cognito_app_client_id="c")
+    assert apply_cognito_secret(s, provider) is s  # unchanged, no secret fetched
 
 
 def test_engine_without_a_secret_uses_the_env_login() -> None:

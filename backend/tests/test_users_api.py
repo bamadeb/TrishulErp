@@ -8,6 +8,7 @@ import httpx2 as httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
+from sqlalchemy.dialects import mssql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,7 @@ from trishul_api.auth import get_current_user, get_db
 from trishul_api.auth.identity import AccountExists, CreatedAccount, Delivery, SignInStatus
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import AuditLog
+from trishul_api.db.models import AppUser, AuditLog, Employee
 from trishul_api.main import create_app
 from trishul_api.modules.core.users.repository import UserRepository
 
@@ -349,6 +350,20 @@ def test_employee_picker_searches_active_employees_and_shows_links(client: TestC
     found = client.get("/api/v1/core/employees", params={"search": "sneha"}).json()
     assert [e["firstName"] for e in found] == ["Sneha"]
     assert found[0]["branchName"] == "Pune"
+
+
+def test_existence_checks_are_valid_sql_server_syntax() -> None:
+    # The tests run on SQLite, which accepts `SELECT EXISTS(...)`; SQL Server does not. The repository's
+    # existence checks must compile to the `SELECT TOP 1 ... WHERE ...` form, with no EXISTS in the SELECT.
+    statements = [
+        select(AppUser.id).where(AppUser.username == "x").limit(1),
+        select(AppUser.id).where(AppUser.cognito_sub == "x").limit(1),
+        select(Employee.id).where(Employee.id == 1, Employee.is_active).limit(1),
+    ]
+    for statement in statements:
+        sql = str(statement.compile(dialect=mssql.dialect())).upper()  # type: ignore[no-untyped-call]
+        assert sql.startswith("SELECT TOP"), sql
+        assert "EXISTS (" not in sql, sql
 
 
 def test_roles_for_the_form(client: TestClient) -> None:
