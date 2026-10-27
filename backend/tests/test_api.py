@@ -85,11 +85,11 @@ def test_me_returns_the_angular_auth_contract(api: FastAPI, client: TestClient, 
 
 def test_lookups(api: FastAPI, client: TestClient, signed_in: CurrentUser) -> None:
     api.dependency_overrides[get_core_repository] = FakeCoreRepository
-    assert client.get("/api/v1/core/lookups/CALL_SOURCE").json() == [
+    assert client.get("/api/v1/core/lookups/CALL_SOURCE/values").json() == [
         {"id": 1, "code": "PHONE", "name": "Phone", "sortOrder": 1}
     ]
-    assert client.get("/api/v1/core/lookups/NOPE").status_code == 404
-    assert client.get("/api/v1/core/lookups/bad-code").status_code == 422
+    assert client.get("/api/v1/core/lookups/NOPE/values").status_code == 404
+    assert client.get("/api/v1/core/lookups/bad-code/values").status_code == 422
 
 
 def test_service_calls_parse_query_and_scope(api: FastAPI, client: TestClient, signed_in: CurrentUser) -> None:

@@ -1,4 +1,5 @@
 from trishul_api.auth.deps import (
+    SIGNED_IN_USERS,
     CurrentUserDep,
     DbSession,
     RequestScope,
@@ -10,6 +11,7 @@ from trishul_api.auth.deps import (
 from trishul_api.auth.users import CurrentUser
 
 __all__ = [
+    "SIGNED_IN_USERS",
     "CurrentUser",
     "CurrentUserDep",
     "DbSession",

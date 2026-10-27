@@ -86,6 +86,30 @@ export default [
     },
   },
   {
+    // The standard API call: ApiClient + the generated function (docs/Trishul_API_Standards.md).
+    // Only libs/core may use HttpClient (ApiClient itself, interceptors, the mock API).
+    files: [
+      'libs/domains/**/*.ts',
+      'libs/shared/**/*.ts',
+      'apps/*/src/**/*.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@angular/common/http',
+              importNames: ['HttpClient'],
+              message:
+                "Call APIs with ApiClient and the generated function: api.call(listServiceCalls, query). Run 'nx run core-api:generate' after backend changes.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [
       '**/*.ts',
       '**/*.tsx',

@@ -8,17 +8,16 @@ export type { StrictHttpResponse } from './strict-http-response';
 export { Api } from './api';
 
 export type { BranchRef } from './models/branch-ref';
-export type { HttpValidationError } from './models/http-validation-error';
 export type { LookupValueOut } from './models/lookup-value-out';
 export type { Me } from './models/me';
 export type { PageServiceCallListItem } from './models/page-service-call-list-item';
 export type { PrincipalRef } from './models/principal-ref';
+export type { ProblemDetails } from './models/problem-details';
 export type { ServiceCallListItem } from './models/service-call-list-item';
-export type { ValidationError } from './models/validation-error';
 
-export type { Me$Params as Me$Params } from './fn/core/me';
-export { me as me } from './fn/core/me';
-export type { LookupValues$Params as LookupValues$Params } from './fn/core/lookup-values';
-export { lookupValues as lookupValues } from './fn/core/lookup-values';
+export type { GetMe$Params as GetMe$Params } from './fn/core/get-me';
+export { getMe as getMe } from './fn/core/get-me';
+export type { ListLookupValues$Params as ListLookupValues$Params } from './fn/core/list-lookup-values';
+export { listLookupValues as listLookupValues } from './fn/core/list-lookup-values';
 export type { ListServiceCalls$Params as ListServiceCalls$Params } from './fn/service/list-service-calls';
 export { listServiceCalls as listServiceCalls } from './fn/service/list-service-calls';

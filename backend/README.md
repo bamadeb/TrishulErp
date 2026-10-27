@@ -58,6 +58,10 @@ tests/
 
 ## Conventions
 
+**API design follows [docs/Trishul_API_Standards.md](../docs/Trishul_API_Standards.md)**: URLs,
+function names, status codes, errors, permissions and the Angular calling pattern.
+`tests/test_api_conventions.py` checks every endpoint against it.
+
 - **The SQL scripts in `database/` own the schema.** Never run `create_all()` or ORM migrations.
 - **ORM models are generated** for all tables (220) by `scripts/generate_models.py`, from
   `database/01..07, 12`, the SQL in Alembic migrations, descriptions from `11_descriptions.sql`, and

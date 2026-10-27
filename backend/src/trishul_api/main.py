@@ -9,7 +9,7 @@ from sqlalchemy import Engine, text
 
 from trishul_api.auth.tokens import TokenVerifier, create_token_verifier
 from trishul_api.auth.users import UserDirectory, database_user_loader
-from trishul_api.common.errors import install_error_handlers, problem
+from trishul_api.common.errors import STANDARD_ERROR_RESPONSES, install_error_handlers, problem
 from trishul_api.common.security import install_security_headers
 from trishul_api.config import Settings, get_settings
 from trishul_api.db import create_db_engine
@@ -34,7 +34,7 @@ def create_api_v1(settings: Settings) -> FastAPI:
     )
     install_error_handlers(api)
     for router in V1_ROUTERS:
-        api.include_router(router)
+        api.include_router(router, responses=STANDARD_ERROR_RESPONSES)
     return api
 
 

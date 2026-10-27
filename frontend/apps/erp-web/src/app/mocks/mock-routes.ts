@@ -153,7 +153,7 @@ export const mockRoutes: MockRoute[] = [
   },
   {
     method: 'GET',
-    path: '/core/lookups/:type',
+    path: '/core/lookups/:typeCode/values',
     handle: () => [],
   },
 ];

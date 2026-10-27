@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -51,6 +51,12 @@ def get_current_user(
 
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
+
+
+#: openapi_extra for the few endpoints every signed-in user may call without a permission code
+#: (e.g. /me, dropdown values). Every other endpoint must use require_permission(...);
+#: tests/test_api_conventions.py checks this.
+SIGNED_IN_USERS: dict[str, Any] = {"x-access": "Any signed-in user"}
 
 
 def require_permission(*codes: str) -> Callable[[CurrentUser], CurrentUser]:

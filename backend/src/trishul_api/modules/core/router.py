@@ -2,8 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path
 
-from trishul_api.auth import CurrentUserDep, DbSession
-from trishul_api.common.errors import NotFound
+from trishul_api.auth import SIGNED_IN_USERS, CurrentUserDep, DbSession
+from trishul_api.common.errors import NOT_FOUND_RESPONSE, NotFound
 from trishul_api.modules.core.repository import CoreRepository
 from trishul_api.modules.core.schemas import LookupValueOut, Me
 
@@ -17,8 +17,12 @@ def get_core_repository(db: DbSession) -> CoreRepository:
 CoreRepo = Annotated[CoreRepository, Depends(get_core_repository)]
 
 
-@router.get("/me", summary="Signed-in user with permissions, branches and brands")
-def me(user: CurrentUserDep, repo: CoreRepo) -> Me:
+@router.get(
+    "/me",
+    summary="Signed-in user with permissions, branches and brands",
+    openapi_extra=SIGNED_IN_USERS,
+)
+def get_me(user: CurrentUserDep, repo: CoreRepo) -> Me:
     return Me(
         id=user.id,
         username=user.username,
@@ -31,9 +35,14 @@ def me(user: CurrentUserDep, repo: CoreRepo) -> Me:
     )
 
 
-@router.get("/core/lookups/{type_code}", summary="Values of an editable dropdown list")
-def lookup_values(
-    type_code: Annotated[str, Path(max_length=40, pattern=r"^[A-Z0-9_]+$")],
+@router.get(
+    "/core/lookups/{typeCode}/values",
+    summary="Values of an editable dropdown list",
+    responses=NOT_FOUND_RESPONSE,
+    openapi_extra=SIGNED_IN_USERS,  # every screen needs its dropdown values
+)
+def list_lookup_values(
+    type_code: Annotated[str, Path(alias="typeCode", max_length=40, pattern=r"^[A-Z0-9_]+$")],
     _: CurrentUserDep,
     repo: CoreRepo,
 ) -> list[LookupValueOut]:

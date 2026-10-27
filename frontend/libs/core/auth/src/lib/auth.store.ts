@@ -7,7 +7,7 @@ import {
   withState,
 } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
-import { ApiClient, me, withoutErrorToast } from '@trishul/core-api';
+import { ApiClient, getMe, withoutErrorToast } from '@trishul/core-api';
 import { readStorage, writeStorage } from '@trishul/shared-util';
 import { CurrentUser } from './auth.models';
 
@@ -55,7 +55,7 @@ export const AuthStore = signalStore(
       async loadCurrentUser(): Promise<void> {
         // The login page reports failures itself, so no global error toast.
         const user = await firstValueFrom(
-          api.call(me, undefined, withoutErrorToast()),
+          api.call(getMe, undefined, withoutErrorToast()),
         );
         const savedBranch = readNumber(BRANCH_KEY);
         const savedPrincipal = readNumber(PRINCIPAL_KEY);

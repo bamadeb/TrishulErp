@@ -1,5 +1,5 @@
 import { Injectable, Signal, inject, signal } from '@angular/core';
-import { ApiClient, LookupValueOut, lookupValues } from '@trishul/core-api';
+import { ApiClient, LookupValueOut, listLookupValues } from '@trishul/core-api';
 
 /** An editable dropdown value (core.lookup_value), e.g. a CALL_SOURCE. */
 export type LookupValue = LookupValueOut;
@@ -16,7 +16,7 @@ export class LookupStore {
     if (!values) {
       const state = signal<LookupValue[]>([]);
       // The API returns them sorted (sort_order, label).
-      this.api.call(lookupValues, { type_code: typeCode }).subscribe({
+      this.api.call(listLookupValues, { typeCode }).subscribe({
         next: (rows) => state.set(rows),
         // Forget failures so the next screen retries.
         error: () => this.cache.delete(typeCode),

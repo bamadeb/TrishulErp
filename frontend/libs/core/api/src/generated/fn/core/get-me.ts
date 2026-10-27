@@ -7,16 +7,14 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { LookupValueOut } from '../../models/lookup-value-out';
+import { Me } from '../../models/me';
 
-export interface LookupValues$Params {
-  type_code: string;
+export interface GetMe$Params {
 }
 
-export function lookupValues(http: HttpClient, rootUrl: string, params: LookupValues$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<LookupValueOut>>> {
-  const rb = new RequestBuilder(rootUrl, lookupValues.PATH, 'get');
+export function getMe(http: HttpClient, rootUrl: string, params?: GetMe$Params, context?: HttpContext): Observable<StrictHttpResponse<Me>> {
+  const rb = new RequestBuilder(rootUrl, getMe.PATH, 'get');
   if (params) {
-    rb.path('type_code', params.type_code, {});
   }
 
   return http.request(
@@ -24,9 +22,9 @@ export function lookupValues(http: HttpClient, rootUrl: string, params: LookupVa
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<Array<LookupValueOut>>;
+      return r as StrictHttpResponse<Me>;
     })
   );
 }
 
-lookupValues.PATH = '/core/lookups/{type_code}';
+getMe.PATH = '/me';

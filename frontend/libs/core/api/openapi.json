@@ -11,7 +11,7 @@
           "core"
         ],
         "summary": "Signed-in user with permissions, branches and brands",
-        "operationId": "me",
+        "operationId": "get_me",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -23,12 +23,42 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "Not signed in, or the session has expired.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -38,16 +68,17 @@
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "x-access": "Any signed-in user"
       }
     },
-    "/core/lookups/{type_code}": {
+    "/core/lookups/{typeCode}/values": {
       "get": {
         "tags": [
           "core"
         ],
         "summary": "Values of an editable dropdown list",
-        "operationId": "lookup_values",
+        "operationId": "list_lookup_values",
         "security": [
           {
             "HTTPBearer": []
@@ -55,14 +86,14 @@
         ],
         "parameters": [
           {
-            "name": "type_code",
+            "name": "typeCode",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "maxLength": 40,
               "pattern": "^[A-Z0-9_]+$",
-              "title": "Type Code"
+              "title": "Typecode"
             }
           }
         ],
@@ -76,22 +107,63 @@
                   "items": {
                     "$ref": "#/components/schemas/LookupValueOut"
                   },
-                  "title": "Response Lookup Values"
+                  "title": "Response List Lookup Values"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Invalid input; `errors` lists the messages per field.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
           }
-        }
+        },
+        "x-access": "Any signed-in user"
       }
     },
     "/svc/service-calls": {
@@ -226,12 +298,42 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "Not signed in, or the session has expired.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -264,19 +366,6 @@
           "name"
         ],
         "title": "BranchRef"
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
       },
       "LookupValueOut": {
         "properties": {
@@ -431,6 +520,66 @@
           "name"
         ],
         "title": "PrincipalRef"
+      },
+      "ProblemDetails": {
+        "properties": {
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors",
+            "description": "Validation messages per field (422)."
+          },
+          "traceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traceid",
+            "description": "Quote this when reporting a server error (500)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "title"
+        ],
+        "title": "ProblemDetails",
+        "description": "The body of every error response (RFC 7807), for the OpenAPI document and the Angular client."
       },
       "ServiceCallListItem": {
         "properties": {
@@ -599,46 +748,6 @@
         ],
         "title": "ServiceCallListItem",
         "description": "A row of the call register."
-      },
-      "ValidationError": {
-        "properties": {
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Location"
-          },
-          "msg": {
-            "type": "string",
-            "title": "Message"
-          },
-          "type": {
-            "type": "string",
-            "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
-          }
-        },
-        "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError"
       }
     },
     "securitySchemes": {

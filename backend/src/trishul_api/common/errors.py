@@ -7,12 +7,51 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 from sqlalchemy.orm.exc import StaleDataError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
 
 PROBLEM_JSON = "application/problem+json"
+
+
+class ProblemDetails(BaseModel):
+    """The body of every error response (RFC 7807), for the OpenAPI document and the Angular client."""
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    status: int
+    title: str
+    detail: str | None = None
+    errors: dict[str, list[str]] | None = Field(None, description="Validation messages per field (422).")
+    trace_id: str | None = Field(None, description="Quote this when reporting a server error (500).")
+
+
+def problem_response(description: str) -> dict[str, Any]:
+    """An OpenAPI `responses` entry for an error status."""
+    return {"model": ProblemDetails, "description": description}
+
+
+# Documented on every endpoint (the v1 app adds them when it includes a router).
+STANDARD_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    401: problem_response("Not signed in, or the session has expired."),
+    403: problem_response("No permission for this action, or outside the user's branches / brands."),
+    422: problem_response("Invalid input; `errors` lists the messages per field."),
+    500: problem_response("Server error; quote `traceId` when reporting it."),
+}
+
+# Add to endpoints with a record id in the path: responses=NOT_FOUND_RESPONSE.
+NOT_FOUND_RESPONSE: dict[int | str, dict[str, Any]] = {
+    404: problem_response("No such record, or the user may not see it."),
+}
+
+# Add to update / delete endpoints that take the record's rowVersion in If-Match.
+CONCURRENCY_RESPONSES: dict[int | str, dict[str, Any]] = {
+    409: problem_response("Another user changed the record since it was loaded; reload and retry."),
+    428: problem_response("The If-Match header with the record's rowVersion is missing."),
+}
 
 
 class ApiError(Exception):
