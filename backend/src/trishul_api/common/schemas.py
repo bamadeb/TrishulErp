@@ -7,9 +7,17 @@ from pydantic.alias_generators import to_camel
 
 
 class ApiModel(BaseModel):
-    """Base for response bodies and query models: snake_case in Python, camelCase in JSON."""
+    """Base for response bodies and query models: snake_case in Python, camelCase in JSON.
 
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+    In OpenAPI, response fields with defaults are still required (responses always include them),
+    so the generated TypeScript types aren't needlessly optional."""
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        json_schema_serialization_defaults_required=True,
+    )
 
 
 class InputModel(ApiModel):

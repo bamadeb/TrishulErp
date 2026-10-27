@@ -5,8 +5,10 @@ description = "Trishul ERP REST API (FastAPI, SQL Server on Amazon RDS)"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.20.1",
+    "boto3>=1.43.119",
     "fastapi>=0.161.1",
     "pydantic-settings>=2.16.1",
+    "pydantic[email]>=2.14.1",
     "pyjwt[crypto]>=2.15.1",
     "pyodbc>=5.3.0",
     "sqlalchemy>=2.0",
@@ -22,6 +24,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "boto3-stubs[cognito-idp]>=1.43.119",
     "httpx2>=2.16.0",
     "mypy>=2.4.0",
     "pytest>=9.1.1",

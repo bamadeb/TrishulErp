@@ -51,6 +51,12 @@
       ],
       "@trishul/service-feature-calls": [
         "./libs/domains/service/feature-calls/src/index.ts"
+      ],
+      "@trishul/admin-data-access": [
+        "./libs/domains/admin/data-access/src/index.ts"
+      ],
+      "@trishul/admin-feature-users": [
+        "./libs/domains/admin/feature-users/src/index.ts"
       ]
     }
   },

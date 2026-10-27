@@ -88,6 +88,13 @@ class Conflict(ApiError):
     default_detail = "Another user changed this record after you opened it. Reload it and try again."
 
 
+class AlreadyExists(ApiError):
+    """A record with the same unique key (email, code, ...) exists."""
+
+    status = 409
+    title = "Already exists"
+
+
 class PreconditionRequired(ApiError):
     status = 428
     title = "If-Match header required"

@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     cognito_user_pool_id: str = ""
     cognito_app_client_id: str = ""
     dev_username: str = ""
+    # Local development only: the AWS CLI profile for Cognito admin calls (user management).
+    # In AWS the ECS task role supplies credentials, so leave it empty there.
+    aws_profile: str | None = None
     # How long a user's roles and permissions are cached before re-reading core.app_user.
     user_cache_seconds: int = 60
 

@@ -1,0 +1,10 @@
+{
+  "name": "admin-feature-users",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/admin/feature-users/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:admin", "type:feature"],
+  "// targets": "to see all targets run: nx show project admin-feature-users --web",
+  "targets": {}
+}

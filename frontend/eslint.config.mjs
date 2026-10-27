@@ -80,6 +80,14 @@ export default [
                 'scope:core',
               ],
             },
+            {
+              sourceTag: 'scope:admin',
+              onlyDependOnLibsWithTags: [
+                'scope:admin',
+                'scope:shared',
+                'scope:core',
+              ],
+            },
           ],
         },
       ],

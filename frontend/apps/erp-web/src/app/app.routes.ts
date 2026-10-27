@@ -22,6 +22,11 @@ export const appRoutes: Route[] = [
         loadChildren: () =>
           import('@trishul/service-feature-calls').then((m) => m.serviceRoutes),
       },
+      {
+        path: 'admin',
+        loadChildren: () =>
+          import('@trishul/admin-feature-users').then((m) => m.adminRoutes),
+      },
       // Phase 1+: masters, admin, inventory, purchase, sales, presales, hr, accounts, integration, reports.
       { path: 'forbidden', title: 'Access denied', component: ForbiddenPage },
       { path: '**', title: 'Not found', component: NotFoundPage },

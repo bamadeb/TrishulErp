@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from trishul_api.auth.identity import IdentityProvider
 from trishul_api.auth.tokens import TokenVerifier
 from trishul_api.auth.users import CurrentUser, UserDirectory
 from trishul_api.common.errors import Forbidden, Unauthorized
@@ -34,6 +35,11 @@ def get_token_verifier(request: Request) -> TokenVerifier:
 def get_user_directory(request: Request) -> UserDirectory:
     directory: UserDirectory = request.app.state.user_directory
     return directory
+
+
+def get_identity_provider(request: Request) -> IdentityProvider:
+    provider: IdentityProvider = request.app.state.identity_provider
+    return provider
 
 
 def get_current_user(

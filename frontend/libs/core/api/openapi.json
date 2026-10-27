@@ -166,6 +166,884 @@
         "x-access": "Any signed-in user"
       }
     },
+    "/core/users": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Users, with their roles",
+        "operationId": "list_users",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "roleId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Roleid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_UserListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Add a user and their sign-in account",
+        "operationId": "create_user",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCreated"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/users/{userId}": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "One user",
+        "operationId": "get_user",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Userid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Change the linked employee, mobile, default branch, roles or brands",
+        "operationId": "update_user",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Userid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/users/{userId}/deactivate": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Block sign-in and end the user's sessions",
+        "operationId": "deactivate_user",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Userid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/users/{userId}/activate": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Allow the user to sign in again",
+        "operationId": "activate_user",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Userid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/users/{userId}/reset-password": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Email a reset, or return a temporary password to hand over",
+        "operationId": "reset_user_password",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Userid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/roles": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Roles that can be granted",
+        "operationId": "list_roles",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Roles"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/employees": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Active employees matching a search, to link a user to",
+        "operationId": "list_employees",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Code, name, mobile or email.",
+              "title": "Search"
+            },
+            "description": "Code, name, mobile or email."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EmployeeOption"
+                  },
+                  "title": "Response List Employees"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/svc/service-calls": {
       "get": {
         "tags": [
@@ -367,6 +1245,115 @@
         ],
         "title": "BranchRef"
       },
+      "EmployeeOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "firstName": {
+            "type": "string",
+            "title": "Firstname"
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastname"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designation"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "linkedUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linkeduserid",
+            "description": "The user already linked to this employee, if any."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeCode",
+          "firstName",
+          "lastName",
+          "mobile",
+          "email",
+          "designation",
+          "department",
+          "branchName",
+          "linkedUserId"
+        ],
+        "title": "EmployeeOption",
+        "description": "An employee to link a user to."
+      },
       "LookupValueOut": {
         "properties": {
           "id": {
@@ -498,6 +1485,96 @@
         ],
         "title": "Page[ServiceCallListItem]"
       },
+      "Page_UserListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[UserListItem]"
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "email",
+              "show"
+            ],
+            "title": "Delivery",
+            "default": "email"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PasswordResetRequest"
+      },
+      "PasswordResetResult": {
+        "properties": {
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "email",
+              "show"
+            ],
+            "title": "Delivery"
+          },
+          "temporaryPassword": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temporarypassword"
+          },
+          "signInStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "password-change-required",
+              "reset-required",
+              "disabled",
+              "missing",
+              "development",
+              "unknown"
+            ],
+            "title": "Signinstatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery",
+          "temporaryPassword",
+          "signInStatus"
+        ],
+        "title": "PasswordResetResult"
+      },
       "PrincipalRef": {
         "properties": {
           "id": {
@@ -580,6 +1657,114 @@
         ],
         "title": "ProblemDetails",
         "description": "The body of every error response (RFC 7807), for the OpenAPI document and the Angular client."
+      },
+      "RoleGrant": {
+        "properties": {
+          "roleId": {
+            "type": "integer",
+            "title": "Roleid"
+          },
+          "roleCode": {
+            "type": "string",
+            "title": "Rolecode"
+          },
+          "roleName": {
+            "type": "string",
+            "title": "Rolename"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roleId",
+          "roleCode",
+          "roleName",
+          "branchId",
+          "branchName"
+        ],
+        "title": "RoleGrant",
+        "description": "A role, on one branch or (branchId null) on all branches."
+      },
+      "RoleGrantInput": {
+        "properties": {
+          "roleId": {
+            "type": "integer",
+            "title": "Roleid"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "roleId"
+        ],
+        "title": "RoleGrantInput"
+      },
+      "RoleOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "description"
+        ],
+        "title": "RoleOption"
       },
       "ServiceCallListItem": {
         "properties": {
@@ -748,6 +1933,718 @@
         ],
         "title": "ServiceCallListItem",
         "description": "A row of the call register."
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Sign-in name; cannot be changed later."
+          },
+          "employeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeeid",
+            "description": "The employee this user signs in as."
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(\\+91)?[6-9]\\d{9}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile"
+          },
+          "defaultBranchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbranchid"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleGrantInput"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Roles"
+          },
+          "principalIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Principalids",
+            "description": "Brands the user may see."
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "email",
+              "show"
+            ],
+            "title": "Delivery",
+            "description": "email: Cognito sends an invitation; show: return a password.",
+            "default": "email"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email",
+          "roles"
+        ],
+        "title": "UserCreate"
+      },
+      "UserCreated": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile",
+            "description": "The user's own mobile, if set."
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "The user's mobile, else the linked employee's."
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "employeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecode"
+          },
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstname"
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastname"
+          },
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designation"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "isLocked": {
+            "type": "boolean",
+            "title": "Islocked"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleGrant"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "defaultBranchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbranchid"
+          },
+          "principalIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Principalids"
+          },
+          "signInStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "password-change-required",
+              "reset-required",
+              "disabled",
+              "missing",
+              "development",
+              "unknown"
+            ],
+            "title": "Signinstatus"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          },
+          "temporaryPassword": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temporarypassword",
+            "description": "Only when delivery was 'show': give it to the user once; it must be changed at sign-in."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email",
+          "mobile",
+          "phone",
+          "displayName",
+          "employeeId",
+          "employeeCode",
+          "firstName",
+          "lastName",
+          "designation",
+          "department",
+          "isActive",
+          "isLocked",
+          "createdAt",
+          "roles",
+          "defaultBranchId",
+          "principalIds",
+          "signInStatus",
+          "rowVersion",
+          "temporaryPassword"
+        ],
+        "title": "UserCreated"
+      },
+      "UserDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile",
+            "description": "The user's own mobile, if set."
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "The user's mobile, else the linked employee's."
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "employeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecode"
+          },
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstname"
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastname"
+          },
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designation"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "isLocked": {
+            "type": "boolean",
+            "title": "Islocked"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleGrant"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "defaultBranchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbranchid"
+          },
+          "principalIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Principalids"
+          },
+          "signInStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "password-change-required",
+              "reset-required",
+              "disabled",
+              "missing",
+              "development",
+              "unknown"
+            ],
+            "title": "Signinstatus"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email",
+          "mobile",
+          "phone",
+          "displayName",
+          "employeeId",
+          "employeeCode",
+          "firstName",
+          "lastName",
+          "designation",
+          "department",
+          "isActive",
+          "isLocked",
+          "createdAt",
+          "roles",
+          "defaultBranchId",
+          "principalIds",
+          "signInStatus",
+          "rowVersion"
+        ],
+        "title": "UserDetail"
+      },
+      "UserListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile",
+            "description": "The user's own mobile, if set."
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "The user's mobile, else the linked employee's."
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "employeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecode"
+          },
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstname"
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastname"
+          },
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designation"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "isLocked": {
+            "type": "boolean",
+            "title": "Islocked"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleGrant"
+            },
+            "type": "array",
+            "title": "Roles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email",
+          "mobile",
+          "phone",
+          "displayName",
+          "employeeId",
+          "employeeCode",
+          "firstName",
+          "lastName",
+          "designation",
+          "department",
+          "isActive",
+          "isLocked",
+          "createdAt",
+          "roles"
+        ],
+        "title": "UserListItem"
+      },
+      "UserUpdate": {
+        "properties": {
+          "employeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeeid",
+            "description": "null unlinks the employee."
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(\\+91)?[6-9]\\d{9}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile"
+          },
+          "defaultBranchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbranchid"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RoleGrantInput"
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
+          },
+          "principalIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserUpdate",
+        "description": "Only the fields sent are changed; roles and principalIds replace the current lists."
       }
     },
     "securitySchemes": {

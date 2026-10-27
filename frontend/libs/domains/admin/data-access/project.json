@@ -1,0 +1,10 @@
+{
+  "name": "admin-data-access",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/admin/data-access/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:admin", "type:data-access"],
+  "// targets": "to see all targets run: nx show project admin-data-access --web",
+  "targets": {}
+}

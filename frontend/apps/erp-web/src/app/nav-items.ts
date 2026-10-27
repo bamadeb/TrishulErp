@@ -1,3 +1,4 @@
+import { USER_VIEW_PERMISSIONS } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
 import { SERVICE_CALL_VIEW_PERMISSIONS } from '@trishul/service-data-access';
 
@@ -12,6 +13,17 @@ export const navItems: NavItem[] = [
         label: 'Service calls',
         route: '/service/calls',
         permissions: [...SERVICE_CALL_VIEW_PERMISSIONS],
+      },
+    ],
+  },
+  {
+    label: 'Administration',
+    icon: 'admin_panel_settings',
+    children: [
+      {
+        label: 'Users',
+        route: '/admin/users',
+        permissions: [...USER_VIEW_PERMISSIONS],
       },
     ],
   },

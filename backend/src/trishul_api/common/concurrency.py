@@ -7,8 +7,11 @@ from fastapi import Header
 from trishul_api.common.errors import ApiError, Conflict, PreconditionRequired
 
 
-def if_match_row_version(if_match: Annotated[str | None, Header()] = None) -> bytes:
-    """Dependency for update/delete endpoints: the row_version the client loaded, from If-Match."""
+def if_match_row_version(if_match: Annotated[str | None, Header(include_in_schema=False)] = None) -> bytes:
+    """Dependency for update/delete endpoints: the row_version the client loaded, from If-Match.
+
+    Not listed per endpoint in OpenAPI: the Angular client sends it via withRowVersion(...), and the
+    428 / 409 responses (CONCURRENCY_RESPONSES) document it."""
     if not if_match:
         raise PreconditionRequired("Send the record's rowVersion in the If-Match header.")
     try:

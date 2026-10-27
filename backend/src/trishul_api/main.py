@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import Engine, text
 
+from trishul_api.auth.identity import IdentityProvider, create_identity_provider
 from trishul_api.auth.tokens import TokenVerifier, create_token_verifier
 from trishul_api.auth.users import UserDirectory, database_user_loader
 from trishul_api.common.errors import STANDARD_ERROR_RESPONSES, install_error_handlers, problem
@@ -14,10 +15,11 @@ from trishul_api.common.security import install_security_headers
 from trishul_api.config import Settings, get_settings
 from trishul_api.db import create_db_engine
 from trishul_api.modules.core.router import router as core_router
+from trishul_api.modules.core.users.router import router as users_router
 from trishul_api.modules.service.router import router as service_router
 
 # One router per module. A new module is added here and nowhere else.
-V1_ROUTERS: list[APIRouter] = [core_router, service_router]
+V1_ROUTERS: list[APIRouter] = [core_router, users_router, service_router]
 
 
 def create_api_v1(settings: Settings) -> FastAPI:
@@ -42,8 +44,10 @@ def create_app(
     settings: Settings | None = None,
     engine: Engine | None = None,
     token_verifier: TokenVerifier | None = None,
+    identity_provider: IdentityProvider | None = None,
 ) -> FastAPI:
-    """Application factory and composition root. Tests pass their own engine and token verifier."""
+    """Application factory and composition root. Tests pass their own engine, token verifier and
+    identity provider."""
     settings = settings or get_settings()
     logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     api = create_api_v1(settings)
@@ -56,6 +60,7 @@ def create_app(
         api.state.engine = db_engine
         api.state.token_verifier = token_verifier or create_token_verifier(settings)
         api.state.user_directory = UserDirectory(database_user_loader(db_engine), settings.user_cache_seconds)
+        api.state.identity_provider = identity_provider or create_identity_provider(settings)
         yield
         db_engine.dispose()
 

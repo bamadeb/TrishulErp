@@ -1,0 +1,246 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add user' : (user()?.displayName ?? 'User')"
+  [subtitle]="isNew() ? 'Creates the sign-in account and the ERP user together' : (user()?.username ?? '')"
+>
+  <a mat-button routerLink="/admin/users">
+    <mat-icon>arrow_back</mat-icon>
+    All users
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Account</h2>
+      <mat-form-field appearance="outline" class="wide employee">
+        <mat-label>Employee</mat-label>
+        <mat-icon matPrefix>badge</mat-icon>
+        <input
+          matInput
+          formControlName="employee"
+          [matAutocomplete]="employeeAuto"
+          placeholder="Search by code, name, mobile or email"
+        />
+        @if (canManage && form.controls.employee.value) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          aria-label="Clear employee"
+          (click)="clearEmployee()"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+        }
+        <mat-autocomplete
+          #employeeAuto="matAutocomplete"
+          [displayWith]="employeeText"
+          (optionSelected)="onEmployeePicked($event.option.value)"
+        >
+          @for (employee of employeeOptions(); track employee.id) {
+          <mat-option [value]="employee" [disabled]="linkedElsewhere(employee)">
+            <div>{{ employeeLabel(employee) }}</div>
+            <div class="option-detail">
+              {{ employee.branchName }}{{ employee.mobile ? ' · ' +
+              employee.mobile : '' }}{{ linkedElsewhere(employee) ? ' · already
+              a user' : '' }}
+            </div>
+          </mat-option>
+          }
+        </mat-autocomplete>
+        <mat-hint>
+          Name, phone and designation come from the employee record.
+        </mat-hint>
+        <mat-error
+          >Pick an employee from the list, or clear the field.</mat-error
+        >
+      </mat-form-field>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Email (sign-in name)</mat-label>
+          <input
+            matInput
+            type="email"
+            formControlName="email"
+            autocomplete="off"
+          />
+          @if (isNew()) {
+          <mat-hint>Can't be changed later.</mat-hint>
+          }
+          <mat-error>Enter a valid email address.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Mobile</mat-label>
+          <input
+            matInput
+            formControlName="mobile"
+            inputmode="tel"
+            placeholder="9876543210"
+          />
+          @if (form.controls.employee.value) {
+          <mat-hint>Blank: the employee's phone.</mat-hint>
+          }
+          <mat-error>Enter a 10-digit Indian mobile number.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Default branch</mat-label>
+          <mat-select formControlName="defaultBranchId">
+            <mat-option [value]="NO_BRANCH">None</mat-option>
+            @for (branch of branches(); track branch.id) {
+            <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Selected when they sign in.</mat-hint>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section formArrayName="roles">
+      <h2>Roles</h2>
+      <p class="help">
+        A role on one branch applies there only; "All branches" applies
+        everywhere.
+      </p>
+      @if (roleOptions(); as options) { @for (row of roleRows; track row; let i
+      = $index) {
+      <div class="role-row" [formGroupName]="i">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Role</mat-label>
+          <mat-select formControlName="roleId">
+            @for (role of options; track role.id) {
+            <mat-option [value]="role.id">{{ role.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Branch</mat-label>
+          <mat-select formControlName="branchId">
+            <mat-option [value]="NO_BRANCH">All branches</mat-option>
+            @for (branch of branches(); track branch.id) {
+            <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (canManage) {
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="'Remove role ' + (i + 1)"
+          (click)="removeRole(i)"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+        }
+      </div>
+      } @if (form.controls.roles.hasError('required') &&
+      form.controls.roles.touched) {
+      <p class="field-error" role="alert">Give the user at least one role.</p>
+      } @if (canManage) {
+      <button mat-button type="button" (click)="addRole()">
+        <mat-icon>add</mat-icon>
+        Add role
+      </button>
+      } } @else {
+      <mat-progress-bar mode="indeterminate" aria-label="Loading roles" />
+      }
+    </section>
+
+    <section>
+      <h2>Brands</h2>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Brands this user may see</mat-label>
+        <mat-select formControlName="principalIds" multiple>
+          @for (principal of principals(); track principal.id) {
+          <mat-option [value]="principal.id">{{ principal.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint
+          >Administrators, management and accounts see every brand
+          anyway.</mat-hint
+        >
+      </mat-form-field>
+    </section>
+
+    @if (isNew()) {
+    <section>
+      <h2>First password</h2>
+      <mat-radio-group
+        class="choices"
+        formControlName="delivery"
+        aria-label="First password"
+      >
+        <mat-radio-button value="email">
+          Email an invitation with a temporary password (from Cognito)
+        </mat-radio-button>
+        <mat-radio-button value="show">
+          Show me a temporary password to hand over
+        </mat-radio-button>
+      </mat-radio-group>
+    </section>
+    } @if (canManage) {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add user' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/admin/users">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (user(); as current) {
+  <aside class="card side" aria-label="Sign-in and employee">
+    <h2>Sign-in</h2>
+    <div class="status-line">
+      <trishul-status-badge
+        [status]="current.isActive ? 'Active' : 'Inactive'"
+        [severities]="activeSeverity"
+      />
+      <span>{{ signInLabels[current.signInStatus] }}</span>
+    </div>
+    @if (current.employeeId) {
+    <h2>Employee</h2>
+    <dl class="facts">
+      <dt>Code</dt>
+      <dd>{{ current.employeeCode }}</dd>
+      <dt>Name</dt>
+      <dd>{{ current.firstName }} {{ current.lastName }}</dd>
+      <dt>Phone</dt>
+      <dd>{{ current.phone ?? '—' }}</dd>
+      <dt>Designation</dt>
+      <dd>{{ current.designation ?? '—' }}</dd>
+      <dt>Department</dt>
+      <dd>{{ current.department ?? '—' }}</dd>
+    </dl>
+    } @if (canManage) { @if (current.isActive) {
+    <button mat-stroked-button type="button" (click)="resetPassword()">
+      <mat-icon>key</mat-icon>
+      Reset password
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      class="danger"
+      (click)="deactivate()"
+    >
+      <mat-icon>block</mat-icon>
+      Deactivate
+    </button>
+    } @else {
+    <button mat-stroked-button type="button" (click)="activate()">
+      <mat-icon>check_circle</mat-icon>
+      Activate
+    </button>
+    } }
+  </aside>
+  }
+</div>

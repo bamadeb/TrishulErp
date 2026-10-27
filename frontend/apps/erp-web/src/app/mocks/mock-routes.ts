@@ -1,6 +1,7 @@
 import { HttpParams } from '@angular/common/http';
 import { CurrentUser } from '@trishul/core-auth';
 import { MockRoute } from '@trishul/core-http';
+import { mockUserRoutes } from './mock-users';
 import { PageServiceCallListItem } from '@trishul/core-api';
 import {
   CALL_STATUSES,
@@ -156,4 +157,5 @@ export const mockRoutes: MockRoute[] = [
     path: '/core/lookups/:typeCode/values',
     handle: () => [],
   },
+  ...mockUserRoutes,
 ];
