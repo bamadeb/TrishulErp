@@ -7,7 +7,13 @@ export { RequestBuilder } from './request-builder';
 export type { StrictHttpResponse } from './strict-http-response';
 export { Api } from './api';
 
+export type { BodyApplyServiceCallImport } from './models/body-apply-service-call-import';
+export type { BodyPreviewServiceCallImport } from './models/body-preview-service-call-import';
 export type { BranchRef } from './models/branch-ref';
+export type { BydImportPreview } from './models/byd-import-preview';
+export type { BydImportResult } from './models/byd-import-result';
+export type { BydImportRow } from './models/byd-import-row';
+export type { BydImportSummary } from './models/byd-import-summary';
 export type { CompanyOption } from './models/company-option';
 export type { DepartmentOption } from './models/department-option';
 export type { DesignationOption } from './models/designation-option';
@@ -77,3 +83,7 @@ export type { ListDesignations$Params as ListDesignations$Params } from './fn/em
 export { listDesignations as listDesignations } from './fn/employees/list-designations';
 export type { ListServiceCalls$Params as ListServiceCalls$Params } from './fn/service/list-service-calls';
 export { listServiceCalls as listServiceCalls } from './fn/service/list-service-calls';
+export type { PreviewServiceCallImport$Params as PreviewServiceCallImport$Params } from './fn/service/preview-service-call-import';
+export { previewServiceCallImport as previewServiceCallImport } from './fn/service/preview-service-call-import';
+export type { ApplyServiceCallImport$Params as ApplyServiceCallImport$Params } from './fn/service/apply-service-call-import';
+export { applyServiceCallImport as applyServiceCallImport } from './fn/service/apply-service-call-import';

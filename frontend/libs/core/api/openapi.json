@@ -2074,10 +2074,256 @@
           }
         }
       }
+    },
+    "/svc/service-calls/import/preview": {
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Dry run of a BYD service-call import (nothing is written)",
+        "operationId": "preview_service_call_import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_service_call_import"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BydImportPreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The file is not a recognizable BYD export.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/svc/service-calls/import": {
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Import a BYD export, upserting calls on the C4C Ticket ID",
+        "operationId": "apply_service_call_import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_apply_service_call_import"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BydImportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The file is not a recognizable BYD export.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "Body_apply_service_call_import": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "The BYD .xlsx export"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_apply_service_call_import"
+      },
+      "Body_preview_service_call_import": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "The BYD .xlsx export"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_preview_service_call_import"
+      },
       "BranchRef": {
         "properties": {
           "id": {
@@ -2100,6 +2346,209 @@
           "name"
         ],
         "title": "BranchRef"
+      },
+      "BydImportPreview": {
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/BydImportSummary"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BydImportRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "rows"
+        ],
+        "title": "BydImportPreview",
+        "description": "Dry run: what would happen if this file were imported. Nothing is written."
+      },
+      "BydImportResult": {
+        "properties": {
+          "batchId": {
+            "type": "integer",
+            "title": "Batchid"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/BydImportSummary"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BydImportRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batchId",
+          "summary",
+          "rows"
+        ],
+        "title": "BydImportResult",
+        "description": "Outcome of an applied import."
+      },
+      "BydImportRow": {
+        "properties": {
+          "rowNumber": {
+            "type": "integer",
+            "title": "Rownumber"
+          },
+          "c4CTicketId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "C4Cticketid"
+          },
+          "externalReference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Externalreference"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "insert",
+              "update",
+              "skip"
+            ],
+            "title": "Action"
+          },
+          "callNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callno"
+          },
+          "customerMatched": {
+            "type": "boolean",
+            "title": "Customermatched"
+          },
+          "machineMatched": {
+            "type": "boolean",
+            "title": "Machinematched"
+          },
+          "engineerMatched": {
+            "type": "boolean",
+            "title": "Engineermatched"
+          },
+          "needsLinking": {
+            "type": "boolean",
+            "title": "Needslinking"
+          },
+          "messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rowNumber",
+          "c4CTicketId",
+          "externalReference",
+          "subject",
+          "account",
+          "action",
+          "callNo",
+          "customerMatched",
+          "machineMatched",
+          "engineerMatched",
+          "needsLinking",
+          "messages"
+        ],
+        "title": "BydImportRow",
+        "description": "What the importer decided for one row of the file."
+      },
+      "BydImportSummary": {
+        "properties": {
+          "sourceKind": {
+            "type": "string",
+            "title": "Sourcekind"
+          },
+          "fileName": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "inserts": {
+            "type": "integer",
+            "title": "Inserts"
+          },
+          "updates": {
+            "type": "integer",
+            "title": "Updates"
+          },
+          "skips": {
+            "type": "integer",
+            "title": "Skips"
+          },
+          "needsLinking": {
+            "type": "integer",
+            "title": "Needslinking"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceKind",
+          "fileName",
+          "total",
+          "inserts",
+          "updates",
+          "skips",
+          "needsLinking"
+        ],
+        "title": "BydImportSummary",
+        "description": "Counts for the whole file, shown on both preview and after import."
       },
       "CompanyOption": {
         "properties": {

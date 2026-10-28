@@ -43,3 +43,7 @@ export type { ListDesignations$Params as ListDesignations$Params } from './fn/em
 export { listDesignations as listDesignations } from './fn/employees/list-designations';
 export type { ListServiceCalls$Params as ListServiceCalls$Params } from './fn/service/list-service-calls';
 export { listServiceCalls as listServiceCalls } from './fn/service/list-service-calls';
+export type { PreviewServiceCallImport$Params as PreviewServiceCallImport$Params } from './fn/service/preview-service-call-import';
+export { previewServiceCallImport as previewServiceCallImport } from './fn/service/preview-service-call-import';
+export type { ApplyServiceCallImport$Params as ApplyServiceCallImport$Params } from './fn/service/apply-service-call-import';
+export { applyServiceCallImport as applyServiceCallImport } from './fn/service/apply-service-call-import';

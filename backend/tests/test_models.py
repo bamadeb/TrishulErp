@@ -26,7 +26,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 
 def test_every_table_is_mapped() -> None:
     configure_mappers()
-    assert len(Base.metadata.tables) == 220  # v3 (219) + core.locality (migration 0002)
+    assert len(Base.metadata.tables) == 221  # v3 (219) + core.locality (0002) + svc.byd_call_import (0005)
     assert {table.schema for table in Base.metadata.tables.values()} == {
         "core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt",
     }  # fmt: skip
