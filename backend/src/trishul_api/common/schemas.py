@@ -39,6 +39,9 @@ UtcDateTime = Annotated[datetime, AfterValidator(_as_utc)]
 RowVersion = Annotated[bytes, PlainSerializer(lambda v: base64.b64encode(v).decode("ascii"), return_type=str)]
 """SQL Server ROWVERSION, sent to clients as base64 and returned in If-Match on updates."""
 
+MOBILE_PATTERN = r"^(\+91)?[6-9]\d{9}$"
+"""Indian mobile number, optionally +91: shared by user and employee input models."""
+
 
 class PageQuery(ApiModel):
     page: int = Field(1, ge=1)

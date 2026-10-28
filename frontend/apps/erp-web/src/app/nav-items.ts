@@ -1,4 +1,7 @@
-import { USER_VIEW_PERMISSIONS } from '@trishul/admin-data-access';
+import {
+  EMPLOYEE_VIEW_PERMISSIONS,
+  USER_VIEW_PERMISSIONS,
+} from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
 import { SERVICE_CALL_VIEW_PERMISSIONS } from '@trishul/service-data-access';
 
@@ -20,6 +23,11 @@ export const navItems: NavItem[] = [
     label: 'Administration',
     icon: 'admin_panel_settings',
     children: [
+      {
+        label: 'Employees',
+        route: '/admin/employees',
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+      },
       {
         label: 'Users',
         route: '/admin/users',

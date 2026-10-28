@@ -1,0 +1,148 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  .search {
+    flex: 1 1 22rem;
+  }
+
+  mat-form-field:not(.search) {
+    flex: 1 1 9rem;
+    max-width: 12rem;
+  }
+}
+
+.table-card {
+  overflow: hidden;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+}
+
+.progress {
+  height: 4px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 960px;
+  background: transparent;
+}
+
+// Header: a quiet tinted strip with emphasized, compact labels.
+th.mat-mdc-header-cell {
+  background: var(--mat-sys-surface-container);
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+// Scannable rows: subtle zebra striping plus a clear hover.
+tr.mat-mdc-row {
+  transition: background-color 120ms ease;
+
+  &:nth-child(even) {
+    background: color-mix(in srgb, var(--mat-sys-surface-container) 45%, transparent);
+  }
+
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+}
+
+th,
+td {
+  padding: 0 0.75rem;
+}
+
+td {
+  vertical-align: middle;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+// Deliberate column widths so the name column absorbs slack
+// instead of every column drifting apart.
+.mat-column-employeeCode {
+  width: 7rem;
+  white-space: nowrap;
+}
+
+.mat-column-fullName {
+  min-width: 13rem;
+}
+
+.mat-column-mobile {
+  width: 8.5rem;
+  white-space: nowrap;
+}
+
+.mat-column-branch {
+  width: 8rem;
+}
+
+.mat-column-designation {
+  width: 12rem;
+}
+
+.mat-column-type {
+  width: 8rem;
+}
+
+.mat-column-status {
+  width: 7rem;
+}
+
+.mat-column-login {
+  width: 5rem;
+  text-align: center;
+}
+
+.name {
+  font-weight: 600;
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.muted {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.has-login {
+  color: var(--mat-sys-primary);
+}
+
+.actions {
+  width: 3.5rem;
+  text-align: right;
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

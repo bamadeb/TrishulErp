@@ -1,6 +1,7 @@
 import { HttpParams } from '@angular/common/http';
 import { CurrentUser } from '@trishul/core-auth';
 import { MockRoute } from '@trishul/core-http';
+import { mockEmployeeRoutes } from './mock-employees';
 import { mockUserRoutes } from './mock-users';
 import { PageServiceCallListItem } from '@trishul/core-api';
 import {
@@ -158,4 +159,5 @@ export const mockRoutes: MockRoute[] = [
     handle: () => [],
   },
   ...mockUserRoutes,
+  ...mockEmployeeRoutes,
 ];

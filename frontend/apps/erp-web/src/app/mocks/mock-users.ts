@@ -11,7 +11,7 @@ import {
 } from '@trishul/core-api';
 import { MockRoute } from '@trishul/core-http';
 
-/** In-memory /core/users, /core/roles and /core/employees for mock mode and the end-to-end tests. */
+/** In-memory /core/users, /core/roles and the user form's employee picker, for mock mode and e2e. */
 
 const roles: RoleOption[] = [
   { id: 1, code: 'ADMIN', name: 'Administrator', description: null },
@@ -231,6 +231,27 @@ export const mockUserRoutes: MockRoute[] = [
     },
   },
   {
+    // Before /core/users/:userId so "employee-options" is not parsed as a user id.
+    method: 'GET',
+    path: '/core/users/employee-options',
+    handle: (req): EmployeeOption[] => {
+      const search = (req.params.get('search') ?? '').toLowerCase();
+      return employees
+        .filter((e) =>
+          [
+            e.employeeCode,
+            `${e.firstName} ${e.lastName ?? ''}`,
+            e.mobile,
+            e.email,
+          ].some((v) => !search || v?.toLowerCase().includes(search)),
+        )
+        .map((e) => ({
+          ...e,
+          linkedUserId: users.find((u) => u.employeeId === e.id)?.id ?? null,
+        }));
+    },
+  },
+  {
     method: 'GET',
     path: '/core/users/:userId',
     handle: (req, params) => find(params, req),
@@ -353,24 +374,4 @@ export const mockUserRoutes: MockRoute[] = [
     },
   },
   { method: 'GET', path: '/core/roles', handle: () => roles },
-  {
-    method: 'GET',
-    path: '/core/employees',
-    handle: (req): EmployeeOption[] => {
-      const search = (req.params.get('search') ?? '').toLowerCase();
-      return employees
-        .filter((e) =>
-          [
-            e.employeeCode,
-            `${e.firstName} ${e.lastName ?? ''}`,
-            e.mobile,
-            e.email,
-          ].some((v) => !search || v?.toLowerCase().includes(search)),
-        )
-        .map((e) => ({
-          ...e,
-          linkedUserId: users.find((u) => u.employeeId === e.id)?.id ?? null,
-        }));
-    },
-  },
 ];

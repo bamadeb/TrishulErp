@@ -1,0 +1,220 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add employee' : (employee()?.fullName ?? 'Employee')"
+  [subtitle]="
+    isNew() ? 'Create an employee record' : (employee()?.employeeCode ?? '')
+  "
+>
+  <a mat-button routerLink="/admin/employees">
+    <mat-icon>arrow_back</mat-icon>
+    All employees
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Details</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Employee code</mat-label>
+          <input matInput formControlName="employeeCode" autocomplete="off" />
+          <mat-error>A unique employee code is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>First name</mat-label>
+          <input matInput formControlName="firstName" />
+          <mat-error>First name is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Last name</mat-label>
+          <input matInput formControlName="lastName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Mobile</mat-label>
+          <input
+            matInput
+            formControlName="mobile"
+            inputmode="tel"
+            placeholder="9876543210"
+          />
+          <mat-error>Enter a 10-digit Indian mobile number.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Work email</mat-label>
+          <input matInput type="email" formControlName="email" />
+          <mat-error>Enter a valid email address.</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Posting</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Company</mat-label>
+          <mat-select formControlName="companyId">
+            @for (c of companies(); track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-error>Choose a company.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branch</mat-label>
+          <mat-select formControlName="branchId">
+            @for (b of branches(); track b.id) {
+            <mat-option [value]="b.id">{{ b.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-error>Choose a branch.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Department</mat-label>
+          <mat-select formControlName="departmentId">
+            <mat-option [value]="NONE">None</mat-option>
+            @for (d of departments(); track d.id) {
+            <mat-option [value]="d.id">{{ d.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Designation</mat-label>
+          <mat-select formControlName="designationId">
+            <mat-option [value]="NONE">None</mat-option>
+            @for (d of designations(); track d.id) {
+            <mat-option [value]="d.id">{{ d.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Reports to</mat-label>
+          <mat-icon matPrefix>supervisor_account</mat-icon>
+          <input
+            matInput
+            formControlName="manager"
+            [matAutocomplete]="managerAuto"
+            placeholder="Search a manager by code or name"
+          />
+          @if (canManage && form.controls.manager.value) {
+          <button
+            matSuffix
+            mat-icon-button
+            type="button"
+            aria-label="Clear manager"
+            (click)="clearManager()"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+          }
+          <mat-autocomplete
+            #managerAuto="matAutocomplete"
+            [displayWith]="managerText"
+            (optionSelected)="onManagerPicked($event.option.value)"
+          >
+            @for (m of managerList(); track m.id) {
+            <mat-option [value]="m">{{ managerLabel(m) }}</mat-option>
+            }
+          </mat-autocomplete>
+          <mat-error
+            >Pick a manager from the list, or clear the field.</mat-error
+          >
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Employment</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="employeeType">
+            @for (t of employeeTypes; track t) {
+            <mat-option [value]="t">{{ t }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            @for (s of hrStatuses; track s) {
+            <mat-option [value]="s">{{ s }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Date of joining</mat-label>
+          <input matInput type="date" formControlName="dateOfJoining" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Date of exit</mat-label>
+          <input matInput type="date" formControlName="dateOfExit" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Mobile app platform</mat-label>
+          <mat-select formControlName="mobilePlatform">
+            <mat-option [value]="''">None</mat-option>
+            <mat-option value="Android">Android</mat-option>
+            <mat-option value="iOS">iOS</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </section>
+
+    @if (canManage) {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add employee' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/admin/employees">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (employee(); as current) {
+  <aside class="card side" aria-label="Employee status">
+    <h2>Status</h2>
+    <div class="status-line">
+      <trishul-status-badge
+        [status]="current.isActive ? 'Active' : 'Inactive'"
+        [severities]="activeSeverity"
+      />
+      <span>{{ current.status }}</span>
+    </div>
+
+    <h2>Sign-in</h2>
+    @if (current.hasLogin && current.userId) {
+    <a mat-stroked-button [routerLink]="['/admin/users', current.userId]">
+      <mat-icon>badge</mat-icon>
+      Open user account
+    </a>
+    } @else {
+    <p class="muted">No sign-in account linked.</p>
+    } @if (canManage) { @if (current.isActive) {
+    <button
+      mat-stroked-button
+      type="button"
+      class="danger"
+      (click)="deactivate()"
+    >
+      <mat-icon>block</mat-icon>
+      Deactivate
+    </button>
+    } @else {
+    <button mat-stroked-button type="button" (click)="activate()">
+      <mat-icon>check_circle</mat-icon>
+      Activate
+    </button>
+    } }
+  </aside>
+  }
+</div>

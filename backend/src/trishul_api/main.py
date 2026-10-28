@@ -15,13 +15,14 @@ from trishul_api.common.errors import STANDARD_ERROR_RESPONSES, install_error_ha
 from trishul_api.common.security import install_security_headers
 from trishul_api.config import Settings, get_settings
 from trishul_api.db import create_db_engine
+from trishul_api.modules.core.employees.router import router as employees_router
 from trishul_api.modules.core.router import router as core_router
 from trishul_api.modules.core.users.router import router as users_router
 from trishul_api.modules.service.router import router as service_router
 from trishul_api.secrets import SecretProvider, create_secret_provider
 
 # One router per module. A new module is added here and nowhere else.
-V1_ROUTERS: list[APIRouter] = [core_router, users_router, service_router]
+V1_ROUTERS: list[APIRouter] = [core_router, users_router, employees_router, service_router]
 
 
 def create_api_v1(settings: Settings) -> FastAPI:

@@ -1,0 +1,184 @@
+<trishul-page-header
+  title="Employees"
+  subtitle="People on the company rolls, across branches"
+>
+  <a
+    mat-flat-button
+    routerLink="new"
+    *trishulHasPermission="'core.employee.manage'"
+  >
+    <mat-icon>person_add</mat-icon>
+    Add employee
+  </a>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="Code, name, mobile or email"
+      aria-label="Search employees"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select
+      [value]="store.query().status"
+      (valueChange)="store.updateQuery({ status: $event })"
+    >
+      @for (status of statusFilters; track status) {
+      <mat-option [value]="status">{{ statusLabels[status] }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Branch</mat-label>
+    <mat-select
+      [value]="store.query().branchId ?? null"
+      (valueChange)="store.updateQuery({ branchId: $event ?? undefined })"
+    >
+      <mat-option [value]="null">Any branch</mat-option>
+      @for (branch of branches(); track branch.id) {
+      <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Type</mat-label>
+    <mat-select
+      [value]="store.query().employeeType ?? null"
+      (valueChange)="store.updateQuery({ employeeType: $event ?? undefined })"
+    >
+      <mat-option [value]="null">Any type</mat-option>
+      @for (type of employeeTypes; track type) {
+      <mat-option [value]="type">{{ type }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  <div class="table-scroll">
+    <table
+      mat-table
+      [dataSource]="store.items()"
+      matSort
+      matSortActive="firstName"
+      matSortDirection="asc"
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="employeeCode">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th>
+        <td mat-cell *matCellDef="let e">{{ e.employeeCode }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="fullName">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+        <td mat-cell *matCellDef="let e">
+          <a class="name" [routerLink]="[e.id]">{{ e.fullName }}</a>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="mobile">
+        <th mat-header-cell *matHeaderCellDef>Mobile</th>
+        <td mat-cell *matCellDef="let e">{{ e.mobile ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="branch">
+        <th mat-header-cell *matHeaderCellDef>Branch</th>
+        <td mat-cell *matCellDef="let e">{{ e.branchName ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="designation">
+        <th mat-header-cell *matHeaderCellDef>Designation</th>
+        <td mat-cell *matCellDef="let e">
+          {{ e.designation ?? '—' }} @if (e.department) {
+          <div class="muted">{{ e.department }}</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <td mat-cell *matCellDef="let e">{{ e.employeeType }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let e">
+          <trishul-status-badge
+            [status]="e.isActive ? 'Active' : 'Inactive'"
+            [severities]="activeSeverity"
+          />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="login">
+        <th mat-header-cell *matHeaderCellDef>Login</th>
+        <td mat-cell *matCellDef="let e">
+          @if (e.hasLogin) {
+          <mat-icon class="has-login" aria-label="Has a sign-in account"
+            >check_circle</mat-icon
+          >
+          } @else { — }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>
+          <span class="sr-only">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let e" class="actions">
+          @if (canManage) {
+          <button
+            mat-icon-button
+            [matMenuTriggerFor]="menu"
+            [attr.aria-label]="'Actions for ' + e.employeeCode"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <a mat-menu-item [routerLink]="[e.id]">
+              <mat-icon>edit</mat-icon>Edit
+            </a>
+            @if (e.isActive) {
+            <button mat-menu-item (click)="deactivate(e)">
+              <mat-icon>block</mat-icon>Deactivate
+            </button>
+            } @else {
+            <button mat-menu-item (click)="activate(e)">
+              <mat-icon>check_circle</mat-icon>Activate
+            </button>
+            }
+          </mat-menu>
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="columns.length">
+          {{ store.loading() ? 'Loading…' : 'No employees match these filters.'
+          }}
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator
+    [length]="store.total()"
+    [pageIndex]="store.query().page - 1"
+    [pageSize]="store.query().pageSize"
+    [pageSizeOptions]="[20, 50, 100]"
+    aria-label="Pages of employees"
+    (page)="onPage($event)"
+  />
+</div>
