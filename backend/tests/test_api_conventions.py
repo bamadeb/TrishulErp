@@ -48,6 +48,11 @@ def is_action_path(path: str) -> bool:
     return len(segments) >= 3 and segments[-2].startswith("{") and not segments[-1].startswith("{")
 
 
+def is_upload(operation: dict[str, Any]) -> bool:
+    """A file-upload endpoint (e.g. an import): its request body is multipart/form-data, not JSON."""
+    return "multipart/form-data" in (operation.get("requestBody") or {}).get("content", {})
+
+
 def schema_of(operation: dict[str, Any], status: str) -> dict[str, Any]:
     content = operation["responses"].get(status, {}).get("content", {})
     schema: dict[str, Any] = content.get("application/json", {}).get("schema", {})
@@ -72,7 +77,12 @@ def expected(path: str, method: str, operation: dict[str, Any]) -> tuple[str | N
             return "get_", "200"
         return ("list_" if is_list_response(operation) else "get_"), "200"
     if method == "post":
-        return (None, "200") if is_action_path(path) else ("create_", "201")
+        if is_action_path(path):
+            return (None, "200")
+        if is_upload(operation):
+            # File-upload endpoints (imports): a preview is a 200 dry run, an apply creates (201).
+            return (None, "201" if "201" in operation["responses"] else "200")
+        return ("create_", "201")
     if method in ("put", "patch"):
         return "update_", "200"
     if method == "delete":
@@ -143,6 +153,8 @@ def test_request_bodies(path: str, method: str, operation: dict[str, Any]) -> No
     if method in ("put", "patch") or (method == "post" and not is_action_path(path)):
         assert body is not None, f"{method.upper()} {path}: needs a request body"
     if body:
+        if "multipart/form-data" in body["content"]:
+            return  # file-upload endpoints carry a file, not a JSON InputModel
         schema = resolve(body["content"]["application/json"]["schema"])
         assert schema.get("additionalProperties") is False, (
             f"{method.upper()} {path}: request bodies extend InputModel (unknown fields rejected)"

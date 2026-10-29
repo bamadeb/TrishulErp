@@ -344,10 +344,11 @@ def test_unknown_or_inactive_employee_is_rejected(client: TestClient, identity: 
 
 
 def test_employee_picker_searches_active_employees_and_shows_links(client: TestClient) -> None:
+    url = "/api/v1/core/users/employee-options"
     rahul = create(client, employeeId=RAHUL).json()
-    options = client.get("/api/v1/core/employees").json()
+    options = client.get(url).json()
     assert [(e["employeeCode"], e["linkedUserId"]) for e in options] == [("E010", rahul["id"]), ("E011", None)]
-    found = client.get("/api/v1/core/employees", params={"search": "sneha"}).json()
+    found = client.get(url, params={"search": "sneha"}).json()
     assert [e["firstName"] for e in found] == ["Sneha"]
     assert found[0]["branchName"] == "Pune"
 

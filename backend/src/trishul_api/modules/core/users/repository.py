@@ -20,7 +20,7 @@ from trishul_api.db.models import (
 )
 from trishul_api.modules.core.users.schemas import (
     EmployeeOption,
-    EmployeeQuery,
+    EmployeeOptionQuery,
     RoleGrant,
     RoleOption,
     UserListItem,
@@ -112,7 +112,7 @@ class UserRepository:
         row = self._session.execute(_user_select().where(AppUser.id == user_id)).mappings().one()
         return UserListItem.model_validate(row)
 
-    def employee_options(self, query: EmployeeQuery) -> list[EmployeeOption]:
+    def employee_options(self, query: EmployeeOptionQuery) -> list[EmployeeOption]:
         """Active employees for the user form's picker, matching the search, with the user each is linked to."""
         linked = aliased(AppUser)
         statement = (

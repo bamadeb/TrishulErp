@@ -9,7 +9,7 @@ import { RequestBuilder } from '../../request-builder';
 
 import { EmployeeOption } from '../../models/employee-option';
 
-export interface ListEmployees$Params {
+export interface ListEmployeeOptions$Params {
 
 /**
  * Code, name, mobile or email.
@@ -18,8 +18,8 @@ export interface ListEmployees$Params {
   limit?: number;
 }
 
-export function listEmployees(http: HttpClient, rootUrl: string, params?: ListEmployees$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<EmployeeOption>>> {
-  const rb = new RequestBuilder(rootUrl, listEmployees.PATH, 'get');
+export function listEmployeeOptions(http: HttpClient, rootUrl: string, params?: ListEmployeeOptions$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<EmployeeOption>>> {
+  const rb = new RequestBuilder(rootUrl, listEmployeeOptions.PATH, 'get');
   if (params) {
     rb.query('search', params.search, {});
     rb.query('limit', params.limit, {});
@@ -35,4 +35,4 @@ export function listEmployees(http: HttpClient, rootUrl: string, params?: ListEm
   );
 }
 
-listEmployees.PATH = '/core/employees';
+listEmployeeOptions.PATH = '/core/users/employee-options';

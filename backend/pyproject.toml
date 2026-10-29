@@ -7,10 +7,12 @@ dependencies = [
     "alembic>=1.20.1",
     "boto3>=1.43.119",
     "fastapi>=0.161.1",
+    "openpyxl>=3.1.5",
     "pydantic-settings>=2.16.1",
     "pydantic[email]>=2.14.1",
     "pyjwt[crypto]>=2.15.1",
     "pyodbc>=5.3.0",
+    "python-multipart>=0.0.20",
     "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -66,3 +68,8 @@ disallow_untyped_calls = false
 # Hand-written mirror of a generated module (see trk.py); same SQL Server type calls.
 module = "trishul_api.db.models.trk"
 disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+# openpyxl ships no type information.
+module = "openpyxl.*"
+ignore_missing_imports = true

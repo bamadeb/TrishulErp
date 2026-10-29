@@ -12,7 +12,7 @@ from trishul_api.common.schemas import Page
 from trishul_api.modules.core.users.repository import UserRepository
 from trishul_api.modules.core.users.schemas import (
     EmployeeOption,
-    EmployeeQuery,
+    EmployeeOptionQuery,
     PasswordResetRequest,
     PasswordResetResult,
     RoleOption,
@@ -52,6 +52,16 @@ UserRepo = Annotated[UserRepository, Depends(get_user_repository)]
 @router.get("/users", summary="Users, with their roles", dependencies=[CAN_VIEW])
 def list_users(query: Annotated[UserQuery, Query()], repo: UserRepo) -> Page[UserListItem]:
     return repo.search(query)
+
+
+# Declared before /users/{userId} so "employee-options" is not parsed as a user id.
+@router.get(
+    "/users/employee-options",
+    summary="Active employees matching a search, to link a user to",
+    dependencies=[CAN_MANAGE],  # the user form's picker; full employee screens live in the employees module
+)
+def list_employee_options(query: Annotated[EmployeeOptionQuery, Query()], repo: UserRepo) -> list[EmployeeOption]:
+    return repo.employee_options(query)
 
 
 @router.get("/users/{userId}", summary="One user", dependencies=[CAN_VIEW], responses=NOT_FOUND_RESPONSE)
@@ -122,12 +132,3 @@ def reset_user_password(
 @router.get("/roles", summary="Roles that can be granted", dependencies=[CAN_VIEW])
 def list_roles(repo: UserRepo) -> list[RoleOption]:
     return repo.roles()
-
-
-@router.get(
-    "/employees",
-    summary="Active employees matching a search, to link a user to",
-    dependencies=[CAN_MANAGE],  # the user form's picker; the HR module will add its own employee screens
-)
-def list_employees(query: Annotated[EmployeeQuery, Query()], repo: UserRepo) -> list[EmployeeOption]:
-    return repo.employee_options(query)

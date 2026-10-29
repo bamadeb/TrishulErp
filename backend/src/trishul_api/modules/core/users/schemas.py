@@ -3,10 +3,9 @@ from typing import Literal
 from pydantic import EmailStr, Field
 
 from trishul_api.auth.identity import Delivery, SignInStatus
-from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
+from trishul_api.common.schemas import MOBILE_PATTERN, ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
 
 UserStatusFilter = Literal["active", "inactive", "all"]
-MOBILE_PATTERN = r"^(\+91)?[6-9]\d{9}$"
 
 
 class UserQuery(PageQuery):
@@ -98,7 +97,7 @@ class RoleOption(ApiModel):
     description: str | None
 
 
-class EmployeeQuery(ApiModel):
+class EmployeeOptionQuery(ApiModel):
     search: str | None = Field(None, max_length=100, description="Code, name, mobile or email.")
     limit: int = Field(20, ge=1, le=50)
 

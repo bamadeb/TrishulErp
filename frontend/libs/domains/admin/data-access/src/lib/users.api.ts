@@ -7,7 +7,7 @@ import {
   createUser,
   deactivateUser,
   getUser,
-  listEmployees,
+  listEmployeeOptions,
   listRoles,
   listUsers,
   resetUserPassword,
@@ -77,6 +77,6 @@ export class UsersApi {
 
   /** Active employees matching code, name, mobile or email (at most 20). */
   employees(search: string): Observable<EmployeeOption[]> {
-    return this.api.call(listEmployees, { search: search || undefined });
+    return this.api.call(listEmployeeOptions, { search: search || undefined });
   }
 }

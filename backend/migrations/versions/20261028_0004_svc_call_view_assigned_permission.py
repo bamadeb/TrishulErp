@@ -4,15 +4,15 @@ Unlike svc.call.view (the full branch register, office roles only — see migrat
 endpoint is filtered to the engineer's own assigned calls, so SERVICE_ENGINEER gets it. Office
 roles that triage and reassign keep it too, so they can see a call from the assignee's point of view.
 
-Revision ID: 0004
-Revises: 0003
+Revision ID: 0007
+Revises: 0006
 Created: 2026-10-28
 """
 
 from alembic import op
 
-revision = "0004"
-down_revision = "0003"
+revision = "0007"
+down_revision = "0006"
 branch_labels = None
 depends_on = None
 
