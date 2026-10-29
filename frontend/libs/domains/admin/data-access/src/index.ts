@@ -4,3 +4,6 @@ export * from './lib/user-list.store';
 export * from './lib/employees.models';
 export * from './lib/employees.api';
 export * from './lib/employee-list.store';
+export * from './lib/customers.models';
+export * from './lib/customers.api';
+export * from './lib/customer-list.store';

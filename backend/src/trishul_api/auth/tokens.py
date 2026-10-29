@@ -22,6 +22,10 @@ class Identity:
 class TokenVerifier(Protocol):
     def verify(self, token: str) -> Identity: ...
 
+    def warm(self) -> None:
+        """Pre-fetch anything slow (e.g. JWKS) so the first real verify is fast. Optional, best-effort."""
+        ...
+
 
 class CognitoTokenVerifier:
     """Validates Cognito access tokens: RS256 signature (JWKS), issuer, expiry, token_use and client_id."""
@@ -49,6 +53,10 @@ class CognitoTokenVerifier:
             raise Unauthorized("This token was not issued for Trishul ERP.")
         return Identity(cognito_sub=str(claims["sub"]))
 
+    def warm(self) -> None:
+        # Fetch and cache the signing keys now, so the first sign-in doesn't wait on Cognito.
+        self._jwks.get_signing_keys()
+
 
 class DevTokenVerifier:
     """Local development only. "dev:<username>" (sent by the Angular dev sign-in) signs in as that
@@ -62,6 +70,10 @@ class DevTokenVerifier:
     def verify(self, token: str) -> Identity:
         username = token.removeprefix(self.PREFIX).strip() if token.startswith(self.PREFIX) else ""
         return Identity(username=username or self._default_username)
+
+    def warm(self) -> None:
+        # Nothing to pre-fetch for local development sign-in.
+        return
 
 
 def create_token_verifier(settings: Settings) -> TokenVerifier:

@@ -1,6 +1,7 @@
 import { HttpParams } from '@angular/common/http';
 import { CurrentUser } from '@trishul/core-auth';
 import { MockRoute } from '@trishul/core-http';
+import { mockCustomerRoutes } from './mock-customers';
 import { mockEmployeeRoutes } from './mock-employees';
 import { mockServiceImportRoutes } from './mock-service-import';
 import { mockUserRoutes } from './mock-users';
@@ -162,4 +163,5 @@ export const mockRoutes: MockRoute[] = [
   ...mockServiceImportRoutes,
   ...mockUserRoutes,
   ...mockEmployeeRoutes,
+  ...mockCustomerRoutes,
 ];

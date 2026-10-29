@@ -1,6 +1,7 @@
+import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ from trishul_api.common.errors import STANDARD_ERROR_RESPONSES, install_error_ha
 from trishul_api.common.security import install_security_headers
 from trishul_api.config import Settings, get_settings
 from trishul_api.db import create_db_engine
+from trishul_api.modules.core.customers.router import router as customers_router
 from trishul_api.modules.core.employees.router import router as employees_router
 from trishul_api.modules.core.router import router as core_router
 from trishul_api.modules.core.users.router import router as users_router
@@ -22,7 +24,7 @@ from trishul_api.modules.service.router import router as service_router
 from trishul_api.secrets import SecretProvider, create_secret_provider
 
 # One router per module. A new module is added here and nowhere else.
-V1_ROUTERS: list[APIRouter] = [core_router, users_router, employees_router, service_router]
+V1_ROUTERS: list[APIRouter] = [core_router, users_router, employees_router, customers_router, service_router]
 
 
 def create_api_v1(settings: Settings) -> FastAPI:
@@ -70,8 +72,35 @@ def create_app(
         api.state.token_verifier = token_verifier or create_token_verifier(resolved)
         api.state.user_directory = UserDirectory(database_user_loader(db_engine), resolved.user_cache_seconds)
         api.state.identity_provider = identity_provider or create_identity_provider(resolved)
-        yield
-        db_engine.dispose()
+
+        # Warm the slow first-request costs in the background so they don't land on a user's first click:
+        # the initial DB connection (TLS handshake + login + secret fetch) and the Cognito JWKS fetch.
+        # Best-effort and non-blocking: if the database is unreachable at boot, startup still succeeds and
+        # the connection is made on the first request instead. In production the load balancer's readiness
+        # probe already opens a connection, so this mainly helps local dev and the first call after a deploy.
+        async def warm_up() -> None:
+            def work() -> None:
+                log = logging.getLogger(__name__)
+                try:
+                    with db_engine.connect() as connection:
+                        connection.execute(text("SELECT 1"))
+                except Exception:
+                    log.warning("Database warm-up skipped; will connect on first request", exc_info=True)
+                try:
+                    api.state.token_verifier.warm()
+                except Exception:
+                    log.warning("Token key warm-up skipped; will fetch on first sign-in", exc_info=True)
+
+            await asyncio.to_thread(work)
+
+        warm_task = asyncio.create_task(warm_up())
+        try:
+            yield
+        finally:
+            warm_task.cancel()
+            with suppress(BaseException):
+                await warm_task
+            db_engine.dispose()
 
     app = FastAPI(lifespan=lifespan, openapi_url=None, docs_url=None, redoc_url=None)
     app.state.api_v1 = api

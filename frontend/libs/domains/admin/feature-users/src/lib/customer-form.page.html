@@ -1,0 +1,171 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add customer' : (customer()?.name ?? 'Customer')"
+  [subtitle]="isNew() ? 'Create a customer record' : (customer()?.code ?? '')"
+>
+  <a mat-button routerLink="/admin/customers">
+    <mat-icon>arrow_back</mat-icon>
+    All customers
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Identity</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Customer code</mat-label>
+          <input matInput formControlName="code" autocomplete="off" />
+          <mat-error>A unique customer code is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Customer / firm name</mat-label>
+          <input matInput formControlName="name" />
+          <mat-error>Name is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="customerType">
+            @for (t of customerTypes; track t) {
+            <mat-option [value]="t">{{ t }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Company</mat-label>
+          <mat-select formControlName="companyId">
+            @for (c of companies(); track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-error>Choose a company.</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Contact</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Primary phone</mat-label>
+          <input
+            matInput
+            formControlName="primaryPhone"
+            inputmode="tel"
+            placeholder="9876543210"
+          />
+          <mat-error>Enter a valid phone number.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Alternate phone</mat-label>
+          <input matInput formControlName="alternatePhone" inputmode="tel" />
+          <mat-error>Enter a valid phone number.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" />
+          <mat-error>Enter a valid email address.</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tax &amp; billing</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>PAN</mat-label>
+          <input matInput formControlName="pan" autocomplete="off" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>GSTIN</mat-label>
+          <input matInput formControlName="gstin" autocomplete="off" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>GST registration</mat-label>
+          <mat-select formControlName="gstRegistrationType">
+            @for (g of gstTypes; track g) {
+            <mat-option [value]="g">{{ g }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Billing address</mat-label>
+          <textarea
+            matInput
+            rows="2"
+            formControlName="billingAddress"
+          ></textarea>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Billing state</mat-label>
+          <mat-select formControlName="billingStateId">
+            <mat-option [value]="NONE">None</mat-option>
+            @for (s of states(); track s.id) {
+            <mat-option [value]="s.id">{{ s.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Place of supply for GST.</mat-hint>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Service</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Priority tier</mat-label>
+          <mat-select formControlName="priorityTier">
+            @for (p of priorityTiers; track p) {
+            <mat-option [value]="p">{{ p }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-checkbox formControlName="isAscCustomer" class="asc">
+          ASC customer (attended first)
+        </mat-checkbox>
+      </div>
+    </section>
+
+    @if (canManage) {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add customer' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/admin/customers">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (customer(); as current) {
+  <aside class="card side" aria-label="Customer status">
+    <h2>Status</h2>
+    <div class="status-line">
+      <trishul-status-badge
+        [status]="current.isActive ? 'Active' : 'Inactive'"
+        [severities]="activeSeverity"
+      />
+    </div>
+    @if (canManage) { @if (current.isActive) {
+    <button mat-stroked-button type="button" class="danger" (click)="deactivate()">
+      <mat-icon>block</mat-icon>
+      Deactivate
+    </button>
+    } @else {
+    <button mat-stroked-button type="button" (click)="activate()">
+      <mat-icon>check_circle</mat-icon>
+      Activate
+    </button>
+    } }
+  </aside>
+  }
+</div>

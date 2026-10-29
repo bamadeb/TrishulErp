@@ -1,4 +1,5 @@
 import {
+  CUSTOMER_VIEW_PERMISSIONS,
   EMPLOYEE_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
@@ -31,6 +32,11 @@ export const navItems: NavItem[] = [
     label: 'Administration',
     icon: 'admin_panel_settings',
     children: [
+      {
+        label: 'Customers',
+        route: '/admin/customers',
+        permissions: [...CUSTOMER_VIEW_PERMISSIONS],
+      },
       {
         label: 'Employees',
         route: '/admin/employees',
