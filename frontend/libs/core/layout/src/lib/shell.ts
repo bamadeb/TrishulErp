@@ -92,11 +92,14 @@ export class Shell {
         (item) =>
           !item.permissions || this.auth.hasAnyPermission(item.permissions),
       )
-      .map((item) =>
-        item.children
-          ? { ...item, children: this.filter(item.children) }
-          : item,
-      )
-      .filter((item) => item.route || item.children?.length);
+      .flatMap((item) => {
+        if (!item.children) return item.route ? [item] : [];
+        const children = this.filter(item.children);
+        // A heading declared with no links stays visible. A heading whose
+        // links were all removed by permissions does not.
+        return children.length || item.children.length === 0
+          ? [{ ...item, children }]
+          : [];
+      });
   }
 }

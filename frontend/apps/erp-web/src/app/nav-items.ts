@@ -49,4 +49,8 @@ export const navItems: NavItem[] = [
       },
     ],
   },
+  {
+    label: 'HR Management',
+    children: [{ label: 'HR Dashboard', route: '/hr/dashboard' }],
+  },
 ];

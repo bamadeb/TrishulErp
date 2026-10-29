@@ -1,0 +1,186 @@
+<trishul-page-header
+  title="HR Dashboard"
+  [subtitle]="'Sample data for ' + summary.asOfLabel + '. Not connected to the server.'"
+/>
+
+<section class="summary" aria-label="HR summary">
+  @for (card of summaryCards; track card.label) {
+  <a
+    class="summary-card"
+    [routerLink]="card.route"
+    [fragment]="card.fragment"
+  >
+    <span class="summary-label">{{ card.label }}</span>
+    <span class="summary-value">{{ card.value }}</span>
+  </a>
+  }
+</section>
+
+<div class="layout">
+  <section class="panel" aria-labelledby="attendance-heading">
+    <div class="panel-head">
+      <h2 id="attendance-heading">Attendance Overview</h2>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Date</mat-label>
+        <mat-select
+          [value]="selectedDate()"
+          (valueChange)="selectedDate.set($event)"
+        >
+          @for (day of attendanceDays; track day.date) {
+          <mat-option [value]="day.date">{{ day.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    @if (attendance(); as day) {
+    <dl class="counts">
+      <div>
+        <dt>Present</dt>
+        <dd>{{ day.present }}</dd>
+      </div>
+      <div>
+        <dt>Absent</dt>
+        <dd>{{ day.absent }}</dd>
+      </div>
+      <div>
+        <dt>On leave</dt>
+        <dd>{{ day.onLeave }}</dd>
+      </div>
+    </dl>
+    } @else {
+    <p class="empty">No attendance sample for this date.</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="department-heading">
+    <h2 id="department-heading">Department-wise Employee Distribution</h2>
+    @if (departments.length) {
+    <div class="chart" role="img" [attr.aria-label]="'Employee counts by department, ' + summary.totalEmployees + ' people'">
+      @for (row of departments; track row.department) {
+      <div class="bar-row">
+        <span class="bar-label">{{ row.department }}</span>
+        <div class="bar-track">
+          <div class="bar-fill" [style.width.%]="row.percent"></div>
+        </div>
+        <span class="bar-value">{{ row.employees }}</span>
+      </div>
+      }
+    </div>
+    } @else {
+    <p class="empty">No department sample records.</p>
+    }
+  </section>
+
+  <section class="panel panel-wide" id="approvals" aria-labelledby="approvals-heading">
+    <div class="panel-head">
+      <h2 id="approvals-heading">Pending Approvals</h2>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Status</mat-label>
+        <mat-select
+          [value]="approvalStatus()"
+          (valueChange)="approvalStatus.set($event)"
+        >
+          @for (status of approvalStatuses; track status) {
+          <mat-option [value]="status">{{ status }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    @if (approvals().length) {
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Request type</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of approvals(); track row.employeeName + row.dateLabel + row.requestType) {
+          <tr>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.requestType }}</td>
+            <td>{{ row.dateLabel }}</td>
+            <td>
+              <trishul-status-badge
+                [status]="row.status"
+                [severities]="approvalSeverity"
+              />
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    } @else {
+    <p class="empty">No requests match this filter.</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="celebrations-heading">
+    <h2 id="celebrations-heading">Upcoming Birthdays and Work Anniversaries</h2>
+    @if (celebrations.length) {
+    <ul class="plain">
+      @for (item of celebrations; track item.employeeName + item.dateLabel) {
+      <li>
+        <span class="name">{{ item.employeeName }}</span>
+        <span class="muted">{{ item.kind }} · {{ item.detail }} · {{ item.dateLabel }}</span>
+      </li>
+      }
+    </ul>
+    } @else {
+    <p class="empty">No upcoming birthdays or work anniversaries.</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="holidays-heading">
+    <h2 id="holidays-heading">Upcoming Holidays</h2>
+    @if (holidays.length) {
+    <ul class="plain">
+      @for (holiday of holidays; track holiday.name) {
+      <li>
+        <span class="name">{{ holiday.name }}</span>
+        <span class="muted">{{ holiday.type }} · {{ holiday.dateLabel }}</span>
+      </li>
+      }
+    </ul>
+    } @else {
+    <p class="empty">No upcoming holidays.</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="activity-heading">
+    <h2 id="activity-heading">Recent HR Activities</h2>
+    @if (activities.length) {
+    <ul class="plain">
+      @for (activity of activities; track activity.whenLabel + activity.description) {
+      <li>
+        <span class="name">{{ activity.description }}</span>
+        <span class="muted">{{ activity.whenLabel }}</span>
+      </li>
+      }
+    </ul>
+    } @else {
+    <p class="empty">No recent HR activity.</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="actions-heading">
+    <h2 id="actions-heading">Quick Actions</h2>
+    <div class="actions">
+      @for (action of quickActions; track action.label) {
+      <div class="action">
+        <a mat-stroked-button [routerLink]="action.route">
+          <mat-icon>{{ action.icon }}</mat-icon>
+          {{ action.label }}
+        </a>
+        @if (action.placeholder) {
+        <span class="muted">Placeholder</span>
+        }
+      </div>
+      }
+    </div>
+  </section>
+</div>
