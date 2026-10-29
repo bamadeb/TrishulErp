@@ -42,6 +42,10 @@ SCHEMA_SCRIPTS = [
 ]
 DESCRIPTION_SCRIPT = "11_descriptions.sql"
 SCHEMAS = ["core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt"]
+# Schemas whose models are hand-written (see src/trishul_api/db/models/trk.py) because they reuse a
+# table name an existing schema already owns (trk.trip vs svc.trip). The generator parses their DDL
+# from the migrations but does not emit or police them. Fold into SCHEMAS once that is resolved.
+HANDWRITTEN_SCHEMAS = ["trk"]
 MODULE_NAMES = {"int": "int_"}  # `int` would shadow the builtin when imported as a module
 
 # Names the generated module uses itself; a column with one of these names gets a "_" suffix.
@@ -600,7 +604,8 @@ def generate() -> dict[Path, str]:
         names = ",\n".join(f"    {name}" for name in exported)
         init_imports.append(f"from trishul_api.db.models.generated.{module_name} import (\n{names},\n)")
         all_names += exported
-    unknown = set(tables) - {t.key for t in tables.values() if t.schema in SCHEMAS}
+    known_schemas = set(SCHEMAS) | set(HANDWRITTEN_SCHEMAS)
+    unknown = set(tables) - {t.key for t in tables.values() if t.schema in known_schemas}
     if unknown:
         raise SqlError(f"tables in schemas the generator doesn't know: {sorted(unknown)}")
     listed = "\n".join(f'    "{name}",' for name in sorted(all_names))

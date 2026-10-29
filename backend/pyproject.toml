@@ -49,6 +49,8 @@ ignore = ["S101"]  # assert is how pytest checks
 "tests/**" = ["S105", "S106", "S603", "RUF012"]
 # SQLAlchemy's declarative convention: __table_args__ = {"schema": ...}
 "src/trishul_api/db/models/**" = ["RUF012"]
+# Raw SQL DDL/DML in op.execute(...) reads better as SQL than wrapped to the line limit.
+"migrations/versions/*" = ["E501"]
 
 [tool.mypy]
 strict = true
@@ -58,4 +60,9 @@ files = ["src", "tests", "migrations", "scripts"]
 [[tool.mypy.overrides]]
 # SQLAlchemy's SQL Server types (DATETIME2, ROWVERSION, TINYINT, TIME) have no annotations.
 module = "trishul_api.db.models.generated.*"
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+# Hand-written mirror of a generated module (see trk.py); same SQL Server type calls.
+module = "trishul_api.db.models.trk"
 disallow_untyped_calls = false

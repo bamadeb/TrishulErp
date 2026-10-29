@@ -11,4 +11,26 @@ from trishul_api.db.models.base import Audited, Base
 from trishul_api.db.models.generated import *  # noqa: F403
 from trishul_api.db.models.generated import __all__ as _generated
 
-__all__ = ["Audited", "Base", *_generated]
+# Hand-written until the generator is re-run against the migrated DB (see trk.py).
+from trishul_api.db.models.trk import (
+    TrackableActivity,
+    TrackableActivityModuleCode,
+    TrkTrip,
+    TrkTripGpsPoint,
+    TrkTripStatus,
+    TrkTripType,
+    TrkTripVehicleType,
+)
+
+__all__ = [
+    "Audited",
+    "Base",
+    "TrackableActivity",
+    "TrackableActivityModuleCode",
+    "TrkTrip",
+    "TrkTripGpsPoint",
+    "TrkTripStatus",
+    "TrkTripType",
+    "TrkTripVehicleType",
+    *_generated,
+]

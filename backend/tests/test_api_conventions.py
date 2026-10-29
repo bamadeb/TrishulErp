@@ -17,7 +17,7 @@ from trishul_api.main import create_api_v1
 
 from .conftest import make_user
 
-MODULES = {"core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt"}
+MODULES = {"core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt", "trk"}
 TOP_LEVEL_PATHS = {"/me"}  # the signed-in user; everything else lives under a module prefix
 SEGMENT = re.compile(r"^(?:[a-z0-9]+(?:-[a-z0-9]+)*|\{[a-z][a-zA-Z0-9]*\})$")  # kebab-case, {camelCase}
 CAMEL_CASE = re.compile(r"^[a-z][a-zA-Z0-9]*$")

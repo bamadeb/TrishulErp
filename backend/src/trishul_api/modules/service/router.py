@@ -2,10 +2,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from trishul_api.auth import DbSession, ScopeDep, require_permission
+from trishul_api.auth import CurrentUserDep, DbSession, ScopeDep, require_permission
+from trishul_api.common.errors import Forbidden
 from trishul_api.common.schemas import Page
 from trishul_api.modules.service.repository import ServiceCallRepository
-from trishul_api.modules.service.schemas import ServiceCallListItem, ServiceCallQuery
+from trishul_api.modules.service.schemas import (
+    AssignedServiceCallListItem,
+    AssignedServiceCallQuery,
+    ServiceCallListItem,
+    ServiceCallQuery,
+)
 
 router = APIRouter(prefix="/svc", tags=["service"])
 
@@ -32,3 +38,21 @@ def list_service_calls(
     repo: ServiceCallRepo,
 ) -> Page[ServiceCallListItem]:
     return repo.list(scope, query)
+
+
+@router.get(
+    "/service-calls/assigned-to-me",
+    summary="Service calls assigned to the signed-in engineer",
+    dependencies=[Depends(require_permission("svc.call.view.assigned"))],
+)
+def list_assigned_service_calls(
+    query: Annotated[AssignedServiceCallQuery, Query()],
+    user: CurrentUserDep,
+    scope: ScopeDep,
+    repo: ServiceCallRepo,
+) -> Page[AssignedServiceCallListItem]:
+    # Only an engineer (an app_user linked to an employee) has assigned calls; an office account
+    # holding the permission but with no employee record gets an empty-by-definition list, so 403.
+    if user.employee_id is None:
+        raise Forbidden("Your account is not linked to a service engineer, so it has no assigned calls.")
+    return repo.list_assigned(user.employee_id, scope, query)

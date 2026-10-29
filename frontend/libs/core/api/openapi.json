@@ -1044,6 +1044,172 @@
         }
       }
     },
+    "/core/user-devices": {
+      "post": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Register or update the signed-in user's mobile device",
+        "operationId": "create_user_device",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDeviceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDeviceOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/core/user-devices/{deviceId}/logout": {
+      "post": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Sign the device out: stop push notifications and stamp last seen",
+        "operationId": "logout_user_device",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "title": "Deviceid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDeviceOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
     "/svc/service-calls": {
       "get": {
         "tags": [
@@ -1218,10 +1384,1161 @@
           }
         }
       }
+    },
+    "/svc/service-calls/assigned-to-me": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Service calls assigned to the signed-in engineer",
+        "operationId": "list_assigned_service_calls",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Logged",
+                  "Assigned",
+                  "Call ID linked",
+                  "Customer contacted",
+                  "Trip started",
+                  "Reached site",
+                  "In progress",
+                  "Report submitted",
+                  "Awaiting parts",
+                  "Parts ready",
+                  "Revisit scheduled",
+                  "Closed",
+                  "Pending OEM closure",
+                  "Completed",
+                  "Reopened",
+                  "Cancelled"
+                ],
+                "type": "string"
+              },
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_AssignedServiceCallListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pre/sales-activities/assigned-to-me": {
+      "get": {
+        "tags": [
+          "presales"
+        ],
+        "summary": "Sales activities assigned to the signed-in salesperson",
+        "operationId": "list_assigned_sales_activities",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "activityType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Call",
+                  "Visit",
+                  "Demo",
+                  "Meeting",
+                  "WhatsApp",
+                  "Email"
+                ],
+                "type": "string"
+              },
+              "title": "Activitytype"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_AssignedSalesActivityListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trk/trips": {
+      "post": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Start a trip for a service call or pre-sales activity",
+        "operationId": "create_trip",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTripInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Review trips of the team / branch",
+        "operationId": "list_trips",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "employeeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employeeid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "In progress",
+                  "Completed",
+                  "Auto closed"
+                ],
+                "type": "string"
+              },
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_TripListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trk/trips/{tripId}/gps-points": {
+      "post": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Upload a batch of GPS points for a trip (offline-tolerant, deduplicated)",
+        "operationId": "upload_trip_gps_points",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Tripid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpsBatchInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpsUploadResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trk/trips/{tripId}/stop": {
+      "post": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Stop a trip on arrival and record the end point",
+        "operationId": "stop_trip",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Tripid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StopTripInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trk/trips/{tripId}": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "One trip (to resume an interrupted trip)",
+        "operationId": "get_trip",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Tripid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AssignedSalesActivityListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "activityType": {
+            "type": "string",
+            "enum": [
+              "Call",
+              "Visit",
+              "Demo",
+              "Meeting",
+              "WhatsApp",
+              "Email"
+            ],
+            "title": "Activitytype"
+          },
+          "customerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customername"
+          },
+          "leadName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leadname"
+          },
+          "plannedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plannedat"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endedat"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "nextFollowUpAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextfollowupat"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "activityType",
+          "customerName",
+          "leadName",
+          "plannedAt",
+          "startedAt",
+          "endedAt",
+          "notes",
+          "nextFollowUpAt",
+          "rowVersion"
+        ],
+        "title": "AssignedSalesActivityListItem"
+      },
+      "AssignedServiceCallListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Receivedat"
+          },
+          "principalCode": {
+            "type": "string",
+            "title": "Principalcode"
+          },
+          "customerName": {
+            "type": "string",
+            "title": "Customername"
+          },
+          "siteName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sitename"
+          },
+          "siteAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Siteaddress"
+          },
+          "siteLatitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sitelatitude"
+          },
+          "siteLongitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sitelongitude"
+          },
+          "machineSerialNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineserialno"
+          },
+          "machineModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machinemodel"
+          },
+          "complaintDescription": {
+            "type": "string",
+            "title": "Complaintdescription"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Normal",
+              "Low"
+            ],
+            "title": "Priority"
+          },
+          "isMachineDown": {
+            "type": "boolean",
+            "title": "Ismachinedown"
+          },
+          "isAscPriority": {
+            "type": "boolean",
+            "title": "Isascpriority"
+          },
+          "coverageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Warranty",
+                  "Contract",
+                  "Chargeable",
+                  "Goodwill"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragetype"
+          },
+          "currentStatus": {
+            "type": "string",
+            "enum": [
+              "Logged",
+              "Assigned",
+              "Call ID linked",
+              "Customer contacted",
+              "Trip started",
+              "Reached site",
+              "In progress",
+              "Report submitted",
+              "Awaiting parts",
+              "Parts ready",
+              "Revisit scheduled",
+              "Closed",
+              "Pending OEM closure",
+              "Completed",
+              "Reopened",
+              "Cancelled"
+            ],
+            "title": "Currentstatus"
+          },
+          "callerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callername"
+          },
+          "callerPhone": {
+            "type": "string",
+            "title": "Callerphone"
+          },
+          "slaDueAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sladueat"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "callNo",
+          "receivedAt",
+          "principalCode",
+          "customerName",
+          "siteName",
+          "siteAddress",
+          "siteLatitude",
+          "siteLongitude",
+          "machineSerialNo",
+          "machineModel",
+          "complaintDescription",
+          "priority",
+          "isMachineDown",
+          "isAscPriority",
+          "coverageType",
+          "currentStatus",
+          "callerName",
+          "callerPhone",
+          "slaDueAt",
+          "rowVersion"
+        ],
+        "title": "AssignedServiceCallListItem",
+        "description": "A service call assigned to the signed-in engineer, with the site location the trip screen needs."
+      },
       "BranchRef": {
         "properties": {
           "id": {
@@ -1354,6 +2671,124 @@
         "title": "EmployeeOption",
         "description": "An employee to link a user to."
       },
+      "GpsBatchInput": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/GpsPointInput"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Points"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "title": "GpsBatchInput"
+      },
+      "GpsPointInput": {
+        "properties": {
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recordedat"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "accuracyM": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracym"
+          },
+          "speedKmph": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedkmph"
+          },
+          "batteryPct": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batterypct"
+          },
+          "isMockLocation": {
+            "type": "boolean",
+            "title": "Ismocklocation",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recordedAt",
+          "latitude",
+          "longitude"
+        ],
+        "title": "GpsPointInput"
+      },
+      "GpsUploadResult": {
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "duplicatesIgnored": {
+            "type": "integer",
+            "title": "Duplicatesignored"
+          },
+          "tripStatus": {
+            "type": "string",
+            "enum": [
+              "In progress",
+              "Completed",
+              "Auto closed"
+            ],
+            "title": "Tripstatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted",
+          "duplicatesIgnored",
+          "tripStatus"
+        ],
+        "title": "GpsUploadResult"
+      },
       "LookupValueOut": {
         "properties": {
           "id": {
@@ -1454,6 +2889,68 @@
         "title": "Me",
         "description": "The signed-in user, as the Angular AuthStore expects it."
       },
+      "Page_AssignedSalesActivityListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssignedSalesActivityListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[AssignedSalesActivityListItem]"
+      },
+      "Page_AssignedServiceCallListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssignedServiceCallListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[AssignedServiceCallListItem]"
+      },
       "Page_ServiceCallListItem_": {
         "properties": {
           "items": {
@@ -1484,6 +2981,37 @@
           "pageSize"
         ],
         "title": "Page[ServiceCallListItem]"
+      },
+      "Page_TripListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TripListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[TripListItem]"
       },
       "Page_UserListItem_": {
         "properties": {
@@ -1657,6 +3185,57 @@
         ],
         "title": "ProblemDetails",
         "description": "The body of every error response (RFC 7807), for the OpenAPI document and the Angular client."
+      },
+      "RegisterDeviceInput": {
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Deviceid"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "Android",
+              "iOS",
+              "Web"
+            ],
+            "title": "Platform"
+          },
+          "appVersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appversion"
+          },
+          "pushToken": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pushtoken"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "deviceId",
+          "platform"
+        ],
+        "title": "RegisterDeviceInput",
+        "description": "Sent by the Android app on sign-in. The user is the signed-in account, so it is not in the body."
       },
       "RoleGrant": {
         "properties": {
@@ -1933,6 +3512,390 @@
         ],
         "title": "ServiceCallListItem",
         "description": "A row of the call register."
+      },
+      "StartTripInput": {
+        "properties": {
+          "clientUuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Clientuuid"
+          },
+          "module": {
+            "type": "string",
+            "enum": [
+              "SVC",
+              "PRE"
+            ],
+            "title": "Module"
+          },
+          "referenceId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Referenceid"
+          },
+          "tripType": {
+            "type": "string",
+            "enum": [
+              "To site",
+              "Return",
+              "Site to site"
+            ],
+            "title": "Triptype",
+            "default": "To site"
+          },
+          "startLatitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Startlatitude"
+          },
+          "startLongitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Startlongitude"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "vehicleType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Own bike",
+                  "Own car",
+                  "Company vehicle",
+                  "Public transport"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicletype"
+          },
+          "deviceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviceid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "clientUuid",
+          "module",
+          "referenceId",
+          "startLatitude",
+          "startLongitude"
+        ],
+        "title": "StartTripInput",
+        "description": "Start a trip for a business activity. `module` + `referenceId` name the activity in its own\nmodule (SVC -> service_call id, PRE -> sales_activity id); the trk engine registers it and links\nthe trip. `clientUuid` makes a retried start return the same trip instead of a second one."
+      },
+      "StopTripInput": {
+        "properties": {
+          "endLatitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Endlatitude"
+          },
+          "endLongitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Endlongitude"
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "endLatitude",
+          "endLongitude"
+        ],
+        "title": "StopTripInput"
+      },
+      "TripListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeename"
+          },
+          "module": {
+            "type": "string",
+            "enum": [
+              "SVC",
+              "PRE"
+            ],
+            "title": "Module"
+          },
+          "activityTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activitytitle"
+          },
+          "tripType": {
+            "type": "string",
+            "enum": [
+              "To site",
+              "Return",
+              "Site to site"
+            ],
+            "title": "Triptype"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "In progress",
+              "Completed",
+              "Auto closed"
+            ],
+            "title": "Status"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startat"
+          },
+          "endAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endat"
+          },
+          "gpsDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpsdistancekm"
+          },
+          "durationMinutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationminutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "employeeName",
+          "module",
+          "activityTitle",
+          "tripType",
+          "status",
+          "startAt",
+          "endAt",
+          "gpsDistanceKm",
+          "durationMinutes"
+        ],
+        "title": "TripListItem"
+      },
+      "TripOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "trackableActivityId": {
+            "type": "integer",
+            "title": "Trackableactivityid"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "module": {
+            "type": "string",
+            "enum": [
+              "SVC",
+              "PRE"
+            ],
+            "title": "Module"
+          },
+          "referenceId": {
+            "type": "integer",
+            "title": "Referenceid"
+          },
+          "tripType": {
+            "type": "string",
+            "enum": [
+              "To site",
+              "Return",
+              "Site to site"
+            ],
+            "title": "Triptype"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "In progress",
+              "Completed",
+              "Auto closed"
+            ],
+            "title": "Status"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startat"
+          },
+          "startLatitude": {
+            "type": "number",
+            "title": "Startlatitude"
+          },
+          "startLongitude": {
+            "type": "number",
+            "title": "Startlongitude"
+          },
+          "endAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endat"
+          },
+          "endLatitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endlatitude"
+          },
+          "endLongitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endlongitude"
+          },
+          "gpsDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpsdistancekm"
+          },
+          "durationMinutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationminutes"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trackableActivityId",
+          "employeeId",
+          "module",
+          "referenceId",
+          "tripType",
+          "status",
+          "startAt",
+          "startLatitude",
+          "startLongitude",
+          "endAt",
+          "endLatitude",
+          "endLongitude",
+          "gpsDistanceKm",
+          "durationMinutes",
+          "rowVersion"
+        ],
+        "title": "TripOut"
       },
       "UserCreate": {
         "properties": {
@@ -2416,6 +4379,81 @@
           "rowVersion"
         ],
         "title": "UserDetail"
+      },
+      "UserDeviceOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "deviceId": {
+            "type": "string",
+            "title": "Deviceid"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "Android",
+              "iOS",
+              "Web"
+            ],
+            "title": "Platform"
+          },
+          "appVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appversion"
+          },
+          "pushToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pushtoken"
+          },
+          "lastSeenAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastseenat"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "deviceId",
+          "platform",
+          "appVersion",
+          "pushToken",
+          "lastSeenAt",
+          "isActive",
+          "rowVersion"
+        ],
+        "title": "UserDeviceOut"
       },
       "UserListItem": {
         "properties": {

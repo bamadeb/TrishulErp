@@ -13,6 +13,7 @@ from trishul_api.main import create_app
 def make_user(**overrides: object) -> CurrentUser:
     values: dict[str, object] = {
         "id": 7,
+        "employee_id": 7,
         "username": "team.lead",
         "display_name": "Rahul Patil",
         "email": "rahul@example.com",

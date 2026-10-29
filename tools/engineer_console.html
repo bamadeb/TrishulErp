@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trishul — Service Engineer API Console</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171e2e; --panel2:#1e2740; --line:#2b3550; --text:#e6ebf5;
+    --muted:#95a1bd; --accent:#4f8cff; --ok:#2ecc71; --warn:#f1c40f; --err:#ff5c6c; --radius:12px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f3f5fb; --panel:#ffffff; --panel2:#f7f9ff; --line:#dde3f0; --text:#16203a;
+           --muted:#5b6b8c; --accent:#2f6bff; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);
+    padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  header h1{font-size:16px;margin:0 12px 0 0;white-space:nowrap}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:820px){.wrap{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .card h2{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--panel2);
+    border:1px solid var(--line);color:var(--muted)}
+  .tag.get{color:#7bd88f} .tag.post{color:#ffb86c}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+  input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:8px 10px;font:inherit}
+  textarea{resize:vertical;min-height:52px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  button{cursor:pointer;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 12px;
+    font-weight:600;font-size:13px}
+  button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  button:active{transform:translateY(1px)}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  pre{background:#0b0f18;color:#d7e0f5;border:1px solid var(--line);border-radius:8px;padding:10px;
+    margin:10px 0 0;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:12px}
+  @media (prefers-color-scheme: light){pre{background:#0d1220;color:#d7e0f5}}
+  .status{font-weight:700;margin-right:8px}
+  .s2{color:var(--ok)} .s4{color:var(--warn)} .s5{color:var(--err)} .s0{color:var(--err)}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  tr.sel td{background:var(--panel2)}
+  .hint{color:var(--muted);font-size:12px;margin-top:6px}
+  .pill{font-size:11px;color:var(--muted)}
+  code{background:var(--panel2);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔧 Service Engineer API Console</h1>
+  <div style="flex:1;min-width:220px">
+    <input id="baseUrl" placeholder="API base URL" />
+  </div>
+  <div style="flex:2;min-width:260px">
+    <input id="token" placeholder="Bearer token (Cognito access token)" />
+  </div>
+  <div style="width:120px"><input id="branch" placeholder="X-Branch-Id" /></div>
+  <div style="width:120px"><input id="principal" placeholder="X-Principal-Id" /></div>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. Device -->
+  <section class="card">
+    <h2><span class="tag post">POST</span> 1 · Register device <span class="pill">/core/user-devices</span></h2>
+    <div class="row">
+      <div><label>Device Id</label><input id="dev_deviceId" value="ANDROID-TEST-0001" /></div>
+      <div><label>Platform</label>
+        <select id="dev_platform"><option>Android</option><option>iOS</option><option>Web</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>App version</label><input id="dev_appVersion" value="1.0.0" /></div>
+      <div><label>Push token</label><input id="dev_pushToken" value="fcm:test-token" /></div>
+    </div>
+    <div class="btns">
+      <button onclick="registerDevice()">Register</button>
+      <button class="ghost" onclick="logoutDevice()">Logout device</button>
+    </div>
+    <pre id="out_device">—</pre>
+  </section>
+
+  <!-- 2. Assigned calls -->
+  <section class="card">
+    <h2><span class="tag get">GET</span> 2 · My assigned calls <span class="pill">/svc/service-calls/assigned-to-me</span></h2>
+    <div class="row">
+      <div><label>Status (optional, repeatable)</label><input id="call_status" placeholder="Assigned, Trip started" /></div>
+      <div><label>Search</label><input id="call_search" placeholder="call no / customer / serial" /></div>
+    </div>
+    <div class="btns"><button onclick="loadCalls()">Load my calls</button></div>
+    <div id="calls_table"></div>
+    <pre id="out_calls">—</pre>
+  </section>
+
+  <!-- 3. Start trip -->
+  <section class="card">
+    <h2><span class="tag post">POST</span> 3 · Start trip <span class="pill">/trk/trips</span></h2>
+    <div class="row">
+      <div><label>Module</label><select id="trip_module"><option>SVC</option><option>PRE</option></select></div>
+      <div><label>Reference id (callId)</label><input id="trip_ref" placeholder="pick a call above" /></div>
+    </div>
+    <div class="row">
+      <div><label>Trip type</label>
+        <select id="trip_type"><option>To site</option><option>Return</option><option>Site to site</option></select></div>
+      <div><label>Vehicle</label>
+        <select id="trip_vehicle"><option>Own bike</option><option>Own car</option><option>Company vehicle</option><option>Public transport</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>Start latitude</label><input id="trip_lat" value="20.2961" /></div>
+      <div><label>Start longitude</label><input id="trip_lon" value="85.8245" /></div>
+    </div>
+    <label>Client UUID (idempotency)</label><input id="trip_uuid" />
+    <div class="btns">
+      <button onclick="startTrip()">Start trip</button>
+      <button class="ghost" onclick="useGps('trip_lat','trip_lon')">📍 Use my GPS</button>
+      <button class="ghost" onclick="newUuid()">New UUID</button>
+    </div>
+    <div class="hint">On success the returned <code>tripId</code> is filled into the GPS/Stop cards below.</div>
+    <pre id="out_start">—</pre>
+  </section>
+
+  <!-- 4 & 5. Trip actions -->
+  <section class="card">
+    <h2>4·5·6 · Trip actions <span class="pill">/trk/trips/{tripId}</span></h2>
+    <label>Trip id</label><input id="active_trip" placeholder="set by Start trip" />
+    <div class="row" style="margin-top:8px">
+      <div><label>GPS latitude</label><input id="gps_lat" value="20.2988" /></div>
+      <div><label>GPS longitude</label><input id="gps_lon" value="85.8291" /></div>
+    </div>
+    <div class="btns">
+      <button onclick="uploadGps()"><span class="tag post">POST</span>&nbsp;Upload GPS point</button>
+      <button class="ghost" onclick="useGps('gps_lat','gps_lon')">📍 Use my GPS</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div><label>End latitude</label><input id="end_lat" value="22.1049" /></div>
+      <div><label>End longitude</label><input id="end_lon" value="85.3802" /></div>
+    </div>
+    <div class="btns">
+      <button onclick="stopTrip()"><span class="tag post">POST</span>&nbsp;Stop trip</button>
+      <button class="ghost" onclick="useGps('end_lat','end_lon')">📍 Use my GPS</button>
+      <button class="ghost" onclick="getTrip()"><span class="tag get">GET</span>&nbsp;Get trip</button>
+    </div>
+    <pre id="out_trip">—</pre>
+  </section>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const LS = { get:(k,d)=>{try{return localStorage.getItem(k)??d}catch{return d}},
+             set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}} };
+
+// restore / persist config
+$("baseUrl").value = LS.get("trk_base","http://127.0.0.1:8000/api/v1");
+$("token").value   = LS.get("trk_token","");
+$("branch").value  = LS.get("trk_branch","");
+$("principal").value = LS.get("trk_principal","");
+for(const id of ["baseUrl:trk_base","token:trk_token","branch:trk_branch","principal:trk_principal"]){
+  const [el,key]=id.split(":"); $(el).addEventListener("input",()=>LS.set(key,$(el).value));
+}
+function newUuid(){ $("trip_uuid").value = (crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random()); }
+newUuid();
+
+function headers(json){
+  const h={}; if(json) h["Content-Type"]="application/json";
+  const t=$("token").value.trim(); if(t) h["Authorization"]="Bearer "+t.replace(/^Bearer\s+/i,"");
+  h["X-Client-Platform"]="android";
+  if($("branch").value.trim()) h["X-Branch-Id"]=$("branch").value.trim();
+  if($("principal").value.trim()) h["X-Principal-Id"]=$("principal").value.trim();
+  return h;
+}
+function cls(s){ return s>=500||s===0?"s5":s>=400?"s4":s>=200?"s2":"s0"; }
+
+async function call(method, path, outEl, body){
+  const url = $("baseUrl").value.replace(/\/$/,"") + path;
+  outEl.innerHTML = `<span class="status">…</span>${method} ${path}`;
+  try{
+    const res = await fetch(url, {method, headers:headers(!!body), body:body?JSON.stringify(body):undefined});
+    const text = await res.text();
+    let shown=text; try{ shown=JSON.stringify(JSON.parse(text),null,2);}catch{}
+    outEl.innerHTML = `<span class="status ${cls(res.status)}">${res.status}</span>${method} ${path}\n\n${esc(shown)}`;
+    return {status:res.status, body:(()=>{try{return JSON.parse(text)}catch{return null}})()};
+  }catch(e){
+    outEl.innerHTML = `<span class="status s5">network error</span>${method} ${path}\n\n${esc(String(e))}`+
+      `\n\nIf this says "Failed to fetch": the backend must allow this page's origin (CORS). `+
+      `Serve this file from http://localhost:4200 (allowed by the dev backend), and keep the API on http://127.0.0.1:8000.`;
+    return {status:0, body:null};
+  }
+}
+function esc(s){return s.replace(/[&<]/g,c=>({"&":"&amp;","<":"&lt;"}[c]));}
+
+// 1 — device
+async function registerDevice(){
+  await call("POST","/core/user-devices",$("out_device"),{
+    deviceId:$("dev_deviceId").value, platform:$("dev_platform").value,
+    appVersion:$("dev_appVersion").value||null, pushToken:$("dev_pushToken").value||null});
+}
+async function logoutDevice(){
+  await call("POST",`/core/user-devices/${encodeURIComponent($("dev_deviceId").value)}/logout`,$("out_device"));
+}
+
+// 2 — assigned calls
+async function loadCalls(){
+  const p=new URLSearchParams();
+  $("call_status").value.split(",").map(s=>s.trim()).filter(Boolean).forEach(s=>p.append("status",s));
+  if($("call_search").value.trim()) p.set("search",$("call_search").value.trim());
+  p.set("pageSize","50");
+  const r = await call("GET","/svc/service-calls/assigned-to-me?"+p.toString(),$("out_calls"));
+  const items = r.body && r.body.items || [];
+  $("calls_table").innerHTML = items.length ? table(items) : "";
+}
+function table(items){
+  const rows = items.map(c=>`<tr data-id="${c.id}" onclick="pickCall(${c.id},this)">
+    <td><b>${c.id}</b></td><td>${c.callNo||""}</td><td>${c.customerName||""}</td>
+    <td>${c.machineModel||""}</td><td>${c.priority||""}</td><td>${c.currentStatus||""}</td></tr>`).join("");
+  return `<table><thead><tr><th>id</th><th>Call no</th><th>Customer</th><th>Machine</th><th>Pri</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function pickCall(id,tr){
+  $("trip_ref").value=id;
+  document.querySelectorAll("#calls_table tr").forEach(r=>r.classList.remove("sel"));
+  tr.classList.add("sel");
+}
+
+// 3 — start
+async function startTrip(){
+  if(!$("trip_uuid").value) newUuid();
+  const r = await call("POST","/trk/trips",$("out_start"),{
+    clientUuid:$("trip_uuid").value, module:$("trip_module").value,
+    referenceId:Number($("trip_ref").value), tripType:$("trip_type").value,
+    vehicleType:$("trip_vehicle").value,
+    startLatitude:Number($("trip_lat").value), startLongitude:Number($("trip_lon").value)});
+  if(r.body && r.body.id){ $("active_trip").value=r.body.id; }
+}
+
+// 4/5/6 — gps / stop / get
+async function uploadGps(){
+  const id=$("active_trip").value; if(!id) return alert("Start a trip first (need a trip id).");
+  await call("POST",`/trk/trips/${id}/gps-points`,$("out_trip"),{points:[{
+    recordedAt:new Date().toISOString(), latitude:Number($("gps_lat").value),
+    longitude:Number($("gps_lon").value), accuracyM:8.0, batteryPct:80, isMockLocation:false}]});
+}
+async function stopTrip(){
+  const id=$("active_trip").value; if(!id) return alert("Start a trip first (need a trip id).");
+  await call("POST",`/trk/trips/${id}/stop`,$("out_trip"),{
+    endLatitude:Number($("end_lat").value), endLongitude:Number($("end_lon").value)});
+}
+async function getTrip(){
+  const id=$("active_trip").value; if(!id) return alert("Need a trip id.");
+  await call("GET",`/trk/trips/${id}`,$("out_trip"));
+}
+
+// GPS helper
+function useGps(latId,lonId){
+  if(!navigator.geolocation) return alert("Geolocation not available in this browser.");
+  navigator.geolocation.getCurrentPosition(
+    p=>{ $(latId).value=p.coords.latitude.toFixed(6); $(lonId).value=p.coords.longitude.toFixed(6); },
+    e=>alert("GPS error: "+e.message), {enableHighAccuracy:true, timeout:8000});
+}
+</script>
+</body>
+</html>

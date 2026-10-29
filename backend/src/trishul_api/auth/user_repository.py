@@ -22,6 +22,7 @@ from trishul_api.db.models import (
 @dataclass(frozen=True)
 class Account:
     id: int
+    employee_id: int | None
     username: str
     email: str | None
     default_branch_id: int | None
@@ -49,6 +50,7 @@ class UserRepository:
         user, first_name, last_name = row
         return Account(
             id=user.id,
+            employee_id=user.employee_id,
             username=user.username,
             email=user.email,
             default_branch_id=user.default_branch_id,

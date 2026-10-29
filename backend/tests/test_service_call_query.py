@@ -4,13 +4,18 @@ from typing import Any
 
 from trishul_api.auth import RequestScope
 from trishul_api.modules.service.repository import ServiceCallRepository
-from trishul_api.modules.service.schemas import ServiceCallQuery
+from trishul_api.modules.service.schemas import AssignedServiceCallQuery, ServiceCallQuery
 
 from .helpers import mssql_sql
 
 
 def sql(scope: RequestScope, **query: Any) -> str:
     statement = ServiceCallRepository.list_statement(scope, ServiceCallQuery(**query))
+    return mssql_sql(statement.offset(20).limit(20))
+
+
+def assigned_sql(engineer_id: int, scope: RequestScope, **query: Any) -> str:
+    statement = ServiceCallRepository.assigned_statement(engineer_id, scope, AssignedServiceCallQuery(**query))
     return mssql_sql(statement.offset(20).limit(20))
 
 
@@ -51,3 +56,32 @@ def test_status_and_priority_filters() -> None:
     text = sql(RequestScope(1, None), status=["Logged", "Reopened"], priority=["High"])
     assert "svc.service_call.current_status IN (N'Logged', N'Reopened')" in text
     assert "svc.service_call.priority IN (N'High')" in text
+
+
+def test_assigned_list_is_scoped_to_the_signed_in_engineer() -> None:
+    text = assigned_sql(55, RequestScope(branch_id=3, principal_id=10))
+    assert "svc.service_call.assigned_engineer_id = 55" in text
+    assert "svc.service_call.branch_id = 3" in text
+    assert "svc.service_call.principal_id = 10" in text
+
+
+def test_assigned_list_hides_closed_and_cancelled_by_default() -> None:
+    text = assigned_sql(55, RequestScope(1, None))
+    assert "svc.service_call.current_status NOT IN (N'Closed', N'Cancelled')" in text
+
+
+def test_assigned_list_honours_an_explicit_status_filter() -> None:
+    text = assigned_sql(55, RequestScope(1, None), status=["Trip started"])
+    assert "svc.service_call.current_status IN (N'Trip started')" in text
+    assert "NOT IN" not in text
+
+
+def test_assigned_list_defaults_to_priority_then_id() -> None:
+    text = assigned_sql(55, RequestScope(1, None))
+    assert "ORDER BY CASE svc.service_call.priority WHEN 'Critical' THEN 1" in text
+    assert "svc.service_call.id DESC" in text
+
+
+def test_assigned_list_rejects_arbitrary_sort() -> None:
+    text = assigned_sql(55, RequestScope(1, None), sort="caller_phone; DROP TABLE x")
+    assert "DROP" not in text

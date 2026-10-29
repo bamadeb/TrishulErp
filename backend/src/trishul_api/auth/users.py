@@ -14,6 +14,8 @@ from trishul_api.auth.user_repository import UserRepository
 @dataclass(frozen=True)
 class CurrentUser:
     id: int
+    employee_id: int | None
+    """The core.employee this login acts as; None for office accounts with no employee record."""
     username: str
     display_name: str
     email: str | None
@@ -47,6 +49,7 @@ def load_user(repo: UserRepository, identity: Identity) -> CurrentUser | None:
     scope = resolve_scope(grants, repo.principal_ids(account.id), repo.branches_served_by)
     return CurrentUser(
         id=account.id,
+        employee_id=account.employee_id,
         username=account.username,
         display_name=account.display_name,
         email=account.email,

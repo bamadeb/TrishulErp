@@ -1,8 +1,13 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve .env next to the backend package root (backend/.env) so settings load no matter which
+# directory uvicorn is launched from. In AWS there is no .env; a missing file is ignored.
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -11,7 +16,7 @@ class Settings(BaseSettings):
     In AWS, ECS injects the database password from Secrets Manager as TRISHUL_DB_PASSWORD.
     """
 
-    model_config = SettingsConfigDict(env_prefix="TRISHUL_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="TRISHUL_", env_file=_ENV_FILE, extra="ignore")
 
     environment: Literal["dev", "test", "uat", "prod"] = "dev"
     api_prefix: str = "/api/v1"
