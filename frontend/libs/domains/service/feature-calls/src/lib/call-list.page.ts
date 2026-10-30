@@ -15,6 +15,7 @@ import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSort, MatSortHeader, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltip } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { HasPermission } from '@trishul/core-auth';
 import {
@@ -65,6 +66,7 @@ const FINISHED: ReadonlySet<CallStatus> = new Set([
   selector: 'trishul-call-list-page',
   imports: [
     DatePipe,
+    RouterLink,
     MatTableModule,
     MatSort,
     MatSortHeader,

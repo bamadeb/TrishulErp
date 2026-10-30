@@ -1,0 +1,150 @@
+"""Logging a service call: route -> service -> repository -> SQL (SQLite)."""
+
+from collections.abc import Iterator
+from typing import Any
+
+import httpx2 as httpx
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import Engine
+from sqlalchemy.orm import Session
+
+from trishul_api.auth import get_current_user, get_db
+from trishul_api.config import Settings
+from trishul_api.db import set_audit_context
+from trishul_api.main import create_app
+
+from .conftest import make_user
+from .sqlite_db import insert_row, sqlite_engine
+
+TABLES = [
+    "core.company",
+    "core.branch",
+    "core.principal",
+    "core.customer",
+    "core.machine_model",
+    "core.machine_unit",
+    "core.employee",
+    "core.lookup_type",
+    "core.lookup_value",
+    "core.number_series",
+    "core.app_user",
+    "core.audit_log",
+    "svc.service_call",
+]
+
+COMPANY, BRANCH, PRINCIPAL = 1, 1, 1
+CUSTOMER_ID, MACHINE_ID, ACTOR_ID = 100, 200, 1
+CUSTOMER_NAME = "Blue Earth Movers"
+CALL_SOURCE_ID, CALL_TYPE_BREAKDOWN, CALL_TYPE_PERIODIC = 11, 21, 22
+URL = "/api/v1/svc/service-calls"
+
+
+@pytest.fixture
+def db() -> Engine:
+    engine = sqlite_engine(TABLES)
+    insert_row(engine, "core.company", id=COMPANY, code="TRISHUL", legal_name="Trishul", trade_name="Trishul")
+    insert_row(engine, "core.branch", id=BRANCH, company_id=COMPANY, code="BBSR", name="Bhubaneswar")
+    insert_row(engine, "core.principal", id=PRINCIPAL, code="TATA_HITACHI", name="Tata Hitachi")
+    insert_row(engine, "core.customer", id=CUSTOMER_ID, company_id=COMPANY, code="C100", name=CUSTOMER_NAME,
+               customer_type="Company", primary_phone="9000000000")
+    insert_row(engine, "core.machine_model", id=1, model_code="EX200", model_name="EX200", principal_id=PRINCIPAL)
+    insert_row(engine, "core.machine_unit", id=MACHINE_ID, serial_number="SN-1", oem_registered_product_id="RP-1",
+               model_id=1, principal_id=PRINCIPAL, customer_id=CUSTOMER_ID, status="Sold")
+    insert_row(engine, "core.lookup_type", id=1, code="CALL_SOURCE", name="Call Source", module="Service")
+    insert_row(engine, "core.lookup_value", id=CALL_SOURCE_ID, lookup_type_id=1, code="PHONE",
+               label="Phone", sort_order=1)
+    insert_row(engine, "core.lookup_type", id=2, code="CALL_TYPE", name="Call Type", module="Service")
+    insert_row(engine, "core.lookup_value", id=CALL_TYPE_BREAKDOWN, lookup_type_id=2, code="BREAKDOWN",
+               label="Breakdown", sort_order=1)
+    insert_row(engine, "core.lookup_value", id=CALL_TYPE_PERIODIC, lookup_type_id=2, code="PERIODIC_SERVICE",
+               label="Periodic service", sort_order=2)
+    insert_row(engine, "core.number_series", id=1, company_id=COMPANY, document_type="SERVICE_CALL",
+               prefix="SC-", next_number=1, padding=4)
+    insert_row(engine, "core.app_user", id=ACTOR_ID, username="back.office@trishul.co", cognito_sub="sub-bo")
+    return engine
+
+
+def make_client(settings: Settings, db: Engine, permissions: set[str]) -> TestClient:
+    app = create_app(settings, engine=db)
+    api = app.state.api_v1
+    actor = make_user(id=ACTOR_ID, permissions=frozenset(permissions), default_branch_id=BRANCH,
+                      branch_ids=None, principal_ids=None)
+    api.dependency_overrides[get_current_user] = lambda: actor
+
+    def session() -> Iterator[Session]:
+        with Session(db, expire_on_commit=False) as s:
+            set_audit_context(s, user_id=ACTOR_ID, source="Web", ip_address="127.0.0.1")
+            yield s
+
+    api.dependency_overrides[get_db] = session
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def client(settings: Settings, db: Engine) -> Iterator[TestClient]:
+    with make_client(settings, db, {"svc.call.create", "svc.call.view"}) as test_client:
+        yield test_client
+
+
+def create(client: TestClient, **changes: Any) -> httpx.Response:
+    body = {
+        "customerId": CUSTOMER_ID,
+        "principalId": PRINCIPAL,
+        "machineUnitId": MACHINE_ID,
+        "callTypeLookupId": CALL_TYPE_BREAKDOWN,
+        "callSourceLookupId": CALL_SOURCE_ID,
+        "priority": "High",
+        "complaintDescription": "Engine not starting, battery OK",
+        "callerName": "Ramesh",
+        "callerPhone": "9876543210",
+        "isMachineDown": True,
+    } | changes
+    return client.post(URL, json=body)
+
+
+def test_create_logs_a_call(client: TestClient) -> None:
+    response = create(client)
+    assert response.status_code == 201, response.text
+    call = response.json()
+    assert call["callNo"].startswith("SC-")
+    assert call["customerName"] == CUSTOMER_NAME
+    assert call["principalCode"] == "TATA_HITACHI"
+    assert call["currentStatus"] == "Logged"
+    assert call["priority"] == "High"
+    assert call["isMachineDown"] is True
+    assert (call["machineModel"], call["machineSerialNo"]) == ("EX200", "SN-1")
+    assert call["assignedEngineerName"] is None  # essentials: not assigned at creation
+
+
+def test_create_without_machine(client: TestClient) -> None:
+    created = create(client, machineUnitId=None)
+    assert created.status_code == 201, created.text
+    assert created.json()["machineSerialNo"] is None
+
+
+def test_unknown_references_are_rejected(client: TestClient) -> None:
+    assert create(client, customerId=999).status_code == 400
+    assert "customerId" in create(client, customerId=999).json()["errors"]
+    assert "machineUnitId" in create(client, machineUnitId=999).json()["errors"]
+    # A CALL_SOURCE value is not a valid call type, and vice-versa.
+    assert "callTypeLookupId" in create(client, callTypeLookupId=CALL_SOURCE_ID).json()["errors"]
+    assert "callSourceLookupId" in create(client, callSourceLookupId=CALL_TYPE_BREAKDOWN).json()["errors"]
+
+
+def test_invalid_input_is_rejected(client: TestClient) -> None:
+    assert create(client, callerPhone="nope").status_code == 422
+    assert create(client, complaintDescription="").status_code == 422
+    assert create(client, priority="Urgent").status_code == 422
+    assert create(client, foo=True).status_code == 422  # unknown field
+
+
+def test_machine_options_search(client: TestClient) -> None:
+    rows = client.get(f"{URL}/machine-options", params={"search": "SN"}).json()
+    assert [(m["serialNumber"], m["modelName"]) for m in rows] == [("SN-1", "EX200")]
+    assert client.get(f"{URL}/machine-options", params={"customerId": CUSTOMER_ID}).json()[0]["id"] == MACHINE_ID
+
+
+def test_create_requires_permission(settings: Settings, db: Engine) -> None:
+    with make_client(settings, db, {"svc.call.view"}) as viewer:
+        assert create(viewer).status_code == 403

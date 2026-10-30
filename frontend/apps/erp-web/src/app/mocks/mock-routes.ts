@@ -9,8 +9,31 @@ import { PageServiceCallListItem } from '@trishul/core-api';
 import {
   CALL_STATUSES,
   CallPriority,
+  LookupValueOut,
+  MachineUnitOption,
+  ServiceCallCreate,
   ServiceCallListItem,
 } from '@trishul/service-data-access';
+
+const LOOKUPS: Record<string, LookupValueOut[]> = {
+  CALL_TYPE: [
+    { id: 1, code: 'BREAKDOWN', name: 'Breakdown', sortOrder: 1 },
+    { id: 2, code: 'PERIODIC_SERVICE', name: 'Periodic service', sortOrder: 2 },
+    { id: 3, code: 'INSTALLATION', name: 'Installation', sortOrder: 3 },
+    { id: 4, code: 'INSPECTION', name: 'Inspection', sortOrder: 4 },
+  ],
+  CALL_SOURCE: [
+    { id: 11, code: 'PHONE', name: 'Phone', sortOrder: 1 },
+    { id: 12, code: 'WHATSAPP', name: 'WhatsApp', sortOrder: 2 },
+    { id: 13, code: 'EMAIL', name: 'Email', sortOrder: 3 },
+  ],
+};
+
+const MOCK_MACHINES: MachineUnitOption[] = [
+  { id: 1, serialNumber: 'THX600123', modelName: 'EX 200LC', customerName: 'Shree Ganesh Infra' },
+  { id: 2, serialNumber: 'THB700456', modelName: 'SHINRAI BX80', customerName: 'Deccan Fabricators' },
+  { id: 3, serialNumber: 'API300789', modelName: 'GA 37 VSD+', customerName: 'Sahyadri Pharma' },
+];
 
 /** Fixtures used when config.json has "useMockApi": true. They mirror the API contract, not real data. */
 
@@ -158,7 +181,47 @@ export const mockRoutes: MockRoute[] = [
   {
     method: 'GET',
     path: '/core/lookups/:typeCode/values',
-    handle: () => [],
+    handle: (_req, params) => LOOKUPS[params['typeCode']] ?? [],
+  },
+  {
+    method: 'GET',
+    path: '/svc/service-calls/machine-options',
+    handle: (req): MachineUnitOption[] => {
+      const search = (req.params.get('search') ?? '').toLowerCase();
+      return MOCK_MACHINES.filter(
+        (m) =>
+          !search ||
+          m.serialNumber.toLowerCase().includes(search) ||
+          (m.modelName ?? '').toLowerCase().includes(search),
+      );
+    },
+  },
+  {
+    method: 'POST',
+    path: '/svc/service-calls',
+    handle: (req): ServiceCallListItem => {
+      const body = req.body as ServiceCallCreate;
+      const machine = MOCK_MACHINES.find((m) => m.id === body.machineUnitId);
+      return {
+        id: Math.floor(Math.random() * 100000),
+        callNo: `SC/25-26/${String(Math.floor(Math.random() * 90000) + 10000)}`,
+        receivedAt: body.receivedAt ?? new Date().toISOString(),
+        principalCode: 'TATA_HITACHI',
+        customerName: `Customer #${body.customerId}`,
+        machineSerialNo: machine?.serialNumber ?? null,
+        machineModel: machine?.modelName ?? null,
+        complaintDescription: body.complaintDescription,
+        priority: body.priority ?? 'Normal',
+        isMachineDown: body.isMachineDown ?? false,
+        isAscPriority: false,
+        coverageType: null,
+        currentStatus: 'Logged',
+        assignedEngineerName: null,
+        oemCallId: null,
+        slaDueAt: null,
+        rowVersion: btoa(`new-${Date.now()}`),
+      };
+    },
   },
   ...mockServiceImportRoutes,
   ...mockUserRoutes,

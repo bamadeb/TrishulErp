@@ -2,10 +2,14 @@
   title="Service calls"
   subtitle="Call register for the selected branch and brand"
 >
-  <button mat-flat-button *trishulHasPermission="'svc.call.create'">
+  <a
+    mat-flat-button
+    routerLink="new"
+    *trishulHasPermission="'svc.call.create'"
+  >
     <mat-icon>add</mat-icon>
     New call
-  </button>
+  </a>
 </trishul-page-header>
 
 <div class="filters">

@@ -1,0 +1,171 @@
+<trishul-page-header
+  title="New service call"
+  subtitle="Log a complaint or service request"
+>
+  <a mat-button routerLink="/service/calls">
+    <mat-icon>arrow_back</mat-icon>
+    All calls
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (isSaving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <section>
+    <h2>Call</h2>
+    <div class="fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Brand</mat-label>
+        <mat-select formControlName="principalId">
+          @for (p of principals(); track p.id) {
+          <mat-option [value]="p.id">{{ p.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Choose a brand.</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Branch</mat-label>
+        <mat-select formControlName="branchId">
+          @for (b of branches(); track b.id) {
+          <mat-option [value]="b.id">{{ b.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Choose a branch.</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Customer</mat-label>
+        <mat-icon matPrefix>person_search</mat-icon>
+        <input
+          matInput
+          formControlName="customer"
+          [matAutocomplete]="customerAuto"
+          placeholder="Search a customer by code or name"
+        />
+        <mat-autocomplete
+          #customerAuto="matAutocomplete"
+          [displayWith]="customerText"
+        >
+          @for (c of customerOptions(); track c.id) {
+          <mat-option [value]="c">{{ customerLabel(c) }}</mat-option>
+          }
+        </mat-autocomplete>
+        <mat-error>Pick a customer from the list.</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Machine (optional)</mat-label>
+        <mat-icon matPrefix>precision_manufacturing</mat-icon>
+        <input
+          matInput
+          formControlName="machine"
+          [matAutocomplete]="machineAuto"
+          placeholder="Search by serial or model"
+        />
+        @if (form.controls.machine.value) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          aria-label="Clear machine"
+          (click)="clearMachine()"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+        }
+        <mat-autocomplete
+          #machineAuto="matAutocomplete"
+          [displayWith]="machineText"
+        >
+          @for (m of machineOptions(); track m.id) {
+          <mat-option [value]="m">
+            {{ machineLabel(m) }}
+            @if (m.customerName) {
+            <span class="muted"> — {{ m.customerName }}</span>
+            }
+          </mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section>
+    <h2>Complaint</h2>
+    <div class="fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Call type</mat-label>
+        <mat-select formControlName="callTypeLookupId">
+          @for (t of callTypes(); track t.id) {
+          <mat-option [value]="t.id">{{ t.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Choose a call type.</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Source</mat-label>
+        <mat-select formControlName="callSourceLookupId">
+          @for (s of callSources(); track s.id) {
+          <mat-option [value]="s.id">{{ s.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Choose how the call came in.</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Priority</mat-label>
+        <mat-select formControlName="priority">
+          @for (p of priorities; track p) {
+          <mat-option [value]="p">{{ p }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="wide">
+        <mat-label>Complaint</mat-label>
+        <textarea
+          matInput
+          rows="3"
+          formControlName="complaintDescription"
+          placeholder="What is the problem as reported?"
+        ></textarea>
+        <mat-error>Describe the complaint.</mat-error>
+      </mat-form-field>
+      <mat-checkbox formControlName="isMachineDown" class="down">
+        Machine is down (not working)
+      </mat-checkbox>
+    </div>
+  </section>
+
+  <section>
+    <h2>Caller</h2>
+    <div class="fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Caller name</mat-label>
+        <input matInput formControlName="callerName" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Caller phone</mat-label>
+        <input
+          matInput
+          formControlName="callerPhone"
+          inputmode="tel"
+          placeholder="9876543210"
+        />
+        <mat-error>Enter a valid phone number.</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  @if (canCreate) {
+  <div class="buttons">
+    <button mat-flat-button type="submit" [disabled]="isSaving()">
+      <mat-icon>add</mat-icon>
+      Log call
+    </button>
+    <a mat-button routerLink="/service/calls">Cancel</a>
+  </div>
+  }
+</form>

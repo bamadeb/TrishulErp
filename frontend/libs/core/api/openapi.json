@@ -2942,6 +2942,207 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Log a new service call (office)",
+        "operationId": "create_service_call",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceCallCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCallListItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Some of the selected values don't exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-calls/machine-options": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Machines to pick when logging a call (search by serial or model)",
+        "operationId": "list_machine_options",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "customerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customerid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MachineUnitOption"
+                  },
+                  "title": "Response List Machine Options"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/svc/service-calls/assigned-to-me": {
@@ -6401,6 +6602,48 @@
         ],
         "title": "LookupValueOut"
       },
+      "MachineUnitOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "serialNumber": {
+            "type": "string",
+            "title": "Serialnumber"
+          },
+          "modelName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelname"
+          },
+          "customerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customername"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "serialNumber",
+          "modelName",
+          "customerName"
+        ],
+        "title": "MachineUnitOption"
+      },
       "Me": {
         "properties": {
           "id": {
@@ -6990,6 +7233,123 @@
           "description"
         ],
         "title": "RoleOption"
+      },
+      "ServiceCallCreate": {
+        "properties": {
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
+          },
+          "machineUnitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineunitid"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid",
+            "description": "Defaults to the selected branch."
+          },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid",
+            "description": "Brand; defaults to the selected brand."
+          },
+          "callTypeLookupId": {
+            "type": "integer",
+            "title": "Calltypelookupid",
+            "description": "A value of the CALL_TYPE lookup."
+          },
+          "callSourceLookupId": {
+            "type": "integer",
+            "title": "Callsourcelookupid",
+            "description": "A value of the CALL_SOURCE lookup."
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Normal",
+              "Low"
+            ],
+            "title": "Priority",
+            "default": "Normal"
+          },
+          "complaintDescription": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Complaintdescription"
+          },
+          "callerName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callername"
+          },
+          "callerPhone": {
+            "type": "string",
+            "maxLength": 15,
+            "pattern": "^[0-9+\\-() ]{6,15}$",
+            "title": "Callerphone"
+          },
+          "isMachineDown": {
+            "type": "boolean",
+            "title": "Ismachinedown",
+            "default": false
+          },
+          "receivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receivedat",
+            "description": "Defaults to now."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "customerId",
+          "callTypeLookupId",
+          "callSourceLookupId",
+          "complaintDescription",
+          "callerPhone"
+        ],
+        "title": "ServiceCallCreate",
+        "description": "Log a new service call (office). call_no, status (Logged) and received_by are set by the server;\nbranch and brand default to the ones selected in the app (the X-Branch-Id / X-Principal-Id headers)."
       },
       "ServiceCallListItem": {
         "properties": {

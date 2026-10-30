@@ -1,3 +1,4 @@
+import builtins
 from typing import Any
 
 from sqlalchemy import Select, case, func, or_, select
@@ -18,6 +19,8 @@ from trishul_api.db.models import (
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
+    MachineOptionQuery,
+    MachineUnitOption,
     ServiceCallListItem,
     ServiceCallQuery,
 )
@@ -50,9 +53,45 @@ class ServiceCallRepository:
     def list(self, scope: RequestScope, query: ServiceCallQuery) -> Page[ServiceCallListItem]:
         return paginate(self._session, self.list_statement(scope, query), query, ServiceCallListItem)
 
-    @staticmethod
-    def list_statement(scope: RequestScope, query: ServiceCallQuery) -> Select[*tuple[Any, ...]]:
+    def get_list_item(self, call_id: int) -> ServiceCallListItem:
+        """One call as the register shows it; the call must exist."""
+        row = self._session.execute(self._register_select().where(ServiceCall.id == call_id)).mappings().one()
+        return ServiceCallListItem.model_validate(row)
+
+    # builtins.list: this class has a method named `list`, which otherwise shadows the builtin here.
+    def machine_options(self, scope: RequestScope, query: MachineOptionQuery) -> builtins.list[MachineUnitOption]:
+        """Machines to pick for a new call, narrowed to the selected brand and (optionally) customer."""
         statement = (
+            select(
+                MachineUnit.id,
+                MachineUnit.serial_number,
+                MachineModel.model_name,
+                Customer.name.label("customer_name"),
+            )
+            .outerjoin(MachineModel, MachineModel.id == MachineUnit.model_id)
+            .outerjoin(Customer, Customer.id == MachineUnit.customer_id)
+            .where(MachineUnit.is_active)
+        )
+        if scope.principal_id is not None:
+            statement = statement.where(MachineUnit.principal_id == scope.principal_id)
+        if query.customer_id is not None:
+            statement = statement.where(MachineUnit.customer_id == query.customer_id)
+        if query.search:
+            term = query.search.strip()
+            statement = statement.where(
+                or_(
+                    MachineUnit.serial_number.contains(term, autoescape=True),
+                    MachineUnit.oem_registered_product_id.contains(term, autoescape=True),
+                    MachineModel.model_name.contains(term, autoescape=True),
+                )
+            )
+        statement = statement.order_by(MachineUnit.serial_number).limit(query.limit)
+        return [MachineUnitOption.model_validate(row) for row in self._session.execute(statement).mappings()]
+
+    @staticmethod
+    def _register_select() -> Select[*tuple[Any, ...]]:
+        """Columns of ServiceCallListItem, with the joins the register row needs."""
+        return (
             select(
                 ServiceCall.id,
                 ServiceCall.call_no,
@@ -81,6 +120,10 @@ class ServiceCallRepository:
             .outerjoin(Employee, Employee.id == ServiceCall.assigned_engineer_id)
             .where(ServiceCall.is_active)
         )
+
+    @staticmethod
+    def list_statement(scope: RequestScope, query: ServiceCallQuery) -> Select[*tuple[Any, ...]]:
+        statement = ServiceCallRepository._register_select()
         # Row-level security limits what the user may see; these narrow it to what they selected.
         if scope.branch_id is not None:
             statement = statement.where(ServiceCall.branch_id == scope.branch_id)
@@ -170,6 +213,4 @@ class ServiceCallRepository:
                 )
             )
         # Most urgent first (Critical → Low), stable by id for consistent paging.
-        return order_by_sort(
-            statement, query.sort, _SORT_COLUMNS, default="priority", tiebreaker=ServiceCall.id.desc()
-        )
+        return order_by_sort(statement, query.sort, _SORT_COLUMNS, default="priority", tiebreaker=ServiceCall.id.desc())

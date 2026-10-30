@@ -5,9 +5,18 @@ import {
 import { allOf } from '@trishul/shared-util';
 
 // API types come from the generated client; only what the UI adds is defined here.
-export type { ServiceCallListItem } from '@trishul/core-api';
+export type {
+  ServiceCallListItem,
+  ServiceCallCreate,
+  MachineUnitOption,
+  CustomerListItem,
+  LookupValueOut,
+} from '@trishul/core-api';
 export type CallStatus = ServiceCallListItem['currentStatus'];
 export type CallPriority = ServiceCallListItem['priority'];
+
+/** Log a new call / open the register. The API checks the same code. */
+export const SERVICE_CALL_CREATE_PERMISSION = 'svc.call.create';
 
 /** Query of the call register; page and page size are always set. */
 export type ServiceCallQuery = ListServiceCalls$Params &

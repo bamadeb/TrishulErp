@@ -11,15 +11,20 @@ from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
+    MachineOptionQuery,
+    MachineUnitOption,
+    ServiceCallCreate,
     ServiceCallListItem,
     ServiceCallQuery,
 )
+from trishul_api.modules.service.service import ServiceCallService
 
 router = APIRouter(prefix="/svc", tags=["service"])
 
 # Any of these may open the call register (svc.call.view comes from migration 0001). The Angular
 # guard and menu use the same codes: SERVICE_CALL_VIEW_PERMISSIONS in libs/domains/service/data-access.
 CAN_VIEW_CALLS = ("svc.call.view", "svc.call.create", "svc.call.assign")
+CAN_CREATE = Depends(require_permission("svc.call.create"))
 CAN_IMPORT = Depends(require_permission("svc.call.import"))
 
 # BYD exports are small (tens of KB); cap the upload well above that but still safely.
@@ -65,6 +70,35 @@ def list_service_calls(
     repo: ServiceCallRepo,
 ) -> Page[ServiceCallListItem]:
     return repo.list(scope, query)
+
+
+@router.post(
+    "/service-calls",
+    summary="Log a new service call (office)",
+    status_code=201,
+    dependencies=[CAN_CREATE],
+    responses={400: problem_response("Some of the selected values don't exist.")},
+)
+def create_service_call(
+    data: ServiceCallCreate,
+    actor: CurrentUserDep,
+    scope: ScopeDep,
+    db: DbSession,
+) -> ServiceCallListItem:
+    return ServiceCallService(db, actor).create(scope, data)
+
+
+@router.get(
+    "/service-calls/machine-options",
+    summary="Machines to pick when logging a call (search by serial or model)",
+    dependencies=[Depends(require_permission(*CAN_VIEW_CALLS))],
+)
+def list_machine_options(
+    query: Annotated[MachineOptionQuery, Query()],
+    scope: ScopeDep,
+    repo: ServiceCallRepo,
+) -> list[MachineUnitOption]:
+    return repo.machine_options(scope, query)
 
 
 @router.get(
