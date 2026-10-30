@@ -11,14 +11,15 @@ import {
   type SignInOutput,
 } from 'aws-amplify/auth';
 import { cognitoUserPoolsTokenProvider } from 'aws-amplify/auth/cognito';
-import { sessionStorage } from 'aws-amplify/utils';
+import { defaultStorage } from 'aws-amplify/utils';
 import { Observable, catchError, from, map, of } from 'rxjs';
 import { APP_CONFIG } from '@trishul/core-config';
 import { AuthError, AuthSession, SignInStep } from '../auth-session';
 
 /**
  * Cognito user pool through AWS Amplify. Passwords are checked with SRP, so the password itself
- * is never sent. Tokens live in sessionStorage: closing the tab signs the user out.
+ * is never sent. Tokens live in localStorage (defaultStorage), so the session is shared across tabs
+ * and a menu item opened in a new tab stays signed in; it ends on sign-out or when the tokens expire.
  */
 @Injectable()
 export class CognitoAuthSession extends AuthSession {
@@ -36,7 +37,7 @@ export class CognitoAuthSession extends AuthSession {
         },
       },
     });
-    cognitoUserPoolsTokenProvider.setKeyValueStorage(sessionStorage);
+    cognitoUserPoolsTokenProvider.setKeyValueStorage(defaultStorage);
   }
 
   async restore(): Promise<boolean> {

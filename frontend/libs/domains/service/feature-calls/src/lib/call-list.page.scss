@@ -1,11 +1,11 @@
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 
   .search {
-    flex: 1 1 18rem;
+    flex: 1 1 22rem;
   }
 
   mat-form-field:not(.search) {
@@ -14,19 +14,12 @@
   }
 }
 
-// Identifiers and dates read badly when wrapped; let the table scroll instead.
-.mat-column-callNo,
-.mat-column-machine,
-.mat-column-engineer,
-.mat-column-slaDueAt {
-  white-space: nowrap;
-}
-
 .table-card {
   overflow: hidden;
   background: var(--mat-sys-surface);
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-medium);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
 }
 
 // Reserve the bar's height so rows don't jump while loading.
@@ -39,18 +32,82 @@
 }
 
 table {
+  width: 100%;
   min-width: 960px;
+  background: transparent;
+}
+
+// Header: a quiet tinted strip with emphasized, compact labels.
+th.mat-mdc-header-cell {
+  background: var(--mat-sys-surface-container);
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+// Scannable rows: subtle zebra striping plus a clear hover.
+tr.mat-mdc-row {
+  transition: background-color 120ms ease;
+
+  &:nth-child(even) {
+    background: color-mix(in srgb, var(--mat-sys-surface-container) 45%, transparent);
+  }
+
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
 }
 
 th,
 td {
-  padding: 0 0.625rem;
+  padding: 0 0.75rem;
 }
 
 td {
   vertical-align: top;
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
+}
+
+// Deliberate widths: the customer and complaint columns absorb the slack,
+// the rest stay compact so identifiers and dates don't wrap.
+.mat-column-callNo {
+  width: 11rem;
+  white-space: nowrap;
+}
+
+.mat-column-customerName {
+  min-width: 11rem;
+}
+
+.mat-column-machine {
+  width: 11rem;
+  white-space: nowrap;
+}
+
+.mat-column-complaint {
+  min-width: 14rem;
+}
+
+.mat-column-priority {
+  width: 8rem;
+}
+
+.mat-column-status {
+  width: 8.5rem;
+}
+
+.mat-column-engineer {
+  width: 9rem;
+}
+
+.mat-column-slaDueAt {
+  width: 8rem;
+  white-space: nowrap;
 }
 
 .strong {
@@ -63,7 +120,7 @@ td {
 }
 
 .complaint {
-  max-width: 16rem;
+  max-width: 24rem;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
