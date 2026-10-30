@@ -1,9 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
 
 from trishul_api.auth import CurrentUser, CurrentUserDep, DbSession, ScopeDep, require_permission
-from trishul_api.common.errors import ApiError, Forbidden, problem_response
+from trishul_api.common.concurrency import if_match_row_version
+from trishul_api.common.errors import (
+    CONCURRENCY_RESPONSES,
+    NOT_FOUND_RESPONSE,
+    ApiError,
+    Forbidden,
+    problem_response,
+)
 from trishul_api.common.schemas import Page
 from trishul_api.modules.service.imports.schemas import BydImportPreview, BydImportResult
 from trishul_api.modules.service.imports.service import BydImportService
@@ -11,11 +18,14 @@ from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
+    EngineerOption,
+    EngineerOptionQuery,
     MachineOptionQuery,
     MachineUnitOption,
     ServiceCallCreate,
     ServiceCallListItem,
     ServiceCallQuery,
+    ServiceCallTriageUpdate,
 )
 from trishul_api.modules.service.service import ServiceCallService
 
@@ -25,7 +35,10 @@ router = APIRouter(prefix="/svc", tags=["service"])
 # guard and menu use the same codes: SERVICE_CALL_VIEW_PERMISSIONS in libs/domains/service/data-access.
 CAN_VIEW_CALLS = ("svc.call.view", "svc.call.create", "svc.call.assign")
 CAN_CREATE = Depends(require_permission("svc.call.create"))
+CAN_ASSIGN = Depends(require_permission("svc.call.assign"))
 CAN_IMPORT = Depends(require_permission("svc.call.import"))
+
+CallId = Annotated[int, Path(alias="callId")]
 
 # BYD exports are small (tens of KB); cap the upload well above that but still safely.
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -88,6 +101,22 @@ def create_service_call(
     return ServiceCallService(db, actor).create(scope, data)
 
 
+@router.patch(
+    "/service-calls/{callId}",
+    summary="Assign an engineer and/or set priority (team lead triage)",
+    dependencies=[CAN_ASSIGN],
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+)
+def update_service_call_triage(
+    call_id: CallId,
+    data: ServiceCallTriageUpdate,
+    actor: CurrentUserDep,
+    db: DbSession,
+    row_version: Annotated[bytes, Depends(if_match_row_version)],
+) -> ServiceCallListItem:
+    return ServiceCallService(db, actor).update_triage(call_id, row_version, data)
+
+
 @router.get(
     "/service-calls/machine-options",
     summary="Machines to pick when logging a call (search by serial or model)",
@@ -99,6 +128,19 @@ def list_machine_options(
     repo: ServiceCallRepo,
 ) -> list[MachineUnitOption]:
     return repo.machine_options(scope, query)
+
+
+@router.get(
+    "/service-calls/engineer-options",
+    summary="Engineers a team lead can assign a call to",
+    dependencies=[CAN_ASSIGN],
+)
+def list_engineer_options(
+    query: Annotated[EngineerOptionQuery, Query()],
+    scope: ScopeDep,
+    repo: ServiceCallRepo,
+) -> list[EngineerOption]:
+    return repo.engineer_options(scope, query)
 
 
 @router.get(

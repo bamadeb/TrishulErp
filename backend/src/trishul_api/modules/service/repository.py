@@ -10,6 +10,7 @@ from trishul_api.common.schemas import Page
 from trishul_api.db.models import (
     Customer,
     CustomerSite,
+    Designation,
     Employee,
     MachineModel,
     MachineUnit,
@@ -19,6 +20,8 @@ from trishul_api.db.models import (
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
+    EngineerOption,
+    EngineerOptionQuery,
     MachineOptionQuery,
     MachineUnitOption,
     ServiceCallListItem,
@@ -27,6 +30,10 @@ from trishul_api.modules.service.schemas import (
 
 # Calls the engineer no longer needs to travel to: hidden unless the client asks for them by status.
 _CLOSED_STATUSES = ("Closed", "Cancelled")
+
+# A call is assigned to a Service Engineer, so the assign picker lists only employees with that
+# designation (hr.designation code), not every employee of the branch.
+_SERVICE_ENGINEER_DESIGNATION = "SERVICE_ENG"
 
 _PRIORITY_RANK = case(
     {"Critical": 1, "High": 2, "Normal": 3, "Low": 4},
@@ -87,6 +94,24 @@ class ServiceCallRepository:
             )
         statement = statement.order_by(MachineUnit.serial_number).limit(query.limit)
         return [MachineUnitOption.model_validate(row) for row in self._session.execute(statement).mappings()]
+
+    def engineer_options(self, scope: RequestScope, query: EngineerOptionQuery) -> builtins.list[EngineerOption]:
+        """Engineers a team lead can assign a call to: active Service Engineers of the selected branch."""
+        name = func.concat_ws(" ", Employee.first_name, Employee.last_name)
+        statement = (
+            select(Employee.id, name.label("name"), Employee.employee_code)
+            .join(Designation, Designation.id == Employee.designation_id)
+            .where(Employee.is_active, Designation.code == _SERVICE_ENGINEER_DESIGNATION)
+        )
+        if scope.branch_id is not None:
+            statement = statement.where(Employee.branch_id == scope.branch_id)
+        if query.search:
+            term = query.search.strip()
+            statement = statement.where(
+                or_(name.contains(term, autoescape=True), Employee.employee_code.contains(term, autoescape=True))
+            )
+        statement = statement.order_by(Employee.first_name, Employee.last_name).limit(query.limit)
+        return [EngineerOption.model_validate(row) for row in self._session.execute(statement).mappings()]
 
     @staticmethod
     def _register_select() -> Select[*tuple[Any, ...]]:

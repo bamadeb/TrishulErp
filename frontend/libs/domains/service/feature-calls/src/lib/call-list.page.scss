@@ -90,7 +90,7 @@ td {
 }
 
 .mat-column-complaint {
-  min-width: 14rem;
+  width: 15rem;
 }
 
 .mat-column-priority {
@@ -119,11 +119,15 @@ td {
   color: var(--mat-sys-on-surface-variant);
 }
 
+// Wrap to at most 3 lines (ellipsis after); the full text is still in the tooltip.
 .complaint {
-  max-width: 24rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: normal;
+  line-height: 1.35;
 }
 
 .down {
@@ -143,5 +147,42 @@ td {
 .empty {
   padding: 2rem;
   text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Inline triage (team lead): a borderless trigger around the priority badge.
+.cell-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.caret {
+  font-size: 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  opacity: 0.6;
+}
+
+.assign-btn {
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.menu-empty {
+  display: block;
+  padding: 0.5rem 1rem;
+  font: var(--mat-sys-body-small);
   color: var(--mat-sys-on-surface-variant);
 }

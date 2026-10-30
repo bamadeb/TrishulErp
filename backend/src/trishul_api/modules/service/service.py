@@ -8,11 +8,25 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser, RequestScope
-from trishul_api.common.errors import ApiError
+from trishul_api.common.concurrency import check_row_version
+from trishul_api.common.errors import ApiError, NotFound
 from trishul_api.common.numbering import next_document_no
-from trishul_api.db.models import Branch, Customer, LookupType, LookupValue, MachineUnit, Principal, ServiceCall
+from trishul_api.db.models import (
+    Branch,
+    Customer,
+    Employee,
+    LookupType,
+    LookupValue,
+    MachineUnit,
+    Principal,
+    ServiceCall,
+)
 from trishul_api.modules.service.repository import ServiceCallRepository
-from trishul_api.modules.service.schemas import ServiceCallCreate, ServiceCallListItem
+from trishul_api.modules.service.schemas import (
+    ServiceCallCreate,
+    ServiceCallListItem,
+    ServiceCallTriageUpdate,
+)
 
 
 class ServiceCallService:
@@ -55,6 +69,43 @@ class ServiceCallService:
         self._db.add(call)
         self._db.flush()
         call_id = call.id
+        self._db.commit()
+        return self._repo.get_list_item(call_id)
+
+    def update_triage(
+        self, call_id: int, expected_row_version: bytes, data: ServiceCallTriageUpdate
+    ) -> ServiceCallListItem:
+        """A team lead reassigns and/or re-prioritises a call from the register."""
+        call = self._db.get(ServiceCall, call_id)
+        if call is None or not call.is_active:
+            raise NotFound("Service call not found.")
+        check_row_version(call.row_version, expected_row_version)
+        changed = data.model_fields_set
+
+        if "priority" in changed and data.priority is not None:
+            call.priority = data.priority
+        if "engineer_id" in changed:
+            if data.engineer_id is not None:
+                if (
+                    self._db.scalars(
+                        select(Employee.id).where(Employee.id == data.engineer_id, Employee.is_active).limit(1)
+                    ).first()
+                    is None
+                ):
+                    raise ApiError(
+                        "That engineer doesn't exist.",
+                        errors={"engineerId": [f"Unknown or inactive employee {data.engineer_id}"]},
+                    )
+                call.assigned_engineer_id = data.engineer_id
+                if call.current_status == "Logged":
+                    call.current_status = "Assigned"
+            else:
+                call.assigned_engineer_id = None
+                if call.current_status == "Assigned":
+                    call.current_status = "Logged"
+
+        call.updated_at = _now()
+        call.updated_by_user_id = self._actor.id
         self._db.commit()
         return self._repo.get_list_item(call_id)
 

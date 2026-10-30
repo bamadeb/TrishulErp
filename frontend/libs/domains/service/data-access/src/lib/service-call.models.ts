@@ -8,7 +8,9 @@ import { allOf } from '@trishul/shared-util';
 export type {
   ServiceCallListItem,
   ServiceCallCreate,
+  ServiceCallTriageUpdate,
   MachineUnitOption,
+  EngineerOption,
   CustomerListItem,
   LookupValueOut,
 } from '@trishul/core-api';
@@ -17,6 +19,8 @@ export type CallPriority = ServiceCallListItem['priority'];
 
 /** Log a new call / open the register. The API checks the same code. */
 export const SERVICE_CALL_CREATE_PERMISSION = 'svc.call.create';
+/** Assign an engineer and set priority from the register (team lead). */
+export const SERVICE_CALL_ASSIGN_PERMISSION = 'svc.call.assign';
 
 /** Query of the call register; page and page size are always set. */
 export type ServiceCallQuery = ListServiceCalls$Params &

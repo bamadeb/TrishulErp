@@ -30,11 +30,12 @@ TABLES = [
     "core.number_series",
     "core.app_user",
     "core.audit_log",
+    "hr.designation",
     "svc.service_call",
 ]
 
 COMPANY, BRANCH, PRINCIPAL = 1, 1, 1
-CUSTOMER_ID, MACHINE_ID, ACTOR_ID = 100, 200, 1
+CUSTOMER_ID, MACHINE_ID, ENGINEER_ID, ACTOR_ID = 100, 200, 300, 1
 CUSTOMER_NAME = "Blue Earth Movers"
 CALL_SOURCE_ID, CALL_TYPE_BREAKDOWN, CALL_TYPE_PERIODIC = 11, 21, 22
 URL = "/api/v1/svc/service-calls"
@@ -51,6 +52,8 @@ def db() -> Engine:
     insert_row(engine, "core.machine_model", id=1, model_code="EX200", model_name="EX200", principal_id=PRINCIPAL)
     insert_row(engine, "core.machine_unit", id=MACHINE_ID, serial_number="SN-1", oem_registered_product_id="RP-1",
                model_id=1, principal_id=PRINCIPAL, customer_id=CUSTOMER_ID, status="Sold")
+    insert_row(engine, "core.employee", id=ENGINEER_ID, company_id=COMPANY, branch_id=BRANCH, employee_code="E300",
+               first_name="Satyajit", last_name="Tung", employee_type="Permanent", status="Active")
     insert_row(engine, "core.lookup_type", id=1, code="CALL_SOURCE", name="Call Source", module="Service")
     insert_row(engine, "core.lookup_value", id=CALL_SOURCE_ID, lookup_type_id=1, code="PHONE",
                label="Phone", sort_order=1)
@@ -83,8 +86,12 @@ def make_client(settings: Settings, db: Engine, permissions: set[str]) -> TestCl
 
 @pytest.fixture
 def client(settings: Settings, db: Engine) -> Iterator[TestClient]:
-    with make_client(settings, db, {"svc.call.create", "svc.call.view"}) as test_client:
+    with make_client(settings, db, {"svc.call.create", "svc.call.view", "svc.call.assign"}) as test_client:
         yield test_client
+
+
+def if_match(item: dict[str, Any]) -> dict[str, str]:
+    return {"If-Match": f'"{item["rowVersion"]}"'}
 
 
 def create(client: TestClient, **changes: Any) -> httpx.Response:
@@ -148,3 +155,52 @@ def test_machine_options_search(client: TestClient) -> None:
 def test_create_requires_permission(settings: Settings, db: Engine) -> None:
     with make_client(settings, db, {"svc.call.view"}) as viewer:
         assert create(viewer).status_code == 403
+
+
+# ------------------------------------------------------------------ team-lead triage (assign + priority)
+
+
+def test_assign_engineer_and_set_priority(client: TestClient) -> None:
+    call = create(client, priority="Normal").json()
+    url = f"{URL}/{call['id']}"
+    assert client.patch(url, json={"engineerId": ENGINEER_ID}).status_code == 428  # If-Match required
+    bad = client.patch(url, json={"engineerId": ENGINEER_ID}, headers={"If-Match": '"AAAAAAAAAAA="'})
+    assert bad.status_code == 409
+
+    updated = client.patch(
+        url, json={"engineerId": ENGINEER_ID, "priority": "Critical"}, headers=if_match(call)
+    )
+    assert updated.status_code == 200, updated.text
+    body = updated.json()
+    assert body["assignedEngineerName"] == "Satyajit Tung"
+    assert body["priority"] == "Critical"
+    assert body["currentStatus"] == "Assigned"  # Logged -> Assigned on assignment
+
+
+def test_unassign_returns_status_to_logged(client: TestClient) -> None:
+    call = create(client).json()
+    url = f"{URL}/{call['id']}"
+    assigned = client.patch(url, json={"engineerId": ENGINEER_ID}, headers=if_match(call)).json()
+    cleared = client.patch(url, json={"engineerId": None}, headers=if_match(assigned))
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["assignedEngineerName"] is None
+    assert cleared.json()["currentStatus"] == "Logged"
+
+
+def test_triage_rejects_unknown_engineer(client: TestClient) -> None:
+    call = create(client).json()
+    rejected = client.patch(f"{URL}/{call['id']}", json={"engineerId": 999}, headers=if_match(call))
+    assert rejected.status_code == 400
+    assert "engineerId" in rejected.json()["errors"]
+
+
+def test_engineer_options(client: TestClient) -> None:
+    rows = client.get(f"{URL}/engineer-options").json()
+    assert [(e["name"], e["employeeCode"]) for e in rows] == [("Satyajit Tung", "E300")]
+
+
+def test_triage_requires_assign_permission(client: TestClient, settings: Settings, db: Engine) -> None:
+    call = create(client).json()
+    with make_client(settings, db, {"svc.call.view"}) as viewer:
+        blocked = viewer.patch(f"{URL}/{call['id']}", json={"priority": "Low"}, headers=if_match(call))
+        assert blocked.status_code == 403

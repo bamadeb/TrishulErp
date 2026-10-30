@@ -57,6 +57,14 @@ class ServiceCallCreate(InputModel):
     received_at: UtcDateTime | None = Field(None, description="Defaults to now.")
 
 
+class ServiceCallTriageUpdate(InputModel):
+    """A team lead's quick triage from the call list: reassign an engineer and/or change priority.
+    Only the fields sent are changed; send engineerId null to unassign."""
+
+    priority: CallPriority | None = None
+    engineer_id: int | None = None
+
+
 class MachineOptionQuery(ApiModel):
     search: str | None = Field(None, max_length=60)
     customer_id: int | None = None
@@ -68,6 +76,17 @@ class MachineUnitOption(ApiModel):
     serial_number: str
     model_name: str | None
     customer_name: str | None
+
+
+class EngineerOptionQuery(ApiModel):
+    search: str | None = Field(None, max_length=60)
+    limit: int = Field(50, ge=1, le=100)
+
+
+class EngineerOption(ApiModel):
+    id: int
+    name: str
+    employee_code: str
 
 
 class AssignedServiceCallQuery(PageQuery):

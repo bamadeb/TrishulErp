@@ -63,8 +63,12 @@ export type { ListServiceCalls$Params as ListServiceCalls$Params } from './fn/se
 export { listServiceCalls as listServiceCalls } from './fn/service/list-service-calls';
 export type { CreateServiceCall$Params as CreateServiceCall$Params } from './fn/service/create-service-call';
 export { createServiceCall as createServiceCall } from './fn/service/create-service-call';
+export type { UpdateServiceCallTriage$Params as UpdateServiceCallTriage$Params } from './fn/service/update-service-call-triage';
+export { updateServiceCallTriage as updateServiceCallTriage } from './fn/service/update-service-call-triage';
 export type { ListMachineOptions$Params as ListMachineOptions$Params } from './fn/service/list-machine-options';
 export { listMachineOptions as listMachineOptions } from './fn/service/list-machine-options';
+export type { ListEngineerOptions$Params as ListEngineerOptions$Params } from './fn/service/list-engineer-options';
+export { listEngineerOptions as listEngineerOptions } from './fn/service/list-engineer-options';
 export type { ListAssignedServiceCalls$Params as ListAssignedServiceCalls$Params } from './fn/service/list-assigned-service-calls';
 export { listAssignedServiceCalls as listAssignedServiceCalls } from './fn/service/list-assigned-service-calls';
 export type { PreviewServiceCallImport$Params as PreviewServiceCallImport$Params } from './fn/service/preview-service-call-import';

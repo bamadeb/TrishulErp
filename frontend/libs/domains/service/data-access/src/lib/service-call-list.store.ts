@@ -68,6 +68,12 @@ export const ServiceCallListStore = signalStore(
       reload(): void {
         load(store.query());
       },
+      /** Replace one row in place after a triage change (no full reload / flicker). */
+      applyUpdate(item: ServiceCallListItem): void {
+        patchState(store, {
+          items: store.items().map((row) => (row.id === item.id ? item : row)),
+        });
+      },
     };
   }),
   withHooks({

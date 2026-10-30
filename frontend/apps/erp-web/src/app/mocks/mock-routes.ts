@@ -1,4 +1,4 @@
-import { HttpParams } from '@angular/common/http';
+import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { CurrentUser } from '@trishul/core-auth';
 import { MockRoute } from '@trishul/core-http';
 import { mockCustomerRoutes } from './mock-customers';
@@ -9,11 +9,19 @@ import { PageServiceCallListItem } from '@trishul/core-api';
 import {
   CALL_STATUSES,
   CallPriority,
+  EngineerOption,
   LookupValueOut,
   MachineUnitOption,
   ServiceCallCreate,
   ServiceCallListItem,
+  ServiceCallTriageUpdate,
 } from '@trishul/service-data-access';
+
+const MOCK_ENGINEERS: EngineerOption[] = [
+  { id: 10, name: 'Rahul Patil', employeeCode: 'EMP0010' },
+  { id: 11, name: 'Sneha Kulkarni', employeeCode: 'EMP0011' },
+  { id: 12, name: 'Imran Shaikh', employeeCode: 'EMP0012' },
+];
 
 const LOOKUPS: Record<string, LookupValueOut[]> = {
   CALL_TYPE: [
@@ -182,6 +190,44 @@ export const mockRoutes: MockRoute[] = [
     method: 'GET',
     path: '/core/lookups/:typeCode/values',
     handle: (_req, params) => LOOKUPS[params['typeCode']] ?? [],
+  },
+  {
+    method: 'GET',
+    path: '/svc/service-calls/engineer-options',
+    handle: (req): EngineerOption[] => {
+      const search = (req.params.get('search') ?? '').toLowerCase();
+      return MOCK_ENGINEERS.filter(
+        (e) => !search || e.name.toLowerCase().includes(search),
+      );
+    },
+  },
+  {
+    method: 'PATCH',
+    path: '/svc/service-calls/:callId',
+    handle: (req, params): ServiceCallListItem => {
+      const call = calls.find((c) => c.id === Number(params['callId']));
+      if (!call) {
+        throw new HttpErrorResponse({
+          status: 404,
+          url: req.url,
+          error: { status: 404, title: 'Not found', detail: 'Call not found.' },
+        });
+      }
+      const body = req.body as ServiceCallTriageUpdate;
+      if (body.priority) call.priority = body.priority;
+      if ('engineerId' in body) {
+        if (body.engineerId == null) {
+          call.assignedEngineerName = null;
+          if (call.currentStatus === 'Assigned') call.currentStatus = 'Logged';
+        } else {
+          call.assignedEngineerName =
+            MOCK_ENGINEERS.find((e) => e.id === body.engineerId)?.name ?? null;
+          if (call.currentStatus === 'Logged') call.currentStatus = 'Assigned';
+        }
+      }
+      call.rowVersion = btoa(`rv-${call.id}-${Date.now()}`);
+      return call;
+    },
   },
   {
     method: 'GET',
