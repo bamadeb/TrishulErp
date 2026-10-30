@@ -1,6 +1,26 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+
+  mat-form-field {
+    flex: 1 1 11rem;
+    max-width: 16rem;
+  }
+}
+
+.filters.tight {
+  margin: 0;
+}
+
+.scope-note {
+  margin: 0 0 0.75rem;
+}
+
 .summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
@@ -15,11 +35,17 @@
   background: var(--mat-sys-surface);
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-medium);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
 
   &:hover {
     background: var(--mat-sys-surface-container);
   }
+}
+
+.summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--mat-sys-primary);
 }
 
 .summary-label {
@@ -56,27 +82,29 @@
   gap: 0.75rem;
   align-items: center;
   justify-content: space-between;
-
-  mat-form-field {
-    width: 11rem;
-  }
 }
 
 h2 {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.5rem;
   font: var(--mat-sys-title-medium);
   font-weight: 600;
 }
 
-.panel-head h2 {
+.panel-head h2,
+.payroll-period {
   margin: 0;
+}
+
+.payroll-period {
+  font: var(--mat-sys-title-medium);
+  font-weight: 600;
 }
 
 .counts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
-  margin: 0.75rem 0 0;
+  margin: 0.75rem 0;
 
   div {
     padding: 0.75rem;
@@ -98,19 +126,25 @@ h2 {
 
 .bar-row {
   display: grid;
-  grid-template-columns: 8.5rem 1fr 2rem;
+  grid-template-columns: 8.5rem minmax(0, 1fr) auto;
   gap: 0.5rem;
   align-items: center;
   margin-top: 0.5rem;
 }
 
+.bar-row.is-selected .bar-label {
+  color: var(--mat-sys-primary);
+  font-weight: 600;
+}
+
 .bar-label,
-.bar-value {
+.bar-value,
+.trend-figures {
   font: var(--mat-sys-body-small);
 }
 
 .bar-value {
-  text-align: right;
+  white-space: nowrap;
 }
 
 .bar-track {
@@ -125,12 +159,62 @@ h2 {
   background: var(--mat-sys-primary);
 }
 
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  font: var(--mat-sys-body-small);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.35rem;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.trend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.trend-day {
+  text-align: center;
+
+  &.active .trend-bars {
+    outline: 1px solid var(--mat-sys-primary);
+  }
+}
+
+.trend-bars {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 0.2rem;
+  height: 7rem;
+}
+
+.trend-bar {
+  width: 0.55rem;
+  border-radius: 2px 2px 0 0;
+
+  &.present { background: var(--trishul-success); }
+  &.absent { background: var(--trishul-danger); }
+  &.leave { background: var(--trishul-warn); }
+}
+
 .table-scroll {
   overflow-x: auto;
 }
 
 table {
   width: 100%;
+  min-width: 52rem;
   border-collapse: collapse;
 }
 
@@ -138,23 +222,34 @@ th,
 td {
   padding: 0.5rem 0.75rem;
   text-align: left;
+  vertical-align: middle;
   border-bottom: 1px solid var(--mat-sys-outline-variant);
 }
 
 th {
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--mat-sys-on-surface-variant);
   background: var(--mat-sys-surface-container);
+}
+
+.sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
 }
 
 .plain {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  margin: 0;
+  margin: 0.75rem 0;
   padding: 0;
   list-style: none;
 }
@@ -180,6 +275,7 @@ th {
   flex-direction: column;
   gap: 0.25rem;
   align-items: flex-start;
+  margin-top: 0.75rem;
 }
 
 .empty {
@@ -188,11 +284,13 @@ th {
 }
 
 @media (max-width: 900px) {
-  .layout {
+  .layout,
+  .counts,
+  .trend {
     grid-template-columns: 1fr;
   }
 
-  .bar-row {
-    grid-template-columns: 6.5rem 1fr 2rem;
+  .counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
