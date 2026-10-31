@@ -103,6 +103,24 @@ class ServiceCallService:
                 call.assigned_engineer_id = None
                 if call.current_status == "Assigned":
                     call.current_status = "Logged"
+        if "customer_id" in changed and data.customer_id is not None:
+            linked = self._db.scalars(
+                select(Customer.id)
+                .where(
+                    Customer.id == data.customer_id,
+                    Customer.is_active,
+                    Customer.company_id == call.company_id,
+                )
+                .limit(1)
+            ).first()
+            if linked is None:
+                raise ApiError(
+                    "That customer doesn't exist.",
+                    errors={"customerId": [f"Unknown or inactive customer {data.customer_id}"]},
+                )
+            call.customer_id = data.customer_id
+            call.external_account_name = None  # now linked to a real customer master
+            call.needs_master_linking = call.machine_unit_id is None and call.external_product_id is not None
 
         call.updated_at = _now()
         call.updated_by_user_id = self._actor.id

@@ -6,7 +6,8 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import {
   MatFormField,
   MatLabel,
@@ -51,6 +52,10 @@ import {
   ServiceCallTriageUpdate,
 } from '@trishul/service-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
+import {
+  CustomerLinkDialog,
+  CustomerLinkResult,
+} from './customer-link.dialog';
 
 const STATUS_SEVERITY: Record<CallStatus, StatusSeverity> = {
   Logged: 'info',
@@ -103,6 +108,7 @@ const FINISHED: ReadonlySet<CallStatus> = new Set([
     MatSelect,
     MatOption,
     MatButton,
+    MatIconButton,
     MatIcon,
     MatTooltip,
     MatMenu,
@@ -123,6 +129,7 @@ export class CallListPage {
   private readonly api = inject(ServiceCallApi);
   private readonly auth = inject(AuthStore);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
 
   /** A team lead can assign engineers and set priority inline. */
   protected readonly canAssign = this.auth.hasPermission(
@@ -197,6 +204,18 @@ export class CallListPage {
     engineerId: number | null,
   ): void {
     this.apply(call, { engineerId });
+  }
+
+  /** Open the search dialog to link the real customer (e.g. onto a BYD placeholder). */
+  protected linkCustomer(call: ServiceCallListItem): void {
+    this.dialog
+      .open(CustomerLinkDialog, {
+        data: { callNo: call.callNo, customerName: call.customerName },
+      })
+      .afterClosed()
+      .subscribe((result?: CustomerLinkResult) => {
+        if (result) this.apply(call, { customerId: result.id });
+      });
   }
 
   private apply(

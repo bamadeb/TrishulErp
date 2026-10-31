@@ -24,6 +24,7 @@ TABLES = [
     "core.customer",
     "core.machine_model",
     "core.machine_unit",
+    "core.customer_site",
     "core.employee",
     "core.lookup_type",
     "core.lookup_value",
@@ -49,11 +50,20 @@ def db() -> Engine:
     insert_row(engine, "core.principal", id=PRINCIPAL, code="TATA_HITACHI", name="Tata Hitachi")
     insert_row(engine, "core.customer", id=CUSTOMER_ID, company_id=COMPANY, code="C100", name=CUSTOMER_NAME,
                customer_type="Company", primary_phone="9000000000")
+    insert_row(engine, "core.customer", id=101, company_id=COMPANY, code="C101", name="Real Customer Ltd",
+               customer_type="Company", primary_phone="9111111111")
     insert_row(engine, "core.machine_model", id=1, model_code="EX200", model_name="EX200", principal_id=PRINCIPAL)
     insert_row(engine, "core.machine_unit", id=MACHINE_ID, serial_number="SN-1", oem_registered_product_id="RP-1",
                model_id=1, principal_id=PRINCIPAL, customer_id=CUSTOMER_ID, status="Sold")
+    insert_row(engine, "hr.designation", id=1, code="SERVICE_ENG", name="Service Engineer")
+    insert_row(engine, "hr.designation", id=2, code="BACK_OFFICE", name="Back office")
     insert_row(engine, "core.employee", id=ENGINEER_ID, company_id=COMPANY, branch_id=BRANCH, employee_code="E300",
-               first_name="Satyajit", last_name="Tung", employee_type="Permanent", status="Active")
+               first_name="Satyajit", last_name="Tung", designation_id=1,
+               employee_type="Permanent", status="Active")
+    # A non-engineer in the same branch: must NOT appear in the assign picker.
+    insert_row(engine, "core.employee", id=301, company_id=COMPANY, branch_id=BRANCH, employee_code="E301",
+               first_name="Office", last_name="Clerk", designation_id=2,
+               employee_type="Permanent", status="Active")
     insert_row(engine, "core.lookup_type", id=1, code="CALL_SOURCE", name="Call Source", module="Service")
     insert_row(engine, "core.lookup_value", id=CALL_SOURCE_ID, lookup_type_id=1, code="PHONE",
                label="Phone", sort_order=1)
@@ -146,6 +156,23 @@ def test_invalid_input_is_rejected(client: TestClient) -> None:
     assert create(client, foo=True).status_code == 422  # unknown field
 
 
+def test_get_call_detail(client: TestClient) -> None:
+    call = create(client, callerName="Ramesh").json()
+    detail = client.get(f"{URL}/{call['id']}")
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert body["callNo"] == call["callNo"]
+    assert body["customerName"] == CUSTOMER_NAME
+    assert (body["callerName"], body["callerPhone"]) == ("Ramesh", "9876543210")
+    assert body["callType"] == "Breakdown" and body["callSource"] == "Phone"
+    assert body["currentStatus"] == "Logged"
+    assert body["machineSerialNo"] == "SN-1" and body["machineModel"] == "EX200"
+
+
+def test_get_call_detail_unknown_is_404(client: TestClient) -> None:
+    assert client.get(f"{URL}/999999").status_code == 404
+
+
 def test_machine_options_search(client: TestClient) -> None:
     rows = client.get(f"{URL}/machine-options", params={"search": "SN"}).json()
     assert [(m["serialNumber"], m["modelName"]) for m in rows] == [("SN-1", "EX200")]
@@ -194,8 +221,23 @@ def test_triage_rejects_unknown_engineer(client: TestClient) -> None:
     assert "engineerId" in rejected.json()["errors"]
 
 
-def test_engineer_options(client: TestClient) -> None:
+def test_link_customer(client: TestClient) -> None:
+    call = create(client).json()  # starts on CUSTOMER_ID (Blue Earth Movers)
+    linked = client.patch(f"{URL}/{call['id']}", json={"customerId": 101}, headers=if_match(call))
+    assert linked.status_code == 200, linked.text
+    assert linked.json()["customerName"] == "Real Customer Ltd"
+
+
+def test_link_customer_rejects_unknown(client: TestClient) -> None:
+    call = create(client).json()
+    rejected = client.patch(f"{URL}/{call['id']}", json={"customerId": 999}, headers=if_match(call))
+    assert rejected.status_code == 400
+    assert "customerId" in rejected.json()["errors"]
+
+
+def test_engineer_options_lists_only_service_engineers(client: TestClient) -> None:
     rows = client.get(f"{URL}/engineer-options").json()
+    # Only the Service Engineer (E300), not the back-office clerk (E301).
     assert [(e["name"], e["employeeCode"]) for e in rows] == [("Satyajit Tung", "E300")]
 
 

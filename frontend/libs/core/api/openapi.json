@@ -3143,6 +3143,91 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "One service call, in full",
+        "operationId": "get_service_call",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Callid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCallDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/svc/service-calls/machine-options": {
@@ -7592,6 +7677,347 @@
         "title": "ServiceCallCreate",
         "description": "Log a new service call (office). call_no, status (Logged) and received_by are set by the server;\nbranch and brand default to the ones selected in the app (the X-Branch-Id / X-Principal-Id headers)."
       },
+      "ServiceCallDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Receivedat"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "principalCode": {
+            "type": "string",
+            "title": "Principalcode"
+          },
+          "principalName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalname"
+          },
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
+          },
+          "customerName": {
+            "type": "string",
+            "title": "Customername"
+          },
+          "customerPhone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customerphone"
+          },
+          "machineUnitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineunitid"
+          },
+          "machineSerialNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineserialno"
+          },
+          "machineModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machinemodel"
+          },
+          "complaintDescription": {
+            "type": "string",
+            "title": "Complaintdescription"
+          },
+          "callType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calltype"
+          },
+          "callSource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callsource"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Normal",
+              "Low"
+            ],
+            "title": "Priority"
+          },
+          "isMachineDown": {
+            "type": "boolean",
+            "title": "Ismachinedown"
+          },
+          "isAscPriority": {
+            "type": "boolean",
+            "title": "Isascpriority"
+          },
+          "coverageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Warranty",
+                  "Contract",
+                  "Chargeable",
+                  "Goodwill"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragetype"
+          },
+          "currentStatus": {
+            "type": "string",
+            "enum": [
+              "Logged",
+              "Assigned",
+              "Call ID linked",
+              "Customer contacted",
+              "Trip started",
+              "Reached site",
+              "In progress",
+              "Report submitted",
+              "Awaiting parts",
+              "Parts ready",
+              "Revisit scheduled",
+              "Closed",
+              "Pending OEM closure",
+              "Completed",
+              "Reopened",
+              "Cancelled"
+            ],
+            "title": "Currentstatus"
+          },
+          "assignedEngineerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignedengineerid"
+          },
+          "assignedEngineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignedengineername"
+          },
+          "callerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callername"
+          },
+          "callerPhone": {
+            "type": "string",
+            "title": "Callerphone"
+          },
+          "oemCallId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oemcallid"
+          },
+          "sourceReference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcereference"
+          },
+          "slaDueAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sladueat"
+          },
+          "firstResponseAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstresponseat"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closedat"
+          },
+          "siteName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sitename"
+          },
+          "siteAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Siteaddress"
+          },
+          "needsMasterLinking": {
+            "type": "boolean",
+            "title": "Needsmasterlinking"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "callNo",
+          "receivedAt",
+          "branchName",
+          "principalCode",
+          "principalName",
+          "customerId",
+          "customerName",
+          "customerPhone",
+          "machineUnitId",
+          "machineSerialNo",
+          "machineModel",
+          "complaintDescription",
+          "callType",
+          "callSource",
+          "priority",
+          "isMachineDown",
+          "isAscPriority",
+          "coverageType",
+          "currentStatus",
+          "assignedEngineerId",
+          "assignedEngineerName",
+          "callerName",
+          "callerPhone",
+          "oemCallId",
+          "sourceReference",
+          "slaDueAt",
+          "firstResponseAt",
+          "closedAt",
+          "siteName",
+          "siteAddress",
+          "needsMasterLinking",
+          "rowVersion"
+        ],
+        "title": "ServiceCallDetail",
+        "description": "Everything the call detail page shows."
+      },
       "ServiceCallListItem": {
         "properties": {
           "id": {
@@ -7789,12 +8215,23 @@
               }
             ],
             "title": "Engineerid"
+          },
+          "customerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customerid"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "ServiceCallTriageUpdate",
-        "description": "A team lead's quick triage from the call list: reassign an engineer and/or change priority.\nOnly the fields sent are changed; send engineerId null to unassign."
+        "description": "A team lead's quick triage from the call list: link the real customer, reassign an engineer\nand/or change priority. Only the fields sent are changed; send engineerId null to unassign."
       },
       "StartTripInput": {
         "properties": {

@@ -6,6 +6,7 @@ import {
   SERVICE_CALL_VIEW_PERMISSIONS,
 } from '@trishul/service-data-access';
 import { BydImportPage } from './byd-import.page';
+import { CallDetailPage } from './call-detail.page';
 import { CallFormPage } from './call-form.page';
 import { CallListPage } from './call-list.page';
 
@@ -29,5 +30,11 @@ export const serviceRoutes: Route[] = [
     title: 'Import service calls',
     canActivate: [permissionGuard(SERVICE_CALL_IMPORT_PERMISSION)],
     component: BydImportPage,
+  },
+  {
+    path: 'calls/:callId',
+    title: 'Service call',
+    canActivate: [permissionGuard(...SERVICE_CALL_VIEW_PERMISSIONS)],
+    component: CallDetailPage,
   },
 ];

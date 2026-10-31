@@ -8,9 +8,11 @@ import {
   MachineUnitOption,
   PageServiceCallListItem,
   ServiceCallCreate,
+  ServiceCallDetail,
   ServiceCallListItem,
   ServiceCallTriageUpdate,
   createServiceCall,
+  getServiceCall,
   listCustomers,
   listEngineerOptions,
   listLookupValues,
@@ -27,6 +29,10 @@ export class ServiceCallApi {
 
   list(query: ServiceCallQuery): Observable<PageServiceCallListItem> {
     return this.api.call(listServiceCalls, query);
+  }
+
+  get(callId: number): Observable<ServiceCallDetail> {
+    return this.api.call(getServiceCall, { callId });
   }
 
   create(body: ServiceCallCreate): Observable<ServiceCallListItem> {

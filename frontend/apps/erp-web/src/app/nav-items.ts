@@ -18,11 +18,13 @@ export const navItems: NavItem[] = [
     children: [
       {
         label: 'Service calls',
+        icon: 'support_agent',
         route: '/service/calls',
         permissions: [...SERVICE_CALL_VIEW_PERMISSIONS],
       },
       {
         label: 'Import calls',
+        icon: 'upload_file',
         route: '/service/calls/import',
         permissions: [SERVICE_CALL_IMPORT_PERMISSION],
       },
@@ -34,16 +36,19 @@ export const navItems: NavItem[] = [
     children: [
       {
         label: 'Customers',
+        icon: 'groups',
         route: '/admin/customers',
         permissions: [...CUSTOMER_VIEW_PERMISSIONS],
       },
       {
         label: 'Employees',
+        icon: 'badge',
         route: '/admin/employees',
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
       },
       {
         label: 'Users',
+        icon: 'manage_accounts',
         route: '/admin/users',
         permissions: [...USER_VIEW_PERMISSIONS],
       },
@@ -51,6 +56,9 @@ export const navItems: NavItem[] = [
   },
   {
     label: 'HR Management',
-    children: [{ label: 'HR Dashboard', route: '/hr/dashboard' }],
+    icon: 'diversity_3',
+    children: [
+      { label: 'HR Dashboard', icon: 'insights', route: '/hr/dashboard' },
+    ],
   },
 ];

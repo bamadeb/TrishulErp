@@ -46,6 +46,7 @@ export type { RoleGrant } from './models/role-grant';
 export type { RoleGrantInput } from './models/role-grant-input';
 export type { RoleOption } from './models/role-option';
 export type { ServiceCallCreate } from './models/service-call-create';
+export type { ServiceCallDetail } from './models/service-call-detail';
 export type { ServiceCallListItem } from './models/service-call-list-item';
 export type { ServiceCallTriageUpdate } from './models/service-call-triage-update';
 export type { StartTripInput } from './models/start-trip-input';

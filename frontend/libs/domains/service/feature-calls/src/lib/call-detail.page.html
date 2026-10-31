@@ -1,0 +1,120 @@
+<trishul-page-header
+  [title]="call()?.callNo ?? 'Service call'"
+  [subtitle]="call()?.customerName ?? ''"
+>
+  <a mat-button routerLink="/service/calls">
+    <mat-icon>arrow_back</mat-icon>
+    All calls
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+@if (call(); as c) {
+<div class="cards">
+  <section class="card">
+    <h2>Call</h2>
+    <dl class="fields">
+      <div>
+        <dt>Status</dt>
+        <dd>
+          <trishul-status-badge
+            [status]="c.currentStatus"
+            [severities]="statusSeverity"
+          />
+        </dd>
+      </div>
+      <div>
+        <dt>Priority</dt>
+        <dd>
+          <trishul-status-badge
+            [status]="c.priority"
+            [severities]="prioritySeverity"
+          />
+        </dd>
+      </div>
+      <div><dt>Brand</dt><dd>{{ c.principalName ?? c.principalCode }}</dd></div>
+      <div><dt>Branch</dt><dd>{{ c.branchName ?? '—' }}</dd></div>
+      <div>
+        <dt>Received</dt>
+        <dd>{{ c.receivedAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
+      </div>
+      <div><dt>Call type</dt><dd>{{ c.callType ?? '—' }}</dd></div>
+      <div><dt>Source</dt><dd>{{ c.callSource ?? '—' }}</dd></div>
+      @if (c.oemCallId) {
+      <div><dt>OEM call ID</dt><dd>{{ c.oemCallId }}</dd></div>
+      } @if (c.sourceReference) {
+      <div><dt>Reference</dt><dd>{{ c.sourceReference }}</dd></div>
+      }
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Customer &amp; machine</h2>
+    <dl class="fields">
+      <div>
+        <dt>Customer</dt>
+        <dd>
+          {{ c.customerName }}
+          @if (c.needsMasterLinking) {
+          <span class="flag">needs linking</span>
+          }
+        </dd>
+      </div>
+      <div><dt>Phone</dt><dd>{{ c.customerPhone ?? '—' }}</dd></div>
+      <div><dt>Caller</dt><dd>{{ c.callerName ?? '—' }}</dd></div>
+      <div><dt>Caller phone</dt><dd>{{ c.callerPhone }}</dd></div>
+      <div>
+        <dt>Machine</dt>
+        <dd>
+          {{ c.machineModel ?? '—' }}
+          @if (c.machineSerialNo) {
+          <span class="muted">({{ c.machineSerialNo }})</span>
+          }
+        </dd>
+      </div>
+      @if (c.siteName) {
+      <div><dt>Site</dt><dd>{{ c.siteName }}</dd></div>
+      } @if (c.siteAddress) {
+      <div class="wide"><dt>Site address</dt><dd>{{ c.siteAddress }}</dd></div>
+      }
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Service</h2>
+    <dl class="fields">
+      <div>
+        <dt>Engineer</dt>
+        <dd>{{ c.assignedEngineerName ?? 'Unassigned' }}</dd>
+      </div>
+      <div><dt>Coverage</dt><dd>{{ c.coverageType ?? '—' }}</dd></div>
+      <div><dt>Machine down</dt><dd>{{ c.isMachineDown ? 'Yes' : 'No' }}</dd></div>
+      <div><dt>ASC priority</dt><dd>{{ c.isAscPriority ? 'Yes' : 'No' }}</dd></div>
+      <div>
+        <dt>SLA due</dt>
+        <dd>{{ c.slaDueAt ? (c.slaDueAt | date: 'dd MMM yyyy, HH:mm') : '—' }}</dd>
+      </div>
+      <div>
+        <dt>First response</dt>
+        <dd>
+          {{ c.firstResponseAt ? (c.firstResponseAt | date: 'dd MMM, HH:mm') : '—' }}
+        </dd>
+      </div>
+      <div>
+        <dt>Closed</dt>
+        <dd>{{ c.closedAt ? (c.closedAt | date: 'dd MMM, HH:mm') : '—' }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="card wide-card">
+    <h2>Complaint</h2>
+    <p class="complaint">{{ c.complaintDescription }}</p>
+  </section>
+</div>
+}

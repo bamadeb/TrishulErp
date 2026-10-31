@@ -53,6 +53,25 @@
   border-radius: 0;
 }
 
+// Section headers: a compact, uppercase label with its group icon.
+.sidebar .nav-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+
+  .group-icon {
+    font-size: 1.15rem;
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+}
+
 // In the slide-out menu on small screens, the selects stack above the links.
 .sidebar .context {
   flex-direction: column;

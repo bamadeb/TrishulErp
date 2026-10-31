@@ -7,6 +7,7 @@ import { allOf } from '@trishul/shared-util';
 // API types come from the generated client; only what the UI adds is defined here.
 export type {
   ServiceCallListItem,
+  ServiceCallDetail,
   ServiceCallCreate,
   ServiceCallTriageUpdate,
   MachineUnitOption,

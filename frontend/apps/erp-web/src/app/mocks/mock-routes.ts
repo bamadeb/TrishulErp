@@ -13,6 +13,7 @@ import {
   LookupValueOut,
   MachineUnitOption,
   ServiceCallCreate,
+  ServiceCallDetail,
   ServiceCallListItem,
   ServiceCallTriageUpdate,
 } from '@trishul/service-data-access';
@@ -22,6 +23,13 @@ const MOCK_ENGINEERS: EngineerOption[] = [
   { id: 11, name: 'Sneha Kulkarni', employeeCode: 'EMP0011' },
   { id: 12, name: 'Imran Shaikh', employeeCode: 'EMP0012' },
 ];
+
+// Mirrors the mock customer seeds (see mock-customers.ts) so the triage PATCH can echo a name.
+const MOCK_CUSTOMER_NAMES: Record<number, string> = {
+  10: 'Blue Earth Movers',
+  11: 'Deccan Fabricators Pvt Ltd',
+  12: 'Ravi Kumar',
+};
 
 const LOOKUPS: Record<string, LookupValueOut[]> = {
   CALL_TYPE: [
@@ -215,6 +223,10 @@ export const mockRoutes: MockRoute[] = [
       }
       const body = req.body as ServiceCallTriageUpdate;
       if (body.priority) call.priority = body.priority;
+      if (body.customerId != null) {
+        call.customerName =
+          MOCK_CUSTOMER_NAMES[body.customerId] ?? `Customer #${body.customerId}`;
+      }
       if ('engineerId' in body) {
         if (body.engineerId == null) {
           call.assignedEngineerName = null;
@@ -240,6 +252,57 @@ export const mockRoutes: MockRoute[] = [
           m.serialNumber.toLowerCase().includes(search) ||
           (m.modelName ?? '').toLowerCase().includes(search),
       );
+    },
+  },
+  {
+    method: 'GET',
+    path: '/svc/service-calls/:callId',
+    handle: (req, params): ServiceCallDetail => {
+      const call = calls.find((c) => c.id === Number(params['callId']));
+      if (!call) {
+        throw new HttpErrorResponse({
+          status: 404,
+          url: req.url,
+          error: { status: 404, title: 'Not found', detail: 'Call not found.' },
+        });
+      }
+      const branches: Record<number, string> = { 1: 'Pune', 2: 'Mumbai', 3: 'Nagpur' };
+      return {
+        id: call.id,
+        callNo: call.callNo,
+        receivedAt: call.receivedAt,
+        branchName: branches[call.branchId] ?? null,
+        principalCode: call.principalCode,
+        principalName:
+          call.principalCode === 'ATLAS_COPCO' ? 'Atlas Copco' : 'Tata Hitachi',
+        customerId: 10,
+        customerName: call.customerName,
+        customerPhone: '9820000000',
+        machineUnitId: null,
+        machineSerialNo: call.machineSerialNo,
+        machineModel: call.machineModel,
+        complaintDescription: call.complaintDescription,
+        callType: 'Breakdown',
+        callSource: 'Phone',
+        priority: call.priority,
+        isMachineDown: call.isMachineDown,
+        isAscPriority: call.isAscPriority,
+        coverageType: call.coverageType,
+        currentStatus: call.currentStatus,
+        assignedEngineerId: null,
+        assignedEngineerName: call.assignedEngineerName,
+        callerName: 'Nilamadhab Sahoo',
+        callerPhone: '7894435328',
+        oemCallId: call.oemCallId,
+        sourceReference: null,
+        slaDueAt: call.slaDueAt,
+        firstResponseAt: null,
+        closedAt: null,
+        siteName: null,
+        siteAddress: null,
+        needsMasterLinking: false,
+        rowVersion: call.rowVersion,
+      };
     },
   },
   {

@@ -9,6 +9,7 @@ from trishul_api.common.errors import (
     NOT_FOUND_RESPONSE,
     ApiError,
     Forbidden,
+    NotFound,
     problem_response,
 )
 from trishul_api.common.schemas import Page
@@ -23,6 +24,7 @@ from trishul_api.modules.service.schemas import (
     MachineOptionQuery,
     MachineUnitOption,
     ServiceCallCreate,
+    ServiceCallDetail,
     ServiceCallListItem,
     ServiceCallQuery,
     ServiceCallTriageUpdate,
@@ -198,3 +200,18 @@ def apply_service_call_import(
     content = _read_upload(file)
     branch = _effective_branch_id(actor, scope, branch_id)
     return BydImportService(db, actor).apply(content, file.filename or "upload.xlsx", branch, principal_id)
+
+
+# Declared last so the literal GET paths above (machine-options, engineer-options, assigned-to-me)
+# are matched before this {callId} route.
+@router.get(
+    "/service-calls/{callId}",
+    summary="One service call, in full",
+    dependencies=[Depends(require_permission(*CAN_VIEW_CALLS))],
+    responses=NOT_FOUND_RESPONSE,
+)
+def get_service_call(call_id: CallId, repo: ServiceCallRepo) -> ServiceCallDetail:
+    detail = repo.detail(call_id)
+    if detail is None:
+        raise NotFound("Service call not found.")
+    return detail

@@ -102,7 +102,7 @@ td {
 }
 
 .mat-column-engineer {
-  width: 9rem;
+  width: 11.5rem;
 }
 
 .mat-column-slaDueAt {
@@ -112,6 +112,16 @@ td {
 
 .strong {
   font-weight: 600;
+}
+
+.call-link {
+  font-weight: 600;
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .muted {
@@ -175,9 +185,20 @@ td {
   opacity: 0.6;
 }
 
+// Keep the assigned engineer on one line inside the button (full name is in the tooltip).
 .assign-btn {
-  font-size: 0.8rem;
-  line-height: 1.6;
+  font-size: 0.78rem;
+  max-width: 100%;
+  white-space: nowrap;
+
+  .eng-name {
+    display: inline-block;
+    max-width: 6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
 }
 
 .menu-empty {
@@ -185,4 +206,24 @@ td {
   padding: 0.5rem 1rem;
   font: var(--mat-sys-body-small);
   color: var(--mat-sys-on-surface-variant);
+}
+
+// A small, subtle "link customer" affordance next to the name.
+.link-btn {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  margin-left: 0.15rem;
+  vertical-align: middle;
+  opacity: 0.55;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
 }

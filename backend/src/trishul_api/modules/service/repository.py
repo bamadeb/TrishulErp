@@ -2,16 +2,18 @@ import builtins
 from typing import Any
 
 from sqlalchemy import Select, case, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from trishul_api.auth import RequestScope
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
 from trishul_api.common.schemas import Page
 from trishul_api.db.models import (
+    Branch,
     Customer,
     CustomerSite,
     Designation,
     Employee,
+    LookupValue,
     MachineModel,
     MachineUnit,
     Principal,
@@ -24,6 +26,7 @@ from trishul_api.modules.service.schemas import (
     EngineerOptionQuery,
     MachineOptionQuery,
     MachineUnitOption,
+    ServiceCallDetail,
     ServiceCallListItem,
     ServiceCallQuery,
 )
@@ -64,6 +67,63 @@ class ServiceCallRepository:
         """One call as the register shows it; the call must exist."""
         row = self._session.execute(self._register_select().where(ServiceCall.id == call_id)).mappings().one()
         return ServiceCallListItem.model_validate(row)
+
+    def detail(self, call_id: int) -> ServiceCallDetail | None:
+        """Everything the call detail page needs, or None if the call doesn't exist."""
+        call_type = aliased(LookupValue)
+        call_source = aliased(LookupValue)
+        engineer = aliased(Employee)
+        statement = (
+            select(
+                ServiceCall.id,
+                ServiceCall.call_no,
+                ServiceCall.received_at,
+                Branch.name.label("branch_name"),
+                Principal.code.label("principal_code"),
+                Principal.name.label("principal_name"),
+                ServiceCall.customer_id,
+                Customer.name.label("customer_name"),
+                Customer.primary_phone.label("customer_phone"),
+                ServiceCall.machine_unit_id,
+                MachineUnit.serial_number.label("machine_serial_no"),
+                MachineModel.model_name.label("machine_model"),
+                ServiceCall.complaint_description,
+                call_type.label.label("call_type"),
+                call_source.label.label("call_source"),
+                ServiceCall.priority,
+                ServiceCall.is_machine_down,
+                ServiceCall.is_asc_priority,
+                ServiceCall.coverage_type,
+                ServiceCall.current_status,
+                ServiceCall.assigned_engineer_id,
+                func.nullif(func.concat_ws(" ", engineer.first_name, engineer.last_name), "").label(
+                    "assigned_engineer_name"
+                ),
+                ServiceCall.caller_name,
+                ServiceCall.caller_phone,
+                ServiceCall.oem_call_id,
+                ServiceCall.source_reference,
+                ServiceCall.sla_due_at,
+                ServiceCall.first_response_at,
+                ServiceCall.closed_at,
+                CustomerSite.site_name,
+                CustomerSite.address.label("site_address"),
+                ServiceCall.needs_master_linking,
+                ServiceCall.row_version,
+            )
+            .join(Customer, Customer.id == ServiceCall.customer_id)
+            .join(Principal, Principal.id == ServiceCall.principal_id)
+            .outerjoin(Branch, Branch.id == ServiceCall.branch_id)
+            .outerjoin(MachineUnit, MachineUnit.id == ServiceCall.machine_unit_id)
+            .outerjoin(MachineModel, MachineModel.id == MachineUnit.model_id)
+            .outerjoin(engineer, engineer.id == ServiceCall.assigned_engineer_id)
+            .outerjoin(call_type, call_type.id == ServiceCall.call_type_lookup_id)
+            .outerjoin(call_source, call_source.id == ServiceCall.call_source_lookup_id)
+            .outerjoin(CustomerSite, CustomerSite.id == ServiceCall.customer_site_id)
+            .where(ServiceCall.id == call_id, ServiceCall.is_active)
+        )
+        row = self._session.execute(statement).mappings().one_or_none()
+        return ServiceCallDetail.model_validate(row) if row is not None else None
 
     # builtins.list: this class has a method named `list`, which otherwise shadows the builtin here.
     def machine_options(self, scope: RequestScope, query: MachineOptionQuery) -> builtins.list[MachineUnitOption]:
