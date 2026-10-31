@@ -1,0 +1,152 @@
+.progress {
+  height: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.card {
+  padding: 1.25rem;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+}
+
+.wide-card {
+  grid-column: 1 / -1;
+}
+
+h2 {
+  margin: 0 0 1rem;
+  font: var(--mat-sys-title-medium);
+}
+
+.fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+
+  > div {
+    min-width: 0;
+  }
+
+  .wide {
+    grid-column: 1 / -1;
+  }
+}
+
+dt {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+  margin-bottom: 0.1rem;
+}
+
+dd {
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+  word-break: break-word;
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.flag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.5rem;
+  font: var(--mat-sys-label-small);
+  color: var(--mat-sys-on-error-container);
+  background: var(--mat-sys-error-container);
+}
+
+.complaint {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.status-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-start;
+
+  .status-select {
+    width: 16rem;
+  }
+
+  .remarks {
+    flex: 1 1 18rem;
+  }
+
+  button {
+    margin-top: 0.4rem;
+  }
+}
+
+// Status history: newest first, a vertical guide line with a dot per change.
+.timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    position: relative;
+    display: flex;
+    gap: 0.9rem;
+    padding-bottom: 1rem;
+
+    &:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 0.3rem;
+      top: 1rem;
+      bottom: 0;
+      width: 2px;
+      background: var(--mat-sys-outline-variant);
+    }
+  }
+
+  .dot {
+    flex: none;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-top: 0.35rem;
+    border-radius: 50%;
+    background: var(--mat-sys-primary);
+  }
+
+  .change {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .arrow {
+    font-size: 1.1rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .meta {
+    margin-top: 0.2rem;
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .note {
+    margin-top: 0.25rem;
+    font: var(--mat-sys-body-medium);
+    white-space: pre-wrap;
+  }
+}

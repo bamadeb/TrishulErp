@@ -2,17 +2,28 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
   ApiClient,
+  CallStatusLogItem,
   CustomerListItem,
+  EngineerOption,
   LookupValueOut,
   MachineUnitOption,
   PageServiceCallListItem,
   ServiceCallCreate,
+  ServiceCallDetail,
   ServiceCallListItem,
+  ServiceCallStatusChange,
+  ServiceCallTriageUpdate,
+  changeServiceCallStatus,
   createServiceCall,
+  getServiceCall,
+  listCallStatusHistory,
   listCustomers,
+  listEngineerOptions,
   listLookupValues,
   listMachineOptions,
   listServiceCalls,
+  updateServiceCallTriage,
+  withRowVersion,
 } from '@trishul/core-api';
 import { ServiceCallQuery } from './service-call.models';
 
@@ -22,6 +33,28 @@ export class ServiceCallApi {
 
   list(query: ServiceCallQuery): Observable<PageServiceCallListItem> {
     return this.api.call(listServiceCalls, query);
+  }
+
+  get(callId: number): Observable<ServiceCallDetail> {
+    return this.api.call(getServiceCall, { callId });
+  }
+
+  /** Every status change of a call, newest first. */
+  statusHistory(callId: number): Observable<CallStatusLogItem[]> {
+    return this.api.call(listCallStatusHistory, { callId });
+  }
+
+  /** Move a call to another status; rowVersion guards against a stale change (409). */
+  changeStatus(
+    callId: number,
+    rowVersion: string,
+    body: ServiceCallStatusChange,
+  ): Observable<ServiceCallDetail> {
+    return this.api.call(
+      changeServiceCallStatus,
+      { callId, body },
+      withRowVersion(rowVersion),
+    );
   }
 
   create(body: ServiceCallCreate): Observable<ServiceCallListItem> {
@@ -46,5 +79,23 @@ export class ServiceCallApi {
   /** Values of an editable dropdown (e.g. CALL_TYPE, CALL_SOURCE). */
   lookups(typeCode: string): Observable<LookupValueOut[]> {
     return this.api.call(listLookupValues, { typeCode });
+  }
+
+  /** Engineers a team lead can assign a call to (the selected branch). */
+  engineerOptions(search = ''): Observable<EngineerOption[]> {
+    return this.api.call(listEngineerOptions, { search });
+  }
+
+  /** Team-lead triage: reassign and/or re-prioritise. rowVersion guards against a stale change (409). */
+  updateTriage(
+    callId: number,
+    rowVersion: string,
+    body: ServiceCallTriageUpdate,
+  ): Observable<ServiceCallListItem> {
+    return this.api.call(
+      updateServiceCallTriage,
+      { callId, body },
+      withRowVersion(rowVersion),
+    );
   }
 }

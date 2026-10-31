@@ -57,6 +57,33 @@ class ServiceCallCreate(InputModel):
     received_at: UtcDateTime | None = Field(None, description="Defaults to now.")
 
 
+class ServiceCallStatusChange(InputModel):
+    """Move a call to another status. The server checks the user may make that move."""
+
+    status: CallStatus
+    remarks: str | None = Field(None, max_length=500)
+
+
+class CallStatusLogItem(ApiModel):
+    """One row of a call's status history."""
+
+    id: int
+    from_status: str | None
+    to_status: str
+    changed_at: UtcDateTime
+    changed_by_name: str | None
+    remarks: str | None
+
+
+class ServiceCallTriageUpdate(InputModel):
+    """A team lead's quick triage from the call list: link the real customer, reassign an engineer
+    and/or change priority. Only the fields sent are changed; send engineerId null to unassign."""
+
+    priority: CallPriority | None = None
+    engineer_id: int | None = None
+    customer_id: int | None = None
+
+
 class MachineOptionQuery(ApiModel):
     search: str | None = Field(None, max_length=60)
     customer_id: int | None = None
@@ -68,6 +95,58 @@ class MachineUnitOption(ApiModel):
     serial_number: str
     model_name: str | None
     customer_name: str | None
+
+
+class EngineerOptionQuery(ApiModel):
+    search: str | None = Field(None, max_length=60)
+    limit: int = Field(50, ge=1, le=100)
+
+
+class EngineerOption(ApiModel):
+    id: int
+    name: str
+    employee_code: str
+
+
+class ServiceCallDetail(ApiModel):
+    """Everything the call detail page shows."""
+
+    id: int
+    call_no: str
+    received_at: UtcDateTime
+    branch_name: str | None
+    principal_code: str
+    principal_name: str | None
+    customer_id: int
+    customer_name: str
+    customer_phone: str | None
+    machine_unit_id: int | None
+    machine_serial_no: str | None
+    machine_model: str | None
+    complaint_description: str
+    call_type: str | None
+    call_source: str | None
+    priority: CallPriority
+    is_machine_down: bool
+    is_asc_priority: bool
+    coverage_type: CoverageType | None
+    current_status: CallStatus
+    assigned_engineer_id: int | None
+    assigned_engineer_name: str | None
+    caller_name: str | None
+    caller_phone: str
+    oem_call_id: str | None
+    source_reference: str | None
+    sla_due_at: UtcDateTime | None
+    first_response_at: UtcDateTime | None
+    closed_at: UtcDateTime | None
+    site_name: str | None
+    site_address: str | None
+    needs_master_linking: bool
+    allowed_statuses: list[CallStatus] = Field(
+        default_factory=list, description="Statuses the signed-in user may move this call to."
+    )
+    row_version: RowVersion
 
 
 class AssignedServiceCallQuery(PageQuery):

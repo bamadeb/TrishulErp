@@ -66,7 +66,7 @@
       <ng-container matColumnDef="callNo">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Call</th>
         <td mat-cell *matCellDef="let call">
-          <div class="strong">{{ call.callNo }}</div>
+          <a class="call-link" [routerLink]="[call.id]">{{ call.callNo }}</a>
           <div class="muted">
             {{ call.receivedAt | date: 'dd MMM, HH:mm' }} · {{
             call.principalCode }}
@@ -79,7 +79,21 @@
 
       <ng-container matColumnDef="customerName">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Customer</th>
-        <td mat-cell *matCellDef="let call">{{ call.customerName }}</td>
+        <td mat-cell *matCellDef="let call">
+          <span class="cust-name">{{ call.customerName }}</span>
+          @if (canAssign) {
+          <button
+            mat-icon-button
+            class="link-btn"
+            (click)="linkCustomer(call)"
+            [disabled]="busyId() === call.id"
+            matTooltip="Link / change customer"
+            aria-label="Link customer"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          }
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="machine">
@@ -92,23 +106,35 @@
 
       <ng-container matColumnDef="complaint">
         <th mat-header-cell *matHeaderCellDef>Complaint</th>
-        <td
-          mat-cell
-          *matCellDef="let call"
-          class="complaint"
-          [matTooltip]="call.complaintDescription"
-        >
-          {{ call.complaintDescription }}
+        <td mat-cell *matCellDef="let call" [matTooltip]="call.complaintDescription">
+          <span class="complaint">{{ call.complaintDescription }}</span>
         </td>
       </ng-container>
 
       <ng-container matColumnDef="priority">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Priority</th>
         <td mat-cell *matCellDef="let call">
+          @if (canAssign) {
+          <button
+            type="button"
+            class="cell-trigger"
+            [matMenuTriggerFor]="priorityMenu"
+            [matMenuTriggerData]="{ call }"
+            [disabled]="busyId() === call.id"
+            [attr.aria-label]="'Set priority for ' + call.callNo"
+          >
+            <trishul-status-badge
+              [status]="call.priority"
+              [severities]="prioritySeverity"
+            />
+            <mat-icon class="caret">arrow_drop_down</mat-icon>
+          </button>
+          } @else {
           <trishul-status-badge
             [status]="call.priority"
             [severities]="prioritySeverity"
           />
+          }
           @if (call.isMachineDown) {
           <div class="down">
             <mat-icon inline>warning</mat-icon> Machine down
@@ -130,7 +156,27 @@
       <ng-container matColumnDef="engineer">
         <th mat-header-cell *matHeaderCellDef>Engineer</th>
         <td mat-cell *matCellDef="let call">
+          @if (canAssign) {
+          <button
+            type="button"
+            mat-stroked-button
+            class="assign-btn"
+            [matMenuTriggerFor]="engineerMenu"
+            [matMenuTriggerData]="{ call }"
+            [disabled]="busyId() === call.id"
+            [matTooltip]="call.assignedEngineerName ?? ''"
+          >
+            <mat-icon>{{
+              call.assignedEngineerName ? 'engineering' : 'person_add'
+            }}</mat-icon>
+            <span class="eng-name">{{
+              call.assignedEngineerName ?? 'Assign'
+            }}</span>
+            <mat-icon iconPositionEnd class="caret">arrow_drop_down</mat-icon>
+          </button>
+          } @else {
           {{ call.assignedEngineerName ?? 'Unassigned' }}
+          }
         </td>
       </ng-container>
 
@@ -179,3 +225,31 @@
     (page)="onPage($event)"
   />
 </div>
+
+<!-- Team-lead quick triage: one menu shared by every row, the row passed as data. -->
+<mat-menu #priorityMenu="matMenu">
+  <ng-template matMenuContent let-call="call">
+    @for (p of priorities; track p) {
+    <button mat-menu-item (click)="setPriority(call, p)">
+      <trishul-status-badge [status]="p" [severities]="prioritySeverity" />
+    </button>
+    }
+  </ng-template>
+</mat-menu>
+
+<mat-menu #engineerMenu="matMenu">
+  <ng-template matMenuContent let-call="call">
+    @for (e of engineers(); track e.id) {
+    <button mat-menu-item (click)="setEngineer(call, e.id)">
+      {{ e.name }} <span class="muted">· {{ e.employeeCode }}</span>
+    </button>
+    } @empty {
+    <span class="menu-empty">No engineers in this branch</span>
+    }
+    @if (call.assignedEngineerName) {
+    <button mat-menu-item (click)="setEngineer(call, null)">
+      <mat-icon>person_off</mat-icon> Unassign
+    </button>
+    }
+  </ng-template>
+</mat-menu>

@@ -1,4 +1,4 @@
-import { HttpParams } from '@angular/common/http';
+import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { CurrentUser } from '@trishul/core-auth';
 import { MockRoute } from '@trishul/core-http';
 import { mockCustomerRoutes } from './mock-customers';
@@ -9,11 +9,33 @@ import { PageServiceCallListItem } from '@trishul/core-api';
 import {
   CALL_STATUSES,
   CallPriority,
+  CallStatusLogItem,
+  EngineerOption,
   LookupValueOut,
   MachineUnitOption,
   ServiceCallCreate,
+  ServiceCallDetail,
   ServiceCallListItem,
+  ServiceCallStatusChange,
+  ServiceCallTriageUpdate,
 } from '@trishul/service-data-access';
+
+/** Status changes made in mock mode, per call id (newest first), shown in the detail page's history. */
+const mockHistory = new Map<number, CallStatusLogItem[]>();
+let mockHistoryId = 1;
+
+const MOCK_ENGINEERS: EngineerOption[] = [
+  { id: 10, name: 'Rahul Patil', employeeCode: 'EMP0010' },
+  { id: 11, name: 'Sneha Kulkarni', employeeCode: 'EMP0011' },
+  { id: 12, name: 'Imran Shaikh', employeeCode: 'EMP0012' },
+];
+
+// Mirrors the mock customer seeds (see mock-customers.ts) so the triage PATCH can echo a name.
+const MOCK_CUSTOMER_NAMES: Record<number, string> = {
+  10: 'Blue Earth Movers',
+  11: 'Deccan Fabricators Pvt Ltd',
+  12: 'Ravi Kumar',
+};
 
 const LOOKUPS: Record<string, LookupValueOut[]> = {
   CALL_TYPE: [
@@ -185,6 +207,48 @@ export const mockRoutes: MockRoute[] = [
   },
   {
     method: 'GET',
+    path: '/svc/service-calls/engineer-options',
+    handle: (req): EngineerOption[] => {
+      const search = (req.params.get('search') ?? '').toLowerCase();
+      return MOCK_ENGINEERS.filter(
+        (e) => !search || e.name.toLowerCase().includes(search),
+      );
+    },
+  },
+  {
+    method: 'PATCH',
+    path: '/svc/service-calls/:callId',
+    handle: (req, params): ServiceCallListItem => {
+      const call = calls.find((c) => c.id === Number(params['callId']));
+      if (!call) {
+        throw new HttpErrorResponse({
+          status: 404,
+          url: req.url,
+          error: { status: 404, title: 'Not found', detail: 'Call not found.' },
+        });
+      }
+      const body = req.body as ServiceCallTriageUpdate;
+      if (body.priority) call.priority = body.priority;
+      if (body.customerId != null) {
+        call.customerName =
+          MOCK_CUSTOMER_NAMES[body.customerId] ?? `Customer #${body.customerId}`;
+      }
+      if ('engineerId' in body) {
+        if (body.engineerId == null) {
+          call.assignedEngineerName = null;
+          if (call.currentStatus === 'Assigned') call.currentStatus = 'Logged';
+        } else {
+          call.assignedEngineerName =
+            MOCK_ENGINEERS.find((e) => e.id === body.engineerId)?.name ?? null;
+          if (call.currentStatus === 'Logged') call.currentStatus = 'Assigned';
+        }
+      }
+      call.rowVersion = btoa(`rv-${call.id}-${Date.now()}`);
+      return call;
+    },
+  },
+  {
+    method: 'GET',
     path: '/svc/service-calls/machine-options',
     handle: (req): MachineUnitOption[] => {
       const search = (req.params.get('search') ?? '').toLowerCase();
@@ -194,6 +258,144 @@ export const mockRoutes: MockRoute[] = [
           m.serialNumber.toLowerCase().includes(search) ||
           (m.modelName ?? '').toLowerCase().includes(search),
       );
+    },
+  },
+  {
+    method: 'GET',
+    path: '/svc/service-calls/:callId',
+    handle: (req, params): ServiceCallDetail => {
+      const call = calls.find((c) => c.id === Number(params['callId']));
+      if (!call) {
+        throw new HttpErrorResponse({
+          status: 404,
+          url: req.url,
+          error: { status: 404, title: 'Not found', detail: 'Call not found.' },
+        });
+      }
+      const branches: Record<number, string> = { 1: 'Pune', 2: 'Mumbai', 3: 'Nagpur' };
+      return {
+        id: call.id,
+        callNo: call.callNo,
+        receivedAt: call.receivedAt,
+        branchName: branches[call.branchId] ?? null,
+        principalCode: call.principalCode,
+        principalName:
+          call.principalCode === 'ATLAS_COPCO' ? 'Atlas Copco' : 'Tata Hitachi',
+        customerId: 10,
+        customerName: call.customerName,
+        customerPhone: '9820000000',
+        machineUnitId: null,
+        machineSerialNo: call.machineSerialNo,
+        machineModel: call.machineModel,
+        complaintDescription: call.complaintDescription,
+        callType: 'Breakdown',
+        callSource: 'Phone',
+        priority: call.priority,
+        isMachineDown: call.isMachineDown,
+        isAscPriority: call.isAscPriority,
+        coverageType: call.coverageType,
+        currentStatus: call.currentStatus,
+        assignedEngineerId: null,
+        assignedEngineerName: call.assignedEngineerName,
+        callerName: 'Nilamadhab Sahoo',
+        callerPhone: '7894435328',
+        oemCallId: call.oemCallId,
+        sourceReference: null,
+        slaDueAt: call.slaDueAt,
+        firstResponseAt: null,
+        closedAt: null,
+        siteName: null,
+        siteAddress: null,
+        needsMasterLinking: false,
+        allowedStatuses: CALL_STATUSES.filter(
+          (s) =>
+            s !== call.currentStatus &&
+            !['Closed', 'Completed', 'Cancelled', 'Reopened'].includes(s),
+        ),
+        rowVersion: call.rowVersion,
+      };
+    },
+  },
+  {
+    method: 'GET',
+    path: '/svc/service-calls/:callId/status-history',
+    handle: (_req, params): CallStatusLogItem[] =>
+      mockHistory.get(Number(params['callId'])) ?? [
+        {
+          id: 0,
+          fromStatus: null,
+          toStatus: 'Logged',
+          changedAt: new Date(Date.now() - 86_400_000).toISOString(),
+          changedByName: 'Demo Admin',
+          remarks: 'Call logged',
+        },
+      ],
+  },
+  {
+    method: 'POST',
+    path: '/svc/service-calls/:callId/status',
+    handle: (req, params): ServiceCallDetail => {
+      const call = calls.find((c) => c.id === Number(params['callId']));
+      if (!call) {
+        throw new HttpErrorResponse({
+          status: 404,
+          url: req.url,
+          error: { status: 404, title: 'Not found', detail: 'Call not found.' },
+        });
+      }
+      const body = req.body as ServiceCallStatusChange;
+      const rows = mockHistory.get(call.id) ?? [];
+      rows.unshift({
+        id: mockHistoryId++,
+        fromStatus: call.currentStatus,
+        toStatus: body.status,
+        changedAt: new Date().toISOString(),
+        changedByName: 'Demo Admin',
+        remarks: body.remarks ?? null,
+      });
+      mockHistory.set(call.id, rows);
+      call.currentStatus = body.status;
+      call.rowVersion = btoa(`rv-${call.id}-${Date.now()}`);
+      return {
+        id: call.id,
+        callNo: call.callNo,
+        receivedAt: call.receivedAt,
+        branchName: null,
+        principalCode: call.principalCode,
+        principalName: null,
+        customerId: 10,
+        customerName: call.customerName,
+        customerPhone: null,
+        machineUnitId: null,
+        machineSerialNo: call.machineSerialNo,
+        machineModel: call.machineModel,
+        complaintDescription: call.complaintDescription,
+        callType: null,
+        callSource: null,
+        priority: call.priority,
+        isMachineDown: call.isMachineDown,
+        isAscPriority: call.isAscPriority,
+        coverageType: call.coverageType,
+        currentStatus: call.currentStatus,
+        assignedEngineerId: null,
+        assignedEngineerName: call.assignedEngineerName,
+        callerName: null,
+        callerPhone: '7894435328',
+        oemCallId: call.oemCallId,
+        sourceReference: null,
+        slaDueAt: call.slaDueAt,
+        firstResponseAt: null,
+        closedAt: null,
+        siteName: null,
+        siteAddress: null,
+        needsMasterLinking: false,
+        allowedStatuses: CALL_STATUSES.filter(
+          (s) =>
+            s !== call.currentStatus &&
+            !['Closed', 'Completed', 'Cancelled', 'Reopened'].includes(s),
+        ),
+        rowVersion: call.rowVersion,
+      };
     },
   },
   {

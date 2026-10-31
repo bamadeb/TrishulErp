@@ -1,0 +1,185 @@
+<trishul-page-header
+  [title]="call()?.callNo ?? 'Service call'"
+  [subtitle]="call()?.customerName ?? ''"
+>
+  <a mat-button routerLink="/service/calls">
+    <mat-icon>arrow_back</mat-icon>
+    All calls
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+@if (call(); as c) {
+<div class="cards">
+  <section class="card">
+    <h2>Call</h2>
+    <dl class="fields">
+      <div>
+        <dt>Status</dt>
+        <dd>
+          <trishul-status-badge
+            [status]="c.currentStatus"
+            [severities]="statusSeverity"
+          />
+        </dd>
+      </div>
+      <div>
+        <dt>Priority</dt>
+        <dd>
+          <trishul-status-badge
+            [status]="c.priority"
+            [severities]="prioritySeverity"
+          />
+        </dd>
+      </div>
+      <div><dt>Brand</dt><dd>{{ c.principalName ?? c.principalCode }}</dd></div>
+      <div><dt>Branch</dt><dd>{{ c.branchName ?? '—' }}</dd></div>
+      <div>
+        <dt>Received</dt>
+        <dd>{{ c.receivedAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
+      </div>
+      <div><dt>Call type</dt><dd>{{ c.callType ?? '—' }}</dd></div>
+      <div><dt>Source</dt><dd>{{ c.callSource ?? '—' }}</dd></div>
+      @if (c.oemCallId) {
+      <div><dt>OEM call ID</dt><dd>{{ c.oemCallId }}</dd></div>
+      } @if (c.sourceReference) {
+      <div><dt>Reference</dt><dd>{{ c.sourceReference }}</dd></div>
+      }
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Customer &amp; machine</h2>
+    <dl class="fields">
+      <div>
+        <dt>Customer</dt>
+        <dd>
+          {{ c.customerName }}
+          @if (c.needsMasterLinking) {
+          <span class="flag">needs linking</span>
+          }
+        </dd>
+      </div>
+      <div><dt>Phone</dt><dd>{{ c.customerPhone ?? '—' }}</dd></div>
+      <div><dt>Caller</dt><dd>{{ c.callerName ?? '—' }}</dd></div>
+      <div><dt>Caller phone</dt><dd>{{ c.callerPhone }}</dd></div>
+      <div>
+        <dt>Machine</dt>
+        <dd>
+          {{ c.machineModel ?? '—' }}
+          @if (c.machineSerialNo) {
+          <span class="muted">({{ c.machineSerialNo }})</span>
+          }
+        </dd>
+      </div>
+      @if (c.siteName) {
+      <div><dt>Site</dt><dd>{{ c.siteName }}</dd></div>
+      } @if (c.siteAddress) {
+      <div class="wide"><dt>Site address</dt><dd>{{ c.siteAddress }}</dd></div>
+      }
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Service</h2>
+    <dl class="fields">
+      <div>
+        <dt>Engineer</dt>
+        <dd>{{ c.assignedEngineerName ?? 'Unassigned' }}</dd>
+      </div>
+      <div><dt>Coverage</dt><dd>{{ c.coverageType ?? '—' }}</dd></div>
+      <div><dt>Machine down</dt><dd>{{ c.isMachineDown ? 'Yes' : 'No' }}</dd></div>
+      <div><dt>ASC priority</dt><dd>{{ c.isAscPriority ? 'Yes' : 'No' }}</dd></div>
+      <div>
+        <dt>SLA due</dt>
+        <dd>{{ c.slaDueAt ? (c.slaDueAt | date: 'dd MMM yyyy, HH:mm') : '—' }}</dd>
+      </div>
+      <div>
+        <dt>First response</dt>
+        <dd>
+          {{ c.firstResponseAt ? (c.firstResponseAt | date: 'dd MMM, HH:mm') : '—' }}
+        </dd>
+      </div>
+      <div>
+        <dt>Closed</dt>
+        <dd>{{ c.closedAt ? (c.closedAt | date: 'dd MMM, HH:mm') : '—' }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="card wide-card">
+    <h2>Complaint</h2>
+    <p class="complaint">{{ c.complaintDescription }}</p>
+  </section>
+
+  @if (c.allowedStatuses.length) {
+  <section class="card wide-card">
+    <h2>Change status</h2>
+    <form class="status-form" (ngSubmit)="changeStatus()">
+      <mat-form-field appearance="outline" class="status-select">
+        <mat-label>New status</mat-label>
+        <mat-select [formControl]="newStatus">
+          @for (s of c.allowedStatuses; track s) {
+          <mat-option [value]="s">{{ s }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="remarks">
+        <mat-label>Remarks (optional)</mat-label>
+        <input matInput [formControl]="remarks" maxlength="500" />
+      </mat-form-field>
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="newStatus.invalid || saving()"
+      >
+        <mat-icon>published_with_changes</mat-icon>
+        Change status
+      </button>
+    </form>
+  </section>
+  }
+
+  <section class="card wide-card">
+    <h2>Status history</h2>
+    @if (history().length === 0) {
+    <p class="muted">No status changes recorded yet.</p>
+    } @else {
+    <ol class="timeline">
+      @for (h of history(); track h.id) {
+      <li>
+        <span class="dot"></span>
+        <div class="entry">
+          <div class="change">
+            @if (h.fromStatus) {
+            <trishul-status-badge
+              [status]="h.fromStatus"
+              [severities]="statusSeverity"
+            />
+            <mat-icon class="arrow">arrow_forward</mat-icon>
+            }
+            <trishul-status-badge
+              [status]="h.toStatus"
+              [severities]="statusSeverity"
+            />
+          </div>
+          <div class="meta">
+            {{ h.changedAt | date: 'dd MMM yyyy, HH:mm' }}
+            @if (h.changedByName) { · by {{ h.changedByName }} }
+          </div>
+          @if (h.remarks) {
+          <div class="note">{{ h.remarks }}</div>
+          }
+        </div>
+      </li>
+      }
+    </ol>
+    }
+  </section>
+</div>
+}

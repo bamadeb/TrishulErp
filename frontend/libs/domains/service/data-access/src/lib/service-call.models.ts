@@ -7,8 +7,13 @@ import { allOf } from '@trishul/shared-util';
 // API types come from the generated client; only what the UI adds is defined here.
 export type {
   ServiceCallListItem,
+  ServiceCallDetail,
   ServiceCallCreate,
+  ServiceCallStatusChange,
+  ServiceCallTriageUpdate,
+  CallStatusLogItem,
   MachineUnitOption,
+  EngineerOption,
   CustomerListItem,
   LookupValueOut,
 } from '@trishul/core-api';
@@ -17,6 +22,8 @@ export type CallPriority = ServiceCallListItem['priority'];
 
 /** Log a new call / open the register. The API checks the same code. */
 export const SERVICE_CALL_CREATE_PERMISSION = 'svc.call.create';
+/** Assign an engineer and set priority from the register (team lead). */
+export const SERVICE_CALL_ASSIGN_PERMISSION = 'svc.call.assign';
 
 /** Query of the call register; page and page size are always set. */
 export type ServiceCallQuery = ListServiceCalls$Params &
@@ -57,4 +64,13 @@ export const SERVICE_CALL_VIEW_PERMISSIONS = [
   'svc.call.view',
   'svc.call.create',
   'svc.call.assign',
+] as const;
+
+/**
+ * Open one call's detail page: the register roles, or an engineer for a call assigned to them
+ * (the API limits an engineer to their own calls). The API checks the same codes.
+ */
+export const SERVICE_CALL_OPEN_PERMISSIONS = [
+  ...SERVICE_CALL_VIEW_PERMISSIONS,
+  'svc.call.view.assigned',
 ] as const;

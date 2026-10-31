@@ -3028,6 +3028,210 @@
         }
       }
     },
+    "/svc/service-calls/{callId}": {
+      "patch": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Assign an engineer and/or set priority (team lead triage)",
+        "operationId": "update_service_call_triage",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceCallTriageUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCallListItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "One service call, in full",
+        "operationId": "get_service_call",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCallDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/svc/service-calls/machine-options": {
       "get": {
         "tags": [
@@ -3098,6 +3302,107 @@
                     "$ref": "#/components/schemas/MachineUnitOption"
                   },
                   "title": "Response List Machine Options"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-calls/engineer-options": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Engineers a team lead can assign a call to",
+        "operationId": "list_engineer_options",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EngineerOption"
+                  },
+                  "title": "Response List Engineer Options"
                 }
               }
             }
@@ -3564,6 +3869,216 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/svc/service-calls/{callId}/status-history": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Every status change of a call, newest first",
+        "operationId": "list_call_status_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CallStatusLogItem"
+                  },
+                  "title": "Response List Call Status History"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-calls/{callId}/status": {
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Change a call's status (team lead: any call; engineer: their own)",
+        "operationId": "change_service_call_status",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceCallStatusChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCallDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/pre/sales-activities/assigned-to-me": {
@@ -5247,6 +5762,67 @@
         ],
         "title": "BydImportSummary",
         "description": "Counts for the whole file, shown on both preview and after import."
+      },
+      "CallStatusLogItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "fromStatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fromstatus"
+          },
+          "toStatus": {
+            "type": "string",
+            "title": "Tostatus"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Changedat"
+          },
+          "changedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changedbyname"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "fromStatus",
+          "toStatus",
+          "changedAt",
+          "changedByName",
+          "remarks"
+        ],
+        "title": "CallStatusLogItem",
+        "description": "One row of a call's status history."
       },
       "CallTripHistoryItem": {
         "properties": {
@@ -7117,6 +7693,29 @@
         "title": "EmployeeUpdate",
         "description": "Only the fields sent are changed."
       },
+      "EngineerOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "employeeCode"
+        ],
+        "title": "EngineerOption"
+      },
       "GpsBatchInput": {
         "properties": {
           "points": {
@@ -8012,6 +8611,374 @@
         "title": "ServiceCallCreate",
         "description": "Log a new service call (office). call_no, status (Logged) and received_by are set by the server;\nbranch and brand default to the ones selected in the app (the X-Branch-Id / X-Principal-Id headers)."
       },
+      "ServiceCallDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Receivedat"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "principalCode": {
+            "type": "string",
+            "title": "Principalcode"
+          },
+          "principalName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalname"
+          },
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
+          },
+          "customerName": {
+            "type": "string",
+            "title": "Customername"
+          },
+          "customerPhone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customerphone"
+          },
+          "machineUnitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineunitid"
+          },
+          "machineSerialNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineserialno"
+          },
+          "machineModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machinemodel"
+          },
+          "complaintDescription": {
+            "type": "string",
+            "title": "Complaintdescription"
+          },
+          "callType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calltype"
+          },
+          "callSource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callsource"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Normal",
+              "Low"
+            ],
+            "title": "Priority"
+          },
+          "isMachineDown": {
+            "type": "boolean",
+            "title": "Ismachinedown"
+          },
+          "isAscPriority": {
+            "type": "boolean",
+            "title": "Isascpriority"
+          },
+          "coverageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Warranty",
+                  "Contract",
+                  "Chargeable",
+                  "Goodwill"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragetype"
+          },
+          "currentStatus": {
+            "type": "string",
+            "enum": [
+              "Logged",
+              "Assigned",
+              "Call ID linked",
+              "Customer contacted",
+              "Trip started",
+              "Reached site",
+              "In progress",
+              "Report submitted",
+              "Awaiting parts",
+              "Parts ready",
+              "Revisit scheduled",
+              "Closed",
+              "Pending OEM closure",
+              "Completed",
+              "Reopened",
+              "Cancelled"
+            ],
+            "title": "Currentstatus"
+          },
+          "assignedEngineerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignedengineerid"
+          },
+          "assignedEngineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignedengineername"
+          },
+          "callerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callername"
+          },
+          "callerPhone": {
+            "type": "string",
+            "title": "Callerphone"
+          },
+          "oemCallId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oemcallid"
+          },
+          "sourceReference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcereference"
+          },
+          "slaDueAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sladueat"
+          },
+          "firstResponseAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstresponseat"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closedat"
+          },
+          "siteName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sitename"
+          },
+          "siteAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Siteaddress"
+          },
+          "needsMasterLinking": {
+            "type": "boolean",
+            "title": "Needsmasterlinking"
+          },
+          "allowedStatuses": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Logged",
+                "Assigned",
+                "Call ID linked",
+                "Customer contacted",
+                "Trip started",
+                "Reached site",
+                "In progress",
+                "Report submitted",
+                "Awaiting parts",
+                "Parts ready",
+                "Revisit scheduled",
+                "Closed",
+                "Pending OEM closure",
+                "Completed",
+                "Reopened",
+                "Cancelled"
+              ]
+            },
+            "type": "array",
+            "title": "Allowedstatuses",
+            "description": "Statuses the signed-in user may move this call to."
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "callNo",
+          "receivedAt",
+          "branchName",
+          "principalCode",
+          "principalName",
+          "customerId",
+          "customerName",
+          "customerPhone",
+          "machineUnitId",
+          "machineSerialNo",
+          "machineModel",
+          "complaintDescription",
+          "callType",
+          "callSource",
+          "priority",
+          "isMachineDown",
+          "isAscPriority",
+          "coverageType",
+          "currentStatus",
+          "assignedEngineerId",
+          "assignedEngineerName",
+          "callerName",
+          "callerPhone",
+          "oemCallId",
+          "sourceReference",
+          "slaDueAt",
+          "firstResponseAt",
+          "closedAt",
+          "siteName",
+          "siteAddress",
+          "needsMasterLinking",
+          "allowedStatuses",
+          "rowVersion"
+        ],
+        "title": "ServiceCallDetail",
+        "description": "Everything the call detail page shows."
+      },
       "ServiceCallListItem": {
         "properties": {
           "id": {
@@ -8179,6 +9146,98 @@
         ],
         "title": "ServiceCallListItem",
         "description": "A row of the call register."
+      },
+      "ServiceCallStatusChange": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Logged",
+              "Assigned",
+              "Call ID linked",
+              "Customer contacted",
+              "Trip started",
+              "Reached site",
+              "In progress",
+              "Report submitted",
+              "Awaiting parts",
+              "Parts ready",
+              "Revisit scheduled",
+              "Closed",
+              "Pending OEM closure",
+              "Completed",
+              "Reopened",
+              "Cancelled"
+            ],
+            "title": "Status"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ServiceCallStatusChange",
+        "description": "Move a call to another status. The server checks the user may make that move."
+      },
+      "ServiceCallTriageUpdate": {
+        "properties": {
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Critical",
+                  "High",
+                  "Normal",
+                  "Low"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "engineerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineerid"
+          },
+          "customerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customerid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ServiceCallTriageUpdate",
+        "description": "A team lead's quick triage from the call list: link the real customer, reassign an engineer\nand/or change priority. Only the fields sent are changed; send engineerId null to unassign."
       },
       "StartTripInput": {
         "properties": {

@@ -63,8 +63,14 @@ export type { ListServiceCalls$Params as ListServiceCalls$Params } from './fn/se
 export { listServiceCalls as listServiceCalls } from './fn/service/list-service-calls';
 export type { CreateServiceCall$Params as CreateServiceCall$Params } from './fn/service/create-service-call';
 export { createServiceCall as createServiceCall } from './fn/service/create-service-call';
+export type { GetServiceCall$Params as GetServiceCall$Params } from './fn/service/get-service-call';
+export { getServiceCall as getServiceCall } from './fn/service/get-service-call';
+export type { UpdateServiceCallTriage$Params as UpdateServiceCallTriage$Params } from './fn/service/update-service-call-triage';
+export { updateServiceCallTriage as updateServiceCallTriage } from './fn/service/update-service-call-triage';
 export type { ListMachineOptions$Params as ListMachineOptions$Params } from './fn/service/list-machine-options';
 export { listMachineOptions as listMachineOptions } from './fn/service/list-machine-options';
+export type { ListEngineerOptions$Params as ListEngineerOptions$Params } from './fn/service/list-engineer-options';
+export { listEngineerOptions as listEngineerOptions } from './fn/service/list-engineer-options';
 export type { ListAssignedServiceCalls$Params as ListAssignedServiceCalls$Params } from './fn/service/list-assigned-service-calls';
 export { listAssignedServiceCalls as listAssignedServiceCalls } from './fn/service/list-assigned-service-calls';
 export type { ListServiceCallTrips$Params as ListServiceCallTrips$Params } from './fn/service/list-service-call-trips';
@@ -73,6 +79,10 @@ export type { PreviewServiceCallImport$Params as PreviewServiceCallImport$Params
 export { previewServiceCallImport as previewServiceCallImport } from './fn/service/preview-service-call-import';
 export type { ApplyServiceCallImport$Params as ApplyServiceCallImport$Params } from './fn/service/apply-service-call-import';
 export { applyServiceCallImport as applyServiceCallImport } from './fn/service/apply-service-call-import';
+export type { ListCallStatusHistory$Params as ListCallStatusHistory$Params } from './fn/service/list-call-status-history';
+export { listCallStatusHistory as listCallStatusHistory } from './fn/service/list-call-status-history';
+export type { ChangeServiceCallStatus$Params as ChangeServiceCallStatus$Params } from './fn/service/change-service-call-status';
+export { changeServiceCallStatus as changeServiceCallStatus } from './fn/service/change-service-call-status';
 export type { ListAssignedSalesActivities$Params as ListAssignedSalesActivities$Params } from './fn/presales/list-assigned-sales-activities';
 export { listAssignedSalesActivities as listAssignedSalesActivities } from './fn/presales/list-assigned-sales-activities';
 export type { ListTrips$Params as ListTrips$Params } from './fn/tracking/list-trips';
