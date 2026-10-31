@@ -74,6 +74,20 @@ def test_rejects_invalid_tokens(verifier: CognitoTokenVerifier, bad_token: str) 
         verifier.verify(bad_token)
 
 
+def test_accepts_tokens_from_extra_app_clients() -> None:
+    settings = Settings(
+        environment="test",
+        cognito_user_pool_id=POOL,
+        cognito_app_client_id=CLIENT_ID,
+        cognito_extra_client_ids=["mobile-client"],
+        _env_file=None,
+    )
+    verifier = CognitoTokenVerifier(settings, jwks_client=FakeJwks())  # type: ignore[arg-type]
+    assert verifier.verify(token(client_id="mobile-client")).cognito_sub == "3f1c-user"
+    with pytest.raises(Unauthorized):
+        verifier.verify(token(client_id="other-app"))
+
+
 def test_rejects_unsigned_token(verifier: CognitoTokenVerifier) -> None:
     unsigned = jwt.encode({"sub": "x", "iss": ISSUER, "token_use": "access"}, "", algorithm="none")
     with pytest.raises(Unauthorized):

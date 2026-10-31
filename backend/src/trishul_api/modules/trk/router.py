@@ -3,13 +3,17 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query, Response
 
 from trishul_api.auth import CurrentUserDep, DbSession, ScopeDep, require_permission
-from trishul_api.common.errors import NOT_FOUND_RESPONSE
+from trishul_api.common.concurrency import if_match_row_version
+from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
 from trishul_api.common.schemas import Page
 from trishul_api.modules.trk.schemas import (
+    AdjustDistanceInput,
     GpsBatchInput,
     GpsUploadResult,
+    MyTripListQuery,
     StartTripInput,
     StopTripInput,
+    TripAdjustmentItem,
     TripListItem,
     TripListQuery,
     TripOut,
@@ -63,6 +67,18 @@ def stop_trip(trip_id: TripId, data: StopTripInput, user: CurrentUserDep, servic
     return service.stop(user, trip_id, data)
 
 
+# Declared before /trips/{tripId}, which would otherwise capture "mine".
+@router.get(
+    "/trips/mine",
+    summary="My own trips (the engineer's trip history)",
+    dependencies=[Depends(require_permission("trk.trip.manage"))],
+)
+def list_my_trips(
+    query: Annotated[MyTripListQuery, Query()], user: CurrentUserDep, service: TripServiceDep
+) -> Page[TripListItem]:
+    return service.my_trips(user, query)
+
+
 @router.get(
     "/trips/{tripId}",
     summary="One trip (to resume an interrupted trip)",
@@ -82,3 +98,29 @@ def list_trips(
     query: Annotated[TripListQuery, Query()], scope: ScopeDep, service: TripServiceDep
 ) -> Page[TripListItem]:
     return service.review(scope, query)
+
+
+@router.post(
+    "/trips/{tripId}/adjust-distance",
+    summary="Manually adjust a trip's distance (Team Lead), keeping the GPS value for audit",
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+    dependencies=[Depends(require_permission("trk.trip.adjust"))],
+)
+def adjust_trip_distance(
+    trip_id: TripId,
+    data: AdjustDistanceInput,
+    user: CurrentUserDep,
+    service: TripServiceDep,
+    if_match: Annotated[bytes, Depends(if_match_row_version)],
+) -> TripOut:
+    return service.adjust_distance(user, trip_id, if_match, data)
+
+
+@router.get(
+    "/trips/{tripId}/adjustments",
+    summary="Audit trail of a trip's manual distance adjustments (engineers: own trips only)",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission("trk.trip.view.team", "trk.trip.adjust", "trk.trip.manage"))],
+)
+def list_trip_adjustments(trip_id: TripId, user: CurrentUserDep, service: TripServiceDep) -> list[TripAdjustmentItem]:
+    return service.adjustments(user, trip_id)

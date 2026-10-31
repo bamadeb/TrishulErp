@@ -7,8 +7,27 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import RequestScope
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
 from trishul_api.common.schemas import Page
-from trishul_api.db.models import Employee, TrackableActivity, TrkTrip, TrkTripGpsPoint, UserDevice
-from trishul_api.modules.trk.schemas import TripListItem, TripListQuery
+from trishul_api.db.models import (
+    AppUser,
+    Employee,
+    ServiceVisit,
+    TrackableActivity,
+    TrkTrip,
+    TrkTripDistanceAdjustment,
+    TrkTripGpsPoint,
+    UserDevice,
+)
+from trishul_api.modules.trk.schemas import (
+    CallTripHistoryItem,
+    TripAdjustmentItem,
+    TripListItem,
+    TripListQuery,
+)
+
+# The distance used for reporting: the Team Lead's manual value wins, else the Maps value, else GPS.
+_EFFECTIVE_DISTANCE_KM = func.coalesce(
+    TrkTrip.adjusted_distance_km, TrkTrip.map_distance_km, TrkTrip.gps_distance_km
+)
 
 _SORT_COLUMNS: SortColumns = {
     "startAt": TrkTrip.start_at,
@@ -58,6 +77,79 @@ class TripRepository:
             )
         )
 
+    def employee_branch_id(self, employee_id: int) -> int | None:
+        return self._session.scalar(select(Employee.branch_id).where(Employee.id == employee_id))
+
+    def adjustments_for_trip(self, trip_id: int) -> list[TripAdjustmentItem]:
+        """The manual-adjustment audit trail of a trip, newest first."""
+        adjuster = func.nullif(func.concat_ws(" ", Employee.first_name, Employee.last_name), "")
+        rows = self._session.execute(
+            select(
+                TrkTripDistanceAdjustment.id,
+                TrkTripDistanceAdjustment.trip_id,
+                TrkTripDistanceAdjustment.previous_distance_km,
+                TrkTripDistanceAdjustment.new_distance_km,
+                TrkTripDistanceAdjustment.gps_distance_km_at_adjustment,
+                TrkTripDistanceAdjustment.reason,
+                TrkTripDistanceAdjustment.adjusted_by_user_id,
+                func.coalesce(adjuster, AppUser.username).label("adjusted_by_name"),
+                TrkTripDistanceAdjustment.adjusted_at,
+            )
+            .outerjoin(AppUser, AppUser.id == TrkTripDistanceAdjustment.adjusted_by_user_id)
+            .outerjoin(Employee, Employee.id == AppUser.employee_id)
+            .where(TrkTripDistanceAdjustment.trip_id == trip_id)
+            .order_by(TrkTripDistanceAdjustment.adjusted_at.desc(), TrkTripDistanceAdjustment.id.desc())
+        )
+        return [TripAdjustmentItem.model_validate(row) for row in rows.mappings()]
+
+    def trips_for_service_call(self, call_id: int) -> list[CallTripHistoryItem]:
+        """Every trip of a service call, across all its visits, oldest first.
+
+        Trips hang off trk.trackable_activity, which for SVC points at a svc.service_visit; the visit
+        carries the service_call_id. The (module_code, source_table) filter keeps the source_id join
+        to service_visit sound despite trackable_activity being polymorphic."""
+        adjustment_count = (
+            select(func.count())
+            .select_from(TrkTripDistanceAdjustment)
+            .where(TrkTripDistanceAdjustment.trip_id == TrkTrip.id)
+            .scalar_subquery()
+        )
+        rows = self._session.execute(
+            select(
+                TrkTrip.id,
+                ServiceVisit.visit_no,
+                TrkTrip.trip_type,
+                TrkTrip.status,
+                TrkTrip.employee_id.label("engineer_employee_id"),
+                func.nullif(func.concat_ws(" ", Employee.first_name, Employee.last_name), "").label("engineer_name"),
+                TrkTrip.start_at,
+                TrkTrip.end_at,
+                TrkTrip.duration_minutes,
+                TrkTrip.start_latitude,
+                TrkTrip.start_longitude,
+                TrkTrip.end_latitude,
+                TrkTrip.end_longitude,
+                TrkTrip.gps_distance_km,
+                TrkTrip.map_distance_km,
+                TrkTrip.adjusted_distance_km,
+                TrkTrip.is_distance_adjusted,
+                _EFFECTIVE_DISTANCE_KM.label("effective_distance_km"),
+                adjustment_count.label("adjustment_count"),
+                TrkTrip.row_version,
+            )
+            .join(TrackableActivity, TrackableActivity.id == TrkTrip.trackable_activity_id)
+            .join(ServiceVisit, ServiceVisit.id == TrackableActivity.source_id)
+            .join(Employee, Employee.id == TrkTrip.employee_id)
+            .where(
+                TrackableActivity.module_code == "SVC",
+                TrackableActivity.source_table == "service_visit",
+                ServiceVisit.service_call_id == call_id,
+                TrkTrip.is_active,
+            )
+            .order_by(TrkTrip.start_at, TrkTrip.id)
+        )
+        return [CallTripHistoryItem.model_validate(row) for row in rows.mappings()]
+
     def gps_points(self, trip_id: int) -> list[tuple[float, float]]:
         rows = self._session.execute(
             select(TrkTripGpsPoint.latitude, TrkTripGpsPoint.longitude)
@@ -83,6 +175,9 @@ class TripRepository:
                 TrkTrip.start_at,
                 TrkTrip.end_at,
                 TrkTrip.gps_distance_km,
+                TrkTrip.adjusted_distance_km,
+                TrkTrip.is_distance_adjusted,
+                _EFFECTIVE_DISTANCE_KM.label("effective_distance_km"),
                 TrkTrip.duration_minutes,
             )
             .join(TrackableActivity, TrackableActivity.id == TrkTrip.trackable_activity_id)

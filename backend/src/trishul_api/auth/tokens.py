@@ -32,7 +32,7 @@ class CognitoTokenVerifier:
 
     def __init__(self, settings: Settings, jwks_client: jwt.PyJWKClient | None = None) -> None:
         self._issuer = settings.cognito_issuer
-        self._client_id = settings.cognito_app_client_id
+        self._client_ids = {settings.cognito_app_client_id, *settings.cognito_extra_client_ids}
         self._jwks = jwks_client or jwt.PyJWKClient(f"{self._issuer}/.well-known/jwks.json", lifespan=3600)
 
     def verify(self, token: str) -> Identity:
@@ -49,7 +49,7 @@ class CognitoTokenVerifier:
             )
         except jwt.PyJWTError as exc:
             raise Unauthorized("Your session has expired or is not valid. Sign in again.") from exc
-        if claims["token_use"] != "access" or claims.get("client_id") != self._client_id:  # noqa: S105
+        if claims["token_use"] != "access" or claims.get("client_id") not in self._client_ids:  # noqa: S105
             raise Unauthorized("This token was not issued for Trishul ERP.")
         return Identity(cognito_sub=str(claims["sub"]))
 

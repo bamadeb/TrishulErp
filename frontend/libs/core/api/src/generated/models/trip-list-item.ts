@@ -3,12 +3,15 @@
 
 export interface TripListItem {
   activityTitle: (string | null);
+  adjustedDistanceKm: (number | null);
   durationMinutes: (number | null);
+  effectiveDistanceKm: (number | null);
   employeeId: number;
   employeeName: (string | null);
   endAt: (string | null);
   gpsDistanceKm: (number | null);
   id: number;
+  isDistanceAdjusted: boolean;
   module: 'SVC' | 'PRE';
   startAt: string;
   status: 'In progress' | 'Completed' | 'Auto closed';

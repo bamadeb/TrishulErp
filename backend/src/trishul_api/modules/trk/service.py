@@ -5,16 +5,21 @@ from math import asin, cos, radians, sin, sqrt
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser, RequestScope
+from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import ApiError, Conflict, NotFound
 from trishul_api.common.schemas import Page
-from trishul_api.db.models import TrackableActivity, TrkTrip, TrkTripGpsPoint
+from trishul_api.db.models import ServiceCall, TrackableActivity, TrkTrip, TrkTripDistanceAdjustment, TrkTripGpsPoint
 from trishul_api.modules.trk.handlers import handler_for
 from trishul_api.modules.trk.repository import TripRepository
 from trishul_api.modules.trk.schemas import (
+    AdjustDistanceInput,
+    CallTripHistoryItem,
     GpsBatchInput,
     GpsUploadResult,
+    MyTripListQuery,
     StartTripInput,
     StopTripInput,
+    TripAdjustmentItem,
     TripListItem,
     TripListQuery,
     TripOut,
@@ -142,7 +147,65 @@ class TripService:
     def review(self, scope: RequestScope, query: TripListQuery) -> Page[TripListItem]:
         return self._repo.list(scope, query)
 
+    def my_trips(self, user: CurrentUser, query: MyTripListQuery) -> Page[TripListItem]:
+        """The caller's own trips, whichever branch they were made in; never anyone else's."""
+        own = TripListQuery(**query.model_dump(), employee_id=self._require_engineer(user))
+        return self._repo.list(RequestScope(branch_id=None, principal_id=None), own)
+
+    def adjust_distance(
+        self, user: CurrentUser, trip_id: int, expected_row_version: bytes, data: AdjustDistanceInput
+    ) -> TripOut:
+        """A Team Lead overrides the distance where GPS is unreliable. The GPS value is preserved;
+        the manual value becomes effective and every change is appended to the audit trail."""
+        trip = self._repo.get_trip(trip_id)
+        if trip is None or not trip.is_active or not self._in_user_branch(user, trip.employee_id):
+            raise NotFound("Trip not found.")
+        if trip.status == "In progress":
+            raise ApiError("This trip is still in progress; adjust its distance once it is completed.")
+        check_row_version(trip.row_version, expected_row_version)
+
+        now = _utcnow()
+        # The value being replaced, for the audit trail: a prior manual value, else Maps, else GPS.
+        previous = trip.adjusted_distance_km if trip.is_distance_adjusted else trip.map_distance_km
+        if previous is None:
+            previous = trip.gps_distance_km
+        self._repo.add(
+            TrkTripDistanceAdjustment(
+                trip_id=trip.id,
+                previous_distance_km=previous,
+                new_distance_km=data.new_distance_km,
+                gps_distance_km_at_adjustment=trip.gps_distance_km,
+                reason=data.reason,
+                adjusted_by_user_id=user.id,
+                adjusted_at=now,
+            )
+        )
+        trip.adjusted_distance_km = data.new_distance_km
+        trip.is_distance_adjusted = True
+        trip.updated_at = now
+        trip.updated_by_user_id = user.id
+        self._db.commit()
+        return self._to_out(trip)
+
+    def adjustments(self, user: CurrentUser, trip_id: int) -> list[TripAdjustmentItem]:
+        # Reviewers see any trip's trail; an engineer only the trail of their own trip.
+        if not user.can("trk.trip.view.team", "trk.trip.adjust"):
+            self._own_trip(user, trip_id)
+        return self._repo.adjustments_for_trip(trip_id)
+
+    def trips_for_service_call(self, user: CurrentUser, call_id: int) -> list[CallTripHistoryItem]:
+        call = self._db.get(ServiceCall, call_id)
+        if call is None or not call.is_active or not user.can_use_branch(call.branch_id):
+            raise NotFound("Service call not found.")
+        return self._repo.trips_for_service_call(call_id)
+
     # ------------------------------------------------------------------ helpers
+
+    def _in_user_branch(self, user: CurrentUser, employee_id: int) -> bool:
+        if user.branch_ids is None:  # no branch restriction (e.g. Admin)
+            return True
+        branch_id = self._repo.employee_branch_id(employee_id)
+        return branch_id is not None and branch_id in user.branch_ids
 
     def _own_trip(self, user: CurrentUser, trip_id: int) -> TrkTrip:
         employee_id = self._require_engineer(user)
@@ -176,6 +239,18 @@ class TripService:
             end_latitude=float(trip.end_latitude) if trip.end_latitude is not None else None,
             end_longitude=float(trip.end_longitude) if trip.end_longitude is not None else None,
             gps_distance_km=float(trip.gps_distance_km) if trip.gps_distance_km is not None else None,
+            adjusted_distance_km=float(trip.adjusted_distance_km) if trip.adjusted_distance_km is not None else None,
+            is_distance_adjusted=trip.is_distance_adjusted,
+            effective_distance_km=self._effective_distance(trip),
             duration_minutes=trip.duration_minutes,
             row_version=trip.row_version,
         )
+
+    @staticmethod
+    def _effective_distance(trip: TrkTrip) -> float | None:
+        """Distance used for reporting: manual adjustment wins, else Maps, else GPS (matches the SQL
+        COALESCE). None-checks, not truthiness, so a valid 0 km adjustment still wins."""
+        for value in (trip.adjusted_distance_km, trip.map_distance_km, trip.gps_distance_km):
+            if value is not None:
+                return float(value)
+        return None

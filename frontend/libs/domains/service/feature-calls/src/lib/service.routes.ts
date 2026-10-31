@@ -4,10 +4,12 @@ import {
   SERVICE_CALL_CREATE_PERMISSION,
   SERVICE_CALL_IMPORT_PERMISSION,
   SERVICE_CALL_VIEW_PERMISSIONS,
+  TRIP_HISTORY_VIEW_PERMISSIONS,
 } from '@trishul/service-data-access';
 import { BydImportPage } from './byd-import.page';
 import { CallFormPage } from './call-form.page';
 import { CallListPage } from './call-list.page';
+import { TripHistoryPage } from './trip-history.page';
 
 /** Lazy-loaded under /service. */
 export const serviceRoutes: Route[] = [
@@ -29,5 +31,11 @@ export const serviceRoutes: Route[] = [
     title: 'Import service calls',
     canActivate: [permissionGuard(SERVICE_CALL_IMPORT_PERMISSION)],
     component: BydImportPage,
+  },
+  {
+    path: 'calls/:callId/trips',
+    title: 'Trip history',
+    canActivate: [permissionGuard(...TRIP_HISTORY_VIEW_PERMISSIONS)],
+    component: TripHistoryPage,
   },
 ];

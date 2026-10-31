@@ -67,6 +67,8 @@ export type { ListMachineOptions$Params as ListMachineOptions$Params } from './f
 export { listMachineOptions as listMachineOptions } from './fn/service/list-machine-options';
 export type { ListAssignedServiceCalls$Params as ListAssignedServiceCalls$Params } from './fn/service/list-assigned-service-calls';
 export { listAssignedServiceCalls as listAssignedServiceCalls } from './fn/service/list-assigned-service-calls';
+export type { ListServiceCallTrips$Params as ListServiceCallTrips$Params } from './fn/service/list-service-call-trips';
+export { listServiceCallTrips as listServiceCallTrips } from './fn/service/list-service-call-trips';
 export type { PreviewServiceCallImport$Params as PreviewServiceCallImport$Params } from './fn/service/preview-service-call-import';
 export { previewServiceCallImport as previewServiceCallImport } from './fn/service/preview-service-call-import';
 export type { ApplyServiceCallImport$Params as ApplyServiceCallImport$Params } from './fn/service/apply-service-call-import';
@@ -81,5 +83,11 @@ export type { UploadTripGpsPoints$Params as UploadTripGpsPoints$Params } from '.
 export { uploadTripGpsPoints as uploadTripGpsPoints } from './fn/tracking/upload-trip-gps-points';
 export type { StopTrip$Params as StopTrip$Params } from './fn/tracking/stop-trip';
 export { stopTrip as stopTrip } from './fn/tracking/stop-trip';
+export type { ListMyTrips$Params as ListMyTrips$Params } from './fn/tracking/list-my-trips';
+export { listMyTrips as listMyTrips } from './fn/tracking/list-my-trips';
 export type { GetTrip$Params as GetTrip$Params } from './fn/tracking/get-trip';
 export { getTrip as getTrip } from './fn/tracking/get-trip';
+export type { AdjustTripDistance$Params as AdjustTripDistance$Params } from './fn/tracking/adjust-trip-distance';
+export { adjustTripDistance as adjustTripDistance } from './fn/tracking/adjust-trip-distance';
+export type { ListTripAdjustments$Params as ListTripAdjustments$Params } from './fn/tracking/list-trip-adjustments';
+export { listTripAdjustments as listTripAdjustments } from './fn/tracking/list-trip-adjustments';

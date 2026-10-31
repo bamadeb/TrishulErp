@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import {
   MatFormField,
   MatLabel,
@@ -79,6 +79,7 @@ const FINISHED: ReadonlySet<CallStatus> = new Set([
     MatSelect,
     MatOption,
     MatButton,
+    MatIconButton,
     MatIcon,
     MatTooltip,
     HasPermission,
@@ -102,6 +103,7 @@ export class CallListPage {
     'status',
     'engineer',
     'slaDueAt',
+    'actions',
   ];
   protected readonly statuses = CALL_STATUSES;
   protected readonly priorities = CALL_PRIORITIES;

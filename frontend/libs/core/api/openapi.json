@@ -3302,6 +3302,98 @@
         }
       }
     },
+    "/svc/service-calls/{callId}/trips": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Trip history for a service call (all visits), with GPS and adjusted distance",
+        "operationId": "list_service_call_trips",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CallTripHistoryItem"
+                  },
+                  "title": "Response List Service Call Trips"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/svc/service-calls/import/preview": {
       "post": {
         "tags": [
@@ -3768,23 +3860,6 @@
             }
           },
           {
-            "name": "employeeId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Employeeid"
-            }
-          },
-          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -3799,6 +3874,23 @@
                 "type": "string"
               },
               "title": "Status"
+            }
+          },
+          {
+            "name": "employeeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employeeid"
             }
           }
         ],
@@ -4052,6 +4144,150 @@
         }
       }
     },
+    "/trk/trips/mine": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "My own trips (the engineer's trip history)",
+        "operationId": "list_my_trips",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "In progress",
+                  "Completed",
+                  "Auto closed"
+                ],
+                "type": "string"
+              },
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_TripListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/trk/trips/{tripId}": {
       "get": {
         "tags": [
@@ -4139,10 +4375,251 @@
           }
         }
       }
+    },
+    "/trk/trips/{tripId}/adjust-distance": {
+      "post": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Manually adjust a trip's distance (Team Lead), keeping the GPS value for audit",
+        "operationId": "adjust_trip_distance",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Tripid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustDistanceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trk/trips/{tripId}/adjustments": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Audit trail of a trip's manual distance adjustments (engineers: own trips only)",
+        "operationId": "list_trip_adjustments",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Tripid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TripAdjustmentItem"
+                  },
+                  "title": "Response List Trip Adjustments"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AdjustDistanceInput": {
+        "properties": {
+          "newDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 999999.99,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Newdistancekm"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "newDistanceKm",
+          "reason"
+        ],
+        "title": "AdjustDistanceInput",
+        "description": "A Team Lead overrides a trip's distance where GPS is unreliable. The original GPS value is\nkept; this value becomes the effective distance and the change is logged for audit."
+      },
       "AssignedSalesActivityListItem": {
         "properties": {
           "id": {
@@ -4770,6 +5247,190 @@
         ],
         "title": "BydImportSummary",
         "description": "Counts for the whole file, shown on both preview and after import."
+      },
+      "CallTripHistoryItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "visitNo": {
+            "type": "integer",
+            "title": "Visitno"
+          },
+          "tripType": {
+            "type": "string",
+            "enum": [
+              "To site",
+              "Return",
+              "Site to site"
+            ],
+            "title": "Triptype"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "In progress",
+              "Completed",
+              "Auto closed"
+            ],
+            "title": "Status"
+          },
+          "engineerEmployeeId": {
+            "type": "integer",
+            "title": "Engineeremployeeid"
+          },
+          "engineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineername"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startat"
+          },
+          "endAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endat"
+          },
+          "durationMinutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationminutes"
+          },
+          "startLatitude": {
+            "type": "number",
+            "title": "Startlatitude"
+          },
+          "startLongitude": {
+            "type": "number",
+            "title": "Startlongitude"
+          },
+          "endLatitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endlatitude"
+          },
+          "endLongitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endlongitude"
+          },
+          "gpsDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpsdistancekm"
+          },
+          "mapDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapdistancekm"
+          },
+          "adjustedDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjusteddistancekm"
+          },
+          "isDistanceAdjusted": {
+            "type": "boolean",
+            "title": "Isdistanceadjusted"
+          },
+          "effectiveDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectivedistancekm"
+          },
+          "adjustmentCount": {
+            "type": "integer",
+            "title": "Adjustmentcount"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "visitNo",
+          "tripType",
+          "status",
+          "engineerEmployeeId",
+          "engineerName",
+          "startAt",
+          "endAt",
+          "durationMinutes",
+          "startLatitude",
+          "startLongitude",
+          "endLatitude",
+          "endLongitude",
+          "gpsDistanceKm",
+          "mapDistanceKm",
+          "adjustedDistanceKm",
+          "isDistanceAdjusted",
+          "effectiveDistanceKm",
+          "adjustmentCount",
+          "rowVersion"
+        ],
+        "title": "CallTripHistoryItem",
+        "description": "A trip in a service call's history, with both the GPS and the effective (possibly adjusted)\ndistance so the dashboard can show what was changed."
       },
       "CompanyOption": {
         "properties": {
@@ -7673,6 +8334,82 @@
         ],
         "title": "StopTripInput"
       },
+      "TripAdjustmentItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "tripId": {
+            "type": "integer",
+            "title": "Tripid"
+          },
+          "previousDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousdistancekm"
+          },
+          "newDistanceKm": {
+            "type": "number",
+            "title": "Newdistancekm"
+          },
+          "gpsDistanceKmAtAdjustment": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpsdistancekmatadjustment"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "adjustedByUserId": {
+            "type": "integer",
+            "title": "Adjustedbyuserid"
+          },
+          "adjustedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjustedbyname"
+          },
+          "adjustedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjustedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tripId",
+          "previousDistanceKm",
+          "newDistanceKm",
+          "gpsDistanceKmAtAdjustment",
+          "reason",
+          "adjustedByUserId",
+          "adjustedByName",
+          "adjustedAt"
+        ],
+        "title": "TripAdjustmentItem",
+        "description": "One entry in a trip's manual-adjustment audit trail."
+      },
       "TripListItem": {
         "properties": {
           "id": {
@@ -7759,6 +8496,32 @@
             ],
             "title": "Gpsdistancekm"
           },
+          "adjustedDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjusteddistancekm"
+          },
+          "isDistanceAdjusted": {
+            "type": "boolean",
+            "title": "Isdistanceadjusted"
+          },
+          "effectiveDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectivedistancekm"
+          },
           "durationMinutes": {
             "anyOf": [
               {
@@ -7783,6 +8546,9 @@
           "startAt",
           "endAt",
           "gpsDistanceKm",
+          "adjustedDistanceKm",
+          "isDistanceAdjusted",
+          "effectiveDistanceKm",
           "durationMinutes"
         ],
         "title": "TripListItem"
@@ -7889,6 +8655,32 @@
             ],
             "title": "Gpsdistancekm"
           },
+          "adjustedDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjusteddistancekm"
+          },
+          "isDistanceAdjusted": {
+            "type": "boolean",
+            "title": "Isdistanceadjusted"
+          },
+          "effectiveDistanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectivedistancekm"
+          },
           "durationMinutes": {
             "anyOf": [
               {
@@ -7921,6 +8713,9 @@
           "endLatitude",
           "endLongitude",
           "gpsDistanceKm",
+          "adjustedDistanceKm",
+          "isDistanceAdjusted",
+          "effectiveDistanceKm",
           "durationMinutes",
           "rowVersion"
         ],

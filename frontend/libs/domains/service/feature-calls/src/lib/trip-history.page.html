@@ -1,0 +1,209 @@
+<trishul-page-header
+  title="Trip history"
+  [subtitle]="
+    'Service call #' +
+    (store.callId() ?? '') +
+    ' · ' +
+    store.items().length +
+    ' trip' +
+    (store.items().length === 1 ? '' : 's')
+  "
+>
+  <a mat-stroked-button routerLink="/service/calls">
+    <mat-icon>arrow_back</mat-icon>
+    Back to calls
+  </a>
+</trishul-page-header>
+
+<div class="layout">
+  <section class="list-card">
+    <div class="progress">
+      @if (store.loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+
+    <div class="table-scroll">
+      <table mat-table [dataSource]="store.items()">
+        <ng-container matColumnDef="visit">
+          <th mat-header-cell *matHeaderCellDef>Visit</th>
+          <td mat-cell *matCellDef="let trip">
+            <span class="visit">{{ trip.visitNo }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="trip">
+          <th mat-header-cell *matHeaderCellDef>Trip</th>
+          <td mat-cell *matCellDef="let trip">
+            <div class="trip-line">
+              <span class="strong">{{ trip.tripType }}</span>
+              <trishul-status-badge
+                [status]="trip.status"
+                [severities]="statusSeverity"
+              />
+              @if (trip.isDistanceAdjusted) {
+                <span class="tag adj">Adjusted</span>
+              }
+            </div>
+            <div class="muted">#{{ trip.id }} · {{ trip.engineerName ?? '—' }}</div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="when">
+          <th mat-header-cell *matHeaderCellDef>When</th>
+          <td mat-cell *matCellDef="let trip">
+            <div>{{ trip.startAt | date: 'dd MMM, HH:mm' }}</div>
+            <div class="muted">
+              @if (trip.endAt) {
+                → {{ trip.endAt | date: 'HH:mm' }} · {{ duration(trip.durationMinutes) }}
+              } @else {
+                ongoing
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="distance">
+          <th mat-header-cell *matHeaderCellDef>Distance</th>
+          <td mat-cell *matCellDef="let trip" class="dist-cell">
+            @if (trip.status === 'In progress') {
+              <span class="muted">tracking…</span>
+            } @else {
+              <span class="eff">{{ fmtKm(trip.effectiveDistanceKm) }}</span>
+              <span class="unit">km</span>
+              @if (trip.isDistanceAdjusted) {
+                <div class="was" [matTooltip]="'GPS-calculated distance'">
+                  {{ fmtKm(trip.gpsDistanceKm) }} GPS
+                </div>
+              }
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let trip">
+            <button
+              *trishulHasPermission="adjustPermission"
+              mat-icon-button
+              [disabled]="!canAdjust(trip)"
+              [matTooltip]="
+                canAdjust(trip)
+                  ? 'Adjust distance'
+                  : 'A trip can be adjusted once it is completed'
+              "
+              aria-label="Adjust distance"
+              (click)="adjust(trip, $event)"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: columns"
+          class="trip-row"
+          [class.selected]="row.id === store.selectedTripId()"
+          (click)="store.select(row.id)"
+        ></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="empty" [attr.colspan]="columns.length">
+            {{ store.loading() ? 'Loading…' : 'No trips recorded for this call yet.' }}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- detail pane -->
+  @if (store.selectedTrip(); as trip) {
+    <section class="detail-card">
+      <header class="detail-head">
+        <div>
+          <h2>{{ trip.tripType }}</h2>
+          <p class="muted">Visit {{ trip.visitNo }} · trip #{{ trip.id }}</p>
+        </div>
+        <trishul-status-badge
+          [status]="trip.status"
+          [severities]="statusSeverity"
+        />
+      </header>
+
+      <dl class="facts">
+        <div>
+          <dt>Start</dt>
+          <dd>{{ trip.startAt | date: 'dd MMM, HH:mm' }}</dd>
+        </div>
+        <div>
+          <dt>Stop</dt>
+          <dd>{{ trip.endAt ? (trip.endAt | date: 'dd MMM, HH:mm') : 'In progress' }}</dd>
+        </div>
+        <div>
+          <dt>Duration</dt>
+          <dd>{{ duration(trip.durationMinutes) }}</dd>
+        </div>
+        <div>
+          <dt>Engineer</dt>
+          <dd>{{ trip.engineerName ?? '—' }}</dd>
+        </div>
+      </dl>
+
+      @if (trip.status !== 'In progress') {
+        <div class="dist-bars">
+          @for (row of distanceRows(trip); track row.label) {
+            <div class="dist-row" [class]="row.cls">
+              <span class="lab">{{ row.label }}</span>
+              <span class="meter"><i [style.width.%]="row.pct"></i></span>
+              <span class="val">{{ fmtKm(row.value) }} km</span>
+            </div>
+          }
+          <p class="note">
+            Effective = manual adjustment, else Maps, else GPS. Reports use this value.
+          </p>
+        </div>
+      }
+
+      <div class="audit">
+        <div class="audit-head">
+          <h3>Manual adjustment trail</h3>
+          <button
+            *trishulHasPermission="adjustPermission"
+            mat-button
+            [disabled]="!canAdjust(trip)"
+            (click)="adjust(trip)"
+          >
+            <mat-icon>edit</mat-icon>
+            Adjust km
+          </button>
+        </div>
+
+        @if (store.adjustmentsLoading()) {
+          <p class="muted">Loading…</p>
+        } @else if (store.adjustments().length === 0) {
+          <p class="muted empty-trail">
+            No manual adjustments. The GPS-calculated distance stands.
+          </p>
+        } @else {
+          <ol class="trail">
+            @for (a of store.adjustments(); track a.id) {
+              <li>
+                <div class="change">
+                  <span class="from">{{ fmtKm(a.previousDistanceKm) }}</span>
+                  <mat-icon inline>arrow_forward</mat-icon>
+                  <span class="to">{{ fmtKm(a.newDistanceKm) }} km</span>
+                </div>
+                <div class="muted who">
+                  {{ a.adjustedByName ?? ('User #' + a.adjustedByUserId) }} ·
+                  {{ a.adjustedAt | date: 'dd MMM yyyy, HH:mm' }}
+                </div>
+                <div class="why">{{ a.reason }}</div>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+    </section>
+  }
+</div>

@@ -18,8 +18,8 @@ export interface ListTrips$Params {
  */
   sort?: (string | null);
   search?: (string | null);
-  employeeId?: (number | null);
   status?: Array<'In progress' | 'Completed' | 'Auto closed'>;
+  employeeId?: (number | null);
 }
 
 export function listTrips(http: HttpClient, rootUrl: string, params?: ListTrips$Params, context?: HttpContext): Observable<StrictHttpResponse<PageTripListItem>> {
@@ -29,8 +29,8 @@ export function listTrips(http: HttpClient, rootUrl: string, params?: ListTrips$
     rb.query('pageSize', params.pageSize, {});
     rb.query('sort', params.sort, {});
     rb.query('search', params.search, {});
-    rb.query('employeeId', params.employeeId, {});
     rb.query('status', params.status, {});
+    rb.query('employeeId', params.employeeId, {});
   }
 
   return http.request(

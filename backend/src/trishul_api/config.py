@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     cognito_region: str = "ap-south-1"
     cognito_user_pool_id: str = ""
     cognito_app_client_id: str = ""
+    # Other app clients of the same user pool whose tokens the API also accepts (e.g. the LocTrack
+    # mobile app, which needs its own client for USER_PASSWORD_AUTH). Env: JSON list, like cors_origins.
+    cognito_extra_client_ids: list[str] = []
     # The Cognito identifiers can instead be read from a Secrets Manager secret at startup
     # (keys: region, userPoolId, appClientId). They are public identifiers (also sent to the browser),
     # so this just centralises config like the DB secret does; the values above are the fallback.

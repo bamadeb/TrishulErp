@@ -75,6 +75,12 @@ class TrkTrip(Base, Audited):
     end_longitude: Mapped[Decimal | None] = mapped_column(sa.Numeric(9, 6), doc="End point")
     gps_distance_km: Mapped[Decimal | None] = mapped_column(sa.Numeric(8, 2), doc="Distance from GPS points")
     map_distance_km: Mapped[Decimal | None] = mapped_column(sa.Numeric(8, 2), doc="Distance from Maps API")
+    adjusted_distance_km: Mapped[Decimal | None] = mapped_column(
+        sa.Numeric(8, 2), doc="Team Lead's manual distance; overrides GPS for reporting (GPS kept in gps_distance_km)"
+    )
+    is_distance_adjusted: Mapped[bool] = mapped_column(
+        sa.Boolean(), server_default=sa.FetchedValue(), doc="True once a manual distance adjustment has been applied"
+    )
     duration_minutes: Mapped[int | None] = mapped_column(sa.Integer(), doc="Travel time")
     vehicle_type: Mapped[TrkTripVehicleType | None] = mapped_column(sa.NVARCHAR(30), doc="Vehicle")
     status: Mapped[TrkTripStatus] = mapped_column(sa.NVARCHAR(30), doc="Status")
@@ -106,4 +112,28 @@ class TrkTripGpsPoint(Base):
     is_mock_location: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue(), doc="Fake-GPS flag")
     received_at: Mapped[dt.datetime] = mapped_column(
         mssql.DATETIME2(0), server_default=sa.FetchedValue(), doc="Server receipt time"
+    )
+
+
+class TrkTripDistanceAdjustment(Base):
+    """Append-only audit log of manual distance adjustments. One row per adjustment: the GPS original
+    is never overwritten, so the full before/after history (who, when, why) lives here. Table
+    trk.trip_distance_adjustment."""
+
+    __tablename__ = "trip_distance_adjustment"
+    __table_args__ = {"schema": "trk"}
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    trip_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("trk.trip.id"), doc="Adjusted trip")
+    previous_distance_km: Mapped[Decimal | None] = mapped_column(
+        sa.Numeric(8, 2), doc="Effective distance before this adjustment"
+    )
+    new_distance_km: Mapped[Decimal] = mapped_column(sa.Numeric(8, 2), doc="Distance set by this adjustment")
+    gps_distance_km_at_adjustment: Mapped[Decimal | None] = mapped_column(
+        sa.Numeric(8, 2), doc="Snapshot of the GPS-calculated distance at the time, for audit"
+    )
+    reason: Mapped[str] = mapped_column(sa.NVARCHAR(500), doc="Why the distance was adjusted")
+    adjusted_by_user_id: Mapped[int] = mapped_column(sa.BigInteger(), doc="Team Lead who adjusted")
+    adjusted_at: Mapped[dt.datetime] = mapped_column(
+        mssql.DATETIME2(0), server_default=sa.FetchedValue(), doc="When the adjustment was made"
     )

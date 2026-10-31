@@ -1,9 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
 
 from trishul_api.auth import CurrentUser, CurrentUserDep, DbSession, ScopeDep, require_permission
-from trishul_api.common.errors import ApiError, Forbidden, problem_response
+from trishul_api.common.errors import NOT_FOUND_RESPONSE, ApiError, Forbidden, problem_response
 from trishul_api.common.schemas import Page
 from trishul_api.modules.service.imports.schemas import BydImportPreview, BydImportResult
 from trishul_api.modules.service.imports.service import BydImportService
@@ -18,14 +18,20 @@ from trishul_api.modules.service.schemas import (
     ServiceCallQuery,
 )
 from trishul_api.modules.service.service import ServiceCallService
+from trishul_api.modules.trk.schemas import CallTripHistoryItem
+from trishul_api.modules.trk.service import TripService
 
 router = APIRouter(prefix="/svc", tags=["service"])
 
 # Any of these may open the call register (svc.call.view comes from migration 0001). The Angular
 # guard and menu use the same codes: SERVICE_CALL_VIEW_PERMISSIONS in libs/domains/service/data-access.
 CAN_VIEW_CALLS = ("svc.call.view", "svc.call.create", "svc.call.assign")
+# The call register roles, the engineer looking at their own call, and team leads reviewing trips.
+CAN_VIEW_CALL_TRIPS = (*CAN_VIEW_CALLS, "svc.call.view.assigned", "trk.trip.view.team")
 CAN_CREATE = Depends(require_permission("svc.call.create"))
 CAN_IMPORT = Depends(require_permission("svc.call.import"))
+
+CallId = Annotated[int, Path(alias="callId", gt=0)]
 
 # BYD exports are small (tens of KB); cap the upload well above that but still safely.
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -117,6 +123,20 @@ def list_assigned_service_calls(
     if user.employee_id is None:
         raise Forbidden("Your account is not linked to a service engineer, so it has no assigned calls.")
     return repo.list_assigned(user.employee_id, scope, query)
+
+
+@router.get(
+    "/service-calls/{callId}/trips",
+    summary="Trip history for a service call (all visits), with GPS and adjusted distance",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission(*CAN_VIEW_CALL_TRIPS))],
+)
+def list_service_call_trips(
+    call_id: CallId,
+    user: CurrentUserDep,
+    db: DbSession,
+) -> list[CallTripHistoryItem]:
+    return TripService(db).trips_for_service_call(user, call_id)
 
 
 @router.post(
