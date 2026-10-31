@@ -9,7 +9,9 @@ export type {
   ServiceCallListItem,
   ServiceCallDetail,
   ServiceCallCreate,
+  ServiceCallStatusChange,
   ServiceCallTriageUpdate,
+  CallStatusLogItem,
   MachineUnitOption,
   EngineerOption,
   CustomerListItem,
@@ -62,4 +64,13 @@ export const SERVICE_CALL_VIEW_PERMISSIONS = [
   'svc.call.view',
   'svc.call.create',
   'svc.call.assign',
+] as const;
+
+/**
+ * Open one call's detail page: the register roles, or an engineer for a call assigned to them
+ * (the API limits an engineer to their own calls). The API checks the same codes.
+ */
+export const SERVICE_CALL_OPEN_PERMISSIONS = [
+  ...SERVICE_CALL_VIEW_PERMISSIONS,
+  'svc.call.view.assigned',
 ] as const;

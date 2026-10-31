@@ -9,14 +9,20 @@ import { PageServiceCallListItem } from '@trishul/core-api';
 import {
   CALL_STATUSES,
   CallPriority,
+  CallStatusLogItem,
   EngineerOption,
   LookupValueOut,
   MachineUnitOption,
   ServiceCallCreate,
   ServiceCallDetail,
   ServiceCallListItem,
+  ServiceCallStatusChange,
   ServiceCallTriageUpdate,
 } from '@trishul/service-data-access';
+
+/** Status changes made in mock mode, per call id (newest first), shown in the detail page's history. */
+const mockHistory = new Map<number, CallStatusLogItem[]>();
+let mockHistoryId = 1;
 
 const MOCK_ENGINEERS: EngineerOption[] = [
   { id: 10, name: 'Rahul Patil', employeeCode: 'EMP0010' },
@@ -301,6 +307,93 @@ export const mockRoutes: MockRoute[] = [
         siteName: null,
         siteAddress: null,
         needsMasterLinking: false,
+        allowedStatuses: CALL_STATUSES.filter(
+          (s) =>
+            s !== call.currentStatus &&
+            !['Closed', 'Completed', 'Cancelled', 'Reopened'].includes(s),
+        ),
+        rowVersion: call.rowVersion,
+      };
+    },
+  },
+  {
+    method: 'GET',
+    path: '/svc/service-calls/:callId/status-history',
+    handle: (_req, params): CallStatusLogItem[] =>
+      mockHistory.get(Number(params['callId'])) ?? [
+        {
+          id: 0,
+          fromStatus: null,
+          toStatus: 'Logged',
+          changedAt: new Date(Date.now() - 86_400_000).toISOString(),
+          changedByName: 'Demo Admin',
+          remarks: 'Call logged',
+        },
+      ],
+  },
+  {
+    method: 'POST',
+    path: '/svc/service-calls/:callId/status',
+    handle: (req, params): ServiceCallDetail => {
+      const call = calls.find((c) => c.id === Number(params['callId']));
+      if (!call) {
+        throw new HttpErrorResponse({
+          status: 404,
+          url: req.url,
+          error: { status: 404, title: 'Not found', detail: 'Call not found.' },
+        });
+      }
+      const body = req.body as ServiceCallStatusChange;
+      const rows = mockHistory.get(call.id) ?? [];
+      rows.unshift({
+        id: mockHistoryId++,
+        fromStatus: call.currentStatus,
+        toStatus: body.status,
+        changedAt: new Date().toISOString(),
+        changedByName: 'Demo Admin',
+        remarks: body.remarks ?? null,
+      });
+      mockHistory.set(call.id, rows);
+      call.currentStatus = body.status;
+      call.rowVersion = btoa(`rv-${call.id}-${Date.now()}`);
+      return {
+        id: call.id,
+        callNo: call.callNo,
+        receivedAt: call.receivedAt,
+        branchName: null,
+        principalCode: call.principalCode,
+        principalName: null,
+        customerId: 10,
+        customerName: call.customerName,
+        customerPhone: null,
+        machineUnitId: null,
+        machineSerialNo: call.machineSerialNo,
+        machineModel: call.machineModel,
+        complaintDescription: call.complaintDescription,
+        callType: null,
+        callSource: null,
+        priority: call.priority,
+        isMachineDown: call.isMachineDown,
+        isAscPriority: call.isAscPriority,
+        coverageType: call.coverageType,
+        currentStatus: call.currentStatus,
+        assignedEngineerId: null,
+        assignedEngineerName: call.assignedEngineerName,
+        callerName: null,
+        callerPhone: '7894435328',
+        oemCallId: call.oemCallId,
+        sourceReference: null,
+        slaDueAt: call.slaDueAt,
+        firstResponseAt: null,
+        closedAt: null,
+        siteName: null,
+        siteAddress: null,
+        needsMasterLinking: false,
+        allowedStatuses: CALL_STATUSES.filter(
+          (s) =>
+            s !== call.currentStatus &&
+            !['Closed', 'Completed', 'Cancelled', 'Reopened'].includes(s),
+        ),
         rowVersion: call.rowVersion,
       };
     },

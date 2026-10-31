@@ -77,6 +77,10 @@ export type { PreviewServiceCallImport$Params as PreviewServiceCallImport$Params
 export { previewServiceCallImport as previewServiceCallImport } from './fn/service/preview-service-call-import';
 export type { ApplyServiceCallImport$Params as ApplyServiceCallImport$Params } from './fn/service/apply-service-call-import';
 export { applyServiceCallImport as applyServiceCallImport } from './fn/service/apply-service-call-import';
+export type { ListCallStatusHistory$Params as ListCallStatusHistory$Params } from './fn/service/list-call-status-history';
+export { listCallStatusHistory as listCallStatusHistory } from './fn/service/list-call-status-history';
+export type { ChangeServiceCallStatus$Params as ChangeServiceCallStatus$Params } from './fn/service/change-service-call-status';
+export { changeServiceCallStatus as changeServiceCallStatus } from './fn/service/change-service-call-status';
 export type { ListAssignedSalesActivities$Params as ListAssignedSalesActivities$Params } from './fn/presales/list-assigned-sales-activities';
 export { listAssignedSalesActivities as listAssignedSalesActivities } from './fn/presales/list-assigned-sales-activities';
 export type { ListTrips$Params as ListTrips$Params } from './fn/tracking/list-trips';

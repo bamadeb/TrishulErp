@@ -40,26 +40,38 @@
     }
     <mat-nav-list aria-label="Main menu">
       @for (item of menu(); track item.label) { @if (item.children) {
-      <div mat-subheader class="nav-group">
+      <button
+        type="button"
+        class="nav-group"
+        [class.collapsed]="isCollapsed(item.label)"
+        [attr.aria-expanded]="!isCollapsed(item.label)"
+        (click)="toggleGroup(item.label)"
+      >
         @if (item.icon) {
         <mat-icon class="group-icon">{{ item.icon }}</mat-icon>
         }
-        {{ item.label }}
-      </div>
-      @for (child of item.children; track child.label) {
-      <a
-        mat-list-item
-        [routerLink]="child.route"
-        routerLinkActive
-        #childLink="routerLinkActive"
-        [activated]="childLink.isActive"
-        (click)="closeMenuOnCompact()"
-      >
-        @if (child.icon) {
-        <mat-icon matListItemIcon>{{ child.icon }}</mat-icon>
+        <span class="group-label">{{ item.label }}</span>
+        <mat-icon class="chevron">expand_more</mat-icon>
+      </button>
+      @if (!isCollapsed(item.label)) {
+      <div class="nav-children">
+        @for (child of item.children; track child.label) {
+        <a
+          mat-list-item
+          class="nav-child"
+          [routerLink]="child.route"
+          routerLinkActive
+          #childLink="routerLinkActive"
+          [activated]="childLink.isActive"
+          (click)="closeMenuOnCompact()"
+        >
+          @if (child.icon) {
+          <mat-icon matListItemIcon>{{ child.icon }}</mat-icon>
+          }
+          <span matListItemTitle>{{ child.label }}</span>
+        </a>
         }
-        <span matListItemTitle>{{ child.label }}</span>
-      </a>
+      </div>
       } } @else {
       <a
         mat-list-item

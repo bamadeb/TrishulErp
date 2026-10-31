@@ -8,7 +8,9 @@ from trishul_api.auth import RequestScope
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
 from trishul_api.common.schemas import Page
 from trishul_api.db.models import (
+    AppUser,
     Branch,
+    CallStatusLog,
     Customer,
     CustomerSite,
     Designation,
@@ -22,6 +24,7 @@ from trishul_api.db.models import (
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
+    CallStatusLogItem,
     EngineerOption,
     EngineerOptionQuery,
     MachineOptionQuery,
@@ -67,6 +70,34 @@ class ServiceCallRepository:
         """One call as the register shows it; the call must exist."""
         row = self._session.execute(self._register_select().where(ServiceCall.id == call_id)).mappings().one()
         return ServiceCallListItem.model_validate(row)
+
+    def assignment(self, call_id: int) -> tuple[bool, int | None]:
+        """(the call exists, its assigned engineer's employee id): a cheap check before showing its history."""
+        row = self._session.execute(
+            select(ServiceCall.assigned_engineer_id).where(ServiceCall.id == call_id, ServiceCall.is_active)
+        ).one_or_none()
+        return (row is not None, row[0] if row is not None else None)
+
+    def status_history(self, call_id: int) -> builtins.list[CallStatusLogItem]:
+        """Every status change of a call, newest first, with who made it."""
+        who = func.coalesce(
+            func.nullif(func.concat_ws(" ", Employee.first_name, Employee.last_name), ""), AppUser.username
+        )
+        statement = (
+            select(
+                CallStatusLog.id,
+                CallStatusLog.from_status,
+                CallStatusLog.to_status,
+                CallStatusLog.changed_at,
+                who.label("changed_by_name"),
+                CallStatusLog.remarks,
+            )
+            .outerjoin(AppUser, AppUser.id == CallStatusLog.changed_by_user_id)
+            .outerjoin(Employee, Employee.id == AppUser.employee_id)
+            .where(CallStatusLog.service_call_id == call_id)
+            .order_by(CallStatusLog.changed_at.desc(), CallStatusLog.id.desc())
+        )
+        return [CallStatusLogItem.model_validate(row) for row in self._session.execute(statement).mappings()]
 
     def detail(self, call_id: int) -> ServiceCallDetail | None:
         """Everything the call detail page needs, or None if the call doesn't exist."""

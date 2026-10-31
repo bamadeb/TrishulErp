@@ -57,6 +57,24 @@ class ServiceCallCreate(InputModel):
     received_at: UtcDateTime | None = Field(None, description="Defaults to now.")
 
 
+class ServiceCallStatusChange(InputModel):
+    """Move a call to another status. The server checks the user may make that move."""
+
+    status: CallStatus
+    remarks: str | None = Field(None, max_length=500)
+
+
+class CallStatusLogItem(ApiModel):
+    """One row of a call's status history."""
+
+    id: int
+    from_status: str | None
+    to_status: str
+    changed_at: UtcDateTime
+    changed_by_name: str | None
+    remarks: str | None
+
+
 class ServiceCallTriageUpdate(InputModel):
     """A team lead's quick triage from the call list: link the real customer, reassign an engineer
     and/or change priority. Only the fields sent are changed; send engineerId null to unassign."""
@@ -125,6 +143,9 @@ class ServiceCallDetail(ApiModel):
     site_name: str | None
     site_address: str | None
     needs_master_linking: bool
+    allowed_statuses: list[CallStatus] = Field(
+        default_factory=list, description="Statuses the signed-in user may move this call to."
+    )
     row_version: RowVersion
 
 

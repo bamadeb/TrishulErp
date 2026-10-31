@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
   ApiClient,
+  CallStatusLogItem,
   CustomerListItem,
   EngineerOption,
   LookupValueOut,
@@ -10,9 +11,12 @@ import {
   ServiceCallCreate,
   ServiceCallDetail,
   ServiceCallListItem,
+  ServiceCallStatusChange,
   ServiceCallTriageUpdate,
+  changeServiceCallStatus,
   createServiceCall,
   getServiceCall,
+  listCallStatusHistory,
   listCustomers,
   listEngineerOptions,
   listLookupValues,
@@ -33,6 +37,24 @@ export class ServiceCallApi {
 
   get(callId: number): Observable<ServiceCallDetail> {
     return this.api.call(getServiceCall, { callId });
+  }
+
+  /** Every status change of a call, newest first. */
+  statusHistory(callId: number): Observable<CallStatusLogItem[]> {
+    return this.api.call(listCallStatusHistory, { callId });
+  }
+
+  /** Move a call to another status; rowVersion guards against a stale change (409). */
+  changeStatus(
+    callId: number,
+    rowVersion: string,
+    body: ServiceCallStatusChange,
+  ): Observable<ServiceCallDetail> {
+    return this.api.call(
+      changeServiceCallStatus,
+      { callId, body },
+      withRowVersion(rowVersion),
+    );
   }
 
   create(body: ServiceCallCreate): Observable<ServiceCallListItem> {

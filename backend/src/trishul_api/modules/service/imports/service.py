@@ -37,6 +37,7 @@ from trishul_api.modules.service.imports.schemas import (
     BydImportRow,
     BydImportSummary,
 )
+from trishul_api.modules.service.status_log import record_status_change
 
 # Legal-form and connective words dropped when matching a customer name, so
 # "SBB Construction Pvt. Ltd." and "SBB CONSTRUCTION PRIVATE LIMITED" match.
@@ -157,16 +158,21 @@ class BydImportService:
             return _skip(row, "No C4C Ticket ID; the row cannot be identified.")
         res = self._resolve(row, ctx)
         existing = self._find_call(ctx, row.c4c_ticket_id)
+        previous_status: str | None
         if existing is not None:
             res.action = "update"
+            previous_status = existing.current_status
             self._update_call(existing, row, res, batch_id)
             call = existing
             needs = call.needs_master_linking
         else:
             res.action = "insert"
+            previous_status = None
             call = self._insert_call(row, res, ctx, batch_id)
             needs = res.needs_linking
         self._db.flush()  # so a repeated ticket later in the file updates this call
+        if call.current_status != previous_status:  # a new call's first status, or a status the import moved
+            record_status_change(self._db, call.id, previous_status, call.current_status, self._actor.id, "BYD import")
         return _outcome(row, res, call.call_no, needs)
 
     def _update_needs_linking(self, call: ServiceCall, res: _Resolution) -> bool:

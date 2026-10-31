@@ -9,16 +9,17 @@ from trishul_api.common.errors import (
     NOT_FOUND_RESPONSE,
     ApiError,
     Forbidden,
-    NotFound,
     problem_response,
 )
 from trishul_api.common.schemas import Page
+from trishul_api.modules.service.access import CAN_VIEW_CALLS, CAN_VIEW_OWN_CALLS
 from trishul_api.modules.service.imports.schemas import BydImportPreview, BydImportResult
 from trishul_api.modules.service.imports.service import BydImportService
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
+    CallStatusLogItem,
     EngineerOption,
     EngineerOptionQuery,
     MachineOptionQuery,
@@ -27,15 +28,17 @@ from trishul_api.modules.service.schemas import (
     ServiceCallDetail,
     ServiceCallListItem,
     ServiceCallQuery,
+    ServiceCallStatusChange,
     ServiceCallTriageUpdate,
 )
 from trishul_api.modules.service.service import ServiceCallService
 
 router = APIRouter(prefix="/svc", tags=["service"])
 
-# Any of these may open the call register (svc.call.view comes from migration 0001). The Angular
-# guard and menu use the same codes: SERVICE_CALL_VIEW_PERMISSIONS in libs/domains/service/data-access.
-CAN_VIEW_CALLS = ("svc.call.view", "svc.call.create", "svc.call.assign")
+# CAN_VIEW_CALLS (the register roles) and CAN_VIEW_OWN_CALLS (an engineer's own calls) live in access.py.
+# A call's detail, history and status change are open to both; engineers are limited to their own calls
+# inside the service. The status change itself is checked per status (access.allowed_statuses).
+CAN_OPEN_CALL = Depends(require_permission(*CAN_VIEW_CALLS, CAN_VIEW_OWN_CALLS))
 CAN_CREATE = Depends(require_permission("svc.call.create"))
 CAN_ASSIGN = Depends(require_permission("svc.call.assign"))
 CAN_IMPORT = Depends(require_permission("svc.call.import"))
@@ -207,11 +210,34 @@ def apply_service_call_import(
 @router.get(
     "/service-calls/{callId}",
     summary="One service call, in full",
-    dependencies=[Depends(require_permission(*CAN_VIEW_CALLS))],
+    dependencies=[CAN_OPEN_CALL],
     responses=NOT_FOUND_RESPONSE,
 )
-def get_service_call(call_id: CallId, repo: ServiceCallRepo) -> ServiceCallDetail:
-    detail = repo.detail(call_id)
-    if detail is None:
-        raise NotFound("Service call not found.")
-    return detail
+def get_service_call(call_id: CallId, actor: CurrentUserDep, db: DbSession) -> ServiceCallDetail:
+    return ServiceCallService(db, actor).detail(call_id)
+
+
+@router.get(
+    "/service-calls/{callId}/status-history",
+    summary="Every status change of a call, newest first",
+    dependencies=[CAN_OPEN_CALL],
+    responses=NOT_FOUND_RESPONSE,
+)
+def list_call_status_history(call_id: CallId, actor: CurrentUserDep, db: DbSession) -> list[CallStatusLogItem]:
+    return ServiceCallService(db, actor).status_history(call_id)
+
+
+@router.post(
+    "/service-calls/{callId}/status",
+    summary="Change a call's status (team lead: any call; engineer: their own)",
+    dependencies=[CAN_OPEN_CALL],
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+)
+def change_service_call_status(
+    call_id: CallId,
+    data: ServiceCallStatusChange,
+    actor: CurrentUserDep,
+    db: DbSession,
+    row_version: Annotated[bytes, Depends(if_match_row_version)],
+) -> ServiceCallDetail:
+    return ServiceCallService(db, actor).change_status(call_id, row_version, data)

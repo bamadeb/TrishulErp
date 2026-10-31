@@ -15,7 +15,6 @@ import {
   MatListItem,
   MatListItemIcon,
   MatListItemTitle,
-  MatListSubheaderCssMatStyler,
   MatNavList,
 } from '@angular/material/list';
 import { MatOption, MatSelect } from '@angular/material/select';
@@ -53,7 +52,6 @@ import { NAV_ITEMS, NavItem } from './nav';
     MatListItem,
     MatListItemIcon,
     MatListItemTitle,
-    MatListSubheaderCssMatStyler,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.html',
@@ -77,6 +75,21 @@ export class Shell {
   protected readonly ALL_BRANDS = 0;
 
   protected readonly menu = computed(() => this.filter(this.navItems));
+
+  /** Labels of the categories the user has collapsed; all start expanded. */
+  private readonly collapsed = signal<ReadonlySet<string>>(new Set());
+
+  protected isCollapsed(label: string): boolean {
+    return this.collapsed().has(label);
+  }
+
+  protected toggleGroup(label: string): void {
+    this.collapsed.update((current) => {
+      const next = new Set(current);
+      if (!next.delete(label)) next.add(label);
+      return next;
+    });
+  }
 
   protected closeMenuOnCompact(): void {
     if (this.isCompact()) this.menuOpen.set(false);

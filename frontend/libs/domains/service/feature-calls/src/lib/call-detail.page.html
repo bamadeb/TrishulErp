@@ -116,5 +116,70 @@
     <h2>Complaint</h2>
     <p class="complaint">{{ c.complaintDescription }}</p>
   </section>
+
+  @if (c.allowedStatuses.length) {
+  <section class="card wide-card">
+    <h2>Change status</h2>
+    <form class="status-form" (ngSubmit)="changeStatus()">
+      <mat-form-field appearance="outline" class="status-select">
+        <mat-label>New status</mat-label>
+        <mat-select [formControl]="newStatus">
+          @for (s of c.allowedStatuses; track s) {
+          <mat-option [value]="s">{{ s }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="remarks">
+        <mat-label>Remarks (optional)</mat-label>
+        <input matInput [formControl]="remarks" maxlength="500" />
+      </mat-form-field>
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="newStatus.invalid || saving()"
+      >
+        <mat-icon>published_with_changes</mat-icon>
+        Change status
+      </button>
+    </form>
+  </section>
+  }
+
+  <section class="card wide-card">
+    <h2>Status history</h2>
+    @if (history().length === 0) {
+    <p class="muted">No status changes recorded yet.</p>
+    } @else {
+    <ol class="timeline">
+      @for (h of history(); track h.id) {
+      <li>
+        <span class="dot"></span>
+        <div class="entry">
+          <div class="change">
+            @if (h.fromStatus) {
+            <trishul-status-badge
+              [status]="h.fromStatus"
+              [severities]="statusSeverity"
+            />
+            <mat-icon class="arrow">arrow_forward</mat-icon>
+            }
+            <trishul-status-badge
+              [status]="h.toStatus"
+              [severities]="statusSeverity"
+            />
+          </div>
+          <div class="meta">
+            {{ h.changedAt | date: 'dd MMM yyyy, HH:mm' }}
+            @if (h.changedByName) { · by {{ h.changedByName }} }
+          </div>
+          @if (h.remarks) {
+          <div class="note">{{ h.remarks }}</div>
+          }
+        </div>
+      </li>
+      }
+    </ol>
+    }
+  </section>
 </div>
 }

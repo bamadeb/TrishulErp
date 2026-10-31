@@ -6,6 +6,11 @@
  * Everything the call detail page shows.
  */
 export interface ServiceCallDetail {
+
+  /**
+   * Statuses the signed-in user may move this call to.
+   */
+  allowedStatuses: Array<'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled'>;
   assignedEngineerId: (number | null);
   assignedEngineerName: (string | null);
   branchName: (string | null);

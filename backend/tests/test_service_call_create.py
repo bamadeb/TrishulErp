@@ -33,6 +33,7 @@ TABLES = [
     "core.audit_log",
     "hr.designation",
     "svc.service_call",
+    "svc.call_status_log",
 ]
 
 COMPANY, BRANCH, PRINCIPAL = 1, 1, 1
@@ -78,11 +79,11 @@ def db() -> Engine:
     return engine
 
 
-def make_client(settings: Settings, db: Engine, permissions: set[str]) -> TestClient:
+def make_client(settings: Settings, db: Engine, permissions: set[str], employee_id: int | None = 7) -> TestClient:
     app = create_app(settings, engine=db)
     api = app.state.api_v1
-    actor = make_user(id=ACTOR_ID, permissions=frozenset(permissions), default_branch_id=BRANCH,
-                      branch_ids=None, principal_ids=None)
+    actor = make_user(id=ACTOR_ID, employee_id=employee_id, permissions=frozenset(permissions),
+                      default_branch_id=BRANCH, branch_ids=None, principal_ids=None)
     api.dependency_overrides[get_current_user] = lambda: actor
 
     def session() -> Iterator[Session]:
@@ -171,6 +172,114 @@ def test_get_call_detail(client: TestClient) -> None:
 
 def test_get_call_detail_unknown_is_404(client: TestClient) -> None:
     assert client.get(f"{URL}/999999").status_code == 404
+
+
+# ------------------------------------------------------------------ status change + history
+
+TEAM_LEAD = {"svc.call.view", "svc.call.create", "svc.call.assign"}
+ENGINEER = {"svc.call.view.assigned", "svc.call.status.update"}
+
+
+def change_status(client: TestClient, call: dict[str, Any], status: str, **body: Any) -> httpx.Response:
+    return client.post(f"{URL}/{call['id']}/status", json={"status": status} | body, headers=if_match(call))
+
+
+def history(client: TestClient, call_id: int) -> list[dict[str, Any]]:
+    response = client.get(f"{URL}/{call_id}/status-history")
+    assert response.status_code == 200, response.text
+    rows: list[dict[str, Any]] = response.json()
+    return rows
+
+
+def assigned_call(client: TestClient) -> dict[str, Any]:
+    """A call assigned to the engineer, with its fresh row version."""
+    call = create(client).json()
+    return client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call)).json()
+
+
+def test_new_call_starts_its_history(client: TestClient) -> None:
+    call = create(client).json()
+    rows = history(client, call["id"])
+    assert [(r["fromStatus"], r["toStatus"]) for r in rows] == [(None, "Logged")]
+
+
+def test_team_lead_changes_status_and_it_is_recorded(client: TestClient) -> None:
+    call = create(client).json()
+    detail = client.get(f"{URL}/{call['id']}").json()
+    assert "Logged" not in detail["allowedStatuses"] and "In progress" in detail["allowedStatuses"]
+    assert "Closed" not in detail["allowedStatuses"]  # needs svc.call.close
+
+    changed = change_status(client, detail, "In progress", remarks="Started work")
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["currentStatus"] == "In progress"
+    rows = history(client, call["id"])
+    assert [(r["fromStatus"], r["toStatus"]) for r in rows] == [("Logged", "In progress"), (None, "Logged")]
+    assert rows[0]["remarks"] == "Started work"
+    assert rows[0]["changedByName"] == "back.office@trishul.co"  # no linked employee -> username
+
+
+def test_assigning_an_engineer_is_recorded(client: TestClient) -> None:
+    call = create(client).json()
+    client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call))
+    rows = history(client, call["id"])
+    assert (rows[0]["fromStatus"], rows[0]["toStatus"]) == ("Logged", "Assigned")
+
+
+def test_closing_needs_the_close_permission(settings: Settings, db: Engine, client: TestClient) -> None:
+    call = create(client).json()
+    detail = client.get(f"{URL}/{call['id']}").json()
+    assert change_status(client, detail, "Closed").status_code == 403
+    with make_client(settings, db, TEAM_LEAD | {"svc.call.close"}) as closer:
+        allowed = closer.get(f"{URL}/{call['id']}").json()
+        closed = change_status(closer, allowed, "Closed", remarks="Done")
+        assert closed.status_code == 200, closed.text
+        assert closed.json()["closedAt"] is not None
+
+
+def test_reopen_only_after_a_call_is_finished(settings: Settings, db: Engine, client: TestClient) -> None:
+    call = create(client).json()
+    perms = TEAM_LEAD | {"svc.call.close", "svc.call.reopen"}
+    with make_client(settings, db, perms) as lead:
+        detail = lead.get(f"{URL}/{call['id']}").json()
+        assert change_status(lead, detail, "Reopened").status_code == 403  # still open
+        closed = change_status(lead, detail, "Closed").json()
+        reopened = change_status(lead, closed, "Reopened")
+        assert reopened.status_code == 200, reopened.text
+        assert reopened.json()["closedAt"] is None
+
+
+def test_same_status_and_stale_version_are_rejected(client: TestClient) -> None:
+    call = create(client).json()
+    detail = client.get(f"{URL}/{call['id']}").json()
+    assert change_status(client, detail, "Logged").status_code == 400  # already Logged
+    stale = client.post(
+        f"{URL}/{call['id']}/status", json={"status": "In progress"}, headers={"If-Match": '"AAAAAAAAAAA="'}
+    )
+    assert stale.status_code == 409
+    assert client.post(f"{URL}/{call['id']}/status", json={"status": "In progress"}).status_code == 428
+
+
+def test_engineer_updates_only_their_own_call(settings: Settings, db: Engine, client: TestClient) -> None:
+    mine = assigned_call(client)
+    not_mine = create(client).json()  # unassigned
+    with make_client(settings, db, ENGINEER, employee_id=ENGINEER_ID) as engineer:
+        detail = engineer.get(f"{URL}/{mine['id']}").json()
+        assert "Trip started" in detail["allowedStatuses"]
+        assert "Closed" not in detail["allowedStatuses"] and "Assigned" not in detail["allowedStatuses"]
+
+        moved = change_status(engineer, detail, "Trip started", remarks="On the way")
+        assert moved.status_code == 200, moved.text
+        assert moved.json()["currentStatus"] == "Trip started"
+        assert history(engineer, mine["id"])[0]["changedByName"] == "back.office@trishul.co"
+
+        assert change_status(engineer, moved.json(), "Closed").status_code == 403  # not theirs to close
+        assert engineer.get(f"{URL}/{not_mine['id']}").status_code == 404  # another call
+        assert engineer.get(f"{URL}/{not_mine['id']}/status-history").status_code == 404
+        assert change_status(engineer, not_mine, "In progress").status_code == 404
+
+
+def test_status_history_unknown_call_is_404(client: TestClient) -> None:
+    assert client.get(f"{URL}/999999/status-history").status_code == 404
 
 
 def test_machine_options_search(client: TestClient) -> None:
