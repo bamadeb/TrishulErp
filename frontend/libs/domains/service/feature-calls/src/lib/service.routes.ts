@@ -1,6 +1,7 @@
 import { Route } from '@angular/router';
 import { permissionGuard } from '@trishul/core-auth';
 import {
+  MY_TRIPS_PERMISSION,
   SERVICE_CALL_CREATE_PERMISSION,
   SERVICE_CALL_IMPORT_PERMISSION,
   SERVICE_CALL_OPEN_PERMISSIONS,
@@ -11,6 +12,7 @@ import { BydImportPage } from './byd-import.page';
 import { CallDetailPage } from './call-detail.page';
 import { CallFormPage } from './call-form.page';
 import { CallListPage } from './call-list.page';
+import { MyTripsPage } from './my-trips.page';
 import { TripHistoryPage } from './trip-history.page';
 
 /** Lazy-loaded under /service. */
@@ -33,6 +35,12 @@ export const serviceRoutes: Route[] = [
     title: 'Import service calls',
     canActivate: [permissionGuard(SERVICE_CALL_IMPORT_PERMISSION)],
     component: BydImportPage,
+  },
+  {
+    path: 'my-trips',
+    title: 'My trips',
+    canActivate: [permissionGuard(MY_TRIPS_PERMISSION)],
+    component: MyTripsPage,
   },
   {
     path: 'calls/:callId/trips',

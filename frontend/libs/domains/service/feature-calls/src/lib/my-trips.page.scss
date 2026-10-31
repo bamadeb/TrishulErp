@@ -1,0 +1,16 @@
+// Layout, table, detail pane and trail styles come from trip-history.page.scss.
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  .search {
+    flex: 1 1 22rem;
+  }
+
+  mat-form-field:not(.search) {
+    flex: 1 1 10rem;
+    max-width: 14rem;
+  }
+}

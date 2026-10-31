@@ -188,9 +188,13 @@ class TripService:
         return self._to_out(trip)
 
     def adjustments(self, user: CurrentUser, trip_id: int) -> list[TripAdjustmentItem]:
-        # Reviewers see any trip's trail; an engineer only the trail of their own trip.
+        # Reviewers see the trail of trips in their branches; an engineer only of their own trip.
         if not user.can("trk.trip.view.team", "trk.trip.adjust"):
             self._own_trip(user, trip_id)
+        else:
+            trip = self._repo.get_trip(trip_id)
+            if trip is None or not trip.is_active or not self._in_user_branch(user, trip.employee_id):
+                raise NotFound("Trip not found.")
         return self._repo.adjustments_for_trip(trip_id)
 
     def trips_for_service_call(self, user: CurrentUser, call_id: int) -> list[CallTripHistoryItem]:

@@ -1,0 +1,199 @@
+<trishul-page-header
+  title="My trips"
+  [subtitle]="store.total() + ' trip' + (store.total() === 1 ? '' : 's')"
+/>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="Call or activity"
+      aria-label="Search my trips"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select
+      multiple
+      [value]="store.query().status ?? []"
+      (valueChange)="store.updateQuery({ status: $event })"
+    >
+      @for (status of statuses; track status) {
+      <mat-option [value]="status">{{ status }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="layout">
+  <section class="list-card">
+    <div class="progress">
+      @if (store.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+
+    <div class="table-scroll">
+      <table mat-table [dataSource]="store.items()">
+        <ng-container matColumnDef="trip">
+          <th mat-header-cell *matHeaderCellDef>Trip</th>
+          <td mat-cell *matCellDef="let trip">
+            <div class="trip-line">
+              <span class="strong">{{ trip.tripType }}</span>
+              <trishul-status-badge
+                [status]="trip.status"
+                [severities]="statusSeverity"
+              />
+              @if (trip.isDistanceAdjusted) {
+              <span class="tag adj">Adjusted</span>
+              }
+            </div>
+            <div class="muted">
+              #{{ trip.id }} · {{ moduleName(trip.module) }} · {{
+              trip.activityTitle ?? '—' }}
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="when">
+          <th mat-header-cell *matHeaderCellDef>When</th>
+          <td mat-cell *matCellDef="let trip">
+            <div>{{ trip.startAt | date: 'dd MMM, HH:mm' }}</div>
+            <div class="muted">
+              @if (trip.endAt) { → {{ trip.endAt | date: 'HH:mm' }} · {{
+              duration(trip.durationMinutes) }} } @else { ongoing }
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="distance">
+          <th mat-header-cell *matHeaderCellDef>Distance</th>
+          <td mat-cell *matCellDef="let trip" class="dist-cell">
+            @if (trip.status === 'In progress') {
+            <span class="muted">tracking…</span>
+            } @else {
+            <span class="eff">{{ fmtKm(trip.effectiveDistanceKm) }}</span>
+            <span class="unit">km</span>
+            @if (trip.isDistanceAdjusted) {
+            <div class="was" [matTooltip]="'GPS-calculated distance'">
+              {{ fmtKm(trip.gpsDistanceKm) }} GPS
+            </div>
+            } }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: columns"
+          class="trip-row"
+          [class.selected]="row.id === store.selectedTripId()"
+          (click)="store.select(row.id)"
+        ></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="empty" [attr.colspan]="columns.length">
+            {{ store.loading() ? 'Loading…' : 'You have no trips yet.' }}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <mat-paginator
+      [length]="store.total()"
+      [pageIndex]="store.query().page - 1"
+      [pageSize]="store.query().pageSize"
+      [pageSizeOptions]="[20, 50, 100]"
+      showFirstLastButtons
+      aria-label="Pages of trips"
+      (page)="onPage($event)"
+    />
+  </section>
+
+  <!-- detail pane -->
+  @if (store.selectedTrip(); as trip) {
+  <section class="detail-card">
+    <header class="detail-head">
+      <div>
+        <h2>{{ trip.tripType }}</h2>
+        <p class="muted">{{ moduleName(trip.module) }} · trip #{{ trip.id }}</p>
+      </div>
+      <trishul-status-badge
+        [status]="trip.status"
+        [severities]="statusSeverity"
+      />
+    </header>
+
+    <dl class="facts">
+      <div>
+        <dt>Start</dt>
+        <dd>{{ trip.startAt | date: 'dd MMM, HH:mm' }}</dd>
+      </div>
+      <div>
+        <dt>Stop</dt>
+        <dd>
+          {{ trip.endAt ? (trip.endAt | date: 'dd MMM, HH:mm') : 'In progress'
+          }}
+        </dd>
+      </div>
+      <div>
+        <dt>Duration</dt>
+        <dd>{{ duration(trip.durationMinutes) }}</dd>
+      </div>
+      <div>
+        <dt>Activity</dt>
+        <dd>{{ trip.activityTitle ?? '—' }}</dd>
+      </div>
+    </dl>
+
+    @if (trip.status !== 'In progress') {
+    <div class="dist-bars">
+      @for (row of distanceRows(trip); track row.label) {
+      <div class="dist-row" [class]="row.cls">
+        <span class="lab">{{ row.label }}</span>
+        <span class="meter"><i [style.width.%]="row.pct"></i></span>
+        <span class="val">{{ fmtKm(row.value) }} km</span>
+      </div>
+      }
+      <p class="note">
+        Effective is the distance that counts: the GPS value unless a Team Lead
+        adjusted it.
+      </p>
+    </div>
+    }
+
+    <div class="audit">
+      <div class="audit-head">
+        <h3>Manual adjustment trail</h3>
+      </div>
+
+      @if (store.adjustmentsLoading()) {
+      <p class="muted">Loading…</p>
+      } @else if (store.adjustments().length === 0) {
+      <p class="muted empty-trail">
+        No manual adjustments. The GPS-calculated distance stands.
+      </p>
+      } @else {
+      <ol class="trail">
+        @for (a of store.adjustments(); track a.id) {
+        <li>
+          <div class="change">
+            <span class="from">{{ fmtKm(a.previousDistanceKm) }}</span>
+            <mat-icon inline>arrow_forward</mat-icon>
+            <span class="to">{{ fmtKm(a.newDistanceKm) }} km</span>
+          </div>
+          <div class="muted who">
+            {{ a.adjustedByName ?? ('User #' + a.adjustedByUserId) }} · {{
+            a.adjustedAt | date: 'dd MMM yyyy, HH:mm' }}
+          </div>
+          <div class="why">{{ a.reason }}</div>
+        </li>
+        }
+      </ol>
+      }
+    </div>
+  </section>
+  }
+</div>

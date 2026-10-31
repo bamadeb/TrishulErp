@@ -444,3 +444,23 @@ def test_review_my_trips_sql_filters_only_by_employee() -> None:
     text = _review_sql(RequestScope(branch_id=None, principal_id=None), employee_id=5)
     assert "trk.trip.employee_id = 5" in text
     assert "core.employee.branch_id" not in text
+
+
+def test_reviewer_cannot_read_adjustment_trail_outside_their_branches() -> None:
+    # The trip's engineer is in branch 9; the Team Lead only covers 1 and 2.
+    service = _service_with(_FakeRepo(trip=_completed_trip(), branch_id=9))
+    lead = make_user(permissions=frozenset({"trk.trip.view.team"}), branch_ids=frozenset({1, 2}))
+    with pytest.raises(NotFound):
+        service.adjustments(lead, 5501)
+
+
+def test_reviewer_reads_adjustment_trail_in_their_branch() -> None:
+    service = _service_with(_FakeRepo(trip=_completed_trip(), branch_id=1))
+    lead = make_user(permissions=frozenset({"trk.trip.view.team"}), branch_ids=frozenset({1, 2}))
+    assert service.adjustments(lead, 5501) == []
+
+
+def test_admin_reads_any_adjustment_trail() -> None:
+    service = _service_with(_FakeRepo(trip=_completed_trip(), branch_id=9))
+    admin = make_user(permissions=frozenset({"trk.trip.adjust"}), branch_ids=None)
+    assert service.adjustments(admin, 5501) == []

@@ -6,3 +6,4 @@ export * from './lib/byd-import.api';
 export * from './lib/trip.models';
 export * from './lib/trip.api';
 export * from './lib/trip-history.store';
+export * from './lib/my-trips.store';

@@ -4,13 +4,16 @@ import {
   AdjustDistanceInput,
   ApiClient,
   CallTripHistoryItem,
+  PageTripListItem,
   TripAdjustmentItem,
   TripOut,
   adjustTripDistance,
+  listMyTrips,
   listServiceCallTrips,
   listTripAdjustments,
   withRowVersion,
 } from '@trishul/core-api';
+import { MyTripsQuery } from './trip.models';
 
 @Injectable({ providedIn: 'root' })
 export class TripApi {
@@ -19,6 +22,11 @@ export class TripApi {
   /** Every trip of a service call, across all its visits, oldest first. */
   callTrips(callId: number): Observable<CallTripHistoryItem[]> {
     return this.api.call(listServiceCallTrips, { callId });
+  }
+
+  /** The signed-in engineer's own trips; the API never returns anyone else's. */
+  myTrips(query: MyTripsQuery): Observable<PageTripListItem> {
+    return this.api.call(listMyTrips, query);
   }
 
   /** The manual-adjustment audit trail of a trip, newest first. */
