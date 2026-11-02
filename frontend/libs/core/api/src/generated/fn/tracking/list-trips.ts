@@ -18,7 +18,7 @@ export interface ListTrips$Params {
  */
   sort?: (string | null);
   search?: (string | null);
-  status?: Array<'In progress' | 'Completed' | 'Auto closed'>;
+  status?: Array<string>;
   employeeId?: (number | null);
 }
 

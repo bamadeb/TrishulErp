@@ -9,7 +9,9 @@ from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import ApiError, Conflict, NotFound
 from trishul_api.common.schemas import Page
 from trishul_api.db.models import ServiceCall, TrackableActivity, TrkTrip, TrkTripDistanceAdjustment, TrkTripGpsPoint
+from trishul_api.modules.trk.constants import COMPLETED, IN_PROGRESS
 from trishul_api.modules.trk.handlers import handler_for
+from trishul_api.modules.trk.master_service import TripMasterService
 from trishul_api.modules.trk.repository import TripRepository
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
@@ -46,6 +48,7 @@ class TripService:
     def __init__(self, db: Session) -> None:
         self._db = db
         self._repo = TripRepository(db)
+        self._master = TripMasterService(db)
 
     def _require_engineer(self, user: CurrentUser) -> int:
         if user.employee_id is None:
@@ -62,6 +65,10 @@ class TripService:
         if self._repo.active_trip_for_employee(employee_id) is not None:
             raise Conflict("You already have a trip in progress. Stop it before starting another.")
 
+        # Master values are checked after the idempotent replay above, so a retry still returns the
+        # trip even if its vehicle type has since been deactivated.
+        trip_type = self._master.resolve_start(data.module, data.trip_type, data.vehicle_type)
+
         now = _naive_utc(data.started_at) if data.started_at else _utcnow()
         activity = handler_for(data.module).resolve(
             self._db, employee_id, data.reference_id, user.id, data.start_latitude, data.start_longitude, now
@@ -72,12 +79,12 @@ class TripService:
             employee_id=employee_id,
             user_device_id=device_pk,
             client_uuid=data.client_uuid,
-            trip_type=data.trip_type,
+            trip_type=trip_type,
             start_at=now,
             start_latitude=data.start_latitude,
             start_longitude=data.start_longitude,
             vehicle_type=data.vehicle_type,
-            status="In progress",
+            status=IN_PROGRESS,
             created_by_user_id=user.id,
         )
         self._repo.add(trip)
@@ -86,7 +93,7 @@ class TripService:
 
     def upload_gps(self, user: CurrentUser, trip_id: int, batch: GpsBatchInput) -> GpsUploadResult:
         trip = self._own_trip(user, trip_id)
-        if trip.status != "In progress":
+        if trip.status != IN_PROGRESS:
             raise ApiError("This trip is not in progress; GPS points cannot be added.")
         times = [_naive_utc(p.recorded_at) for p in batch.points]
         seen = self._repo.existing_gps_times(trip_id, times)
@@ -115,9 +122,9 @@ class TripService:
 
     def stop(self, user: CurrentUser, trip_id: int, data: StopTripInput) -> TripOut:
         trip = self._own_trip(user, trip_id)
-        if trip.status == "Completed":  # idempotent: stopping a stopped trip is a no-op
+        if trip.status == COMPLETED:  # idempotent: stopping a stopped trip is a no-op
             return self._to_out(trip)
-        if trip.status != "In progress":
+        if trip.status != IN_PROGRESS:
             raise ApiError(f"This trip is {trip.status.lower()} and cannot be stopped.")
 
         now = _naive_utc(data.ended_at) if data.ended_at else _utcnow()
@@ -129,7 +136,7 @@ class TripService:
         trip.end_longitude = Decimal(str(data.end_longitude))
         trip.duration_minutes = int((now - trip.start_at).total_seconds() // 60)
         trip.gps_distance_km = Decimal(str(distance)) if distance is not None else None
-        trip.status = "Completed"
+        trip.status = COMPLETED
         trip.updated_at = now
         trip.updated_by_user_id = user.id
 
@@ -145,11 +152,14 @@ class TripService:
         return self._to_out(self._own_trip(user, trip_id))
 
     def review(self, scope: RequestScope, query: TripListQuery) -> Page[TripListItem]:
+        self._master.require_known_statuses(query.status)
         return self._repo.list(scope, query)
 
     def my_trips(self, user: CurrentUser, query: MyTripListQuery) -> Page[TripListItem]:
         """The caller's own trips, whichever branch they were made in; never anyone else's."""
-        own = TripListQuery(**query.model_dump(), employee_id=self._require_engineer(user))
+        employee_id = self._require_engineer(user)
+        self._master.require_known_statuses(query.status)
+        own = TripListQuery(**query.model_dump(), employee_id=employee_id)
         return self._repo.list(RequestScope(branch_id=None, principal_id=None), own)
 
     def adjust_distance(
@@ -160,7 +170,7 @@ class TripService:
         trip = self._repo.get_trip(trip_id)
         if trip is None or not trip.is_active or not self._in_user_branch(user, trip.employee_id):
             raise NotFound("Trip not found.")
-        if trip.status == "In progress":
+        if trip.status == IN_PROGRESS:
             raise ApiError("This trip is still in progress; adjust its distance once it is completed.")
         check_row_version(trip.row_version, expected_row_version)
 

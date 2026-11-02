@@ -2,12 +2,11 @@
 # 0006 and these mirror its DDL. Re-run the generator against the migrated DB to fold this into
 # generated/ and then delete this file. Keep the columns in sync with migration 0006 until then.
 
-"""ORM models for the trk schema (common, cross-module trip tracking): 3 tables."""
+"""ORM models for the trk schema (common, cross-module trip tracking): 7 tables."""
 
 import datetime as dt
 import uuid
 from decimal import Decimal
-from typing import Literal
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import mssql
@@ -15,10 +14,66 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from trishul_api.db.models.base import Audited, Base
 
-TrackableActivityModuleCode = Literal["SVC", "PRE"]
-TrkTripType = Literal["To site", "Return", "Site to site"]
-TrkTripVehicleType = Literal["Own bike", "Own car", "Company vehicle", "Public transport"]
-TrkTripStatus = Literal["In progress", "Completed", "Auto closed"]
+
+class _TrkMaster:
+    """Columns shared by the trk master tables. `code` is the value stored on trips and sent over the
+    API, so it never changes; `name` is the editable display label. is_system rows are used by
+    application logic and must stay active."""
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    code: Mapped[str] = mapped_column(sa.NVARCHAR(30), doc="Stable value stored on trips")
+    name: Mapped[str] = mapped_column(sa.NVARCHAR(60), doc="Display name")
+    description: Mapped[str | None] = mapped_column(sa.NVARCHAR(200), doc="Description")
+    sort_order: Mapped[int] = mapped_column(sa.Integer(), server_default=sa.FetchedValue(), doc="Display order")
+    is_system: Mapped[bool] = mapped_column(
+        sa.Boolean(), server_default=sa.FetchedValue(), doc="Used by application logic; cannot be deactivated"
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
+    created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    row_version: Mapped[bytes] = mapped_column(
+        mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue()
+    )
+
+
+class TrackableActivityModule(_TrkMaster, Base, Audited):
+    """Modules whose activities can own trips (SVC, PRE). Table trk.trackable_activity_module."""
+
+    __tablename__ = "trackable_activity_module"
+    __table_args__ = {"schema": "trk"}
+
+    source_schema: Mapped[str] = mapped_column(sa.NVARCHAR(10), doc="Owning table's schema")
+    source_table: Mapped[str] = mapped_column(sa.NVARCHAR(60), doc="Owning table name")
+
+
+class TrkTripTypeMaster(_TrkMaster, Base, Audited):
+    """Trip types (To site, Return, ...). Table trk.trip_type."""
+
+    __tablename__ = "trip_type"
+    __table_args__ = {"schema": "trk"}
+
+    is_default: Mapped[bool] = mapped_column(
+        sa.Boolean(), server_default=sa.FetchedValue(), doc="Used when the client sends no trip type"
+    )
+
+
+class TrkTripVehicleTypeMaster(_TrkMaster, Base, Audited):
+    """Vehicles a trip can be made with. Table trk.trip_vehicle_type."""
+
+    __tablename__ = "trip_vehicle_type"
+    __table_args__ = {"schema": "trk"}
+
+
+class TrkTripStatusMaster(_TrkMaster, Base, Audited):
+    """Trip statuses. Set by the application, never by clients. Table trk.trip_status."""
+
+    __tablename__ = "trip_status"
+    __table_args__ = {"schema": "trk"}
+
+    is_initial: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue(), doc="Status on start")
+    is_final: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue(), doc="Trip has ended")
 
 
 class TrackableActivity(Base, Audited):
@@ -29,7 +84,9 @@ class TrackableActivity(Base, Audited):
     __table_args__ = {"schema": "trk"}
 
     id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
-    module_code: Mapped[TrackableActivityModuleCode] = mapped_column(sa.NVARCHAR(10), doc="Owning module")
+    module_code: Mapped[str] = mapped_column(
+        sa.NVARCHAR(10), sa.ForeignKey("trk.trackable_activity_module.code"), doc="Owning module"
+    )
     activity_kind: Mapped[str | None] = mapped_column(sa.NVARCHAR(40), doc="Human label, e.g. 'Service visit'")
     source_schema: Mapped[str] = mapped_column(sa.NVARCHAR(10), doc="Owning table's schema")
     source_table: Mapped[str] = mapped_column(sa.NVARCHAR(60), doc="Owning table name")
@@ -66,7 +123,9 @@ class TrkTrip(Base, Audited):
         sa.BigInteger(), sa.ForeignKey("core.user_device.id"), doc="Recording device"
     )
     client_uuid: Mapped[uuid.UUID | None] = mapped_column(sa.Uuid(), doc="Device-generated id for idempotency")
-    trip_type: Mapped[TrkTripType] = mapped_column(sa.NVARCHAR(30), doc="Trip type")
+    trip_type: Mapped[str] = mapped_column(
+        sa.NVARCHAR(30), sa.ForeignKey("trk.trip_type.code"), doc="Trip type"
+    )
     start_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), doc="Start")
     start_latitude: Mapped[Decimal] = mapped_column(sa.Numeric(9, 6), doc="Start point")
     start_longitude: Mapped[Decimal] = mapped_column(sa.Numeric(9, 6), doc="Start point")
@@ -82,8 +141,12 @@ class TrkTrip(Base, Audited):
         sa.Boolean(), server_default=sa.FetchedValue(), doc="True once a manual distance adjustment has been applied"
     )
     duration_minutes: Mapped[int | None] = mapped_column(sa.Integer(), doc="Travel time")
-    vehicle_type: Mapped[TrkTripVehicleType | None] = mapped_column(sa.NVARCHAR(30), doc="Vehicle")
-    status: Mapped[TrkTripStatus] = mapped_column(sa.NVARCHAR(30), doc="Status")
+    vehicle_type: Mapped[str | None] = mapped_column(
+        sa.NVARCHAR(30), sa.ForeignKey("trk.trip_vehicle_type.code"), doc="Vehicle"
+    )
+    status: Mapped[str] = mapped_column(
+        sa.NVARCHAR(30), sa.ForeignKey("trk.trip_status.code"), doc="Status"
+    )
     route_polyline: Mapped[str | None] = mapped_column(sa.UnicodeText(), doc="Encoded route")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())

@@ -24,7 +24,7 @@ export interface CallTripHistoryItem {
   startAt: string;
   startLatitude: number;
   startLongitude: number;
-  status: 'In progress' | 'Completed' | 'Auto closed';
-  tripType: 'To site' | 'Return' | 'Site to site';
+  status: string;
+  tripType: string;
   visitNo: number;
 }

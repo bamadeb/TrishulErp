@@ -12,13 +12,13 @@ export interface TripOut {
   gpsDistanceKm: (number | null);
   id: number;
   isDistanceAdjusted: boolean;
-  module: 'SVC' | 'PRE';
+  module: string;
   referenceId: number;
   rowVersion: string;
   startAt: string;
   startLatitude: number;
   startLongitude: number;
-  status: 'In progress' | 'Completed' | 'Auto closed';
+  status: string;
   trackableActivityId: number;
-  tripType: 'To site' | 'Return' | 'Site to site';
+  tripType: string;
 }

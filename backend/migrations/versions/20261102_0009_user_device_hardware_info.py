@@ -17,20 +17,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("""
-        ALTER TABLE [core].[user_device] ADD
-            [manufacturer] NVARCHAR(50) NULL,
-            [model] NVARCHAR(100) NULL,
-            [build_number] NVARCHAR(50) NULL;
-    """)
-    for column, text in (
-        ("manufacturer", "Device manufacturer"),
-        ("model", "Device model"),
-        ("build_number", "Device build number"),
+    # Guarded: the columns may already exist (this was applied to the shared database before the
+    # alert-module migration was chained in), so a re-run must be a no-op.
+    for column, length, text in (
+        ("manufacturer", 50, "Device manufacturer"),
+        ("model", 100, "Device model"),
+        ("build_number", 50, "Device build number"),
     ):
         op.execute(f"""
-            EXEC sys.sp_addextendedproperty N'MS_Description', N'{text}',
-                N'SCHEMA', N'core', N'TABLE', N'user_device', N'COLUMN', N'{column}';
+            IF COL_LENGTH(N'core.user_device', N'{column}') IS NULL
+            BEGIN
+                ALTER TABLE [core].[user_device] ADD [{column}] NVARCHAR({length}) NULL;
+                EXEC sys.sp_addextendedproperty N'MS_Description', N'{text}',
+                    N'SCHEMA', N'core', N'TABLE', N'user_device', N'COLUMN', N'{column}';
+            END
         """)
 
 

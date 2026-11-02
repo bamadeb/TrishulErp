@@ -12,8 +12,8 @@ export interface TripListItem {
   gpsDistanceKm: (number | null);
   id: number;
   isDistanceAdjusted: boolean;
-  module: 'SVC' | 'PRE';
+  module: string;
   startAt: string;
-  status: 'In progress' | 'Completed' | 'Auto closed';
-  tripType: 'To site' | 'Return' | 'Site to site';
+  status: string;
+  tripType: string;
 }

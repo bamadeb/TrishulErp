@@ -137,6 +137,16 @@ export type { ActivateMachine$Params as ActivateMachine$Params } from './fn/mach
 export { activateMachine as activateMachine } from './fn/machines/activate-machine';
 export type { ListAssignedSalesActivities$Params as ListAssignedSalesActivities$Params } from './fn/presales/list-assigned-sales-activities';
 export { listAssignedSalesActivities as listAssignedSalesActivities } from './fn/presales/list-assigned-sales-activities';
+export type { GetTripMasterData$Params as GetTripMasterData$Params } from './fn/tracking/get-trip-master-data';
+export { getTripMasterData as getTripMasterData } from './fn/tracking/get-trip-master-data';
+export type { ListTripModuleCodes$Params as ListTripModuleCodes$Params } from './fn/tracking/list-trip-module-codes';
+export { listTripModuleCodes as listTripModuleCodes } from './fn/tracking/list-trip-module-codes';
+export type { ListTripTypes$Params as ListTripTypes$Params } from './fn/tracking/list-trip-types';
+export { listTripTypes as listTripTypes } from './fn/tracking/list-trip-types';
+export type { ListTripVehicleTypes$Params as ListTripVehicleTypes$Params } from './fn/tracking/list-trip-vehicle-types';
+export { listTripVehicleTypes as listTripVehicleTypes } from './fn/tracking/list-trip-vehicle-types';
+export type { ListTripStatuses$Params as ListTripStatuses$Params } from './fn/tracking/list-trip-statuses';
+export { listTripStatuses as listTripStatuses } from './fn/tracking/list-trip-statuses';
 export type { ListTrips$Params as ListTrips$Params } from './fn/tracking/list-trips';
 export { listTrips as listTrips } from './fn/tracking/list-trips';
 export type { CreateTrip$Params as CreateTrip$Params } from './fn/tracking/create-trip';

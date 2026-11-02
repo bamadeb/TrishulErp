@@ -10,6 +10,7 @@ export interface UserDeviceOut {
   lastSeenAt: (string | null);
   manufacturer: (string | null);
   model: (string | null);
+  osVersion: (string | null);
   platform: 'Android' | 'iOS' | 'Web';
   pushToken: (string | null);
   rowVersion: string;

@@ -5,15 +5,15 @@ core.role.manage  add and change roles, choose their permissions, mark them acti
 
 Both: ADMIN only.
 
-Revision ID: 0011_role_management
-Revises: 0010_alert_module
+Revision ID: 0013_role_management
+Revises: 0012_trk_master_data
 Created: 2026-11-02
 """
 
 from alembic import op
 
-revision = "0011_role_management"
-down_revision = "0010_alert_module"
+revision = "0013_role_management"
+down_revision = "0012_trk_master_data"
 branch_labels = None
 depends_on = None
 

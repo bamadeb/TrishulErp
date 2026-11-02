@@ -10,11 +10,23 @@
 export interface StartTripInput {
   clientUuid: string;
   deviceId?: (string | null);
-  module: 'SVC' | 'PRE';
+
+  /**
+   * A module code from GET /trk/module-codes, e.g. SVC or PRE.
+   */
+  module: string;
   referenceId: number;
   startLatitude: number;
   startLongitude: number;
   startedAt?: (string | null);
-  tripType?: 'To site' | 'Return' | 'Site to site';
-  vehicleType?: ('Own bike' | 'Own car' | 'Company vehicle' | 'Public transport' | null);
+
+  /**
+   * A trip type code from GET /trk/trip-types; omitted means the default ('To site').
+   */
+  tripType?: (string | null);
+
+  /**
+   * A vehicle code from GET /trk/vehicle-types.
+   */
+  vehicleType?: (string | null);
 }

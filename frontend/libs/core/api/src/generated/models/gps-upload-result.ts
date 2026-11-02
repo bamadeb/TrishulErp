@@ -4,5 +4,5 @@
 export interface GpsUploadResult {
   accepted: number;
   duplicatesIgnored: number;
-  tripStatus: 'In progress' | 'Completed' | 'Auto closed';
+  tripStatus: string;
 }

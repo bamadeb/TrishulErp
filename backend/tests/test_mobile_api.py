@@ -28,6 +28,7 @@ def _device() -> SimpleNamespace:
         manufacturer="samsung",
         model="SM-A135F",
         build_number="TP1A.220624.014",
+        os_version="Android 13",
         last_seen_at=datetime(2026, 10, 28, 6, 30),
         is_active=True,
         row_version=b"\x00\x00\x00\x00\x00\x00\x07\xd1",
@@ -69,6 +70,7 @@ def test_register_device_returns_201(api: FastAPI, client: TestClient, signed_in
             "manufacturer": "samsung",
             "model": "SM-A135F",
             "buildNumber": "TP1A.220624.014",
+            "osVersion": "Android 13",
         },
     )
     assert response.status_code == 201
@@ -79,6 +81,7 @@ def test_register_device_returns_201(api: FastAPI, client: TestClient, signed_in
     assert body["manufacturer"] == "samsung"
     assert body["model"] == "SM-A135F"
     assert body["buildNumber"] == "TP1A.220624.014"
+    assert body["osVersion"] == "Android 13"
     assert body["isActive"] is True
     assert body["rowVersion"] == "AAAAAAAAB9E="
 

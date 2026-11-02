@@ -11,6 +11,7 @@ export interface RegisterDeviceInput {
   deviceId: string;
   manufacturer?: (string | null);
   model?: (string | null);
+  osVersion?: (string | null);
   platform: 'Android' | 'iOS' | 'Web';
   pushToken?: (string | null);
 }

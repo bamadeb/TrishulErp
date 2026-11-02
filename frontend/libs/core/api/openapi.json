@@ -6717,6 +6717,427 @@
         }
       }
     },
+    "/trk/master-data": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "All trip-tracking master lists",
+        "operationId": "get_trip_master_data",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also list deactivated values (reviewers and administrators only).",
+              "default": false,
+              "title": "Includeinactive"
+            },
+            "description": "Also list deactivated values (reviewers and administrators only)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripMasterData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/trk/module-codes": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Modules whose activities can have trips (SVC, PRE, ...)",
+        "operationId": "list_trip_module_codes",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also list deactivated values (reviewers and administrators only).",
+              "default": false,
+              "title": "Includeinactive"
+            },
+            "description": "Also list deactivated values (reviewers and administrators only)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleCodeItem"
+                  },
+                  "title": "Response List Trip Module Codes"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/trk/trip-types": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Trip types (To site, Return, ...)",
+        "operationId": "list_trip_types",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also list deactivated values (reviewers and administrators only).",
+              "default": false,
+              "title": "Includeinactive"
+            },
+            "description": "Also list deactivated values (reviewers and administrators only)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TripTypeItem"
+                  },
+                  "title": "Response List Trip Types"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/trk/vehicle-types": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Vehicle types for a trip",
+        "operationId": "list_trip_vehicle_types",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also list deactivated values (reviewers and administrators only).",
+              "default": false,
+              "title": "Includeinactive"
+            },
+            "description": "Also list deactivated values (reviewers and administrators only)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VehicleTypeItem"
+                  },
+                  "title": "Response List Trip Vehicle Types"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/trk/trip-statuses": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Trip statuses (set by the application)",
+        "operationId": "list_trip_statuses",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also list deactivated values (reviewers and administrators only).",
+              "default": false,
+              "title": "Includeinactive"
+            },
+            "description": "Also list deactivated values (reviewers and administrators only)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TripStatusItem"
+                  },
+                  "title": "Response List Trip Statuses"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
     "/trk/trips": {
       "post": {
         "tags": [
@@ -6870,11 +7291,6 @@
             "schema": {
               "type": "array",
               "items": {
-                "enum": [
-                  "In progress",
-                  "Completed",
-                  "Auto closed"
-                ],
                 "type": "string"
               },
               "title": "Status"
@@ -7227,11 +7643,6 @@
             "schema": {
               "type": "array",
               "items": {
-                "enum": [
-                  "In progress",
-                  "Completed",
-                  "Auto closed"
-                ],
                 "type": "string"
               },
               "title": "Status"
@@ -9281,20 +9692,10 @@
           },
           "tripType": {
             "type": "string",
-            "enum": [
-              "To site",
-              "Return",
-              "Site to site"
-            ],
             "title": "Triptype"
           },
           "status": {
             "type": "string",
-            "enum": [
-              "In progress",
-              "Completed",
-              "Auto closed"
-            ],
             "title": "Status"
           },
           "engineerEmployeeId": {
@@ -11277,11 +11678,6 @@
           },
           "tripStatus": {
             "type": "string",
-            "enum": [
-              "In progress",
-              "Completed",
-              "Auto closed"
-            ],
             "title": "Tripstatus"
           }
         },
@@ -12157,6 +12553,56 @@
         "title": "Me",
         "description": "The signed-in user, as the Angular AuthStore expects it."
       },
+      "ModuleCodeItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "title": "Sortorder"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "sourceSchema": {
+            "type": "string",
+            "title": "Sourceschema"
+          },
+          "sourceTable": {
+            "type": "string",
+            "title": "Sourcetable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "description",
+          "sortOrder",
+          "isActive",
+          "sourceSchema",
+          "sourceTable"
+        ],
+        "title": "ModuleCodeItem"
+      },
       "MyAlertItem": {
         "properties": {
           "id": {
@@ -12902,6 +13348,18 @@
               }
             ],
             "title": "Buildnumber"
+          },
+          "osVersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Osversion"
           }
         },
         "additionalProperties": false,
@@ -14070,11 +14528,8 @@
           },
           "module": {
             "type": "string",
-            "enum": [
-              "SVC",
-              "PRE"
-            ],
-            "title": "Module"
+            "title": "Module",
+            "description": "A module code from GET /trk/module-codes, e.g. SVC or PRE."
           },
           "referenceId": {
             "type": "integer",
@@ -14082,14 +14537,16 @@
             "title": "Referenceid"
           },
           "tripType": {
-            "type": "string",
-            "enum": [
-              "To site",
-              "Return",
-              "Site to site"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Triptype",
-            "default": "To site"
+            "description": "A trip type code from GET /trk/trip-types; omitted means the default ('To site')."
           },
           "startLatitude": {
             "type": "number",
@@ -14118,19 +14575,14 @@
           "vehicleType": {
             "anyOf": [
               {
-                "type": "string",
-                "enum": [
-                  "Own bike",
-                  "Own car",
-                  "Company vehicle",
-                  "Public transport"
-                ]
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Vehicletype"
+            "title": "Vehicletype",
+            "description": "A vehicle code from GET /trk/vehicle-types."
           },
           "deviceId": {
             "anyOf": [
@@ -14314,10 +14766,6 @@
           },
           "module": {
             "type": "string",
-            "enum": [
-              "SVC",
-              "PRE"
-            ],
             "title": "Module"
           },
           "activityTitle": {
@@ -14333,20 +14781,10 @@
           },
           "tripType": {
             "type": "string",
-            "enum": [
-              "To site",
-              "Return",
-              "Site to site"
-            ],
             "title": "Triptype"
           },
           "status": {
             "type": "string",
-            "enum": [
-              "In progress",
-              "Completed",
-              "Auto closed"
-            ],
             "title": "Status"
           },
           "startAt": {
@@ -14434,6 +14872,47 @@
         ],
         "title": "TripListItem"
       },
+      "TripMasterData": {
+        "properties": {
+          "moduleCodes": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleCodeItem"
+            },
+            "type": "array",
+            "title": "Modulecodes"
+          },
+          "tripTypes": {
+            "items": {
+              "$ref": "#/components/schemas/TripTypeItem"
+            },
+            "type": "array",
+            "title": "Triptypes"
+          },
+          "vehicleTypes": {
+            "items": {
+              "$ref": "#/components/schemas/VehicleTypeItem"
+            },
+            "type": "array",
+            "title": "Vehicletypes"
+          },
+          "tripStatuses": {
+            "items": {
+              "$ref": "#/components/schemas/TripStatusItem"
+            },
+            "type": "array",
+            "title": "Tripstatuses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "moduleCodes",
+          "tripTypes",
+          "vehicleTypes",
+          "tripStatuses"
+        ],
+        "title": "TripMasterData",
+        "description": "All trip-tracking master lists in one call (for the mobile app and the review screens)."
+      },
       "TripOut": {
         "properties": {
           "id": {
@@ -14450,10 +14929,6 @@
           },
           "module": {
             "type": "string",
-            "enum": [
-              "SVC",
-              "PRE"
-            ],
             "title": "Module"
           },
           "referenceId": {
@@ -14462,20 +14937,10 @@
           },
           "tripType": {
             "type": "string",
-            "enum": [
-              "To site",
-              "Return",
-              "Site to site"
-            ],
             "title": "Triptype"
           },
           "status": {
             "type": "string",
-            "enum": [
-              "In progress",
-              "Completed",
-              "Auto closed"
-            ],
             "title": "Status"
           },
           "startAt": {
@@ -14601,6 +15066,102 @@
           "rowVersion"
         ],
         "title": "TripOut"
+      },
+      "TripStatusItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "title": "Sortorder"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "isInitial": {
+            "type": "boolean",
+            "title": "Isinitial"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "title": "Isfinal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "description",
+          "sortOrder",
+          "isActive",
+          "isInitial",
+          "isFinal"
+        ],
+        "title": "TripStatusItem",
+        "description": "Statuses are set by the application, never by clients."
+      },
+      "TripTypeItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "title": "Sortorder"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "title": "Isdefault"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "description",
+          "sortOrder",
+          "isActive",
+          "isDefault"
+        ],
+        "title": "TripTypeItem"
       },
       "UserCreate": {
         "properties": {
@@ -15159,6 +15720,17 @@
             ],
             "title": "Buildnumber"
           },
+          "osVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Osversion"
+          },
           "lastSeenAt": {
             "anyOf": [
               {
@@ -15190,6 +15762,7 @@
           "manufacturer",
           "model",
           "buildNumber",
+          "osVersion",
           "lastSeenAt",
           "isActive",
           "rowVersion"
@@ -15424,6 +15997,46 @@
         "type": "object",
         "title": "UserUpdate",
         "description": "Only the fields sent are changed; roles and principalIds replace the current lists."
+      },
+      "VehicleTypeItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "title": "Sortorder"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "description",
+          "sortOrder",
+          "isActive"
+        ],
+        "title": "VehicleTypeItem"
       }
     },
     "securitySchemes": {

@@ -18,7 +18,7 @@ export interface ListMyTrips$Params {
  */
   sort?: (string | null);
   search?: (string | null);
-  status?: Array<'In progress' | 'Completed' | 'Auto closed'>;
+  status?: Array<string>;
 }
 
 export function listMyTrips(http: HttpClient, rootUrl: string, params?: ListMyTrips$Params, context?: HttpContext): Observable<StrictHttpResponse<PageTripListItem>> {
