@@ -14,6 +14,9 @@ class RegisterDeviceInput(InputModel):
     platform: DevicePlatform
     app_version: str | None = Field(None, max_length=20)
     push_token: str | None = Field(None, max_length=500)
+    manufacturer: str | None = Field(None, max_length=50)
+    model: str | None = Field(None, max_length=100)
+    build_number: str | None = Field(None, max_length=50)
 
 
 class UserDeviceOut(ApiModel):
@@ -22,6 +25,9 @@ class UserDeviceOut(ApiModel):
     platform: DevicePlatform
     app_version: str | None
     push_token: str | None
+    manufacturer: str | None
+    model: str | None
+    build_number: str | None
     last_seen_at: UtcDateTime | None
     is_active: bool
     row_version: RowVersion

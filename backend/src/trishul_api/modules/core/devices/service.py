@@ -46,6 +46,10 @@ class DeviceService:
         device.platform = data.platform
         device.app_version = data.app_version
         device.push_token = data.push_token
+        # Older app builds omit these; keep what we already know rather than blanking it.
+        device.manufacturer = data.manufacturer or device.manufacturer
+        device.model = data.model or device.model
+        device.build_number = data.build_number or device.build_number
         device.last_seen_at = now
         device.is_active = True
         self._db.commit()

@@ -8375,6 +8375,42 @@
               }
             ],
             "title": "Pushtoken"
+          },
+          "manufacturer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufacturer"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "buildNumber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buildnumber"
           }
         },
         "additionalProperties": false,
@@ -10304,6 +10340,39 @@
             ],
             "title": "Pushtoken"
           },
+          "manufacturer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufacturer"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "buildNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buildnumber"
+          },
           "lastSeenAt": {
             "anyOf": [
               {
@@ -10332,6 +10401,9 @@
           "platform",
           "appVersion",
           "pushToken",
+          "manufacturer",
+          "model",
+          "buildNumber",
           "lastSeenAt",
           "isActive",
           "rowVersion"

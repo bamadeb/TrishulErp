@@ -25,6 +25,9 @@ def _device() -> SimpleNamespace:
         platform="Android",
         app_version="1.4.0",
         push_token="fcm:xyz",
+        manufacturer="samsung",
+        model="SM-A135F",
+        build_number="TP1A.220624.014",
         last_seen_at=datetime(2026, 10, 28, 6, 30),
         is_active=True,
         row_version=b"\x00\x00\x00\x00\x00\x00\x07\xd1",
@@ -58,12 +61,24 @@ def test_register_device_returns_201(api: FastAPI, client: TestClient, signed_in
     service = use_device_service(api)
     response = client.post(
         "/api/v1/core/user-devices",
-        json={"deviceId": "ANDROID-a1b2c3", "platform": "Android", "appVersion": "1.4.0", "pushToken": "fcm:xyz"},
+        json={
+            "deviceId": "ANDROID-a1b2c3",
+            "platform": "Android",
+            "appVersion": "1.4.0",
+            "pushToken": "fcm:xyz",
+            "manufacturer": "samsung",
+            "model": "SM-A135F",
+            "buildNumber": "TP1A.220624.014",
+        },
     )
     assert response.status_code == 201
     assert service.registered[0][0] == signed_in.id
+    assert service.registered[0][1].manufacturer == "samsung"
     body = response.json()
     assert body["deviceId"] == "ANDROID-a1b2c3"
+    assert body["manufacturer"] == "samsung"
+    assert body["model"] == "SM-A135F"
+    assert body["buildNumber"] == "TP1A.220624.014"
     assert body["isActive"] is True
     assert body["rowVersion"] == "AAAAAAAAB9E="
 
