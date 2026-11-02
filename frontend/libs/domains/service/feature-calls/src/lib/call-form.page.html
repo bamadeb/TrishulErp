@@ -60,36 +60,26 @@
       <mat-form-field appearance="outline" class="wide">
         <mat-label>Machine (optional)</mat-label>
         <mat-icon matPrefix>precision_manufacturing</mat-icon>
-        <input
-          matInput
-          formControlName="machine"
-          [matAutocomplete]="machineAuto"
-          placeholder="Search by serial or model"
-        />
-        @if (form.controls.machine.value) {
-        <button
-          matSuffix
-          mat-icon-button
-          type="button"
-          aria-label="Clear machine"
-          (click)="clearMachine()"
-        >
-          <mat-icon>close</mat-icon>
-        </button>
-        }
-        <mat-autocomplete
-          #machineAuto="matAutocomplete"
-          [displayWith]="machineText"
-        >
-          @for (m of machineOptions(); track m.id) {
-          <mat-option [value]="m">
-            {{ machineLabel(m) }}
-            @if (m.customerName) {
-            <span class="muted"> — {{ m.customerName }}</span>
-            }
-          </mat-option>
+        <mat-select formControlName="machineUnitId">
+          <mat-option [value]="null">No machine / not registered</mat-option>
+          @for (m of machineOptions() ?? []; track m.id) {
+          <mat-option [value]="m.id">{{ machineLabel(m) }}</mat-option>
           }
-        </mat-autocomplete>
+        </mat-select>
+        <mat-hint>
+          @if (!hasCustomer()) {
+          Pick the customer first to see their machines.
+          } @else if (machineOptions() === null) {
+          Loading the customer's machines…
+          } @else if (machineOptions()?.length === 0) {
+          This customer has no active registered machines.
+          @if (canAddMachine) {
+          <a routerLink="/service/machines/new" target="_blank">Add a machine</a>
+          }
+          } @else {
+          {{ machineOptions()?.length }} registered machine(s) of this customer.
+          }
+        </mat-hint>
       </mat-form-field>
     </div>
   </section>

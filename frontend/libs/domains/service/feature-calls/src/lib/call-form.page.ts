@@ -5,7 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   FormControl,
@@ -18,14 +18,14 @@ import {
   MatAutocomplete,
   MatAutocompleteTrigger,
 } from '@angular/material/autocomplete';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import {
   MatError,
   MatFormField,
+  MatHint,
   MatLabel,
   MatPrefix,
-  MatSuffix,
 } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -41,13 +41,16 @@ import {
   distinctUntilChanged,
   filter,
   finalize,
+  map,
   of,
+  startWith,
   switchMap,
 } from 'rxjs';
 import {
   CALL_PRIORITIES,
   CallPriority,
   CustomerListItem,
+  MACHINE_MANAGE_PERMISSION,
   MachineUnitOption,
   SERVICE_CALL_CREATE_PERMISSION,
   ServiceCallApi,
@@ -57,7 +60,6 @@ import { PageHeader } from '@trishul/shared-ui';
 
 type CustomerChoice = Pick<CustomerListItem, 'id' | 'name' | 'code'>;
 type CustomerValue = CustomerChoice | string;
-type MachineValue = MachineUnitOption | string | null;
 
 const PHONE = /^[0-9+\-() ]{6,15}$/;
 
@@ -83,8 +85,8 @@ function pickedCustomer(control: AbstractControl): ValidationErrors | null {
     MatFormField,
     MatLabel,
     MatError,
+    MatHint,
     MatPrefix,
-    MatSuffix,
     MatInput,
     MatSelect,
     MatOption,
@@ -92,7 +94,6 @@ function pickedCustomer(control: AbstractControl): ValidationErrors | null {
     MatAutocompleteTrigger,
     MatCheckbox,
     MatButton,
-    MatIconButton,
     MatIcon,
     MatProgressBar,
     PageHeader,
@@ -120,6 +121,9 @@ export class CallFormPage {
   );
   protected readonly customerLabel = customerLabel;
   protected readonly machineLabel = machineLabel;
+  protected readonly canAddMachine = this.auth.hasPermission(
+    MACHINE_MANAGE_PERMISSION,
+  );
 
   protected readonly callTypes = toSignal(
     this.api.lookups('CALL_TYPE').pipe(catchError(() => of([]))),
@@ -141,7 +145,11 @@ export class CallFormPage {
       nonNullable: true,
       validators: pickedCustomer,
     }),
-    machine: new FormControl<MachineValue>(null),
+    // One of the picked customer's registered (active) machines; disabled until a customer is picked.
+    machineUnitId: new FormControl<number | null>({
+      value: null,
+      disabled: true,
+    }),
     callTypeLookupId: new FormControl<number | null>(null, Validators.required),
     callSourceLookupId: new FormControl<number | null>(
       null,
@@ -176,47 +184,51 @@ export class CallFormPage {
     { initialValue: [] as CustomerListItem[] },
   );
 
-  protected readonly machineOptions = toSignal(
-    this.form.controls.machine.valueChanges.pipe(
-      filter((v): v is string => typeof v === 'string'),
-      debounceTime(250),
-      distinctUntilChanged(),
-      switchMap((term): Observable<MachineUnitOption[]> => {
-        const customer = this.form.controls.customer.value;
-        const customerId =
-          customer && typeof customer !== 'string' ? customer.id : undefined;
-        return this.api
-          .machineOptions(term, customerId)
-          .pipe(catchError(() => of<MachineUnitOption[]>([])));
-      }),
-    ),
-    { initialValue: [] as MachineUnitOption[] },
+  /** The picked customer's id, or null while the customer is still being typed. */
+  private readonly customerId$ = this.form.controls.customer.valueChanges.pipe(
+    map((v) => (v && typeof v !== 'string' ? v.id : null)),
+    distinctUntilChanged(),
   );
+
+  /** The picked customer's active machines (null while loading). */
+  protected readonly machineOptions = toSignal(
+    this.customerId$.pipe(
+      switchMap((customerId): Observable<MachineUnitOption[] | null> =>
+        customerId === null
+          ? of([])
+          : this.api.machineOptions('', customerId).pipe(
+              catchError(() => of<MachineUnitOption[]>([])),
+              startWith(null),
+            ),
+      ),
+    ),
+    { initialValue: [] as MachineUnitOption[] | null },
+  );
+  protected readonly hasCustomer = signal(false);
 
   constructor() {
     if (!this.canCreate) this.form.disable();
+    // A machine belongs to one customer: changing the customer clears the machine.
+    this.customerId$.pipe(takeUntilDestroyed()).subscribe((customerId) => {
+      const machine = this.form.controls.machineUnitId;
+      machine.setValue(null);
+      this.hasCustomer.set(customerId !== null);
+      if (customerId !== null && this.canCreate) machine.enable();
+      else machine.disable();
+    });
   }
 
   protected readonly customerText = (v: CustomerValue | null): string =>
     !v ? '' : typeof v === 'string' ? v : customerLabel(v);
-
-  protected readonly machineText = (v: MachineValue): string =>
-    !v ? '' : typeof v === 'string' ? v : machineLabel(v);
-
-  protected clearMachine(): void {
-    this.form.controls.machine.setValue(null);
-  }
 
   protected save(): void {
     this.form.markAllAsTouched();
     if (this.form.invalid || this.isSaving()) return;
     const v = this.form.getRawValue();
     const customer = v.customer as CustomerChoice; // validator guarantees an object
-    const machine = v.machine;
     const body = {
       customerId: customer.id,
-      machineUnitId:
-        machine && typeof machine !== 'string' ? machine.id : null,
+      machineUnitId: v.machineUnitId,
       branchId: v.branchId as number,
       principalId: v.principalId as number,
       callTypeLookupId: v.callTypeLookupId as number,

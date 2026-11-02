@@ -6,12 +6,13 @@ from typing import Any
 import httpx2 as httpx
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, update
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import get_current_user, get_db
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
+from trishul_api.db.models import MachineUnit
 from trishul_api.main import create_app
 
 from .conftest import make_user
@@ -150,6 +151,33 @@ def test_unknown_references_are_rejected(client: TestClient) -> None:
     assert "callSourceLookupId" in create(client, callSourceLookupId=CALL_TYPE_BREAKDOWN).json()["errors"]
 
 
+def test_machine_must_belong_to_the_selected_customer(client: TestClient) -> None:
+    # MACHINE_ID is registered to CUSTOMER_ID, not to customer 101.
+    response = create(client, customerId=101)
+    assert response.status_code == 400
+    assert response.json()["errors"]["machineUnitId"] == ["That machine is not registered to this customer."]
+    assert create(client, customerId=101, machineUnitId=None).status_code == 201  # no machine is fine
+
+
+def test_machine_of_another_brand_is_rejected(client: TestClient, db: Engine) -> None:
+    insert_row(db, "core.principal", id=2, code="BYD", name="BYD")
+    insert_row(db, "core.machine_model", id=2, model_code="E6", model_name="BYD E6", principal_id=2)
+    insert_row(db, "core.machine_unit", id=201, serial_number="BYD-1", model_id=2, principal_id=2,
+               customer_id=CUSTOMER_ID, status="Sold")
+    assert "machineUnitId" in create(client, machineUnitId=201).json()["errors"]
+
+
+def test_deactivated_machine_is_not_offered_but_old_calls_keep_it(client: TestClient, db: Engine) -> None:
+    call = create(client).json()
+    with Session(db) as s:
+        s.execute(update(MachineUnit).where(MachineUnit.id == MACHINE_ID).values(is_active=False))
+        s.commit()
+    assert create(client).json()["errors"]["machineUnitId"] == [f"Unknown or inactive machine {MACHINE_ID}"]
+    assert client.get(f"{URL}/machine-options", params={"customerId": CUSTOMER_ID}).json() == []
+    detail = client.get(f"{URL}/{call['id']}").json()
+    assert detail["machineSerialNo"] == "SN-1" and detail["machineIsActive"] is False
+
+
 def test_invalid_input_is_rejected(client: TestClient) -> None:
     assert create(client, callerPhone="nope").status_code == 422
     assert create(client, complaintDescription="").status_code == 422
@@ -168,6 +196,7 @@ def test_get_call_detail(client: TestClient) -> None:
     assert body["callType"] == "Breakdown" and body["callSource"] == "Phone"
     assert body["currentStatus"] == "Logged"
     assert body["machineSerialNo"] == "SN-1" and body["machineModel"] == "EX200"
+    assert body["machineModelCode"] == "EX200" and body["machineIsActive"] is True
 
 
 def test_get_call_detail_unknown_is_404(client: TestClient) -> None:

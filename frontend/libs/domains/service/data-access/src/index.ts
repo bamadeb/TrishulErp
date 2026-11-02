@@ -7,3 +7,6 @@ export * from './lib/trip.models';
 export * from './lib/trip.api';
 export * from './lib/trip-history.store';
 export * from './lib/my-trips.store';
+export * from './lib/machine.models';
+export * from './lib/machine.api';
+export * from './lib/machine-list.store';

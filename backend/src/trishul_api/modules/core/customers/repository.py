@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
 from trishul_api.common.schemas import Page
-from trishul_api.db.models import Company, Customer, State
+from trishul_api.db.models import Company, Customer, MachineUnit, State
 from trishul_api.modules.core.customers.schemas import (
     CompanyOption,
     CustomerListItem,
@@ -16,17 +16,28 @@ from trishul_api.modules.core.customers.schemas import (
 
 _COMPANY_NAME: ColumnElement[str | None] = func.coalesce(Company.trade_name, Company.legal_name)
 
+def _machine_count() -> ColumnElement[int]:
+    """Active machines registered to the customer (row-level security limits it to the user's brands)."""
+    return (
+        select(func.count(MachineUnit.id))
+        .where(MachineUnit.customer_id == Customer.id, MachineUnit.is_active)
+        .correlate(Customer)
+        .scalar_subquery()
+    )
+
+
 _SORT_COLUMNS: SortColumns = {
     "code": Customer.code,
     "name": Customer.name,
     "customerType": Customer.customer_type,
     "priorityTier": Customer.priority_tier,
     "createdAt": Customer.created_at,
+    "machineCount": _machine_count(),
 }
 
 
 def _list_select() -> Select[*tuple[Any, ...]]:
-    """Columns of CustomerListItem: the customer plus its billing state name."""
+    """Columns of CustomerListItem: the customer plus its billing state name and machine count."""
     return select(
         Customer.id,
         Customer.code,
@@ -41,6 +52,7 @@ def _list_select() -> Select[*tuple[Any, ...]]:
         Customer.is_asc_customer,
         Customer.is_active,
         Customer.created_at,
+        _machine_count().label("machine_count"),
     ).outerjoin(State, State.id == Customer.billing_state_id)
 
 

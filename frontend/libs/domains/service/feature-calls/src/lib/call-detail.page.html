@@ -71,12 +71,40 @@
       <div>
         <dt>Machine</dt>
         <dd>
+          @if (c.machineUnitId) {
+          {{ c.machineSerialNo }}
+          @if (c.machineIsActive === false) {
+          <span class="flag">deactivated</span>
+          }
+          } @else { — }
+        </dd>
+      </div>
+      @if (c.machineUnitId) {
+      <div>
+        <dt>Model</dt>
+        <dd>
           {{ c.machineModel ?? '—' }}
-          @if (c.machineSerialNo) {
-          <span class="muted">({{ c.machineSerialNo }})</span>
+          @if (c.machineProductLine) {
+          <span class="muted">· {{ c.machineProductLine }}</span>
           }
         </dd>
       </div>
+      @if (c.machineEngineNumber) {
+      <div><dt>Engine no</dt><dd>{{ c.machineEngineNumber }}</dd></div>
+      } @if (c.machineRegistrationNumber) {
+      <div><dt>Registration</dt><dd>{{ c.machineRegistrationNumber }}</dd></div>
+      }
+      <div>
+        <dt>Warranty till</dt>
+        <dd>
+          {{ c.machineWarrantyEndDate ? (c.machineWarrantyEndDate | date: 'dd MMM yyyy') : '—' }}
+        </dd>
+      </div>
+      <div>
+        <dt>HMR</dt>
+        <dd>{{ c.machineHmr !== null ? (c.machineHmr | number: '1.0-1') : '—' }}</dd>
+      </div>
+      }
       @if (c.siteName) {
       <div><dt>Site</dt><dd>{{ c.siteName }}</dd></div>
       } @if (c.siteAddress) {
@@ -120,10 +148,10 @@
   @if (c.allowedStatuses.length) {
   <section class="card wide-card">
     <h2>Change status</h2>
-    <form class="status-form" (ngSubmit)="changeStatus()">
+    <form class="status-form" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
       <mat-form-field appearance="outline" class="status-select">
         <mat-label>New status</mat-label>
-        <mat-select [formControl]="newStatus">
+        <mat-select formControlName="status">
           @for (s of c.allowedStatuses; track s) {
           <mat-option [value]="s">{{ s }}</mat-option>
           }
@@ -131,12 +159,12 @@
       </mat-form-field>
       <mat-form-field appearance="outline" class="remarks">
         <mat-label>Remarks (optional)</mat-label>
-        <input matInput [formControl]="remarks" maxlength="500" />
+        <input matInput formControlName="remarks" maxlength="500" />
       </mat-form-field>
       <button
         mat-flat-button
         type="submit"
-        [disabled]="newStatus.invalid || saving()"
+        [disabled]="statusForm.invalid || saving()"
       >
         <mat-icon>published_with_changes</mat-icon>
         Change status

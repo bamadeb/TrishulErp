@@ -1,3 +1,5 @@
+import datetime as dt
+
 from pydantic import Field
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
@@ -123,6 +125,15 @@ class ServiceCallDetail(ApiModel):
     machine_unit_id: int | None
     machine_serial_no: str | None
     machine_model: str | None
+    machine_model_code: str | None
+    machine_product_line: str | None
+    machine_engine_number: str | None
+    machine_registration_number: str | None
+    machine_warranty_end_date: dt.date | None
+    machine_hmr: float | None
+    machine_is_active: bool | None = Field(
+        None, description="False when the machine has since been deactivated; null when no machine."
+    )
     complaint_description: str
     call_type: str | None
     call_source: str | None

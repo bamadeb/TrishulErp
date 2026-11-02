@@ -61,12 +61,12 @@ export class ServiceCallApi {
     return this.api.call(createServiceCall, { body });
   }
 
-  /** Machines to pick for a new call; narrowed to the selected brand, optionally to one customer. */
+  /** Active machines to pick for a new call; narrowed to the selected brand, optionally to one customer. */
   machineOptions(
     search: string,
     customerId?: number,
   ): Observable<MachineUnitOption[]> {
-    return this.api.call(listMachineOptions, { search, customerId });
+    return this.api.call(listMachineOptions, { search, customerId, limit: 50 });
   }
 
   /** Customers matching a search, for the call form's customer picker. */

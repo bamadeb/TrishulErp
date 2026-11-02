@@ -100,8 +100,26 @@ td {
   width: 7rem;
 }
 
+.mat-column-machines {
+  width: 7rem;
+  white-space: nowrap;
+}
+
 .mat-column-status {
   width: 7rem;
+}
+
+.count-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .name {

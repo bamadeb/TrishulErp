@@ -17,6 +17,11 @@ export interface CustomerDetail {
   id: number;
   isActive: boolean;
   isAscCustomer: boolean;
+
+  /**
+   * Active machines registered to this customer.
+   */
+  machineCount: number;
   name: string;
   pan: (string | null);
   primaryPhone: string;

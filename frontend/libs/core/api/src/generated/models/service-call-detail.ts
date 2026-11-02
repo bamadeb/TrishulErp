@@ -30,9 +30,20 @@ export interface ServiceCallDetail {
   id: number;
   isAscPriority: boolean;
   isMachineDown: boolean;
+  machineEngineNumber: (string | null);
+  machineHmr: (number | null);
+
+  /**
+   * False when the machine has since been deactivated; null when no machine.
+   */
+  machineIsActive: (boolean | null);
   machineModel: (string | null);
+  machineModelCode: (string | null);
+  machineProductLine: (string | null);
+  machineRegistrationNumber: (string | null);
   machineSerialNo: (string | null);
   machineUnitId: (number | null);
+  machineWarrantyEndDate: (string | null);
   needsMasterLinking: boolean;
   oemCallId: (string | null);
   principalCode: string;

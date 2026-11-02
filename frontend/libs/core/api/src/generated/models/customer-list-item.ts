@@ -12,6 +12,11 @@ export interface CustomerListItem {
   id: number;
   isActive: boolean;
   isAscCustomer: boolean;
+
+  /**
+   * Active machines registered to this customer.
+   */
+  machineCount: number;
   name: string;
   primaryPhone: string;
   priorityTier: ('Key' | 'Normal' | 'Low' | null);

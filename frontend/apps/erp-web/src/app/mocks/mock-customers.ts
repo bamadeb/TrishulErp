@@ -52,6 +52,7 @@ function detail(s: Seed): CustomerDetail {
       states.find((st) => st.id === s.billingStateId)?.name ?? null,
     companyName: companies.find((c) => c.id === s.companyId)?.name ?? null,
     createdAt: new Date().toISOString(),
+    machineCount: 0,
     rowVersion: rowVersion(),
   };
 }

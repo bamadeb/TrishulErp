@@ -80,9 +80,15 @@ export class CustomerListPage {
     'phone',
     'gstin',
     'priority',
+    'machines',
     'status',
     'actions',
   ];
+  /** The machine count links to the customer's machines for users who may open that screen. */
+  protected readonly canSeeMachines = this.auth.hasAnyPermission([
+    'core.machine.view',
+    'core.machine.manage',
+  ]);
   protected readonly statusFilters = CUSTOMER_STATUS_FILTERS;
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly customerTypes = CUSTOMER_TYPES;
