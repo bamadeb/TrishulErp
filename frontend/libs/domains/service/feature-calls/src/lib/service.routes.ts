@@ -1,6 +1,8 @@
 import { Route } from '@angular/router';
 import { permissionGuard } from '@trishul/core-auth';
 import {
+  MACHINE_MANAGE_PERMISSION,
+  MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
   SERVICE_CALL_CREATE_PERMISSION,
   SERVICE_CALL_IMPORT_PERMISSION,
@@ -12,6 +14,8 @@ import { BydImportPage } from './byd-import.page';
 import { CallDetailPage } from './call-detail.page';
 import { CallFormPage } from './call-form.page';
 import { CallListPage } from './call-list.page';
+import { MachineFormPage } from './machine-form.page';
+import { MachineListPage } from './machine-list.page';
 import { MyTripsPage } from './my-trips.page';
 import { TripHistoryPage } from './trip-history.page';
 
@@ -35,6 +39,24 @@ export const serviceRoutes: Route[] = [
     title: 'Import service calls',
     canActivate: [permissionGuard(SERVICE_CALL_IMPORT_PERMISSION)],
     component: BydImportPage,
+  },
+  {
+    path: 'machines',
+    title: 'Machines',
+    canActivate: [permissionGuard(...MACHINE_VIEW_PERMISSIONS)],
+    component: MachineListPage,
+  },
+  {
+    path: 'machines/new',
+    title: 'Add machine',
+    canActivate: [permissionGuard(MACHINE_MANAGE_PERMISSION)],
+    component: MachineFormPage,
+  },
+  {
+    path: 'machines/:machineId',
+    title: 'Machine',
+    canActivate: [permissionGuard(...MACHINE_VIEW_PERMISSIONS)],
+    component: MachineFormPage,
   },
   {
     path: 'my-trips',

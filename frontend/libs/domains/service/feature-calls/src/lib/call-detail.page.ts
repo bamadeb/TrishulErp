@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import {
   FormControl,
+  FormGroup,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
@@ -62,6 +63,7 @@ const PRIORITY_SEVERITY: Record<CallPriority, StatusSeverity> = {
   selector: 'trishul-call-detail-page',
   imports: [
     DatePipe,
+    DecimalPipe,
     RouterLink,
     ReactiveFormsModule,
     MatButton,
@@ -93,12 +95,12 @@ export class CallDetailPage {
   protected readonly statusSeverity = STATUS_SEVERITY;
   protected readonly prioritySeverity = PRIORITY_SEVERITY;
 
-  protected readonly newStatus = new FormControl<CallStatus | null>(null, {
-    validators: Validators.required,
-  });
-  protected readonly remarks = new FormControl('', {
-    nonNullable: true,
-    validators: Validators.maxLength(500),
+  protected readonly statusForm = new FormGroup({
+    status: new FormControl<CallStatus | null>(null, Validators.required),
+    remarks: new FormControl('', {
+      nonNullable: true,
+      validators: Validators.maxLength(500),
+    }),
   });
 
   constructor() {
@@ -112,13 +114,13 @@ export class CallDetailPage {
 
   protected changeStatus(): void {
     const call = this.call();
-    const status = this.newStatus.value;
-    if (!call || !status || this.remarks.invalid || this.saving()) return;
+    const { status, remarks } = this.statusForm.getRawValue();
+    if (!call || !status || this.statusForm.invalid || this.saving()) return;
     this.saving.set(true);
     this.api
       .changeStatus(call.id, call.rowVersion, {
         status,
-        remarks: this.remarks.value.trim() || null,
+        remarks: remarks.trim() || null,
       })
       .pipe(
         finalize(() => this.saving.set(false)),
@@ -129,8 +131,7 @@ export class CallDetailPage {
       )
       .subscribe((updated) => {
         this.call.set(updated);
-        this.newStatus.reset();
-        this.remarks.reset('');
+        this.statusForm.reset();
         this.loadHistory(call.id);
         this.snackBar.open(`Status changed to ${updated.currentStatus}`, 'OK', {
           duration: 4000,

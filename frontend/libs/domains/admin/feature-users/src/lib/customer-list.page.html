@@ -109,6 +109,27 @@
         </td>
       </ng-container>
 
+      <ng-container matColumnDef="machines">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="machineCount">
+          Machines
+        </th>
+        <td mat-cell *matCellDef="let c">
+          @if (canSeeMachines && c.machineCount > 0) {
+          <a
+            class="count-link"
+            routerLink="/service/machines"
+            [queryParams]="{ customerId: c.id }"
+            [attr.aria-label]="'Machines of ' + c.name"
+          >
+            <mat-icon inline>precision_manufacturing</mat-icon>
+            {{ c.machineCount }}
+          </a>
+          } @else {
+          <span [class.muted]="c.machineCount === 0">{{ c.machineCount }}</span>
+          }
+        </td>
+      </ng-container>
+
       <ng-container matColumnDef="status">
         <th mat-header-cell *matHeaderCellDef>Status</th>
         <td mat-cell *matCellDef="let c">

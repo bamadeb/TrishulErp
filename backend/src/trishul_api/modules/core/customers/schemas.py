@@ -48,6 +48,7 @@ class CustomerListItem(ApiModel):
     is_asc_customer: bool
     is_active: bool
     created_at: UtcDateTime
+    machine_count: int = Field(0, description="Active machines registered to this customer.")
 
 
 class CustomerDetail(CustomerListItem):

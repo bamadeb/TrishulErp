@@ -118,6 +118,13 @@ class ServiceCallRepository:
                 ServiceCall.machine_unit_id,
                 MachineUnit.serial_number.label("machine_serial_no"),
                 MachineModel.model_name.label("machine_model"),
+                MachineModel.model_code.label("machine_model_code"),
+                MachineModel.product_line.label("machine_product_line"),
+                MachineUnit.engine_number.label("machine_engine_number"),
+                MachineUnit.registration_number.label("machine_registration_number"),
+                MachineUnit.warranty_end_date.label("machine_warranty_end_date"),
+                MachineUnit.current_hmr.label("machine_hmr"),
+                MachineUnit.is_active.label("machine_is_active"),
                 ServiceCall.complaint_description,
                 call_type.label.label("call_type"),
                 call_source.label.label("call_source"),
@@ -158,7 +165,8 @@ class ServiceCallRepository:
 
     # builtins.list: this class has a method named `list`, which otherwise shadows the builtin here.
     def machine_options(self, scope: RequestScope, query: MachineOptionQuery) -> builtins.list[MachineUnitOption]:
-        """Machines to pick for a new call, narrowed to the selected brand and (optionally) customer."""
+        """Active machines to pick for a new call, narrowed to the selected brand and (optionally) the
+        customer who owns them. Deactivated machines are never offered."""
         statement = (
             select(
                 MachineUnit.id,

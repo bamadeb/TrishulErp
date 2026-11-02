@@ -21,6 +21,8 @@ TABLES = [
     "core.customer",
     "core.company",
     "core.state",
+    "core.machine_model",
+    "core.machine_unit",
     "core.audit_log",
 ]
 COMPANY = 1
@@ -139,6 +141,28 @@ def test_list_filters_by_status_type_and_search(client: TestClient) -> None:
     found = client.get(URL, params={"search": "ravi"}).json()["items"]
     assert [c["name"] for c in found] == ["Ravi Kumar"]
     assert client.get(URL, params={"status": "inactive"}).json()["total"] == 0
+
+
+def test_machine_count_counts_active_machines_only(client: TestClient, db: Engine) -> None:
+    insert_row(db, "core.machine_model", id=1, model_code="EX200", model_name="EX200", principal_id=1)
+    for unit_id, active in ((1, True), (2, True), (3, False)):
+        insert_row(
+            db,
+            "core.machine_unit",
+            id=unit_id,
+            serial_number=f"SN-{unit_id}",
+            model_id=1,
+            principal_id=1,
+            customer_id=BLUE,
+            status="Sold",
+            is_active=active,
+        )
+    create(client)  # a customer with no machines
+    counts = {c["code"]: c["machineCount"] for c in client.get(URL).json()["items"]}
+    assert counts == {"C010": 2, "C100": 0}
+    assert client.get(f"{URL}/{BLUE}").json()["machineCount"] == 2
+    by_count = client.get(URL, params={"sort": "-machineCount"}).json()["items"]
+    assert by_count[0]["code"] == "C010"
 
 
 def test_get_one_and_unknown_is_404(client: TestClient) -> None:

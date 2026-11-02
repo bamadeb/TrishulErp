@@ -5,6 +5,7 @@ import {
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
 import {
+  MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
   SERVICE_CALL_IMPORT_PERMISSION,
   SERVICE_CALL_VIEW_PERMISSIONS,
@@ -22,6 +23,12 @@ export const navItems: NavItem[] = [
         icon: 'support_agent',
         route: '/service/calls',
         permissions: [...SERVICE_CALL_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Machines',
+        icon: 'precision_manufacturing',
+        route: '/service/machines',
+        permissions: [...MACHINE_VIEW_PERMISSIONS],
       },
       {
         label: 'My trips',

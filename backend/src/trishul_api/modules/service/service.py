@@ -46,7 +46,7 @@ class ServiceCallService:
     def create(self, scope: RequestScope, data: ServiceCallCreate) -> ServiceCallListItem:
         branch = self._resolve_branch(data.branch_id, scope)
         principal = self._resolve_principal(data.principal_id, scope)
-        self._check_references(data, branch.company_id)
+        self._check_references(data, branch.company_id, principal.id)
 
         call = ServiceCall(
             company_id=branch.company_id,
@@ -217,7 +217,7 @@ class ServiceCallService:
             raise ApiError("That brand doesn't exist.", errors={"principalId": [f"Unknown brand {chosen}"]})
         return principal
 
-    def _check_references(self, data: ServiceCallCreate, company_id: int) -> None:
+    def _check_references(self, data: ServiceCallCreate, company_id: int, principal_id: int) -> None:
         errors: dict[str, list[str]] = {}
         customer_company = self._db.scalars(
             select(Customer.company_id).where(Customer.id == data.customer_id, Customer.is_active).limit(1)
@@ -226,14 +226,19 @@ class ServiceCallService:
             errors["customerId"] = [f"Unknown or inactive customer {data.customer_id}"]
         elif customer_company != company_id:
             errors["customerId"] = ["That customer belongs to another company."]
-        if (
-            data.machine_unit_id is not None
-            and self._db.scalars(
-                select(MachineUnit.id).where(MachineUnit.id == data.machine_unit_id, MachineUnit.is_active).limit(1)
+        if data.machine_unit_id is not None:
+            # A deactivated machine can't be picked for a new call, and the machine must be the customer's own.
+            machine = self._db.execute(
+                select(MachineUnit.customer_id, MachineUnit.principal_id)
+                .where(MachineUnit.id == data.machine_unit_id, MachineUnit.is_active)
+                .limit(1)
             ).first()
-            is None
-        ):
-            errors["machineUnitId"] = [f"Unknown or inactive machine {data.machine_unit_id}"]
+            if machine is None:
+                errors["machineUnitId"] = [f"Unknown or inactive machine {data.machine_unit_id}"]
+            elif machine.customer_id != data.customer_id:
+                errors["machineUnitId"] = ["That machine is not registered to this customer."]
+            elif machine.principal_id != principal_id:
+                errors["machineUnitId"] = ["That machine is of another brand."]
         if not self._lookup_of_type(data.call_type_lookup_id, "CALL_TYPE"):
             errors["callTypeLookupId"] = ["Not a valid call type."]
         if not self._lookup_of_type(data.call_source_lookup_id, "CALL_SOURCE"):

@@ -1,0 +1,172 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add machine' : (machine()?.serialNumber ?? 'Machine')"
+  [subtitle]="
+    isNew()
+      ? 'Register a customer machine'
+      : (machine()?.modelName ?? '') + ' · ' + (machine()?.principalCode ?? '')
+  "
+>
+  <a mat-button routerLink="/service/machines">
+    <mat-icon>arrow_back</mat-icon>
+    All machines
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Machine</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Serial / chassis number</mat-label>
+          <input matInput formControlName="serialNumber" autocomplete="off" />
+          <mat-error>A unique serial number is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Model</mat-label>
+          <mat-select formControlName="modelId">
+            @for (m of models(); track m.id) {
+            <mat-option [value]="m.id">
+              {{ m.modelName }} <span class="muted">· {{ m.productLine }}</span>
+            </mat-option>
+            }
+          </mat-select>
+          <mat-hint>Models of the selected brand.</mat-hint>
+          <mat-error>Choose a model.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            @for (s of statuses; track s) {
+            <mat-option [value]="s">{{ s }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Engine number</mat-label>
+          <input matInput formControlName="engineNumber" autocomplete="off" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Registration number</mat-label>
+          <input
+            matInput
+            formControlName="registrationNumber"
+            autocomplete="off"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Year of manufacture</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="yearOfManufacture"
+            min="1950"
+            max="2100"
+          />
+          <mat-error>Enter a year between 1950 and 2100.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>OEM machine ID</mat-label>
+          <input
+            matInput
+            formControlName="oemRegisteredProductId"
+            autocomplete="off"
+          />
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Customer</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Owner</mat-label>
+          <mat-icon matPrefix>person_search</mat-icon>
+          <input
+            matInput
+            formControlName="customer"
+            [matAutocomplete]="customerAuto"
+            placeholder="Search a customer by code or name"
+          />
+          <mat-autocomplete
+            #customerAuto="matAutocomplete"
+            [displayWith]="customerText"
+          >
+            @for (c of customerOptions(); track c.id) {
+            <mat-option [value]="c">{{ customerLabel(c) }}</mat-option>
+            }
+          </mat-autocomplete>
+          <mat-hint>Service calls for this machine must be logged for this customer.</mat-hint>
+          <mat-error>Pick the owner from the customer list.</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Sale &amp; warranty</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Sale date</mat-label>
+          <input matInput type="date" formControlName="saleDate" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Commissioning date</mat-label>
+          <input matInput type="date" formControlName="commissioningDate" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Warranty from</mat-label>
+          <input matInput type="date" formControlName="warrantyStartDate" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Warranty till</mat-label>
+          <input matInput type="date" formControlName="warrantyEndDate" />
+        </mat-form-field>
+      </div>
+    </section>
+
+    @if (canManage) {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add machine' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/service/machines">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (machine(); as current) {
+  <aside class="card side" aria-label="Machine status">
+    <h2>Status</h2>
+    <div class="status-line">
+      <trishul-status-badge
+        [status]="current.isActive ? 'Active' : 'Inactive'"
+        [severities]="activeSeverity"
+      />
+    </div>
+    @if (!current.isActive) {
+    <p class="muted">Not offered for new service calls.</p>
+    }
+    @if (canManage) { @if (current.isActive) {
+    <button mat-stroked-button type="button" class="danger" (click)="deactivate()">
+      <mat-icon>block</mat-icon>
+      Deactivate
+    </button>
+    } @else {
+    <button mat-stroked-button type="button" (click)="activate()">
+      <mat-icon>check_circle</mat-icon>
+      Activate
+    </button>
+    } }
+  </aside>
+  }
+</div>
