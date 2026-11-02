@@ -50,6 +50,7 @@ class DeviceService:
         device.manufacturer = data.manufacturer or device.manufacturer
         device.model = data.model or device.model
         device.build_number = data.build_number or device.build_number
+        device.os_version = data.os_version or device.os_version
         device.last_seen_at = now
         device.is_active = True
         self._db.commit()

@@ -9872,6 +9872,18 @@
               }
             ],
             "title": "Buildnumber"
+          },
+          "osVersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Osversion"
           }
         },
         "additionalProperties": false,
@@ -11920,6 +11932,17 @@
             ],
             "title": "Buildnumber"
           },
+          "osVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Osversion"
+          },
           "lastSeenAt": {
             "anyOf": [
               {
@@ -11951,6 +11974,7 @@
           "manufacturer",
           "model",
           "buildNumber",
+          "osVersion",
           "lastSeenAt",
           "isActive",
           "rowVersion"

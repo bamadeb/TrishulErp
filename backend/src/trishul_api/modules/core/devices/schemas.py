@@ -17,6 +17,7 @@ class RegisterDeviceInput(InputModel):
     manufacturer: str | None = Field(None, max_length=50)
     model: str | None = Field(None, max_length=100)
     build_number: str | None = Field(None, max_length=50)
+    os_version: str | None = Field(None, max_length=30)
 
 
 class UserDeviceOut(ApiModel):
@@ -28,6 +29,7 @@ class UserDeviceOut(ApiModel):
     manufacturer: str | None
     model: str | None
     build_number: str | None
+    os_version: str | None
     last_seen_at: UtcDateTime | None
     is_active: bool
     row_version: RowVersion

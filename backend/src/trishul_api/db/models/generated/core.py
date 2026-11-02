@@ -950,6 +950,7 @@ class UserDevice(Base):
     manufacturer: Mapped[str | None] = mapped_column(sa.NVARCHAR(50), doc="Device manufacturer")
     model: Mapped[str | None] = mapped_column(sa.NVARCHAR(100), doc="Device model")
     build_number: Mapped[str | None] = mapped_column(sa.NVARCHAR(50), doc="Device build number")
+    os_version: Mapped[str | None] = mapped_column(sa.NVARCHAR(30), doc="Device OS version")
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
