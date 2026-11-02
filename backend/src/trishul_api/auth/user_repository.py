@@ -72,9 +72,11 @@ class UserRepository:
                 .distinct()
                 .join(RolePermission, RolePermission.permission_id == Permission.id)
                 .join(UserRole, UserRole.role_id == RolePermission.role_id)
+                .join(Role, Role.id == UserRole.role_id)
                 .where(
                     UserRole.app_user_id == user_id,
                     UserRole.is_active,
+                    Role.is_active,  # a deactivated role grants nothing
                     RolePermission.is_active,
                     Permission.is_active,
                 )

@@ -7,7 +7,10 @@
  */
 export interface RegisterDeviceInput {
   appVersion?: (string | null);
+  buildNumber?: (string | null);
   deviceId: string;
+  manufacturer?: (string | null);
+  model?: (string | null);
   platform: 'Android' | 'iOS' | 'Web';
   pushToken?: (string | null);
 }

@@ -78,6 +78,11 @@ export class LoginPage {
   protected readonly sessionEnded = computed(
     () => !!this.expired() && this.view() === 'sign-in' && !this.error(),
   );
+  protected readonly sessionEndedMessage = computed(() =>
+    this.expired() === 'idle'
+      ? 'You were signed out because there was no activity for a while. Sign in again to continue.'
+      : 'Your session has ended. Sign in again to continue.',
+  );
 
   protected readonly signInForm = this.fb.group({
     username: ['', Validators.required],

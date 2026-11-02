@@ -22,7 +22,6 @@ from trishul_api.modules.core.users.schemas import (
     EmployeeOption,
     EmployeeOptionQuery,
     RoleGrant,
-    RoleOption,
     UserListItem,
     UserQuery,
 )
@@ -177,12 +176,6 @@ class UserRepository:
         return list(
             self._session.scalars(select(UserPrincipalAccess).where(UserPrincipalAccess.app_user_id == user_id))
         )
-
-    def roles(self) -> list[RoleOption]:
-        rows = self._session.execute(
-            select(Role.id, Role.code, Role.name, Role.description).where(Role.is_active).order_by(Role.name)
-        ).mappings()
-        return [RoleOption.model_validate(row) for row in rows]
 
     # ------------------------------------------------------------------ checks
 

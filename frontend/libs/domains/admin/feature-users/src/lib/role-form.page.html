@@ -1,0 +1,178 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add role' : (role()?.name ?? 'Role')"
+  [subtitle]="isNew() ? 'Create a role and choose what it may do' : (role()?.code ?? '')"
+>
+  <a mat-button routerLink="/admin/roles">
+    <mat-icon>arrow_back</mat-icon>
+    All roles
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Role</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Role code</mat-label>
+          <input
+            matInput
+            formControlName="code"
+            autocomplete="off"
+            placeholder="AREA_MANAGER"
+          />
+          @if (isNew()) {
+          <mat-hint>Capitals, digits and _. Can't be changed later.</mat-hint>
+          }
+          <mat-error
+            >Use capital letters, digits and _ (e.g. AREA_MANAGER).</mat-error
+          >
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Role name</mat-label>
+          <input matInput formControlName="name" />
+          <mat-error>Name is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Description</mat-label>
+          <textarea matInput rows="2" formControlName="description"></textarea>
+          <mat-error>Keep it under 300 characters.</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <div class="permissions-head">
+        <div>
+          <h2>Permissions</h2>
+          <p class="lead">
+            {{ selected().size }} of {{ totalPermissions() }} selected. Users
+            holding this role may do everything ticked here.
+          </p>
+        </div>
+        <mat-form-field
+          class="filter"
+          appearance="outline"
+          subscriptSizing="dynamic"
+        >
+          <mat-icon matPrefix>search</mat-icon>
+          <input
+            matInput
+            type="search"
+            placeholder="Filter permissions"
+            aria-label="Filter permissions"
+            [value]="filter()"
+            (input)="filter.set($any($event.target).value)"
+          />
+        </mat-form-field>
+      </div>
+
+      @for (group of groups(); track group.module) {
+      <fieldset class="group">
+        <legend>
+          <mat-checkbox
+            [checked]="selectedIn(group) === group.permissions.length"
+            [indeterminate]="
+              selectedIn(group) > 0 &&
+              selectedIn(group) < group.permissions.length
+            "
+            [disabled]="!canManage"
+            (change)="toggleGroup(group, $event.checked)"
+          >
+            <span class="module">{{ group.module }}</span>
+          </mat-checkbox>
+          <span class="count"
+            >{{ selectedIn(group) }} / {{ group.permissions.length }}</span
+          >
+        </legend>
+        <ul>
+          @for (p of group.permissions; track p.code) {
+          <li>
+            <mat-checkbox
+              [checked]="selected().has(p.code)"
+              [disabled]="!canManage || isLocked(p.code)"
+              (change)="toggle(p.code, $event.checked)"
+            >
+              <span class="permission">
+                <span>{{ p.description || p.code }}</span>
+                <code>{{ p.code }}</code>
+                @if (isLocked(p.code)) {
+                <span class="locked">The Administrator role always keeps this.</span>
+                }
+              </span>
+            </mat-checkbox>
+          </li>
+          }
+        </ul>
+      </fieldset>
+      } @empty {
+      <p class="lead">No permissions match "{{ filter() }}".</p>
+      }
+    </section>
+
+    @if (canManage) {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add role' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/admin/roles">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (role(); as current) {
+  <aside class="card side" aria-label="Role status">
+    <h2>Status</h2>
+    <div class="status-line">
+      <trishul-status-badge
+        [status]="current.isActive ? 'Active' : 'Inactive'"
+        [severities]="activeSeverity"
+      />
+      @if (current.isSystem) {
+      <span class="muted">Built-in role</span>
+      }
+    </div>
+    <p class="muted">
+      @if (canSeeUsers && current.userCount) {
+      <a routerLink="/admin/users" [queryParams]="{ roleId: current.id }"
+        >{{ current.userCount }} active
+        {{ current.userCount === 1 ? 'user' : 'users' }}</a
+      >
+      hold this role. } @else { {{ current.userCount }} active users hold this
+      role. }
+    </p>
+    @if (current.isSystem) {
+    <p class="muted">
+      Built-in roles are used by the system (for example, to decide which
+      branches and brands a user sees), so they can't be deactivated. You can
+      still change their permissions.
+    </p>
+    } @else if (canManage) { @if (current.isActive) {
+    <button
+      mat-stroked-button
+      type="button"
+      class="danger"
+      (click)="deactivate()"
+    >
+      <mat-icon>block</mat-icon>
+      Deactivate
+    </button>
+    } @else {
+    <button mat-stroked-button type="button" (click)="activate()">
+      <mat-icon>check_circle</mat-icon>
+      Activate
+    </button>
+    } }
+  </aside>
+  }
+</div>

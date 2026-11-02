@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  input,
+  untracked,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatChip, MatChipSet } from '@angular/material/chips';
@@ -103,9 +110,16 @@ export class UserListPage {
     { initialValue: [] },
   );
 
+  /** ?roleId= from the role screens: start filtered to that role's users. */
+  readonly roleId = input<string>();
+
   private readonly search$ = new Subject<string>();
 
   constructor() {
+    effect(() => {
+      const roleId = Number(this.roleId());
+      if (roleId) untracked(() => this.store.updateQuery({ roleId }));
+    });
     this.search$
       .pipe(debounceTime(350), distinctUntilChanged(), takeUntilDestroyed())
       .subscribe((search) => this.store.updateQuery({ search }));

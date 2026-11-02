@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthError, AuthSession, SignInStep } from './auth-session';
 import { AuthStore } from './auth.store';
+import { clearLastActivity, recordActivity } from './idle/last-activity';
 
 /**
  * Sign-in flows for the app: the identity provider (AuthSession), then the ERP user (AuthStore),
@@ -56,16 +57,21 @@ export class AuthService {
     await this.router.navigateByUrl('/login');
   }
 
-  /** The API rejected the session (401): sign in again, then return to returnUrl. */
-  async expire(returnUrl: string): Promise<void> {
+  /**
+   * The API rejected the session (401), or the user was idle too long: sign in again, then
+   * return to returnUrl.
+   */
+  async expire(returnUrl: string, reason: 'session' | 'idle' = 'session'): Promise<void> {
     await this.discard();
     await this.router.navigate(['/login'], {
-      queryParams: { returnUrl, expired: 1 },
+      queryParams: { returnUrl, expired: reason === 'idle' ? 'idle' : 1 },
     });
   }
 
   private async finish(step: SignInStep): Promise<SignInStep> {
     if (step !== 'done') return step;
+    // A fresh sign-in starts the idle clock, whatever an earlier session left in storage.
+    recordActivity();
     try {
       await this.store.loadCurrentUser();
     } catch (error) {
@@ -80,6 +86,7 @@ export class AuthService {
       await this.session.signOut();
     } finally {
       this.store.clear();
+      clearLastActivity();
     }
   }
 }

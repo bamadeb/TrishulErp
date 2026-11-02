@@ -4,5 +4,6 @@ export * from './lib/auth.service';
 export * from './lib/auth.store';
 export * from './lib/auth.guards';
 export * from './lib/has-permission.directive';
+export * from './lib/idle/idle-timeout';
 export * from './lib/login/login.page';
 export * from './lib/provide-auth';

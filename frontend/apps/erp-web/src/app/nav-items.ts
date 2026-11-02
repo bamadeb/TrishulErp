@@ -2,6 +2,7 @@ import {
   ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_VIEW_PERMISSIONS,
   EMPLOYEE_VIEW_PERMISSIONS,
+  ROLE_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
@@ -72,6 +73,12 @@ export const navItems: NavItem[] = [
         icon: 'manage_accounts',
         route: '/admin/users',
         permissions: [...USER_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Roles & permissions',
+        icon: 'admin_panel_settings',
+        route: '/admin/roles',
+        permissions: [...ROLE_VIEW_PERMISSIONS],
       },
       {
         label: 'Alert rules',

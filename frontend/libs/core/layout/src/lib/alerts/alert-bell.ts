@@ -59,7 +59,7 @@ import {
         >
       </button>
       <mat-menu #menu="matMenu" class="alert-menu" xPosition="before">
-        <div class="head" (click)="$event.stopPropagation()">
+        <div class="head">
           <span>Alerts</span>
           <span class="muted">{{ inbox.summary()?.open ?? 0 }} open</span>
         </div>

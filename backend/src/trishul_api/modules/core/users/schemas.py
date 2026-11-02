@@ -90,13 +90,6 @@ class PasswordResetResult(ApiModel):
     sign_in_status: SignInStatus
 
 
-class RoleOption(ApiModel):
-    id: int
-    code: str
-    name: str
-    description: str | None
-
-
 class EmployeeOptionQuery(ApiModel):
     search: str | None = Field(None, max_length=100, description="Code, name, mobile or email.")
     limit: int = Field(20, ge=1, le=50)

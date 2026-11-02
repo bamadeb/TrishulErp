@@ -15,7 +15,6 @@ from trishul_api.modules.core.users.schemas import (
     EmployeeOptionQuery,
     PasswordResetRequest,
     PasswordResetResult,
-    RoleOption,
     UserCreate,
     UserCreated,
     UserDetail,
@@ -127,8 +126,3 @@ def reset_user_password(
     user_id: UserId, data: PasswordResetRequest, actor: CurrentUserDep, users: Users
 ) -> PasswordResetResult:
     return users.reset_password(actor, user_id, data.delivery)
-
-
-@router.get("/roles", summary="Roles that can be granted", dependencies=[CAN_VIEW])
-def list_roles(repo: UserRepo) -> list[RoleOption]:
-    return repo.roles()

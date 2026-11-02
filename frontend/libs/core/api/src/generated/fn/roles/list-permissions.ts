@@ -7,13 +7,13 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { RoleOption } from '../../models/role-option';
+import { PermissionItem } from '../../models/permission-item';
 
-export interface ListRoles$Params {
+export interface ListPermissions$Params {
 }
 
-export function listRoles(http: HttpClient, rootUrl: string, params?: ListRoles$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<RoleOption>>> {
-  const rb = new RequestBuilder(rootUrl, listRoles.PATH, 'get');
+export function listPermissions(http: HttpClient, rootUrl: string, params?: ListPermissions$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<PermissionItem>>> {
+  const rb = new RequestBuilder(rootUrl, listPermissions.PATH, 'get');
   if (params) {
   }
 
@@ -22,9 +22,9 @@ export function listRoles(http: HttpClient, rootUrl: string, params?: ListRoles$
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<Array<RoleOption>>;
+      return r as StrictHttpResponse<Array<PermissionItem>>;
     })
   );
 }
 
-listRoles.PATH = '/core/roles';
+listPermissions.PATH = '/core/permissions';

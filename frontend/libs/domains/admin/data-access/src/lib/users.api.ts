@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import {
   ApiClient,
   PageUserListItem,
+  RoleListItem,
   activateUser,
   createUser,
   deactivateUser,
@@ -18,7 +19,6 @@ import {
   EmployeeOption,
   PasswordDelivery,
   PasswordResetResult,
-  RoleOption,
   UserCreate,
   UserCreated,
   UserDetail,
@@ -71,7 +71,8 @@ export class UsersApi {
     return this.api.call(resetUserPassword, { userId, body: { delivery } });
   }
 
-  roles(): Observable<RoleOption[]> {
+  /** Active roles, for the role picker. */
+  roles(): Observable<RoleListItem[]> {
     return this.api.call(listRoles);
   }
 

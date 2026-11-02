@@ -3,10 +3,13 @@
 
 export interface UserDeviceOut {
   appVersion: (string | null);
+  buildNumber: (string | null);
   deviceId: string;
   id: number;
   isActive: boolean;
   lastSeenAt: (string | null);
+  manufacturer: (string | null);
+  model: (string | null);
   platform: 'Android' | 'iOS' | 'Web';
   pushToken: (string | null);
   rowVersion: string;

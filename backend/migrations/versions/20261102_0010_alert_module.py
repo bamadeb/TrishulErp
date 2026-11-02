@@ -18,14 +18,14 @@ Adds:
 SLA due times are not configured here: they come from svc.sla_rule (see modules/service/sla.py).
 
 Revision ID: 0010_alert_module
-Revises: 0009_machine_management
+Revises: 0009_user_device_hw
 Created: 2026-11-02
 """
 
 from alembic import op
 
 revision = "0010_alert_module"
-down_revision = "0009_machine_management"
+down_revision = "0009_user_device_hw"
 branch_labels = None
 depends_on = None
 
@@ -191,17 +191,17 @@ def upgrade() -> None:
         FROM (SELECT TOP 1 [id] FROM [core].[company] ORDER BY [id]) c
         CROSS JOIN (VALUES
             (N'CALL_UNASSIGNED', N'Service call not assigned', N'A call is still not assigned to an engineer.',
-             N'SVC_CALL_UNASSIGNED', N'Warning', N'{"afterMinutes":30}', N'After resolution'),
+             N'SVC_CALL_UNASSIGNED', N'Warning', N'{"afterMinutes": 30}', N'After resolution'),
             (N'SLA_DUE', N'SLA due soon or breached', N'Uses the SLA due time from the SLA rules (svc.sla_rule).',
-             N'SVC_SLA_DUE', N'Critical', N'{"stages":["Due soon","Breached"]}', N'Never'),
+             N'SVC_SLA_DUE', N'Critical', N'{"stages": ["Due soon", "Breached"]}', N'Never'),
             (N'STATUS_STALE', N'Call status unchanged', N'A call has stayed in the same status too long.',
-             N'SVC_STATUS_STALE', N'Warning', N'{"afterHours":24}', N'After resolution'),
+             N'SVC_STATUS_STALE', N'Warning', N'{"afterHours": 24}', N'After resolution'),
             (N'AWAITING_PARTS', N'Call waiting for parts', N'A call has been waiting for parts too long.',
-             N'SVC_AWAITING_PARTS', N'Warning', N'{"afterDays":3}', N'After resolution'),
+             N'SVC_AWAITING_PARTS', N'Warning', N'{"afterDays": 3}', N'After resolution'),
             (N'CALL_REOPENED', N'Service call reopened', N'Raised every time a call is reopened.',
              N'SVC_CALL_REOPENED', N'Critical', N'{}', N'Never'),
             (N'COVERAGE_EXPIRY', N'Warranty or AMC ending', N'A machine''s warranty or AMC ends soon.',
-             N'MACHINE_COVERAGE_EXPIRY', N'Info', N'{"daysBefore":30,"coverage":["Warranty","AMC"]}', N'Never')
+             N'MACHINE_COVERAGE_EXPIRY', N'Info', N'{"daysBefore": 30, "coverage": ["Warranty", "AMC"]}', N'Never')
         ) v([code], [name], [description], [alert_type], [severity], [parameters], [reraise_policy])
         WHERE NOT EXISTS (SELECT 1 FROM [core].[alert_rule] ar WHERE ar.[code] = v.[code]);
         INSERT INTO [core].[alert_rule_recipient] ([alert_rule_id], [recipient_type], [role_id])

@@ -6,6 +6,8 @@ import {
   CUSTOMER_VIEW_PERMISSIONS,
   EMPLOYEE_MANAGE_PERMISSION,
   EMPLOYEE_VIEW_PERMISSIONS,
+  ROLE_MANAGE_PERMISSION,
+  ROLE_VIEW_PERMISSIONS,
   USER_MANAGE_PERMISSION,
   USER_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
@@ -16,6 +18,8 @@ import { CustomerFormPage } from './customer-form.page';
 import { CustomerListPage } from './customer-list.page';
 import { EmployeeFormPage } from './employee-form.page';
 import { EmployeeListPage } from './employee-list.page';
+import { RoleFormPage } from './role-form.page';
+import { RoleListPage } from './role-list.page';
 import { UserFormPage } from './user-form.page';
 import { UserListPage } from './user-list.page';
 
@@ -75,6 +79,24 @@ export const adminRoutes: Route[] = [
     title: 'Customer',
     canActivate: [permissionGuard(...CUSTOMER_VIEW_PERMISSIONS)],
     component: CustomerFormPage,
+  },
+  {
+    path: 'roles',
+    title: 'Roles',
+    canActivate: [permissionGuard(...ROLE_VIEW_PERMISSIONS)],
+    component: RoleListPage,
+  },
+  {
+    path: 'roles/new',
+    title: 'Add role',
+    canActivate: [permissionGuard(ROLE_MANAGE_PERMISSION)],
+    component: RoleFormPage,
+  },
+  {
+    path: 'roles/:roleId',
+    title: 'Role',
+    canActivate: [permissionGuard(...ROLE_VIEW_PERMISSIONS)],
+    component: RoleFormPage,
   },
   {
     path: 'alert-rules',

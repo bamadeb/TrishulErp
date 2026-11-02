@@ -5,7 +5,6 @@ export type {
   EmployeeOption,
   PasswordResetResult,
   RoleGrant,
-  RoleOption,
   UserCreate,
   UserCreated,
   UserDetail,

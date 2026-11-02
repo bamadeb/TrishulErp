@@ -27,6 +27,8 @@ TABLES = [
     "core.app_user",
     "core.role",
     "core.user_role",
+    "core.permission",
+    "core.role_permission",
     "core.branch",
     "core.principal",
     "core.user_principal_access",

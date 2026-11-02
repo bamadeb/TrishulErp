@@ -3,7 +3,7 @@ import {
   EmployeeOption,
   PageUserListItem,
   RoleGrant,
-  RoleOption,
+  RoleListItem,
   UserCreate,
   UserCreated,
   UserDetail,
@@ -13,17 +13,23 @@ import { MockRoute } from '@trishul/core-http';
 
 /** In-memory /core/users, /core/roles and the user form's employee picker, for mock mode and e2e. */
 
-const roles: RoleOption[] = [
-  { id: 1, code: 'ADMIN', name: 'Administrator', description: null },
-  { id: 2, code: 'BACK_OFFICE', name: 'Back office', description: null },
-  { id: 3, code: 'TEAM_LEAD', name: 'Service Team Lead', description: null },
-  {
-    id: 4,
-    code: 'SERVICE_ENGINEER',
-    name: 'Service engineer',
-    description: null,
-  },
-];
+const roles: RoleListItem[] = (
+  [
+    [1, 'ADMIN', 'Administrator'],
+    [2, 'BACK_OFFICE', 'Back office'],
+    [3, 'TEAM_LEAD', 'Service Team Lead'],
+    [4, 'SERVICE_ENGINEER', 'Service engineer'],
+  ] as const
+).map(([id, code, name]) => ({
+  id,
+  code,
+  name,
+  description: null,
+  isSystem: true,
+  isActive: true,
+  userCount: 0,
+  permissionCount: 0,
+}));
 const branchNames: Record<number, string> = {
   1: 'Pune',
   2: 'Mumbai',

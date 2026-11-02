@@ -1,0 +1,84 @@
+// Layout, card and field styles come from customer-form.page.scss (see styleUrls).
+
+.lead {
+  margin: -0.25rem 0 0.75rem;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.muted {
+  margin: 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.permissions-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+
+  .lead {
+    margin: 0;
+  }
+
+  .filter {
+    flex: 0 1 18rem;
+  }
+}
+
+.group {
+  margin: 0 0 0.75rem;
+  padding: 0.25rem 0.75rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-small);
+
+  legend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.25rem;
+  }
+
+  .module {
+    font: var(--mat-sys-title-small);
+  }
+
+  .count {
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    gap: 0.25rem 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.permission {
+  display: flex;
+  flex-direction: column;
+  padding: 0.15rem 0;
+
+  code {
+    font-size: 0.75rem;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .locked {
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-tertiary);
+  }
+}
+
+@media (max-width: 600px) {
+  .group ul {
+    grid-template-columns: 1fr;
+  }
+}

@@ -10,3 +10,6 @@ export * from './lib/customer-list.store';
 export * from './lib/alert-rules.models';
 export * from './lib/alert-rules.api';
 export * from './lib/alert-rule-list.store';
+export * from './lib/roles.models';
+export * from './lib/roles.api';
+export * from './lib/role-list.store';

@@ -3,6 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   inject,
   signal,
@@ -27,7 +28,7 @@ import { MatToolbar } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
-import { AuthService, AuthStore } from '@trishul/core-auth';
+import { AuthService, AuthStore, IdleTimeout } from '@trishul/core-auth';
 import { AlertBell } from './alerts/alert-bell';
 import { NAV_ITEMS, NavItem } from './nav';
 
@@ -99,6 +100,11 @@ export class Shell {
 
   protected logout(): void {
     void this.authService.signOut();
+  }
+
+  constructor() {
+    // The shell is only shown to a signed-in user, so it owns the idle sign-out.
+    inject(DestroyRef).onDestroy(inject(IdleTimeout).start());
   }
 
   private filter(items: NavItem[]): NavItem[] {

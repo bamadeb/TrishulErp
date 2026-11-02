@@ -20,6 +20,8 @@ export interface AppConfig {
     userPoolId: string;
     /** Cognito app client id: public client, no secret, ALLOW_USER_SRP_AUTH + ALLOW_REFRESH_TOKEN_AUTH. */
     userPoolClientId: string;
+    /** Sign out after this many minutes with no mouse, keyboard or touch input. Default 30; 0 turns it off. */
+    idleTimeoutMinutes?: number;
   };
 }
 
