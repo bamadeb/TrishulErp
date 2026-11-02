@@ -16,6 +16,7 @@ from trishul_api.common.errors import STANDARD_ERROR_RESPONSES, install_error_ha
 from trishul_api.common.security import install_security_headers
 from trishul_api.config import Settings, get_settings
 from trishul_api.db import create_db_engine
+from trishul_api.modules.alerts.router import router as alerts_router
 from trishul_api.modules.core.customers.router import router as customers_router
 from trishul_api.modules.core.devices.router import router as devices_router
 from trishul_api.modules.core.employees.router import router as employees_router
@@ -33,6 +34,7 @@ V1_ROUTERS: list[APIRouter] = [
     users_router,
     employees_router,
     customers_router,
+    alerts_router,
     devices_router,
     service_router,
     machines_router,

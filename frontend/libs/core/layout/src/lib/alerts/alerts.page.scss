@@ -1,0 +1,142 @@
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+  }
+}
+
+.muted {
+  margin: 0.25rem 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.list {
+  overflow: hidden;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+}
+
+.progress {
+  height: 4px;
+}
+
+.alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.9rem 1rem;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  cursor: default;
+
+  &.unread {
+    background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+
+    .title {
+      font-weight: 700;
+    }
+  }
+}
+
+.sev {
+  margin-top: 0.1rem;
+}
+
+.sev-critical .sev {
+  color: var(--mat-sys-error);
+}
+
+.sev-warning .sev {
+  color: #b26a00;
+}
+
+.sev-info .sev {
+  color: var(--mat-sys-primary);
+}
+
+.body {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font: var(--mat-sys-title-small);
+}
+
+.status {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font: var(--mat-sys-label-small);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.status-open {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+.message,
+.meta {
+  margin: 0;
+}
+
+.message {
+  font: var(--mat-sys-body-medium);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.empty {
+  margin: 0;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+@media (max-width: 640px) {
+  .alert {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .actions {
+    grid-column: 2;
+  }
+}

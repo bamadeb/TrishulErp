@@ -28,6 +28,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
 import { AuthService, AuthStore } from '@trishul/core-auth';
+import { AlertBell } from './alerts/alert-bell';
 import { NAV_ITEMS, NavItem } from './nav';
 
 /** Application frame: top bar with branch / brand context, permission-aware side menu, page outlet. */
@@ -52,6 +53,7 @@ import { NAV_ITEMS, NavItem } from './nav';
     MatListItem,
     MatListItemIcon,
     MatListItemTitle,
+    AlertBell,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.html',

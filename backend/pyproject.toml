@@ -5,6 +5,7 @@ description = "Trishul ERP REST API (FastAPI, SQL Server on Amazon RDS)"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.20.1",
+    "apscheduler>=3.10,<4",
     "boto3>=1.43.119",
     "fastapi>=0.161.1",
     "openpyxl>=3.1.5",
@@ -19,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 trishul-api = "trishul_api:main"
+trishul-jobs = "trishul_api.jobs.runner:main"
 
 [build-system]
 requires = ["uv_build>=0.13.5,<0.14.0"]
@@ -72,4 +74,9 @@ disallow_untyped_calls = false
 [[tool.mypy.overrides]]
 # openpyxl ships no type information.
 module = "openpyxl.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# APScheduler 3.x ships no type information (the TrishulJobs runner).
+module = "apscheduler.*"
 ignore_missing_imports = true

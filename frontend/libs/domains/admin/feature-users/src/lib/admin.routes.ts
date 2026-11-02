@@ -1,5 +1,7 @@
 import { Route } from '@angular/router';
 import {
+  ALERT_RULE_MANAGE_PERMISSION,
+  ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_MANAGE_PERMISSION,
   CUSTOMER_VIEW_PERMISSIONS,
   EMPLOYEE_MANAGE_PERMISSION,
@@ -8,6 +10,8 @@ import {
   USER_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { permissionGuard } from '@trishul/core-auth';
+import { AlertRuleFormPage } from './alert-rule-form.page';
+import { AlertRuleListPage } from './alert-rule-list.page';
 import { CustomerFormPage } from './customer-form.page';
 import { CustomerListPage } from './customer-list.page';
 import { EmployeeFormPage } from './employee-form.page';
@@ -71,5 +75,23 @@ export const adminRoutes: Route[] = [
     title: 'Customer',
     canActivate: [permissionGuard(...CUSTOMER_VIEW_PERMISSIONS)],
     component: CustomerFormPage,
+  },
+  {
+    path: 'alert-rules',
+    title: 'Alert rules',
+    canActivate: [permissionGuard(...ALERT_RULE_VIEW_PERMISSIONS)],
+    component: AlertRuleListPage,
+  },
+  {
+    path: 'alert-rules/new',
+    title: 'Add alert rule',
+    canActivate: [permissionGuard(ALERT_RULE_MANAGE_PERMISSION)],
+    component: AlertRuleFormPage,
+  },
+  {
+    path: 'alert-rules/:alertRuleId',
+    title: 'Alert rule',
+    canActivate: [permissionGuard(...ALERT_RULE_VIEW_PERMISSIONS)],
+    component: AlertRuleFormPage,
   },
 ];

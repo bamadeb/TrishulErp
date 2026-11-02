@@ -35,6 +35,12 @@ TABLES = [
     "hr.designation",
     "svc.service_call",
     "svc.call_status_log",
+    "svc.sla_rule",
+    "svc.sla_event",
+    "core.alert_rule",
+    "core.alert_rule_recipient",
+    "core.alert",
+    "core.alert_recipient",
 ]
 
 COMPANY, BRANCH, PRINCIPAL = 1, 1, 1
@@ -151,6 +157,16 @@ def test_unknown_references_are_rejected(client: TestClient) -> None:
     assert "callSourceLookupId" in create(client, callSourceLookupId=CALL_TYPE_BREAKDOWN).json()["errors"]
 
 
+def test_sla_due_time_comes_from_the_most_specific_sla_rule(client: TestClient, db: Engine) -> None:
+    received = "2026-11-02T06:00:00Z"
+    assert create(client, receivedAt=received).json()["slaDueAt"] is None  # no SLA rule: no due time
+    insert_row(db, "svc.sla_rule", company_id=COMPANY, resolution_hours=48, clock_type="Calendar")
+    insert_row(db, "svc.sla_rule", company_id=COMPANY, principal_id=PRINCIPAL, priority="High",
+               resolution_hours=8, clock_type="Calendar")
+    assert create(client, receivedAt=received, priority="High").json()["slaDueAt"] == "2026-11-02T14:00:00Z"
+    assert create(client, receivedAt=received, priority="Low").json()["slaDueAt"] == "2026-11-04T06:00:00Z"
+
+
 def test_machine_must_belong_to_the_selected_customer(client: TestClient) -> None:
     # MACHINE_ID is registered to CUSTOMER_ID, not to customer 101.
     response = create(client, customerId=101)
@@ -223,7 +239,10 @@ def history(client: TestClient, call_id: int) -> list[dict[str, Any]]:
 def assigned_call(client: TestClient) -> dict[str, Any]:
     """A call assigned to the engineer, with its fresh row version."""
     call = create(client).json()
-    return client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call)).json()
+    assigned: dict[str, Any] = client.patch(
+        f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call)
+    ).json()
+    return assigned
 
 
 def test_new_call_starts_its_history(client: TestClient) -> None:

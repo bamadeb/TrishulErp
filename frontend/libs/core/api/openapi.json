@@ -2603,6 +2603,1245 @@
         }
       }
     },
+    "/core/alert-types": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "The alert type catalogue and each type's settings",
+        "operationId": "list_alert_types",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertTypeItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Alert Types"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/alert-rules": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Alert rules, filtered and paged",
+        "operationId": "list_alert_rules",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "alertType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "SVC_CALL_UNASSIGNED",
+                    "SVC_SLA_DUE",
+                    "SVC_STATUS_STALE",
+                    "SVC_AWAITING_PARTS",
+                    "SVC_CALL_REOPENED",
+                    "MACHINE_COVERAGE_EXPIRY"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Alerttype"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_AlertRuleListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Add an alert rule",
+        "operationId": "create_alert_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertRuleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/alert-rules/form-options": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Dropdown values for the alert rule form",
+        "operationId": "get_alert_rule_form_options",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleFormOptions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/alert-rules/{alertRuleId}": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "One alert rule",
+        "operationId": "get_alert_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertRuleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Alertruleid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Change an alert rule",
+        "operationId": "update_alert_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertRuleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Alertruleid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertRuleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/alert-rules/{alertRuleId}/deactivate": {
+      "post": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Switch an alert rule off (its open alerts are resolved)",
+        "operationId": "deactivate_alert_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertRuleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Alertruleid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/alert-rules/{alertRuleId}/activate": {
+      "post": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Switch an alert rule on",
+        "operationId": "activate_alert_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertRuleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Alertruleid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/alert-rules/{alertRuleId}/test": {
+      "post": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Dry run: what the saved rule matches now and who would be told (nothing is raised)",
+        "operationId": "test_alert_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertRuleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Alertruleid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleTestResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/my-alerts": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "My alerts, newest first",
+        "operationId": "list_my_alerts",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "open",
+                "all"
+              ],
+              "type": "string",
+              "description": "open = not yet resolved.",
+              "default": "open",
+              "title": "Status"
+            },
+            "description": "open = not yet resolved."
+          },
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Unreadonly"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_MyAlertItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/my-alerts/summary": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Unread and open alert counts (for the bell)",
+        "operationId": "get_my_alert_summary",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyAlertSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/my-alerts/{alertId}/read": {
+      "post": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Mark one of my alerts as read",
+        "operationId": "read_my_alert",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Alertid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyAlertItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/my-alerts/{alertId}/acknowledge": {
+      "post": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Acknowledge an alert (for everyone who received it)",
+        "operationId": "acknowledge_my_alert",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Alertid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyAlertItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/user-devices": {
       "post": {
         "tags": [
@@ -5828,6 +7067,962 @@
         ],
         "title": "AdjustDistanceInput",
         "description": "A Team Lead overrides a trip's distance where GPS is unreliable. The original GPS value is\nkept; this value becomes the effective distance and the change is logged for audit."
+      },
+      "AlertParamDef": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "integer",
+              "multiselect",
+              "boolean"
+            ],
+            "title": "Kind"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "kind",
+          "required",
+          "default",
+          "min",
+          "max",
+          "unit",
+          "options",
+          "help"
+        ],
+        "title": "AlertParamDef"
+      },
+      "AlertRecipientIn": {
+        "properties": {
+          "recipientType": {
+            "type": "string",
+            "enum": [
+              "Role",
+              "User",
+              "Assigned engineer",
+              "Call logged by"
+            ],
+            "title": "Recipienttype"
+          },
+          "roleId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roleid",
+            "description": "For 'Role'."
+          },
+          "appUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appuserid",
+            "description": "For 'User'."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recipientType"
+        ],
+        "title": "AlertRecipientIn"
+      },
+      "AlertRecipientItem": {
+        "properties": {
+          "recipientType": {
+            "type": "string",
+            "enum": [
+              "Role",
+              "User",
+              "Assigned engineer",
+              "Call logged by"
+            ],
+            "title": "Recipienttype"
+          },
+          "roleId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roleid"
+          },
+          "roleName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolename"
+          },
+          "appUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appuserid"
+          },
+          "userName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recipientType",
+          "roleId",
+          "roleName",
+          "appUserId",
+          "userName"
+        ],
+        "title": "AlertRecipientItem"
+      },
+      "AlertRuleCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "description": "Unique across all rules."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "alertType": {
+            "type": "string",
+            "enum": [
+              "SVC_CALL_UNASSIGNED",
+              "SVC_SLA_DUE",
+              "SVC_STATUS_STALE",
+              "SVC_AWAITING_PARTS",
+              "SVC_CALL_REOPENED",
+              "MACHINE_COVERAGE_EXPIRY"
+            ],
+            "title": "Alerttype"
+          },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid",
+            "description": "Brand; blank = every brand."
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid",
+            "description": "Branch; blank = every branch."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "Info",
+              "Warning",
+              "Critical"
+            ],
+            "title": "Severity",
+            "default": "Warning"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters",
+            "description": "Settings of the alert type (see alert-types)."
+          },
+          "reraisePolicy": {
+            "type": "string",
+            "enum": [
+              "Never",
+              "After resolution"
+            ],
+            "title": "Reraisepolicy",
+            "description": "Never: one alert per record, ever. After resolution: again when the condition returns.",
+            "default": "After resolution"
+          },
+          "cooldownMinutes": {
+            "type": "integer",
+            "maximum": 43200.0,
+            "minimum": 0.0,
+            "title": "Cooldownminutes",
+            "description": "Quiet time after a resolution before re-raising.",
+            "default": 0
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/AlertRecipientIn"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Recipients"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "alertType",
+          "recipients"
+        ],
+        "title": "AlertRuleCreate"
+      },
+      "AlertRuleDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "alertType": {
+            "type": "string",
+            "enum": [
+              "SVC_CALL_UNASSIGNED",
+              "SVC_SLA_DUE",
+              "SVC_STATUS_STALE",
+              "SVC_AWAITING_PARTS",
+              "SVC_CALL_REOPENED",
+              "MACHINE_COVERAGE_EXPIRY"
+            ],
+            "title": "Alerttype"
+          },
+          "alertTypeName": {
+            "type": "string",
+            "title": "Alerttypename"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "Scheduled",
+              "Event"
+            ],
+            "title": "Trigger"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "Info",
+              "Warning",
+              "Critical"
+            ],
+            "title": "Severity"
+          },
+          "principalName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalname"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "recipientSummary": {
+            "type": "string",
+            "title": "Recipientsummary"
+          },
+          "openAlertCount": {
+            "type": "integer",
+            "title": "Openalertcount"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "lastRunAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastrunat"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "reraisePolicy": {
+            "type": "string",
+            "enum": [
+              "Never",
+              "After resolution"
+            ],
+            "title": "Reraisepolicy"
+          },
+          "cooldownMinutes": {
+            "type": "integer",
+            "title": "Cooldownminutes"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/AlertRecipientItem"
+            },
+            "type": "array",
+            "title": "Recipients"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "alertType",
+          "alertTypeName",
+          "trigger",
+          "severity",
+          "principalName",
+          "branchName",
+          "recipientSummary",
+          "openAlertCount",
+          "isActive",
+          "lastRunAt",
+          "description",
+          "principalId",
+          "branchId",
+          "parameters",
+          "reraisePolicy",
+          "cooldownMinutes",
+          "recipients",
+          "rowVersion"
+        ],
+        "title": "AlertRuleDetail"
+      },
+      "AlertRuleFormOptions": {
+        "properties": {
+          "alertTypes": {
+            "items": {
+              "$ref": "#/components/schemas/AlertTypeItem"
+            },
+            "type": "array",
+            "title": "Alerttypes"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/NamedOption"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/NamedOption"
+            },
+            "type": "array",
+            "title": "Users"
+          },
+          "principals": {
+            "items": {
+              "$ref": "#/components/schemas/NamedOption"
+            },
+            "type": "array",
+            "title": "Principals"
+          },
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/NamedOption"
+            },
+            "type": "array",
+            "title": "Branches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alertTypes",
+          "roles",
+          "users",
+          "principals",
+          "branches"
+        ],
+        "title": "AlertRuleFormOptions"
+      },
+      "AlertRuleListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "alertType": {
+            "type": "string",
+            "enum": [
+              "SVC_CALL_UNASSIGNED",
+              "SVC_SLA_DUE",
+              "SVC_STATUS_STALE",
+              "SVC_AWAITING_PARTS",
+              "SVC_CALL_REOPENED",
+              "MACHINE_COVERAGE_EXPIRY"
+            ],
+            "title": "Alerttype"
+          },
+          "alertTypeName": {
+            "type": "string",
+            "title": "Alerttypename"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "Scheduled",
+              "Event"
+            ],
+            "title": "Trigger"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "Info",
+              "Warning",
+              "Critical"
+            ],
+            "title": "Severity"
+          },
+          "principalName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalname"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "recipientSummary": {
+            "type": "string",
+            "title": "Recipientsummary"
+          },
+          "openAlertCount": {
+            "type": "integer",
+            "title": "Openalertcount"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "lastRunAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastrunat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "alertType",
+          "alertTypeName",
+          "trigger",
+          "severity",
+          "principalName",
+          "branchName",
+          "recipientSummary",
+          "openAlertCount",
+          "isActive",
+          "lastRunAt"
+        ],
+        "title": "AlertRuleListItem"
+      },
+      "AlertRuleTestMatch": {
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "svc.service_call",
+              "core.machine_unit",
+              "svc.service_contract"
+            ],
+            "title": "Entitytype"
+          },
+          "entityId": {
+            "type": "integer",
+            "title": "Entityid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recipients"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entityType",
+          "entityId",
+          "title",
+          "message",
+          "recipients"
+        ],
+        "title": "AlertRuleTestMatch"
+      },
+      "AlertRuleTestResult": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/AlertRuleTestMatch"
+            },
+            "type": "array",
+            "title": "Matches"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "matches",
+          "note"
+        ],
+        "title": "AlertRuleTestResult",
+        "description": "A dry run of a saved rule: what matches now and who would be told. Nothing is raised or sent."
+      },
+      "AlertRuleUpdate": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Info",
+                  "Warning",
+                  "Critical"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters"
+          },
+          "reraisePolicy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Never",
+                  "After resolution"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reraisepolicy"
+          },
+          "cooldownMinutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 43200.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldownminutes"
+          },
+          "recipients": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AlertRecipientIn"
+                },
+                "type": "array",
+                "maxItems": 50,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipients"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AlertRuleUpdate",
+        "description": "Only the fields sent are changed; recipients, when sent, replace the whole list."
+      },
+      "AlertTypeItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "SVC_CALL_UNASSIGNED",
+              "SVC_SLA_DUE",
+              "SVC_STATUS_STALE",
+              "SVC_AWAITING_PARTS",
+              "SVC_CALL_REOPENED",
+              "MACHINE_COVERAGE_EXPIRY"
+            ],
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "module": {
+            "type": "string",
+            "title": "Module"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "Scheduled",
+              "Event"
+            ],
+            "title": "Trigger"
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "svc.service_call",
+              "core.machine_unit",
+              "svc.service_contract"
+            ],
+            "title": "Entitytype"
+          },
+          "params": {
+            "items": {
+              "$ref": "#/components/schemas/AlertParamDef"
+            },
+            "type": "array",
+            "title": "Params"
+          },
+          "recipientTypes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Role",
+                "User",
+                "Assigned engineer",
+                "Call logged by"
+              ]
+            },
+            "type": "array",
+            "title": "Recipienttypes",
+            "description": "Recipient kinds this type supports; record-based ones only where the record has them."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "description",
+          "module",
+          "trigger",
+          "entityType",
+          "params",
+          "recipientTypes"
+        ],
+        "title": "AlertTypeItem",
+        "description": "One entry of the alert type catalogue: what a rule can alert on and the settings it takes."
       },
       "AssignedSalesActivityListItem": {
         "properties": {
@@ -9406,6 +11601,219 @@
         "title": "Me",
         "description": "The signed-in user, as the Angular AuthStore expects it."
       },
+      "MyAlertItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "alertType": {
+            "type": "string",
+            "enum": [
+              "SVC_CALL_UNASSIGNED",
+              "SVC_SLA_DUE",
+              "SVC_STATUS_STALE",
+              "SVC_AWAITING_PARTS",
+              "SVC_CALL_REOPENED",
+              "MACHINE_COVERAGE_EXPIRY"
+            ],
+            "title": "Alerttype"
+          },
+          "ruleName": {
+            "type": "string",
+            "title": "Rulename"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "Info",
+              "Warning",
+              "Critical"
+            ],
+            "title": "Severity"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "svc.service_call",
+              "core.machine_unit",
+              "svc.service_contract"
+            ],
+            "title": "Entitytype"
+          },
+          "entityId": {
+            "type": "integer",
+            "title": "Entityid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "Acknowledged",
+              "Resolved"
+            ],
+            "title": "Status"
+          },
+          "raisedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Raisedat"
+          },
+          "readAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readat"
+          },
+          "acknowledgedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledgedat"
+          },
+          "acknowledgedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledgedbyname"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolvedat"
+          },
+          "resolutionNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolutionnote"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "alertType",
+          "ruleName",
+          "severity",
+          "title",
+          "message",
+          "entityType",
+          "entityId",
+          "status",
+          "raisedAt",
+          "readAt",
+          "acknowledgedAt",
+          "acknowledgedByName",
+          "resolvedAt",
+          "resolutionNote"
+        ],
+        "title": "MyAlertItem"
+      },
+      "MyAlertSummary": {
+        "properties": {
+          "unread": {
+            "type": "integer",
+            "title": "Unread"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unread",
+          "open"
+        ],
+        "title": "MyAlertSummary",
+        "description": "For the bell: unread alerts that are not resolved yet, and all open ones."
+      },
+      "NamedOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "NamedOption"
+      },
+      "Page_AlertRuleListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AlertRuleListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[AlertRuleListItem]"
+      },
       "Page_AssignedSalesActivityListItem_": {
         "properties": {
           "items": {
@@ -9560,6 +11968,37 @@
           "pageSize"
         ],
         "title": "Page[MachineListItem]"
+      },
+      "Page_MyAlertItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MyAlertItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[MyAlertItem]"
       },
       "Page_ServiceCallListItem_": {
         "properties": {

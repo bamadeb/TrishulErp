@@ -1,4 +1,5 @@
 import {
+  ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_VIEW_PERMISSIONS,
   EMPLOYEE_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
@@ -14,6 +15,12 @@ import {
 /** Side menu. Add each module's entries as its routes are built. Icons are Material Symbols names. */
 export const navItems: NavItem[] = [
   { label: 'Dashboard', icon: 'dashboard', route: '/' },
+  {
+    label: 'My alerts',
+    icon: 'notifications',
+    route: '/alerts',
+    permissions: ['core.alert.view'],
+  },
   {
     label: 'Service',
     icon: 'build',
@@ -65,6 +72,12 @@ export const navItems: NavItem[] = [
         icon: 'manage_accounts',
         route: '/admin/users',
         permissions: [...USER_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Alert rules',
+        icon: 'rule',
+        route: '/admin/alert-rules',
+        permissions: [...ALERT_RULE_VIEW_PERMISSIONS],
       },
     ],
   },
