@@ -27,8 +27,9 @@ BACKEND = Path(__file__).resolve().parents[1]
 def test_every_table_is_mapped() -> None:
     configure_mappers()
     # v3 (219) + core.locality (0002) + svc.byd_call_import (0005) + 3 hand-written trk tables (0006)
-    # + trk.trip_distance_adjustment (0008) + 4 core alert tables (0010).
-    assert len(Base.metadata.tables) == 229
+    # + trk.trip_distance_adjustment (0008) + 4 core alert tables (0010)
+    # + 4 trk master tables (0012).
+    assert len(Base.metadata.tables) == 233
     assert {table.schema for table in Base.metadata.tables.values()} == {
         "core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt", "trk",
     }  # fmt: skip

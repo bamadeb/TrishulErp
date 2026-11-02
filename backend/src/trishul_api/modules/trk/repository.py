@@ -17,6 +17,7 @@ from trishul_api.db.models import (
     TrkTripGpsPoint,
     UserDevice,
 )
+from trishul_api.modules.trk.constants import IN_PROGRESS
 from trishul_api.modules.trk.schemas import (
     CallTripHistoryItem,
     TripAdjustmentItem,
@@ -57,7 +58,7 @@ class TripRepository:
     def active_trip_for_employee(self, employee_id: int) -> TrkTrip | None:
         return self._session.scalars(
             select(TrkTrip).where(
-                TrkTrip.employee_id == employee_id, TrkTrip.status == "In progress", TrkTrip.is_active
+                TrkTrip.employee_id == employee_id, TrkTrip.status == IN_PROGRESS, TrkTrip.is_active
             )
         ).first()
 

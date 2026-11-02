@@ -14,25 +14,25 @@ from trishul_api.db.models.generated import __all__ as _generated
 # Hand-written until the generator is re-run against the migrated DB (see trk.py).
 from trishul_api.db.models.trk import (
     TrackableActivity,
-    TrackableActivityModuleCode,
+    TrackableActivityModule,
     TrkTrip,
     TrkTripDistanceAdjustment,
     TrkTripGpsPoint,
-    TrkTripStatus,
-    TrkTripType,
-    TrkTripVehicleType,
+    TrkTripStatusMaster,
+    TrkTripTypeMaster,
+    TrkTripVehicleTypeMaster,
 )
 
 __all__ = [
     "Audited",
     "Base",
     "TrackableActivity",
-    "TrackableActivityModuleCode",
+    "TrackableActivityModule",
     "TrkTrip",
     "TrkTripDistanceAdjustment",
     "TrkTripGpsPoint",
-    "TrkTripStatus",
-    "TrkTripType",
-    "TrkTripVehicleType",
+    "TrkTripStatusMaster",
+    "TrkTripTypeMaster",
+    "TrkTripVehicleTypeMaster",
     *_generated,
 ]

@@ -4,15 +4,17 @@ from uuid import UUID
 from pydantic import Field
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
-from trishul_api.db.models import TrackableActivityModuleCode, TrkTripStatus, TrkTripType, TrkTripVehicleType
 
 # trk.trip.(gps|map|adjusted)_distance_km is DECIMAL(8,2): up to 999999.99 km.
 _DISTANCE_KM = Field(ge=0, le=Decimal("999999.99"), max_digits=8, decimal_places=2)
 
-ModuleCode = TrackableActivityModuleCode
-TripType = TrkTripType
-TripStatus = TrkTripStatus
-VehicleType = TrkTripVehicleType
+# These four are master data (trk.trackable_activity_module, trip_type, trip_vehicle_type, trip_status),
+# not enums: the allowed values are read from the database, so the types are plain strings. Requests
+# are validated against the active master rows in the service; GET /trk/master-data lists them.
+ModuleCode = str
+TripType = str
+TripStatus = str
+VehicleType = str
 
 _LAT = Field(ge=-90, le=90)
 _LON = Field(ge=-180, le=180)
@@ -24,13 +26,15 @@ class StartTripInput(InputModel):
     the trip. `clientUuid` makes a retried start return the same trip instead of a second one."""
 
     client_uuid: UUID
-    module: ModuleCode
+    module: ModuleCode = Field(description="A module code from GET /trk/module-codes, e.g. SVC or PRE.")
     reference_id: int = Field(gt=0)
-    trip_type: TripType = "To site"
+    trip_type: TripType | None = Field(
+        None, description="A trip type code from GET /trk/trip-types; omitted means the default ('To site')."
+    )
     start_latitude: float = _LAT
     start_longitude: float = _LON
     started_at: UtcDateTime | None = None
-    vehicle_type: VehicleType | None = None
+    vehicle_type: VehicleType | None = Field(None, description="A vehicle code from GET /trk/vehicle-types.")
     device_id: str | None = Field(None, max_length=100)
 
 
@@ -155,3 +159,43 @@ class CallTripHistoryItem(ApiModel):
     effective_distance_km: float | None
     adjustment_count: int
     row_version: RowVersion
+
+
+class MasterItem(ApiModel):
+    """A master-data value. `code` is what trips store and the API accepts; it never changes. `name`
+    is the display label."""
+
+    code: str
+    name: str
+    description: str | None
+    sort_order: int
+    is_active: bool
+
+
+class ModuleCodeItem(MasterItem):
+    source_schema: str
+    source_table: str
+
+
+class TripTypeItem(MasterItem):
+    is_default: bool
+
+
+class VehicleTypeItem(MasterItem):
+    pass
+
+
+class TripStatusItem(MasterItem):
+    """Statuses are set by the application, never by clients."""
+
+    is_initial: bool
+    is_final: bool
+
+
+class TripMasterData(ApiModel):
+    """All trip-tracking master lists in one call (for the mobile app and the review screens)."""
+
+    module_codes: list[ModuleCodeItem]
+    trip_types: list[TripTypeItem]
+    vehicle_types: list[VehicleTypeItem]
+    trip_statuses: list[TripStatusItem]
