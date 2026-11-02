@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     aws_profile: str | None = None
     # How long a user's roles and permissions are cached before re-reading core.app_user.
     user_cache_seconds: int = 60
+    # Background jobs (the TrishulJobs service): how often scheduled alert rules are evaluated.
+    alert_job_interval_seconds: int = 60
 
     @property
     def cognito_issuer(self) -> str:

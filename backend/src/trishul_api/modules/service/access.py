@@ -30,8 +30,10 @@ _ENGINEER_STATUSES = frozenset(
         "Pending OEM closure",
     }
 )
-# A call can be reopened only once it has been finished one way or another.
-_FINISHED = frozenset({"Closed", "Completed", "Cancelled", "Pending OEM closure"})
+# A call can be reopened only once it has been finished one way or another. Alerts treat the same
+# statuses as "no longer open" (modules/alerts).
+FINISHED_STATUSES = frozenset({"Closed", "Completed", "Cancelled", "Pending OEM closure"})
+_FINISHED = FINISHED_STATUSES
 
 
 def can_see_call(actor: CurrentUser, assigned_engineer_id: int | None) -> bool:

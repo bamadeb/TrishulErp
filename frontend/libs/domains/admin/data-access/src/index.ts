@@ -7,3 +7,6 @@ export * from './lib/employee-list.store';
 export * from './lib/customers.models';
 export * from './lib/customers.api';
 export * from './lib/customer-list.store';
+export * from './lib/alert-rules.models';
+export * from './lib/alert-rules.api';
+export * from './lib/alert-rule-list.store';

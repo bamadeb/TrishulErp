@@ -371,23 +371,32 @@ def apply_descriptions(tables: dict[str, Table], sql: str) -> None:
 
 def migration_sql() -> list[tuple[str, str]]:
     """SQL from op.execute("...") in each Alembic revision, oldest first."""
-    revisions: dict[str, tuple[str | None, Path]] = {}
+    # The revision graph branches (parallel lines) and merges (down_revision is a tuple), so order it
+    # topologically: a revision comes after all of its parents; ties go by file name for a stable order.
+    revisions: dict[str, tuple[tuple[str, ...], Path]] = {}
     for path in MIGRATIONS.glob("*.py"):
         module = ast.parse(path.read_text(encoding="utf-8"))
         values = {
-            node.targets[0].id: node.value.value
+            node.targets[0].id: ast.literal_eval(node.value)
             for node in module.body
             if isinstance(node, ast.Assign)
             and isinstance(node.targets[0], ast.Name)
-            and isinstance(node.value, ast.Constant)
+            and node.targets[0].id in ("revision", "down_revision")
         }
-        down_revision = values.get("down_revision")
-        revisions[str(values["revision"])] = (None if down_revision is None else str(down_revision), path)
-    children = {down: rev for rev, (down, _) in revisions.items()}
-    ordered, current = [], children.get(None)
-    while current is not None:
-        ordered.append(revisions[current][1])
-        current = children.get(current)
+        down = values.get("down_revision")
+        parents = () if down is None else tuple(down) if isinstance(down, tuple | list) else (str(down),)
+        revisions[str(values["revision"])] = (parents, path)
+    remaining = {rev: set(parents) for rev, (parents, _) in revisions.items()}
+    ordered: list[Path] = []
+    while remaining:
+        ready = sorted((rev for rev, parents in remaining.items() if not parents), key=lambda r: revisions[r][1].name)
+        if not ready:
+            raise SqlError(f"Migration graph has a cycle or a missing parent: {sorted(remaining)}")
+        for rev in ready:
+            ordered.append(revisions[rev][1])
+            del remaining[rev]
+        for waiting in remaining.values():
+            waiting.difference_update(ready)
     result = []
     for path in ordered:
         upgrade = next(

@@ -1,0 +1,166 @@
+<trishul-page-header
+  title="Alert rules"
+  subtitle="When an alert is raised, on what condition, and who receives it"
+>
+  <a
+    mat-flat-button
+    routerLink="new"
+    *trishulHasPermission="'core.alert.rule.manage'"
+  >
+    <mat-icon>add</mat-icon>
+    Add rule
+  </a>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="Rule code or name"
+      aria-label="Search alert rules"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select
+      [value]="store.query().status"
+      (valueChange)="store.updateQuery({ status: $event })"
+    >
+      @for (status of statusFilters; track status) {
+      <mat-option [value]="status">{{ statusLabels[status] }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  <div class="table-scroll">
+    <table
+      mat-table
+      [dataSource]="store.items()"
+      matSort
+      matSortActive="name"
+      matSortDirection="asc"
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Rule</th>
+        <td mat-cell *matCellDef="let r">
+          <a class="name" [routerLink]="[r.id]">{{ r.name }}</a>
+          <div class="muted">{{ r.code }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="alertType">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Alert type</th>
+        <td mat-cell *matCellDef="let r">
+          <div>{{ r.alertTypeName }}</div>
+          <div class="muted">{{ triggerLabel(r.trigger) }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="severity">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Severity</th>
+        <td mat-cell *matCellDef="let r">
+          <trishul-status-badge
+            [status]="r.severity"
+            [severities]="alertSeverity"
+          />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="scope">
+        <th mat-header-cell *matHeaderCellDef>Applies to</th>
+        <td mat-cell *matCellDef="let r">
+          <div>{{ r.principalName ?? 'All brands' }}</div>
+          <div class="muted">{{ r.branchName ?? 'All branches' }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="recipients">
+        <th mat-header-cell *matHeaderCellDef>Recipients</th>
+        <td mat-cell *matCellDef="let r">{{ r.recipientSummary }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="openAlerts">
+        <th mat-header-cell *matHeaderCellDef>Open alerts</th>
+        <td mat-cell *matCellDef="let r" [class.muted]="!r.openAlertCount">
+          {{ r.openAlertCount }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="lastRunAt">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Last checked</th>
+        <td mat-cell *matCellDef="let r">
+          {{ r.lastRunAt ? (r.lastRunAt | date: 'dd MMM, HH:mm') : '—' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let r">
+          <trishul-status-badge
+            [status]="r.isActive ? 'Active' : 'Inactive'"
+            [severities]="activeSeverity"
+          />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>
+          <span class="sr-only">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let r" class="actions">
+          @if (canManage) {
+          <button
+            mat-icon-button
+            [matMenuTriggerFor]="menu"
+            [attr.aria-label]="'Actions for ' + r.code"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <a mat-menu-item [routerLink]="[r.id]">
+              <mat-icon>edit</mat-icon>Edit
+            </a>
+            @if (r.isActive) {
+            <button mat-menu-item (click)="setActive(r, false)">
+              <mat-icon>notifications_off</mat-icon>Switch off
+            </button>
+            } @else {
+            <button mat-menu-item (click)="setActive(r, true)">
+              <mat-icon>notifications_active</mat-icon>Switch on
+            </button>
+            }
+          </mat-menu>
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="columns.length">
+          @if (store.loading()) { Loading… } @else { No alert rules match these
+          filters. }
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator
+    [length]="store.total()"
+    [pageIndex]="store.query().page - 1"
+    [pageSize]="store.query().pageSize"
+    [pageSizeOptions]="[20, 50, 100]"
+    aria-label="Pages of alert rules"
+    (page)="onPage($event)"
+  />
+</div>

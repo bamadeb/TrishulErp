@@ -5,6 +5,7 @@ selected (the request scope). References are validated up front for clear field 
 call's status is recorded in svc.call_status_log (see status_log.py) and shown as the call's history.
 """
 
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -24,6 +25,8 @@ from trishul_api.db.models import (
     Principal,
     ServiceCall,
 )
+from trishul_api.modules.alerts.engine import AlertEngine
+from trishul_api.modules.service import sla
 from trishul_api.modules.service.access import allowed_statuses, can_see_call
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
@@ -35,6 +38,8 @@ from trishul_api.modules.service.schemas import (
     ServiceCallTriageUpdate,
 )
 from trishul_api.modules.service.status_log import record_status_change
+
+log = logging.getLogger(__name__)
 
 
 class ServiceCallService:
@@ -48,6 +53,15 @@ class ServiceCallService:
         principal = self._resolve_principal(data.principal_id, scope)
         self._check_references(data, branch.company_id, principal.id)
 
+        received_at = data.received_at.replace(tzinfo=None) if data.received_at else _now()
+        # SLA due time comes from svc.sla_rule only (see sla.py); no matching rule leaves it blank.
+        sla_target = sla.match_rule(
+            sla.active_rules(self._db, branch.company_id),
+            company_id=branch.company_id,
+            principal_id=principal.id,
+            call_type_lookup_id=data.call_type_lookup_id,
+            priority=data.priority,
+        )
         call = ServiceCall(
             company_id=branch.company_id,
             branch_id=branch.id,
@@ -69,7 +83,8 @@ class ServiceCallService:
             is_machine_down=data.is_machine_down,
             is_asc_priority=False,
             priority=data.priority,
-            received_at=data.received_at.replace(tzinfo=None) if data.received_at else _now(),
+            received_at=received_at,
+            sla_due_at=sla.due_at(received_at, sla_target),
             received_by_user_id=self._actor.id,
             current_status="Logged",
             created_by_user_id=self._actor.id,
@@ -190,8 +205,18 @@ class ServiceCallService:
         call.updated_at = now
         call.updated_by_user_id = self._actor.id
         record_status_change(self._db, call.id, previous, data.status, self._actor.id, data.remarks)
+        if data.status == "Reopened":
+            self._raise_event_alerts("SVC_CALL_REOPENED", call.id)
         self._db.commit()
         return self.detail(call_id)
+
+    def _raise_event_alerts(self, alert_type: str, call_id: int) -> None:
+        """Raise event alerts in the same transaction; a failure here never blocks the status change."""
+        try:
+            with self._db.begin_nested():
+                AlertEngine(self._db).raise_event(alert_type, call_id)
+        except Exception:
+            log.exception("Raising %s alerts for call %s failed", alert_type, call_id)
 
     # ------------------------------------------------------------------ helpers
 

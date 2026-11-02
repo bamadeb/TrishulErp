@@ -1,0 +1,325 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add alert rule' : (rule()?.name ?? 'Alert rule')"
+  [subtitle]="isNew() ? 'Choose what to alert on and who is told' : (rule()?.code ?? '')"
+>
+  <a mat-button routerLink="/admin/alert-rules">
+    <mat-icon>arrow_back</mat-icon>
+    All alert rules
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Rule</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Rule code</mat-label>
+          <input matInput formControlName="code" autocomplete="off" />
+          <mat-error>A unique code is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide-2">
+          <mat-label>Name</mat-label>
+          <input matInput formControlName="name" />
+          <mat-error>A name is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Alert type</mat-label>
+          <mat-select formControlName="alertType">
+            @for (t of alertTypes(); track t.code) {
+            <mat-option [value]="t.code">{{ t.name }}</mat-option>
+            }
+          </mat-select>
+          @if (selectedType(); as t) {
+          <mat-hint>{{ t.description }}</mat-hint>
+          } @else {
+          <mat-hint>What should raise the alert?</mat-hint>
+          }
+          <mat-error>Choose an alert type.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Severity</mat-label>
+          <mat-select formControlName="severity">
+            @for (s of severities; track s) {
+            <mat-option [value]="s">{{ s }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide-2">
+          <mat-label>Description (optional)</mat-label>
+          <input matInput formControlName="description" />
+        </mat-form-field>
+      </div>
+    </section>
+
+    @if (selectedType(); as t) {
+    <section>
+      <h2>When</h2>
+      <p class="lead">
+        {{ triggerText[t.trigger] }} @if (t.code === 'SVC_SLA_DUE') { SLA due
+        times and the warning window come from the SLA rules, not from here. }
+      </p>
+      <div class="fields" formGroupName="params">
+        @for (p of t.params; track p.key) { @switch (p.kind) { @case ('integer')
+        {
+        <mat-form-field appearance="outline">
+          <mat-label>{{ p.label }}</mat-label>
+          <input
+            matInput
+            type="number"
+            [formControlName]="p.key"
+            [min]="p.min"
+            [max]="p.max"
+          />
+          @if (p.unit) {
+          <span matTextSuffix>{{ p.unit }}</span>
+          }
+          <mat-error
+            >Enter a whole number from {{ p.min }} to {{ p.max }}.</mat-error
+          >
+        </mat-form-field>
+        } @case ('multiselect') {
+        <mat-form-field appearance="outline">
+          <mat-label>{{ p.label }}</mat-label>
+          <mat-select [formControlName]="p.key" multiple>
+            @for (o of p.options; track o) {
+            <mat-option [value]="o">{{ o }}</mat-option>
+            }
+          </mat-select>
+          @if (p.help) {
+          <mat-hint>{{ p.help }}</mat-hint>
+          }
+          <mat-error>Choose at least one.</mat-error>
+        </mat-form-field>
+        } @case ('boolean') {
+        <mat-checkbox [formControlName]="p.key" class="check"
+          >{{ p.label }}</mat-checkbox
+        >
+        } } } @empty {
+        <p class="lead">This alert type has no settings.</p>
+        }
+      </div>
+    </section>
+    }
+
+    <section>
+      <h2>Applies to</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Brand</mat-label>
+          <mat-select formControlName="principalId">
+            <mat-option [value]="NONE">All brands</mat-option>
+            @for (p of principals(); track p.id) {
+            <mat-option [value]="p.id">{{ p.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branch</mat-label>
+          <mat-select formControlName="branchId">
+            <mat-option [value]="NONE">All branches</mat-option>
+            @for (b of branches(); track b.id) {
+            <mat-option [value]="b.id">{{ b.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Who receives it</h2>
+      <p class="lead">
+        In the app (bell and My alerts, web and mobile). People only receive
+        alerts about records they are allowed to see.
+      </p>
+      <div class="recipients" formArrayName="recipients">
+        @for (row of recipientRows; track row; let i = $index) {
+        <div class="recipient" [formGroupName]="i">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Recipient</mat-label>
+            <mat-select formControlName="recipientType">
+              @for (rt of selectedType()?.recipientTypes ?? ['Role', 'User'];
+              track rt) {
+              <mat-option [value]="rt">{{ recipientLabels[rt] }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          @if (row.controls.recipientType.value === 'Role') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Role</mat-label>
+            <mat-select formControlName="roleId">
+              @for (r of roles(); track r.id) {
+              <mat-option [value]="r.id">{{ r.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          } @else if (row.controls.recipientType.value === 'User') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>User</mat-label>
+            <mat-select formControlName="appUserId">
+              @for (u of users(); track u.id) {
+              <mat-option [value]="u.id">{{ u.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          } @else {
+          <span class="dynamic">Taken from each call</span>
+          } @if (canManage) {
+          <button
+            mat-icon-button
+            type="button"
+            (click)="removeRecipient(i)"
+            [disabled]="recipientRows.length === 1"
+            aria-label="Remove recipient"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+          }
+        </div>
+        @if (row.touched && row.invalid) {
+        <p class="error">
+          Choose the {{ row.controls.recipientType.value === 'Role' ? 'role' :
+          'user' }}.
+        </p>
+        } }
+      </div>
+      @if (canManage) {
+      <button mat-stroked-button type="button" (click)="addRecipient()">
+        <mat-icon>person_add</mat-icon>
+        Add recipient
+      </button>
+      }
+    </section>
+
+    <section>
+      <h2>Repeat alerts</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Raise again for the same record</mat-label>
+          <mat-select formControlName="reraisePolicy">
+            @for (p of policies; track p) {
+            <mat-option [value]="p">{{ policyLabels[p] }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint
+            >Only one alert per rule and record is open at a time.</mat-hint
+          >
+        </mat-form-field>
+        @if (form.controls.reraisePolicy.value === 'After resolution') {
+        <mat-form-field appearance="outline">
+          <mat-label>Quiet time after resolution</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="cooldownMinutes"
+            min="0"
+          />
+          <span matTextSuffix>minutes</span>
+          <mat-error>0 to 43200 minutes.</mat-error>
+        </mat-form-field>
+        }
+      </div>
+    </section>
+
+    @if (canManage) {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add rule' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/admin/alert-rules">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (rule(); as current) {
+  <aside class="side">
+    <div class="card status">
+      <h2>Status</h2>
+      <div class="status-line">
+        <trishul-status-badge
+          [status]="current.isActive ? 'Active' : 'Inactive'"
+          [severities]="activeSeverity"
+        />
+        <trishul-status-badge
+          [status]="current.severity"
+          [severities]="alertSeverity"
+        />
+      </div>
+      <dl>
+        <dt>Open alerts</dt>
+        <dd>{{ current.openAlertCount }}</dd>
+        <dt>Last checked</dt>
+        <dd>
+          @if (current.lastRunAt) { {{ current.lastRunAt | date: dateTimeFormat
+          }} } @else if (current.trigger === 'Event') { On each event } @else {
+          Not yet }
+        </dd>
+      </dl>
+      @if (canManage) { @if (current.isActive) {
+      <button
+        mat-stroked-button
+        type="button"
+        class="danger"
+        (click)="setActive(false)"
+      >
+        <mat-icon>notifications_off</mat-icon>
+        Switch off
+      </button>
+      } @else {
+      <button mat-flat-button type="button" (click)="setActive(true)">
+        <mat-icon>notifications_active</mat-icon>
+        Switch on
+      </button>
+      } }
+    </div>
+
+    <div class="card test">
+      <h2>Test rule</h2>
+      <p class="lead">
+        See what the saved rule matches right now and who would be told. Nothing
+        is sent.
+      </p>
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="test()"
+        [disabled]="testing() || form.dirty"
+      >
+        <mat-icon>science</mat-icon>
+        Test rule
+      </button>
+      @if (form.dirty) {
+      <p class="hint">Save your changes first.</p>
+      } @if (testing()) {
+      <mat-progress-bar mode="indeterminate" />
+      } @if (testResult(); as result) {
+      <p class="result-total">
+        {{ result.total }} {{ result.total === 1 ? 'match' : 'matches' }}
+      </p>
+      @if (result.note) {
+      <p class="hint">{{ result.note }}</p>
+      }
+      <ul class="matches">
+        @for (m of result.matches; track m.entityType + m.entityId) {
+        <li>
+          <strong>{{ m.title }}</strong>
+          <span>{{ m.message }}</span>
+          <span class="to"> To: {{ recipientsText(m.recipients) }} </span>
+        </li>
+        }
+      </ul>
+      }
+    </div>
+  </aside>
+  }
+</div>

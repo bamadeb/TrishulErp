@@ -1,0 +1,106 @@
+<header class="page-head">
+  <div>
+    <h1>My alerts</h1>
+    <p class="muted">Alerts raised for you by the alert rules. Newest first.</p>
+  </div>
+  <button
+    mat-stroked-button
+    type="button"
+    (click)="markPageRead()"
+    [disabled]="!unreadOnPage().length || loading()"
+  >
+    <mat-icon>done_all</mat-icon>
+    Mark these as read
+  </button>
+</header>
+
+<div class="filters">
+  <mat-button-toggle-group
+    [value]="status()"
+    (change)="setStatus($event.value)"
+    aria-label="Which alerts"
+    hideSingleSelectionIndicator
+  >
+    <mat-button-toggle value="open">Open</mat-button-toggle>
+    <mat-button-toggle value="all">All</mat-button-toggle>
+  </mat-button-toggle-group>
+  <mat-checkbox
+    [checked]="unreadOnly()"
+    (change)="setUnreadOnly($event.checked)"
+    >Unread only</mat-checkbox
+  >
+</div>
+
+<section class="list" aria-label="Alerts">
+  <div class="progress">
+    @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+
+  @for (a of items(); track a.id) {
+  <article
+    class="alert"
+    [class.unread]="!a.readAt"
+    [class]="'sev-' + a.severity.toLowerCase()"
+  >
+    <mat-icon class="sev" [attr.aria-label]="a.severity"
+      >{{ severityIcon[a.severity] }}</mat-icon
+    >
+    <div class="body">
+      <div class="top">
+        <h2 class="title">{{ a.title }}</h2>
+        <span class="status status-{{ a.status.toLowerCase() }}"
+          >{{ a.status }}</span
+        >
+      </div>
+      <p class="message">{{ a.message }}</p>
+      <p class="meta">
+        <span>{{ a.raisedAt | date: 'dd MMM yyyy, HH:mm' }}</span>
+        <span>{{ a.ruleName }}</span>
+        @if (a.acknowledgedByName) {
+        <span>Acknowledged by {{ a.acknowledgedByName }}</span>
+        } @if (a.resolvedAt) {
+        <span>Resolved {{ a.resolvedAt | date: 'dd MMM, HH:mm' }}</span>
+        } @if (a.resolutionNote) {
+        <span>{{ a.resolutionNote }}</span>
+        }
+      </p>
+    </div>
+    <div class="actions">
+      @if (!a.readAt) {
+      <button
+        mat-button
+        type="button"
+        (click)="markRead(a)"
+        [disabled]="busyId() === a.id"
+      >
+        Mark read
+      </button>
+      } @if (link(a); as target) {
+      <a mat-button [routerLink]="target" (click)="markRead(a)">Open</a>
+      } @if (a.status === 'Open') {
+      <button
+        mat-flat-button
+        type="button"
+        (click)="acknowledge(a)"
+        [disabled]="busyId() === a.id"
+      >
+        Acknowledge
+      </button>
+      }
+    </div>
+  </article>
+  } @empty { @if (!loading()) {
+  <p class="empty">{{ emptyText() }}</p>
+  } }
+
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="page() - 1"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="[20, 50, 100]"
+    aria-label="Pages of alerts"
+    (page)="onPage($event)"
+  />
+</section>

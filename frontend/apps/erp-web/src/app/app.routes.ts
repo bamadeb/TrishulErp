@@ -1,6 +1,16 @@
 import { Route } from '@angular/router';
-import { LoginPage, authGuard, guestGuard } from '@trishul/core-auth';
-import { ForbiddenPage, NotFoundPage, Shell } from '@trishul/core-layout';
+import {
+  LoginPage,
+  authGuard,
+  guestGuard,
+  permissionGuard,
+} from '@trishul/core-auth';
+import {
+  AlertsPage,
+  ForbiddenPage,
+  NotFoundPage,
+  Shell,
+} from '@trishul/core-layout';
 import { DashboardPage } from './dashboard.page';
 
 export const appRoutes: Route[] = [
@@ -26,6 +36,12 @@ export const appRoutes: Route[] = [
         path: 'admin',
         loadChildren: () =>
           import('@trishul/admin-feature-users').then((m) => m.adminRoutes),
+      },
+      {
+        path: 'alerts',
+        title: 'My alerts',
+        canActivate: [permissionGuard('core.alert.view')],
+        component: AlertsPage,
       },
       // Phase 1+: masters, admin, inventory, purchase, sales, presales, hr, accounts, integration, reports.
       { path: 'forbidden', title: 'Access denied', component: ForbiddenPage },
