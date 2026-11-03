@@ -101,11 +101,14 @@ def create_app(
         async def warm_up() -> None:
             def work() -> None:
                 log = logging.getLogger(__name__)
-                try:
-                    with db_engine.connect() as connection:
-                        connection.execute(text("SELECT 1"))
-                except Exception:
-                    log.warning("Database warm-up skipped; will connect on first request", exc_info=True)
+                # Only an engine created here: a supplied one (the tests' shared SQLite connection) is the
+                # caller's, and closing a connection on this thread would roll back their open transaction.
+                if engine is None:
+                    try:
+                        with db_engine.connect() as connection:
+                            connection.execute(text("SELECT 1"))
+                    except Exception:
+                        log.warning("Database warm-up skipped; will connect on first request", exc_info=True)
                 try:
                     api.state.token_verifier.warm()
                 except Exception:
