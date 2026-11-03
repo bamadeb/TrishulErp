@@ -18,6 +18,7 @@ from trishul_api.db.models import (
     UserDevice,
 )
 from trishul_api.modules.trk.constants import IN_PROGRESS
+from trishul_api.modules.trk.distance import GpsFix
 from trishul_api.modules.trk.schemas import (
     CallTripHistoryItem,
     TripAdjustmentItem,
@@ -151,13 +152,28 @@ class TripRepository:
         )
         return [CallTripHistoryItem.model_validate(row) for row in rows.mappings()]
 
-    def gps_points(self, trip_id: int) -> list[tuple[float, float]]:
+    def gps_fixes(self, trip_id: int) -> list[GpsFix]:
         rows = self._session.execute(
-            select(TrkTripGpsPoint.latitude, TrkTripGpsPoint.longitude)
+            select(
+                TrkTripGpsPoint.recorded_at,
+                TrkTripGpsPoint.latitude,
+                TrkTripGpsPoint.longitude,
+                TrkTripGpsPoint.accuracy_m,
+                TrkTripGpsPoint.is_mock_location,
+            )
             .where(TrkTripGpsPoint.trip_id == trip_id)
             .order_by(TrkTripGpsPoint.recorded_at)
         )
-        return [(float(lat), float(lon)) for lat, lon in rows]
+        return [
+            GpsFix(
+                recorded_at=at,
+                latitude=float(lat),
+                longitude=float(lon),
+                accuracy_m=float(acc) if acc is not None else None,
+                is_mock_location=bool(mock),
+            )
+            for at, lat, lon, acc, mock in rows
+        ]
 
     def list(self, scope: RequestScope, query: TripListQuery) -> Page[TripListItem]:
         return paginate(self._session, self.list_statement(scope, query), query, TripListItem)

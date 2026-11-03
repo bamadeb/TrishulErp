@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
 from decimal import Decimal
-from math import asin, cos, radians, sin, sqrt
 
 from sqlalchemy.orm import Session
 
@@ -10,6 +9,7 @@ from trishul_api.common.errors import ApiError, Conflict, NotFound
 from trishul_api.common.schemas import Page
 from trishul_api.db.models import ServiceCall, TrackableActivity, TrkTrip, TrkTripDistanceAdjustment, TrkTripGpsPoint
 from trishul_api.modules.trk.constants import COMPLETED, IN_PROGRESS
+from trishul_api.modules.trk.distance import route_distance_km
 from trishul_api.modules.trk.handlers import handler_for
 from trishul_api.modules.trk.master_service import TripMasterService
 from trishul_api.modules.trk.repository import TripRepository
@@ -36,12 +36,6 @@ def _naive_utc(value: datetime) -> datetime:
     """DATETIME2 columns hold naive UTC; incoming UtcDateTime values are tz-aware. Match the DB so
     equality checks (GPS dedup) and arithmetic (duration) work."""
     return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo is not None else value
-
-
-def _haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:
-    lat1, lon1, lat2, lon2 = map(radians, (a[0], a[1], b[0], b[1]))
-    h = sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2) ** 2
-    return 2 * 6371.0088 * asin(sqrt(h))
 
 
 class TripService:
@@ -236,11 +230,7 @@ class TripService:
         return trip
 
     def _gps_distance(self, trip_id: int) -> float | None:
-        points = self._repo.gps_points(trip_id)
-        if len(points) < 2:
-            return None
-        total = sum(_haversine_km(points[i - 1], points[i]) for i in range(1, len(points)))
-        return round(total, 2)
+        return route_distance_km(self._repo.gps_fixes(trip_id))
 
     def _to_out(self, trip: TrkTrip, activity: TrackableActivity | None = None) -> TripOut:
         activity = activity or self._repo.get_activity(trip.trackable_activity_id)
