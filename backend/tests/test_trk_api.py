@@ -643,3 +643,45 @@ def test_inactive_master_data_is_for_reviewers_only(api: FastAPI, client: TestCl
     assert client.get("/api/v1/trk/trip-types?includeInactive=true").status_code == 403
     api.dependency_overrides[get_current_user] = lambda: make_user(permissions=frozenset({"trk.trip.view.team"}))
     assert client.get("/api/v1/trk/trip-types?includeInactive=true").status_code == 200
+
+
+# ---------------------------------------------------------------- trip start side effects
+
+
+def test_site_coordinates_fall_back_in_order() -> None:
+    from trishul_api.modules.trk.handlers import _site_coordinates
+
+    sites = {
+        1: SimpleNamespace(latitude=None, longitude=None),  # call's site, no coordinates yet
+        2: SimpleNamespace(latitude=Decimal("20.1"), longitude=Decimal("85.1")),  # machine's site
+    }
+    default = SimpleNamespace(latitude=Decimal("19.9"), longitude=Decimal("84.9"))
+
+    class Session:
+        def get(self, _model: Any, site_id: int) -> Any:
+            return sites.get(site_id)
+
+        def scalars(self, _statement: Any) -> Any:
+            return SimpleNamespace(first=lambda: default)
+
+    assert _site_coordinates(Session(), [1, 2], 5) == (20.1, 85.1)  # skips the site without coordinates
+    assert _site_coordinates(Session(), [None, None], 5) == (19.9, 84.9)  # customer's default site
+    assert _site_coordinates(Session(), [1], None) == (None, None)  # nothing known
+
+
+@pytest.mark.parametrize(
+    ("header", "agent", "expected"),
+    [
+        ("android", None, "Android"),  # an explicit header wins
+        ("web", "okhttp/4.12.0", "Web"),
+        (None, "okhttp/4.12.0", "Android"),
+        (None, "Dart/3.4 (dart:io)", "Android"),
+        (None, "MyApp/1.0 CFNetwork/1494 Darwin/23.4", "iOS"),
+        (None, "Mozilla/5.0 (Linux; Android 14) Chrome/124", "Web"),  # a phone browser is still web
+        (None, None, "Web"),
+    ],
+)
+def test_audit_source_is_inferred_for_mobile_clients(header: str | None, agent: str | None, expected: str) -> None:
+    from trishul_api.auth.deps import _audit_source
+
+    assert _audit_source(header, agent) == expected

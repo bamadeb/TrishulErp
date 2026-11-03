@@ -345,7 +345,7 @@ class OemCallReference(Base):
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
 
-class ServiceVisit(Base):
+class ServiceVisit(Audited, Base):
     """Each visit to site for a call (inspection, repair, parts fitment...)."""
 
     __tablename__ = "service_visit"

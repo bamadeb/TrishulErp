@@ -103,18 +103,33 @@ ScopeDep = Annotated[RequestScope, Depends(get_scope)]
 _PLATFORMS: dict[str, AuditSource] = {"web": "Web", "android": "Android", "ios": "iOS", "api": "API"}
 
 
+def _audit_source(platform_header: str | None, user_agent: str | None) -> AuditSource:
+    """The channel recorded in the audit trail. Clients should send X-Client-Platform; when they do not,
+    the mobile HTTP stacks are recognised by User-Agent (browsers also say 'Android', so Mozilla = web)."""
+    if platform_header and platform_header.lower() in _PLATFORMS:
+        return _PLATFORMS[platform_header.lower()]
+    agent = (user_agent or "").lower()
+    if "mozilla" not in agent:
+        if "okhttp" in agent or "dart/" in agent or "android" in agent:
+            return "Android"
+        if "cfnetwork" in agent or "darwin" in agent or "iphone" in agent:
+            return "iOS"
+    return "Web"
+
+
 def get_db(
     request: Request,
     user: CurrentUserDep,
     engine: Annotated[Engine, Depends(get_engine)],
     x_client_platform: Annotated[str | None, _CONTEXT_HEADER] = None,
+    user_agent: Annotated[str | None, _CONTEXT_HEADER] = None,
 ) -> Iterator[Session]:
     """Session tagged with the user for row-level security and auditing. Commit explicitly after writes."""
     with user_session(engine, user.id) as session:
         set_audit_context(
             session,
             user_id=user.id,
-            source=_PLATFORMS.get((x_client_platform or "").lower(), "Web"),
+            source=_audit_source(x_client_platform, user_agent),
             # Behind the ALB, uvicorn's --proxy-headers makes this the real client address.
             ip_address=request.client.host if request.client else None,
         )

@@ -21,6 +21,7 @@ audited = [
     "core.number_series",
     # Documents and money
     "svc.service_call",
+    "svc.service_visit",
     "sal.sales_invoice",
     "sal.receipt",
     "sal.credit_note",

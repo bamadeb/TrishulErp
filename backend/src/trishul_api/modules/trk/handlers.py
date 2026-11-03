@@ -7,6 +7,7 @@ stops. Add a module by registering a handler here — the engine and the endpoin
 
 from datetime import datetime
 from typing import Protocol
+from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from trishul_api.common.errors import ApiError, NotFound
 from trishul_api.db.models import (
     CallStatusLog,
     CustomerSite,
+    MachineUnit,
     SalesActivity,
     ServiceCall,
     ServiceCallCurrentStatus,
@@ -28,7 +30,15 @@ class ActivityHandler(Protocol):
     module_code: ModuleCode
 
     def resolve(
-        self, session: Session, employee_id: int, reference_id: int, user_id: int, lat: float, lon: float, now: datetime
+        self,
+        session: Session,
+        employee_id: int,
+        reference_id: int,
+        user_id: int,
+        lat: float,
+        lon: float,
+        now: datetime,
+        client_uuid: UUID | None = None,
     ) -> TrackableActivity:
         """Return (creating if needed) the trackable activity for this trip, and advance the module
         to 'trip started'. Raise NotFound if the activity is not the employee's to travel to."""
@@ -53,6 +63,7 @@ def _get_or_create_activity(
     activity_kind: str,
     target_lat: float | None = None,
     target_lon: float | None = None,
+    client_uuid: UUID | None = None,
     user_id: int,
 ) -> TrackableActivity:
     activity = session.scalars(
@@ -74,10 +85,15 @@ def _get_or_create_activity(
             title=title,
             target_latitude=target_lat,
             target_longitude=target_lon,
+            client_uuid=client_uuid,
             created_by_user_id=user_id,
         )
         session.add(activity)
         session.flush()
+    elif activity.target_latitude is None and target_lat is not None:
+        # The destination was unknown when the activity was first registered (no site yet); fill it in.
+        activity.target_latitude = target_lat
+        activity.target_longitude = target_lon
     return activity
 
 
@@ -85,7 +101,15 @@ class ServiceActivityHandler:
     module_code: ModuleCode = "SVC"
 
     def resolve(
-        self, session: Session, employee_id: int, reference_id: int, user_id: int, lat: float, lon: float, now: datetime
+        self,
+        session: Session,
+        employee_id: int,
+        reference_id: int,
+        user_id: int,
+        lat: float,
+        lon: float,
+        now: datetime,
+        client_uuid: UUID | None = None,
     ) -> TrackableActivity:
         call = session.get(ServiceCall, reference_id)
         if call is None or not call.is_active or call.assigned_engineer_id != employee_id:
@@ -116,12 +140,17 @@ class ServiceActivityHandler:
                 visit_purpose="Inspection",
                 engineer_employee_id=employee_id,
                 status="On the way",
+                client_uuid=client_uuid,
+                site_latitude=lat,
+                site_longitude=lon,
                 created_by_user_id=user_id,
             )
             session.add(visit)
             session.flush()
         else:
             visit.status = "On the way"
+            visit.site_latitude = lat
+            visit.site_longitude = lon
             _touch(visit, user_id, now)
 
         target_lat, target_lon = self._site_target(session, call)
@@ -136,9 +165,10 @@ class ServiceActivityHandler:
             activity_kind="Service visit",
             target_lat=target_lat,
             target_lon=target_lon,
+            client_uuid=client_uuid,
             user_id=user_id,
         )
-        _advance_call(session, call, "Trip started", user_id, lat, lon, now)
+        _advance_call(session, call, "Trip started", user_id, lat, lon, now, client_uuid)
         return activity
 
     def on_stop(
@@ -156,22 +186,28 @@ class ServiceActivityHandler:
 
     @staticmethod
     def _site_target(session: Session, call: ServiceCall) -> tuple[float | None, float | None]:
-        if call.customer_site_id is None:
-            return None, None
-        site = session.get(CustomerSite, call.customer_site_id)
-        if site is None:
-            return None, None
-        return (
-            float(site.latitude) if site.latitude is not None else None,
-            float(site.longitude) if site.longitude is not None else None,
-        )
+        """Where the engineer is going: the call's site, else the machine's current site, else the
+        customer's default site (any site with coordinates)."""
+        site_ids = [call.customer_site_id]
+        if call.machine_unit_id is not None:
+            machine = session.get(MachineUnit, call.machine_unit_id)
+            site_ids.append(machine.customer_site_id if machine is not None else None)
+        return _site_coordinates(session, site_ids, call.customer_id)
 
 
 class PreSalesActivityHandler:
     module_code: ModuleCode = "PRE"
 
     def resolve(
-        self, session: Session, employee_id: int, reference_id: int, user_id: int, lat: float, lon: float, now: datetime
+        self,
+        session: Session,
+        employee_id: int,
+        reference_id: int,
+        user_id: int,
+        lat: float,
+        lon: float,
+        now: datetime,
+        client_uuid: UUID | None = None,
     ) -> TrackableActivity:
         sa = session.get(SalesActivity, reference_id)
         if sa is None or not sa.is_active or sa.employee_id != employee_id:
@@ -181,6 +217,7 @@ class PreSalesActivityHandler:
         if sa.started_at is None:
             sa.started_at = now
             _touch(sa, user_id, now)
+        target_lat, target_lon = _site_coordinates(session, [], sa.customer_id)
         return _get_or_create_activity(
             session,
             module_code="PRE",
@@ -190,6 +227,9 @@ class PreSalesActivityHandler:
             customer_id=sa.customer_id,
             title=f"{sa.activity_type}",
             activity_kind="Sales activity",
+            target_lat=target_lat,
+            target_lon=target_lon,
+            client_uuid=client_uuid,
             user_id=user_id,
         )
 
@@ -224,6 +264,7 @@ def _advance_call(
     lat: float,
     lon: float,
     now: datetime,
+    client_uuid: UUID | None = None,
 ) -> None:
     from_status = call.current_status
     call.current_status = to_status
@@ -237,8 +278,34 @@ def _advance_call(
             changed_by_user_id=user_id,
             latitude=lat,
             longitude=lon,
+            client_uuid=client_uuid,
         )
     )
+
+
+def _site_coordinates(
+    session: Session, site_ids: list[int | None], customer_id: int | None
+) -> tuple[float | None, float | None]:
+    """Coordinates of the first of `site_ids` that has them, else of the customer's default site (or
+    any active site with coordinates)."""
+    for site_id in site_ids:
+        site = session.get(CustomerSite, site_id) if site_id is not None else None
+        if site is not None and site.latitude is not None and site.longitude is not None:
+            return float(site.latitude), float(site.longitude)
+    if customer_id is not None:
+        site = session.scalars(
+            select(CustomerSite)
+            .where(
+                CustomerSite.customer_id == customer_id,
+                CustomerSite.is_active,
+                CustomerSite.latitude.is_not(None),
+                CustomerSite.longitude.is_not(None),
+            )
+            .order_by(CustomerSite.is_default.desc(), CustomerSite.id)
+        ).first()
+        if site is not None:
+            return float(site.latitude), float(site.longitude)
+    return None, None
 
 
 def _touch(row: object, user_id: int, now: datetime) -> None:
