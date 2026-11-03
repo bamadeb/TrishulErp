@@ -8,6 +8,8 @@ import {
   EMPLOYEE_VIEW_PERMISSIONS,
   ROLE_MANAGE_PERMISSION,
   ROLE_VIEW_PERMISSIONS,
+  TEAM_MANAGE_PERMISSION,
+  TEAM_VIEW_PERMISSIONS,
   USER_MANAGE_PERMISSION,
   USER_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
@@ -20,6 +22,8 @@ import { EmployeeFormPage } from './employee-form.page';
 import { EmployeeListPage } from './employee-list.page';
 import { RoleFormPage } from './role-form.page';
 import { RoleListPage } from './role-list.page';
+import { TeamFormPage } from './team-form.page';
+import { TeamListPage } from './team-list.page';
 import { UserFormPage } from './user-form.page';
 import { UserListPage } from './user-list.page';
 
@@ -97,6 +101,24 @@ export const adminRoutes: Route[] = [
     title: 'Role',
     canActivate: [permissionGuard(...ROLE_VIEW_PERMISSIONS)],
     component: RoleFormPage,
+  },
+  {
+    path: 'teams',
+    title: 'Teams',
+    canActivate: [permissionGuard(...TEAM_VIEW_PERMISSIONS)],
+    component: TeamListPage,
+  },
+  {
+    path: 'teams/new',
+    title: 'Add team',
+    canActivate: [permissionGuard(TEAM_MANAGE_PERMISSION)],
+    component: TeamFormPage,
+  },
+  {
+    path: 'teams/:teamId',
+    title: 'Team',
+    canActivate: [permissionGuard(...TEAM_VIEW_PERMISSIONS)],
+    component: TeamFormPage,
   },
   {
     path: 'alert-rules',

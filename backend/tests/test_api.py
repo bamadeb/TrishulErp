@@ -7,6 +7,7 @@ from trishul_api.auth import CurrentUser, RequestScope, get_current_user
 from trishul_api.common.schemas import Page
 from trishul_api.modules.core.router import get_core_repository
 from trishul_api.modules.core.schemas import BranchRef, LookupValueOut, PrincipalRef
+from trishul_api.modules.service.access import CallVisibility
 from trishul_api.modules.service.router import get_service_call_repository
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
@@ -24,6 +25,9 @@ class FakeCoreRepository:
 
     def principals(self, ids: object) -> list[PrincipalRef]:
         return [PrincipalRef(id=10, code="ATLAS_COPCO", name="Atlas Copco")]
+
+    def role_names(self, codes: object) -> list[str]:
+        return ["Service Team Lead"]
 
     def lookup_values(self, type_code: str) -> list[LookupValueOut] | None:
         if type_code != "CALL_SOURCE":
@@ -65,8 +69,14 @@ class FakeServiceCallRepository:
         )
         return Page(items=[item], total=1, page=query.page, page_size=query.page_size)
 
-    def list(self, scope: RequestScope, query: ServiceCallQuery) -> Page[ServiceCallListItem]:
+    def team_members(self, lead_employee_id: int) -> list[int]:
+        return [8, 9]
+
+    def list(
+        self, scope: RequestScope, query: ServiceCallQuery, visibility: CallVisibility
+    ) -> Page[ServiceCallListItem]:
         self.calls.append((scope, query))
+        self.visibility = visibility
         item = ServiceCallListItem(
             id=1001,
             call_no="SC/25-26/04210",
@@ -110,9 +120,10 @@ def test_me_returns_the_angular_auth_contract(api: FastAPI, client: TestClient, 
         "id": 7,
         "username": "team.lead",
         "displayName": "Rahul Patil",
+        "roleNames": ["Service Team Lead"],
         "email": "rahul@example.com",
         "defaultBranchId": 1,
-        "permissions": ["svc.call.assign"],
+        "permissions": ["svc.call.assign", "svc.call.view.team"],
         "branches": [{"id": 1, "code": "PUN", "name": "Pune"}],
         "principals": [{"id": 10, "code": "ATLAS_COPCO", "name": "Atlas Copco"}],
     }
@@ -154,6 +165,8 @@ def test_service_calls_default_to_the_users_branch(api: FastAPI, client: TestCli
     repo = use_service_repo(api)
     client.get("/api/v1/svc/service-calls")
     assert repo.calls[0][0] == RequestScope(branch_id=1, principal_id=None)
+    # A team lead (employee 7) sees their own, their team's (8, 9) and unassigned calls.
+    assert repo.visibility == CallVisibility(engineer_ids=frozenset({7, 8, 9}), unassigned=True)
 
 
 def test_service_calls_reject_branches_and_brands_outside_the_users_scope(

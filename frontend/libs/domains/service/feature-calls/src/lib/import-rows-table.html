@@ -1,0 +1,100 @@
+<div class="table-card">
+  <div class="table-scroll">
+    <table mat-table [dataSource]="rows()">
+      <ng-container matColumnDef="rowNumber">
+        <th mat-header-cell *matHeaderCellDef>Row</th>
+        <td mat-cell *matCellDef="let r">{{ r.rowNumber }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="c4CTicketId">
+        <th mat-header-cell *matHeaderCellDef>C4C Ticket</th>
+        <td mat-cell *matCellDef="let r">{{ r.c4CTicketId ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="call">
+        <th mat-header-cell *matHeaderCellDef>Call</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.serviceCallId) {
+          <a [routerLink]="['/service/calls', r.serviceCallId]"
+            >{{ r.callNo }}</a
+          >
+          } @else {
+          <span class="muted">{{ r.callNo ?? '—' }}</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="account">
+        <th mat-header-cell *matHeaderCellDef>Account</th>
+        <td mat-cell *matCellDef="let r">{{ r.account ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="action">
+        <th mat-header-cell *matHeaderCellDef>Action</th>
+        <td mat-cell *matCellDef="let r">
+          <trishul-status-badge
+            [status]="actionLabel(r.action)"
+            [severities]="actionSeverity"
+          />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="linking">
+        <th mat-header-cell *matHeaderCellDef>Linking</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.action !== 'skip') {
+          <trishul-status-badge
+            [status]="linkLabel(r)"
+            [severities]="linkSeverity"
+          />
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="changes">
+        <th mat-header-cell *matHeaderCellDef>Changed</th>
+        <td mat-cell *matCellDef="let r">
+          @for (c of r.changes; track c.field) {
+          <div class="change">
+            <span class="field">{{ c.field }}:</span>
+            <ng-container
+              *ngTemplateOutlet="value; context: { $implicit: c.old }"
+            />
+            →
+            <ng-container
+              *ngTemplateOutlet="value; context: { $implicit: c.new }"
+            />
+          </div>
+          } @empty { @if (r.action === 'update') {
+          <span class="muted">No changes</span>
+          } }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="messages">
+        <th mat-header-cell *matHeaderCellDef>Notes</th>
+        <td mat-cell *matCellDef="let r" class="muted">
+          {{ r.messages.join(' ') }}
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="muted empty" [attr.colspan]="columns.length">
+          No rows to show.
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<ng-template #value let-v>
+  @if (v === null) {
+  <span class="muted">blank</span>
+  } @else if (isDate(v)) {
+  <span>{{ v | date: 'dd MMM yyyy, HH:mm' }}</span>
+  } @else {
+  <span>{{ v }}</span>
+  }
+</ng-template>

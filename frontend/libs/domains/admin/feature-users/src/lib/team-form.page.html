@@ -1,0 +1,189 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add team' : (team()?.name ?? 'Team')"
+  [subtitle]="
+    isNew()
+      ? 'Choose a team lead and the engineers they lead'
+      : (team()?.branchName ?? '')
+  "
+>
+  <a mat-button routerLink="/admin/teams">
+    <mat-icon>arrow_back</mat-icon>
+    All teams
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Team</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Team name</mat-label>
+          <input matInput formControlName="name" autocomplete="off" />
+          <mat-error>Name is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="teamType">
+            @for (type of teamTypes; track type) {
+            <mat-option [value]="type">{{ type }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branch</mat-label>
+          <mat-select formControlName="branchId" (selectionChange)="branchChanged()">
+            @if (team(); as current) {
+            <mat-option [value]="current.branchId">{{ current.branchName }}</mat-option>
+            }
+            @for (b of branches(); track b.id) {
+            @if (b.id !== team()?.branchId) {
+            <mat-option [value]="b.id">{{ b.name }}</mat-option>
+            } }
+          </mat-select>
+          @if (isNew()) {
+          <mat-hint>Can't be changed later.</mat-hint>
+          }
+          <mat-error>Choose a branch.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Team lead</mat-label>
+          <mat-select formControlName="teamLeadEmployeeId">
+            @if (team(); as current) { @if (!canManage) {
+            <mat-option [value]="current.teamLeadEmployeeId">{{
+              current.teamLeadName
+            }}</mat-option>
+            } }
+            @for (e of employees(); track e.id) {
+            <mat-option [value]="e.id"
+              >{{ e.name }} · {{ e.designation || e.employeeCode }}</mat-option
+            >
+            }
+          </mat-select>
+          <mat-hint>Sees the service calls of the team's engineers.</mat-hint>
+          <mat-error>Choose the team lead.</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <div class="permissions-head">
+        <div>
+          <h2>Members</h2>
+          <p class="lead">
+            {{ selected().size }} selected. A person can be in one active team
+            of each type.
+          </p>
+        </div>
+        @if (canManage) {
+        <mat-form-field
+          class="filter"
+          appearance="outline"
+          subscriptSizing="dynamic"
+        >
+          <mat-icon matPrefix>search</mat-icon>
+          <input
+            matInput
+            type="search"
+            placeholder="Filter employees"
+            aria-label="Filter employees"
+            [value]="filter()"
+            (input)="filter.set($any($event.target).value)"
+          />
+        </mat-form-field>
+        }
+      </div>
+
+      @if (canManage) {
+      <fieldset class="group">
+        <ul>
+          @for (e of candidates(); track e.id) {
+          <li>
+            <mat-checkbox
+              [checked]="selected().has(e.id)"
+              (change)="toggle(e.id, $event.checked)"
+            >
+              <span class="permission">
+                <span>{{ e.name }}</span>
+                <code>{{ e.employeeCode }} · {{ e.designation || '—' }}</code>
+              </span>
+            </mat-checkbox>
+          </li>
+          } @empty {
+          <li class="muted">
+            @if (filter()) { No employees match "{{ filter() }}". } @else { No
+            other active employees in this branch. }
+          </li>
+          }
+        </ul>
+      </fieldset>
+      } @else {
+      <fieldset class="group">
+        <ul>
+          @for (m of team()?.members ?? []; track m.employeeId) {
+          <li class="permission">
+            <span>{{ m.name }}</span>
+            <code>{{ m.employeeCode }} · {{ m.designation || '—' }}</code>
+          </li>
+          } @empty {
+          <li class="muted">No members yet.</li>
+          }
+        </ul>
+      </fieldset>
+      }
+    </section>
+
+    @if (canManage) {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add team' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/admin/teams">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (team(); as current) {
+  <aside class="card side" aria-label="Team status">
+    <h2>Status</h2>
+    <div class="status-line">
+      <trishul-status-badge
+        [status]="current.isActive ? 'Active' : 'Inactive'"
+        [severities]="activeSeverity"
+      />
+    </div>
+    <p class="muted">
+      {{ current.memberCount }}
+      {{ current.memberCount === 1 ? 'member' : 'members' }}. While the team is
+      active, {{ current.teamLeadName }} sees their service calls and calls not
+      yet assigned.
+    </p>
+    @if (canManage) { @if (current.isActive) {
+    <button
+      mat-stroked-button
+      type="button"
+      class="danger"
+      (click)="deactivate()"
+    >
+      <mat-icon>block</mat-icon>
+      Deactivate
+    </button>
+    } @else {
+    <button mat-stroked-button type="button" (click)="activate()">
+      <mat-icon>check_circle</mat-icon>
+      Activate
+    </button>
+    } }
+  </aside>
+  }
+</div>

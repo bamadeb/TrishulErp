@@ -3,14 +3,17 @@
 from typing import Any
 
 from trishul_api.auth import RequestScope
+from trishul_api.modules.service.access import CallVisibility
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import AssignedServiceCallQuery, ServiceCallQuery
 
 from .helpers import mssql_sql
 
+EVERYTHING = CallVisibility(everything=True)
 
-def sql(scope: RequestScope, **query: Any) -> str:
-    statement = ServiceCallRepository.list_statement(scope, ServiceCallQuery(**query))
+
+def sql(scope: RequestScope, visibility: CallVisibility = EVERYTHING, **query: Any) -> str:
+    statement = ServiceCallRepository.list_statement(scope, ServiceCallQuery(**query), visibility)
     return mssql_sql(statement.offset(20).limit(20))
 
 
@@ -56,6 +59,25 @@ def test_status_and_priority_filters() -> None:
     text = sql(RequestScope(1, None), status=["Logged", "Reopened"], priority=["High"])
     assert "svc.service_call.current_status IN (N'Logged', N'Reopened')" in text
     assert "svc.service_call.priority IN (N'High')" in text
+
+
+def test_register_roles_see_every_call() -> None:
+    assert "assigned_engineer_id" not in sql(RequestScope(1, None)).split("WHERE", 1)[1]
+
+
+def test_team_lead_sees_their_team_and_unassigned_calls() -> None:
+    text = sql(RequestScope(1, None), CallVisibility(engineer_ids=frozenset({7, 3}), unassigned=True))
+    assert "svc.service_call.assigned_engineer_id IN (3, 7) OR svc.service_call.assigned_engineer_id IS NULL" in text
+
+
+def test_engineer_sees_only_their_own_calls() -> None:
+    text = sql(RequestScope(1, None), CallVisibility(engineer_ids=frozenset({55})))
+    assert "svc.service_call.assigned_engineer_id IN (55)" in text
+    assert "IS NULL" not in text
+
+
+def test_no_view_rights_match_nothing() -> None:
+    assert "WHERE 0 = 1" in sql(RequestScope(1, None), CallVisibility())
 
 
 def test_assigned_list_is_scoped_to_the_signed_in_engineer() -> None:

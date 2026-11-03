@@ -15,5 +15,6 @@ export interface Me {
   id: number;
   permissions: Array<string>;
   principals: Array<PrincipalRef>;
+  roleNames: Array<string>;
   username: string;
 }

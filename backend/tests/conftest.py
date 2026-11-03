@@ -19,7 +19,7 @@ def make_user(**overrides: object) -> CurrentUser:
         "email": "rahul@example.com",
         "default_branch_id": 1,
         "roles": frozenset({"TEAM_LEAD"}),
-        "permissions": frozenset({"svc.call.assign"}),
+        "permissions": frozenset({"svc.call.assign", "svc.call.view.team"}),
         "branch_ids": frozenset({1, 2}),
         "principal_ids": frozenset({10}),
     }

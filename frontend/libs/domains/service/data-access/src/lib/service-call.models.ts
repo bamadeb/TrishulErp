@@ -57,20 +57,14 @@ export const CALL_PRIORITIES = allOf<CallPriority>()([
 ]);
 
 /**
- * Any of these may open the call register. Used by the route guard and the menu.
- * The API checks the same codes: backend/src/trishul_api/modules/service/router.py (CAN_VIEW_CALLS).
+ * Any of these may open the call register and a call's detail page. Used by the route guard and the menu.
+ * The API decides which calls each sees: every call / the team lead's team and unassigned calls / the
+ * engineer's own. Same codes as backend/src/trishul_api/modules/service/access.py (CAN_VIEW_CALLS).
  */
 export const SERVICE_CALL_VIEW_PERMISSIONS = [
   'svc.call.view',
-  'svc.call.create',
-  'svc.call.assign',
-] as const;
-
-/**
- * Open one call's detail page: the register roles, or an engineer for a call assigned to them
- * (the API limits an engineer to their own calls). The API checks the same codes.
- */
-export const SERVICE_CALL_OPEN_PERMISSIONS = [
-  ...SERVICE_CALL_VIEW_PERMISSIONS,
+  'svc.call.view.team',
   'svc.call.view.assigned',
 ] as const;
+
+export const SERVICE_CALL_OPEN_PERMISSIONS = SERVICE_CALL_VIEW_PERMISSIONS;

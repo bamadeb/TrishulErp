@@ -12,6 +12,7 @@ const user: CurrentUser = {
   id: 7,
   username: 'team.lead',
   displayName: 'Team Lead',
+  roleNames: ['Service Team Lead'],
   email: null,
   defaultBranchId: 2,
   permissions: ['svc.call.assign', 'svc.call.close'],

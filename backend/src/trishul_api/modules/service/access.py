@@ -1,15 +1,22 @@
 """Who may see and change what on a service call (shared by the router and the services)."""
 
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import get_args
 
 from trishul_api.auth import CurrentUser
 from trishul_api.db.models.generated.svc import ServiceCallCurrentStatus
 
-# Any of these opens the full call register (svc.call.view comes from migration 0001). The Angular guard
-# and menu use the same codes: SERVICE_CALL_VIEW_PERMISSIONS in libs/domains/service/data-access.
-CAN_VIEW_CALLS = ("svc.call.view", "svc.call.create", "svc.call.assign")
-# A Service Engineer sees only the calls assigned to them (migration 0007).
+# Which calls a user sees in the register (and may open), widest first; row-level security still limits
+# all three to the user's branches and brands:
+#   svc.call.view           every call (office, management)
+#   svc.call.view.team      calls of the engineers in teams they lead, plus unassigned calls (team lead)
+#   svc.call.view.assigned  calls assigned to them (service engineer)
+# The Angular guard and menu use the same codes: SERVICE_CALL_VIEW_PERMISSIONS in libs/domains/service/data-access.
+CAN_VIEW_ALL_CALLS = "svc.call.view"
+CAN_VIEW_TEAM_CALLS = "svc.call.view.team"
 CAN_VIEW_OWN_CALLS = "svc.call.view.assigned"
+CAN_VIEW_CALLS = (CAN_VIEW_ALL_CALLS, CAN_VIEW_TEAM_CALLS, CAN_VIEW_OWN_CALLS)
 
 ALL_STATUSES: tuple[str, ...] = get_args(ServiceCallCurrentStatus)  # in workflow order
 
@@ -36,17 +43,44 @@ FINISHED_STATUSES = frozenset({"Closed", "Completed", "Cancelled", "Pending OEM 
 _FINISHED = FINISHED_STATUSES
 
 
-def can_see_call(actor: CurrentUser, assigned_engineer_id: int | None) -> bool:
-    """The register roles see every call; an engineer sees only their own."""
-    if actor.can(*CAN_VIEW_CALLS):
-        return True
-    return actor.employee_id is not None and assigned_engineer_id == actor.employee_id
+@dataclass(frozen=True)
+class CallVisibility:
+    """The calls a user sees, on top of row-level security (branch and brand)."""
+
+    everything: bool = False
+    engineer_ids: frozenset[int] = frozenset()
+    """Calls assigned to these employees."""
+    unassigned: bool = False
+    """Calls with no engineer yet."""
+
+    def allows(self, assigned_engineer_id: int | None) -> bool:
+        if self.everything:
+            return True
+        if assigned_engineer_id is None:
+            return self.unassigned
+        return assigned_engineer_id in self.engineer_ids
+
+
+def call_visibility(actor: CurrentUser, team_members: Callable[[int], Iterable[int]]) -> CallVisibility:
+    """team_members(lead_employee_id) returns the engineers currently in the teams that employee leads;
+    it is only called for a team lead."""
+    if actor.can(CAN_VIEW_ALL_CALLS):
+        return CallVisibility(everything=True)
+    engineer_ids: set[int] = set()
+    unassigned = False
+    if actor.employee_id is not None and actor.can(CAN_VIEW_TEAM_CALLS, CAN_VIEW_OWN_CALLS):
+        engineer_ids.add(actor.employee_id)
+    if actor.can(CAN_VIEW_TEAM_CALLS):
+        unassigned = True  # so the team lead can assign them
+        if actor.employee_id is not None:
+            engineer_ids.update(team_members(actor.employee_id))
+    return CallVisibility(engineer_ids=frozenset(engineer_ids), unassigned=unassigned)
 
 
 def allowed_statuses(actor: CurrentUser, current_status: str, assigned_engineer_id: int | None) -> list[str]:
     """The statuses this user may move the call to, in workflow order.
 
-    * svc.call.assign (team lead): any status except the protected ones, on any call.
+    * svc.call.assign (team lead): any status except the protected ones, on any call they can see.
     * svc.call.status.update (engineer): their progress steps, on calls assigned to them.
     * svc.call.close / svc.call.cancel / svc.call.reopen: Closed+Completed / Cancelled / Reopened.
     """

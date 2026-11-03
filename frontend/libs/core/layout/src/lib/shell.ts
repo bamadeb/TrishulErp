@@ -79,6 +79,16 @@ export class Shell {
 
   protected readonly menu = computed(() => this.filter(this.navItems));
 
+  /** The user's role beside their name: the only one, or the first and how many more. */
+  protected readonly roleLabel = computed(() => {
+    const roles = this.auth.user()?.roleNames ?? [];
+    if (roles.length <= 1) return roles[0] ?? '';
+    return `${roles[0]} +${roles.length - 1}`;
+  });
+  protected readonly roleTooltip = computed(() =>
+    (this.auth.user()?.roleNames ?? []).join(', '),
+  );
+
   /** Labels of the categories the user has collapsed; all start expanded. */
   private readonly collapsed = signal<ReadonlySet<string>>(new Set());
 

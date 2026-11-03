@@ -19,6 +19,8 @@ class Me(ApiModel):
     id: int
     username: str
     display_name: str
+    role_names: list[str]
+    """Names of the user's active roles, e.g. "Service Team Lead"; shown beside their name."""
     email: str | None
     default_branch_id: int | None
     permissions: list[str]

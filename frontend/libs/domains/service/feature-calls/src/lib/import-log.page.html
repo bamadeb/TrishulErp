@@ -1,0 +1,97 @@
+<trishul-page-header
+  title="Import log"
+  subtitle="Every BYD upload in the selected branch and brand, and what it did"
+>
+  <a
+    mat-flat-button
+    routerLink="/service/calls/import"
+    *trishulHasPermission="importPermission"
+  >
+    <mat-icon>upload_file</mat-icon>
+    Import calls
+  </a>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="File name"
+      aria-label="Search by file name"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  @if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+  <div class="table-scroll">
+    <table mat-table [dataSource]="items()">
+      <ng-container matColumnDef="importedAt">
+        <th mat-header-cell *matHeaderCellDef>Imported</th>
+        <td mat-cell *matCellDef="let i">
+          <a class="name" [routerLink]="[i.id]"
+            >{{ i.importedAt | date: 'dd MMM yyyy, HH:mm' }}</a
+          >
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="fileName">
+        <th mat-header-cell *matHeaderCellDef>File</th>
+        <td mat-cell *matCellDef="let i">
+          {{ i.fileName }}
+          <div class="muted">{{ i.sourceKind }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="branch">
+        <th mat-header-cell *matHeaderCellDef>Branch · brand</th>
+        <td mat-cell *matCellDef="let i">
+          {{ i.branchName }} · {{ i.principalCode }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="importedBy">
+        <th mat-header-cell *matHeaderCellDef>By</th>
+        <td mat-cell *matCellDef="let i">{{ i.importedByName ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="counts">
+        <th mat-header-cell *matHeaderCellDef>Result</th>
+        <td mat-cell *matCellDef="let i">
+          <div class="summary">
+            <span class="chip total">{{ i.totalRows }} rows</span>
+            <span class="chip success">{{ i.insertedCount }} new</span>
+            <span class="chip info">{{ i.updatedCount }} updated</span>
+            @if (i.unlinkedCount) {
+            <span class="chip warn">{{ i.unlinkedCount }} to link</span>
+            } @if (i.failedCount) {
+            <span class="chip neutral">{{ i.failedCount }} skipped</span>
+            }
+          </div>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="muted empty" [attr.colspan]="columns.length">
+          @if (loading()) { Loading… } @else { No imports yet. }
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator
+    class="paginator"
+    [length]="page()?.total ?? 0"
+    [pageIndex]="query().page - 1"
+    [pageSize]="query().pageSize"
+    [pageSizeOptions]="[20, 50, 100]"
+    aria-label="Pages of imports"
+    (page)="onPage($event)"
+  />
+</div>

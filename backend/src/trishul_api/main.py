@@ -22,6 +22,7 @@ from trishul_api.modules.core.devices.router import router as devices_router
 from trishul_api.modules.core.employees.router import router as employees_router
 from trishul_api.modules.core.roles.router import router as roles_router
 from trishul_api.modules.core.router import router as core_router
+from trishul_api.modules.core.teams.router import router as teams_router
 from trishul_api.modules.core.users.router import router as users_router
 from trishul_api.modules.presales.router import router as presales_router
 from trishul_api.modules.service.machines.router import router as machines_router
@@ -34,6 +35,7 @@ V1_ROUTERS: list[APIRouter] = [
     core_router,
     users_router,
     roles_router,
+    teams_router,
     employees_router,
     customers_router,
     alerts_router,
@@ -99,11 +101,14 @@ def create_app(
         async def warm_up() -> None:
             def work() -> None:
                 log = logging.getLogger(__name__)
-                try:
-                    with db_engine.connect() as connection:
-                        connection.execute(text("SELECT 1"))
-                except Exception:
-                    log.warning("Database warm-up skipped; will connect on first request", exc_info=True)
+                # Only an engine created here: a supplied one (the tests' shared SQLite connection) is the
+                # caller's, and closing a connection on this thread would roll back their open transaction.
+                if engine is None:
+                    try:
+                        with db_engine.connect() as connection:
+                            connection.execute(text("SELECT 1"))
+                    except Exception:
+                        log.warning("Database warm-up skipped; will connect on first request", exc_info=True)
                 try:
                     api.state.token_verifier.warm()
                 except Exception:

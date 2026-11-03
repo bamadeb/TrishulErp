@@ -63,6 +63,7 @@ const currentUser: CurrentUser = {
   id: 1,
   username: 'demo.admin',
   displayName: 'Demo Admin',
+  roleNames: ['Administrator'],
   email: 'demo.admin@example.com',
   defaultBranchId: 1,
   permissions: ['*'],

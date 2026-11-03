@@ -1600,6 +1600,694 @@
         }
       }
     },
+    "/core/teams": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Teams in the user's branches, with lead and member count",
+        "operationId": "list_teams",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branchid"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Team name or lead's name.",
+              "title": "Search"
+            },
+            "description": "Team name or lead's name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeamListItem"
+                  },
+                  "title": "Response List Teams"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Add a team",
+        "operationId": "create_team",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/teams/employee-options": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Active employees of a branch, to pick a team's lead and members",
+        "operationId": "list_team_employee_options",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Branchid"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeamEmployeeOption"
+                  },
+                  "title": "Response List Team Employee Options"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/teams/{teamId}": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "One team and its members",
+        "operationId": "get_team",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Teamid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Change a team's name, type, lead or members",
+        "operationId": "update_team",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Teamid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/teams/{teamId}/deactivate": {
+      "post": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Mark a team inactive (its lead no longer sees its calls)",
+        "operationId": "deactivate_team",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Teamid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/teams/{teamId}/activate": {
+      "post": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Mark a team active again",
+        "operationId": "activate_team",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Teamid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/employees": {
       "get": {
         "tags": [
@@ -4569,7 +5257,7 @@
         "tags": [
           "service"
         ],
-        "summary": "Call register for the selected branch and brand",
+        "summary": "Call register for the selected branch and brand (all calls, the team's, or the engineer's own)",
         "operationId": "list_service_calls",
         "security": [
           {
@@ -5664,6 +6352,221 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/svc/service-call-imports": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Log of service-call imports in the user's branches and brands, newest first",
+        "operationId": "list_service_call_imports",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_BydImportLogItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-call-imports/{importId}": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "One import and what happened to each row of its file",
+        "operationId": "get_service_call_import",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "importId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Importid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BydImportLogDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/svc/service-calls/{callId}/status-history": {
@@ -9416,6 +10319,168 @@
         ],
         "title": "BranchRef"
       },
+      "BydImportLogDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "fileName": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "sourceKind": {
+            "type": "string",
+            "title": "Sourcekind"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "principalCode": {
+            "type": "string",
+            "title": "Principalcode"
+          },
+          "importedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Importedat"
+          },
+          "importedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importedbyname"
+          },
+          "totalRows": {
+            "type": "integer",
+            "title": "Totalrows"
+          },
+          "insertedCount": {
+            "type": "integer",
+            "title": "Insertedcount"
+          },
+          "updatedCount": {
+            "type": "integer",
+            "title": "Updatedcount"
+          },
+          "unlinkedCount": {
+            "type": "integer",
+            "title": "Unlinkedcount"
+          },
+          "failedCount": {
+            "type": "integer",
+            "title": "Failedcount"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BydImportRow"
+            },
+            "type": "array",
+            "title": "Rows",
+            "description": "Every row of the file and what happened to it. Empty for imports made before row logging."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "sourceKind",
+          "branchName",
+          "principalCode",
+          "importedAt",
+          "importedByName",
+          "totalRows",
+          "insertedCount",
+          "updatedCount",
+          "unlinkedCount",
+          "failedCount",
+          "rows"
+        ],
+        "title": "BydImportLogDetail"
+      },
+      "BydImportLogItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "fileName": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "sourceKind": {
+            "type": "string",
+            "title": "Sourcekind"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "principalCode": {
+            "type": "string",
+            "title": "Principalcode"
+          },
+          "importedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Importedat"
+          },
+          "importedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importedbyname"
+          },
+          "totalRows": {
+            "type": "integer",
+            "title": "Totalrows"
+          },
+          "insertedCount": {
+            "type": "integer",
+            "title": "Insertedcount"
+          },
+          "updatedCount": {
+            "type": "integer",
+            "title": "Updatedcount"
+          },
+          "unlinkedCount": {
+            "type": "integer",
+            "title": "Unlinkedcount"
+          },
+          "failedCount": {
+            "type": "integer",
+            "title": "Failedcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "sourceKind",
+          "branchName",
+          "principalCode",
+          "importedAt",
+          "importedByName",
+          "totalRows",
+          "insertedCount",
+          "updatedCount",
+          "unlinkedCount",
+          "failedCount"
+        ],
+        "title": "BydImportLogItem",
+        "description": "One upload in the import log."
+      },
       "BydImportPreview": {
         "properties": {
           "summary": {
@@ -9522,6 +10587,17 @@
             ],
             "title": "Action"
           },
+          "serviceCallId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Servicecallid"
+          },
           "callNo": {
             "anyOf": [
               {
@@ -9555,6 +10631,14 @@
             },
             "type": "array",
             "title": "Messages"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "type": "array",
+            "title": "Changes",
+            "description": "For an applied update: the fields it changed. Empty otherwise."
           }
         },
         "type": "object",
@@ -9565,12 +10649,14 @@
           "subject",
           "account",
           "action",
+          "serviceCallId",
           "callNo",
           "customerMatched",
           "machineMatched",
           "engineerMatched",
           "needsLinking",
-          "messages"
+          "messages",
+          "changes"
         ],
         "title": "BydImportRow",
         "description": "What the importer decided for one row of the file."
@@ -11576,6 +12662,46 @@
         ],
         "title": "EngineerOption"
       },
+      "FieldChange": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "old": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old",
+            "description": "Value before the import; dates are ISO 8601 UTC."
+          },
+          "new": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New",
+            "description": "Value after the import; dates are ISO 8601 UTC."
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "old",
+          "new"
+        ],
+        "title": "FieldChange",
+        "description": "One field an import changed on an existing call, as shown to people (names, not ids)."
+      },
       "GpsBatchInput": {
         "properties": {
           "points": {
@@ -12495,6 +13621,13 @@
             "type": "string",
             "title": "Displayname"
           },
+          "roleNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rolenames"
+          },
           "email": {
             "anyOf": [
               {
@@ -12544,6 +13677,7 @@
           "id",
           "username",
           "displayName",
+          "roleNames",
           "email",
           "defaultBranchId",
           "permissions",
@@ -12877,6 +14011,37 @@
           "pageSize"
         ],
         "title": "Page[AssignedServiceCallListItem]"
+      },
+      "Page_BydImportLogItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BydImportLogItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[BydImportLogItem]"
       },
       "Page_CustomerListItem_": {
         "properties": {
@@ -14666,6 +15831,357 @@
           "endLongitude"
         ],
         "title": "StopTripInput"
+      },
+      "TeamCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "teamType": {
+            "type": "string",
+            "enum": [
+              "Service",
+              "Sales",
+              "Back office"
+            ],
+            "title": "Teamtype",
+            "default": "Service"
+          },
+          "branchId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Branchid",
+            "description": "Cannot be changed later."
+          },
+          "teamLeadEmployeeId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Teamleademployeeid"
+          },
+          "memberEmployeeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Memberemployeeids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "branchId",
+          "teamLeadEmployeeId"
+        ],
+        "title": "TeamCreate"
+      },
+      "TeamDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "teamType": {
+            "type": "string",
+            "enum": [
+              "Service",
+              "Sales",
+              "Back office"
+            ],
+            "title": "Teamtype"
+          },
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "teamLeadEmployeeId": {
+            "type": "integer",
+            "title": "Teamleademployeeid"
+          },
+          "teamLeadName": {
+            "type": "string",
+            "title": "Teamleadname"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "memberCount": {
+            "type": "integer",
+            "title": "Membercount",
+            "description": "Employees currently in the team.",
+            "default": 0
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/TeamMemberItem"
+            },
+            "type": "array",
+            "title": "Members"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "teamType",
+          "branchId",
+          "branchName",
+          "teamLeadEmployeeId",
+          "teamLeadName",
+          "isActive",
+          "memberCount",
+          "members",
+          "createdAt",
+          "updatedAt",
+          "rowVersion"
+        ],
+        "title": "TeamDetail"
+      },
+      "TeamEmployeeOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designation"
+          },
+          "designationCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designationcode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeCode",
+          "name",
+          "designation",
+          "designationCode"
+        ],
+        "title": "TeamEmployeeOption"
+      },
+      "TeamListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "teamType": {
+            "type": "string",
+            "enum": [
+              "Service",
+              "Sales",
+              "Back office"
+            ],
+            "title": "Teamtype"
+          },
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "teamLeadEmployeeId": {
+            "type": "integer",
+            "title": "Teamleademployeeid"
+          },
+          "teamLeadName": {
+            "type": "string",
+            "title": "Teamleadname"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "memberCount": {
+            "type": "integer",
+            "title": "Membercount",
+            "description": "Employees currently in the team.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "teamType",
+          "branchId",
+          "branchName",
+          "teamLeadEmployeeId",
+          "teamLeadName",
+          "isActive",
+          "memberCount"
+        ],
+        "title": "TeamListItem"
+      },
+      "TeamMemberItem": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designation"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Fromdate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "employeeCode",
+          "name",
+          "designation",
+          "fromDate"
+        ],
+        "title": "TeamMemberItem"
+      },
+      "TeamUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "teamType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Service",
+                  "Sales",
+                  "Back office"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Teamtype"
+          },
+          "teamLeadEmployeeId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Teamleademployeeid"
+          },
+          "memberEmployeeIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memberemployeeids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TeamUpdate",
+        "description": "Only the fields sent are changed. memberEmployeeIds, when sent, is the team's complete list."
       },
       "TripAdjustmentItem": {
         "properties": {

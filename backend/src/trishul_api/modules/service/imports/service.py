@@ -8,6 +8,7 @@ external_account_name / external_product_id, and is flagged needs_master_linking
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -21,6 +22,7 @@ from trishul_api.common.numbering import next_document_no
 from trishul_api.db.models import (
     Branch,
     BydCallImport,
+    BydCallImportLine,
     Customer,
     Employee,
     LookupType,
@@ -36,6 +38,7 @@ from trishul_api.modules.service.imports.schemas import (
     BydImportResult,
     BydImportRow,
     BydImportSummary,
+    FieldChange,
 )
 from trishul_api.modules.service.status_log import record_status_change
 
@@ -124,6 +127,8 @@ class BydImportService:
         self._db.flush()
 
         outcomes = [self._apply_row(row, ctx, kind, batch.id) for row in rows]
+        for outcome in outcomes:
+            self._db.add(_log_line(batch.id, outcome))
         summary = self._summary(kind, file_name, outcomes)
         batch.total_rows = summary.total
         batch.inserted_count = summary.inserts
@@ -159,10 +164,13 @@ class BydImportService:
         res = self._resolve(row, ctx)
         existing = self._find_call(ctx, row.c4c_ticket_id)
         previous_status: str | None
+        changes: list[FieldChange] = []
         if existing is not None:
             res.action = "update"
             previous_status = existing.current_status
+            before = _snapshot(existing)
             self._update_call(existing, row, res, batch_id)
+            changes = self._changes(before, _snapshot(existing))
             call = existing
             needs = call.needs_master_linking
         else:
@@ -173,7 +181,36 @@ class BydImportService:
         self._db.flush()  # so a repeated ticket later in the file updates this call
         if call.current_status != previous_status:  # a new call's first status, or a status the import moved
             record_status_change(self._db, call.id, previous_status, call.current_status, self._actor.id, "BYD import")
-        return _outcome(row, res, call.call_no, needs)
+        outcome = _outcome(row, res, call.call_no, needs)
+        outcome.service_call_id = call.id
+        outcome.changes = changes
+        return outcome
+
+    def _changes(self, before: dict[str, object], after: dict[str, object]) -> list[FieldChange]:
+        """The tracked fields that differ, with ids shown as names."""
+        return [
+            FieldChange(field=label, old=self._display(label, before[label]), new=self._display(label, after[label]))
+            for label in before
+            if before[label] != after[label]
+        ]
+
+    def _display(self, label: str, value: object) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return "Yes" if value else "No"
+        if isinstance(value, datetime):
+            return value.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
+        if label == "Engineer":
+            employee = self._db.get(Employee, value)
+            return " ".join(p for p in (employee.first_name, employee.last_name) if p) if employee else str(value)
+        if label == "Customer":
+            customer = self._db.get(Customer, value)
+            return customer.name if customer else str(value)
+        if label == "Machine":
+            machine = self._db.get(MachineUnit, value)
+            return machine.serial_number if machine else str(value)
+        return str(value)
 
     def _update_needs_linking(self, call: ServiceCall, res: _Resolution) -> bool:
         """Will the existing call still lack a real customer or machine after this update?"""
@@ -460,6 +497,43 @@ def _outcome(row: BydCallRow, res: _Resolution, call_no: str | None, needs_linki
         engineer_matched=res.engineer_matched,
         needs_linking=needs_linking,
         messages=res.messages,
+    )
+
+
+# Fields an update may change, as (label shown in the log, ServiceCall attribute).
+_TRACKED = (
+    ("Status", "current_status"),
+    ("Engineer", "assigned_engineer_id"),
+    ("Priority", "priority"),
+    ("Machine down", "is_machine_down"),
+    ("SLA due", "sla_due_at"),
+    ("External reference", "source_reference"),
+    ("Customer", "customer_id"),
+    ("Machine", "machine_unit_id"),
+)
+
+
+def _snapshot(call: ServiceCall) -> dict[str, object]:
+    return {label: getattr(call, attribute) for label, attribute in _TRACKED}
+
+
+def _log_line(import_id: int, row: BydImportRow) -> BydCallImportLine:
+    return BydCallImportLine(
+        import_id=import_id,
+        row_number=row.row_number,
+        c4c_ticket_id=row.c4c_ticket_id[:40] if row.c4c_ticket_id else None,
+        external_reference=row.external_reference[:150] if row.external_reference else None,
+        subject=row.subject[:500] if row.subject else None,
+        account=row.account[:200] if row.account else None,
+        action=row.action,
+        service_call_id=row.service_call_id,
+        call_no=row.call_no,
+        customer_matched=row.customer_matched,
+        machine_matched=row.machine_matched,
+        engineer_matched=row.engineer_matched,
+        needs_linking=row.needs_linking,
+        messages="\n".join(row.messages) or None,
+        changes=json.dumps([c.model_dump() for c in row.changes]) if row.changes else None,
     )
 
 

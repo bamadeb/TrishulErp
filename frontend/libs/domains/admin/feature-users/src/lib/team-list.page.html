@@ -1,0 +1,137 @@
+<trishul-page-header
+  title="Teams"
+  subtitle="Who leads which engineers. A team lead sees their team's service calls."
+>
+  <a
+    mat-flat-button
+    routerLink="new"
+    *trishulHasPermission="'core.team.manage'"
+  >
+    <mat-icon>add</mat-icon>
+    Add team
+  </a>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="Team or lead's name"
+      aria-label="Search teams"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  @if (branches().length > 1) {
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Branch</mat-label>
+    <mat-select
+      [value]="store.query().branchId ?? null"
+      (valueChange)="store.updateQuery({ branchId: $event ?? undefined })"
+    >
+      <mat-option [value]="null">All branches</mat-option>
+      @for (b of branches(); track b.id) {
+      <mat-option [value]="b.id">{{ b.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  }
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select
+      [value]="store.query().status"
+      (valueChange)="store.updateQuery({ status: $event })"
+    >
+      @for (status of statusFilters; track status) {
+      <mat-option [value]="status">{{ statusLabels[status] }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  <div class="table-scroll">
+    <table mat-table [dataSource]="store.items()">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Team</th>
+        <td mat-cell *matCellDef="let t">
+          <a class="name" [routerLink]="[t.id]">{{ t.name }}</a>
+          <div class="muted">{{ t.branchName }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <td mat-cell *matCellDef="let t">{{ t.teamType }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="lead">
+        <th mat-header-cell *matHeaderCellDef>Team lead</th>
+        <td mat-cell *matCellDef="let t">{{ t.teamLeadName }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="members">
+        <th mat-header-cell *matHeaderCellDef>Members</th>
+        <td mat-cell *matCellDef="let t" [class.muted]="!t.memberCount">
+          {{ t.memberCount }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let t">
+          <trishul-status-badge
+            [status]="t.isActive ? 'Active' : 'Inactive'"
+            [severities]="activeSeverity"
+          />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>
+          <span class="sr-only">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let t" class="actions">
+          @if (canManage) {
+          <button
+            mat-icon-button
+            [matMenuTriggerFor]="menu"
+            [attr.aria-label]="'Actions for ' + t.name"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <a mat-menu-item [routerLink]="[t.id]">
+              <mat-icon>edit</mat-icon>Edit team
+            </a>
+            @if (t.isActive) {
+            <button mat-menu-item (click)="deactivate(t)">
+              <mat-icon>block</mat-icon>Deactivate
+            </button>
+            } @else {
+            <button mat-menu-item (click)="activate(t)">
+              <mat-icon>check_circle</mat-icon>Activate
+            </button>
+            }
+          </mat-menu>
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="columns.length">
+          @if (store.loading()) { Loading… } @else { No teams match these
+          filters. }
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>

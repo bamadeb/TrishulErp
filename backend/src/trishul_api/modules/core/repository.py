@@ -3,7 +3,7 @@ from collections.abc import Set
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from trishul_api.db.models import Branch, LookupType, LookupValue, Principal
+from trishul_api.db.models import Branch, LookupType, LookupValue, Principal, Role
 from trishul_api.modules.core.schemas import BranchRef, LookupValueOut, PrincipalRef
 
 
@@ -23,6 +23,14 @@ class CoreRepository:
         if ids is not None:
             query = query.where(Principal.id.in_(ids))
         return [PrincipalRef.model_validate(row) for row in self._session.execute(query)]
+
+    def role_names(self, codes: Set[str]) -> list[str]:
+        """Names of the active roles among `codes`, alphabetically."""
+        if not codes:
+            return []
+        return list(
+            self._session.scalars(select(Role.name).where(Role.code.in_(codes), Role.is_active).order_by(Role.name))
+        )
 
     def lookup_values(self, type_code: str) -> list[LookupValueOut] | None:
         """Active values of a lookup type, or None if the type does not exist."""

@@ -1,6 +1,7 @@
 """Logging a service call: route -> service -> repository -> SQL (SQLite)."""
 
 from collections.abc import Iterator
+from datetime import date
 from typing import Any
 
 import httpx2 as httpx
@@ -33,6 +34,8 @@ TABLES = [
     "core.app_user",
     "core.audit_log",
     "hr.designation",
+    "core.team",
+    "core.team_member",
     "svc.service_call",
     "svc.call_status_log",
     "svc.sla_rule",
@@ -403,3 +406,71 @@ def test_triage_requires_assign_permission(client: TestClient, settings: Setting
     with make_client(settings, db, {"svc.call.view"}) as viewer:
         blocked = viewer.patch(f"{URL}/{call['id']}", json={"priority": "Low"}, headers=if_match(call))
         assert blocked.status_code == 403
+
+
+LEAD_ID, OTHER_ENGINEER_ID = 400, 302
+
+
+@pytest.fixture
+def team_calls(client: TestClient, db: Engine) -> dict[str, int]:
+    """A team (lead 400, engineer 300); engineer 302 is in no team. One call each, plus an unassigned one."""
+    insert_row(db, "core.employee", id=OTHER_ENGINEER_ID, company_id=COMPANY, branch_id=BRANCH,
+               employee_code="E302", first_name="Other", last_name="Engineer", designation_id=1,
+               employee_type="Permanent", status="Active")
+    insert_row(db, "core.employee", id=LEAD_ID, company_id=COMPANY, branch_id=BRANCH, employee_code="E400",
+               first_name="Team", last_name="Lead", designation_id=2, employee_type="Permanent", status="Active")
+    insert_row(db, "core.team", id=1, branch_id=BRANCH, name="Service A", team_type="Service",
+               team_lead_employee_id=LEAD_ID)
+    insert_row(db, "core.team_member", team_id=1, employee_id=ENGINEER_ID, from_date=date(2026, 1, 1))
+    # Left the team: no longer counts.
+    insert_row(db, "core.team_member", team_id=1, employee_id=OTHER_ENGINEER_ID, from_date=date(2026, 1, 1),
+               to_date=date(2026, 2, 1))
+    calls = {}
+    for key, engineer in (("team", ENGINEER_ID), ("other", OTHER_ENGINEER_ID), ("unassigned", None)):
+        call = create(client).json()
+        if engineer is not None:
+            client.patch(f"{URL}/{call['id']}", json={"engineerId": engineer}, headers=if_match(call))
+        calls[key] = call["id"]
+    return calls
+
+
+def listed(client: TestClient) -> set[int]:
+    response = client.get(URL)
+    assert response.status_code == 200, response.text
+    return {row["id"] for row in response.json()["items"]}
+
+
+def test_team_lead_sees_their_teams_calls_and_unassigned_ones(
+    settings: Settings, db: Engine, team_calls: dict[str, int]
+) -> None:
+    with make_client(settings, db, {"svc.call.view.team", "svc.call.assign"}, employee_id=LEAD_ID) as lead:
+        assert listed(lead) == {team_calls["team"], team_calls["unassigned"]}
+        assert lead.get(f"{URL}/{team_calls['team']}").status_code == 200
+        assert lead.get(f"{URL}/{team_calls['other']}").status_code == 404
+        assert lead.get(f"{URL}/{team_calls['other']}/status-history").status_code == 404
+        # The assign picker offers only the team's engineers.
+        assert [e["employeeCode"] for e in lead.get(f"{URL}/engineer-options").json()] == ["E300"]
+
+
+def test_team_lead_assigns_only_within_their_team(
+    settings: Settings, db: Engine, team_calls: dict[str, int]
+) -> None:
+    with make_client(settings, db, {"svc.call.view.team", "svc.call.assign"}, employee_id=LEAD_ID) as lead:
+        call = lead.get(f"{URL}/{team_calls['unassigned']}").json()
+        outside = lead.patch(f"{URL}/{call['id']}", json={"engineerId": OTHER_ENGINEER_ID}, headers=if_match(call))
+        assert outside.status_code == 400
+        assert "engineerId" in outside.json()["errors"]
+        inside = lead.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call))
+        assert inside.status_code == 200, inside.text
+
+
+def test_engineer_sees_only_calls_assigned_to_them(
+    settings: Settings, db: Engine, team_calls: dict[str, int]
+) -> None:
+    with make_client(settings, db, {"svc.call.view.assigned"}, employee_id=ENGINEER_ID) as engineer:
+        assert listed(engineer) == {team_calls["team"]}
+        assert engineer.get(f"{URL}/{team_calls['unassigned']}").status_code == 404
+
+
+def test_office_sees_every_call(client: TestClient, team_calls: dict[str, int]) -> None:
+    assert listed(client) == set(team_calls.values())

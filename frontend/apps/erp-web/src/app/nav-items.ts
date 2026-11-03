@@ -3,12 +3,14 @@ import {
   CUSTOMER_VIEW_PERMISSIONS,
   EMPLOYEE_VIEW_PERMISSIONS,
   ROLE_VIEW_PERMISSIONS,
+  TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
 import {
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
+  SERVICE_CALL_IMPORT_LOG_PERMISSIONS,
   SERVICE_CALL_IMPORT_PERMISSION,
   SERVICE_CALL_VIEW_PERMISSIONS,
 } from '@trishul/service-data-access';
@@ -50,6 +52,12 @@ export const navItems: NavItem[] = [
         route: '/service/calls/import',
         permissions: [SERVICE_CALL_IMPORT_PERMISSION],
       },
+      {
+        label: 'Import log',
+        icon: 'history',
+        route: '/service/imports',
+        permissions: [...SERVICE_CALL_IMPORT_LOG_PERMISSIONS],
+      },
     ],
   },
   {
@@ -79,6 +87,12 @@ export const navItems: NavItem[] = [
         icon: 'admin_panel_settings',
         route: '/admin/roles',
         permissions: [...ROLE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Teams',
+        icon: 'groups',
+        route: '/admin/teams',
+        permissions: [...TEAM_VIEW_PERMISSIONS],
       },
       {
         label: 'Alert rules',
