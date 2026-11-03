@@ -71,7 +71,14 @@ class TripService:
 
         now = _naive_utc(data.started_at) if data.started_at else _utcnow()
         activity = handler_for(data.module).resolve(
-            self._db, employee_id, data.reference_id, user.id, data.start_latitude, data.start_longitude, now
+            self._db,
+            employee_id,
+            data.reference_id,
+            user.id,
+            data.start_latitude,
+            data.start_longitude,
+            now,
+            data.client_uuid,
         )
         device_pk = self._repo.device_id_for(user.id, data.device_id) if data.device_id else None
         trip = TrkTrip(
