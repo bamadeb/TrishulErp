@@ -38,8 +38,23 @@
   flex: 1;
 }
 
+.user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .user-name {
   font: var(--mat-sys-body-medium);
+}
+
+.user-role {
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  font: var(--mat-sys-label-small);
+  white-space: nowrap;
 }
 
 .body {

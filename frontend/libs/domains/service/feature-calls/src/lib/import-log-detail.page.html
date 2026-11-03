@@ -1,0 +1,53 @@
+<trishul-page-header
+  [title]="entry()?.fileName ?? 'Import'"
+  [subtitle]="subtitle()"
+>
+  <a mat-button routerLink="/service/imports">
+    <mat-icon>arrow_back</mat-icon>
+    Import log
+  </a>
+</trishul-page-header>
+
+@if (loading()) {
+<mat-progress-bar mode="indeterminate" />
+} @if (entry(); as e) {
+<div class="summary">
+  <span class="chip total">{{ e.totalRows }} rows</span>
+  <span class="chip success">{{ e.insertedCount }} new</span>
+  <span class="chip info">{{ e.updatedCount }} updated</span>
+  @if (e.unlinkedCount) {
+  <span class="chip warn">{{ e.unlinkedCount }} to link</span>
+  } @if (e.failedCount) {
+  <span class="chip neutral">{{ e.failedCount }} skipped</span>
+  }
+  <span class="src">{{ e.sourceKind }}</span>
+</div>
+
+@if (e.rows.length) {
+<div class="filters">
+  <mat-button-toggle-group
+    hideSingleSelectionIndicator
+    aria-label="Show rows"
+    [value]="filter()"
+    (change)="filter.set($event.value)"
+  >
+    <mat-button-toggle value="all">All</mat-button-toggle>
+    <mat-button-toggle value="insert">New</mat-button-toggle>
+    <mat-button-toggle value="update">Updated</mat-button-toggle>
+    <mat-button-toggle value="changed"
+      >Changed ({{ changedCount() }})</mat-button-toggle
+    >
+    <mat-button-toggle value="link">To link</mat-button-toggle>
+    <mat-button-toggle value="skip">Skipped</mat-button-toggle>
+  </mat-button-toggle-group>
+</div>
+<trishul-import-rows-table [rows]="rows()" />
+} @else {
+<div class="banner note">
+  <mat-icon>info</mat-icon>
+  <span
+    >This import was made before row-by-row logging was added, so only its
+    counts were kept.</span
+  >
+</div>
+} }

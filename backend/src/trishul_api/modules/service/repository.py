@@ -1,7 +1,8 @@
 import builtins
+from datetime import date
 from typing import Any
 
-from sqlalchemy import Select, case, func, or_, select
+from sqlalchemy import ColumnElement, Select, case, false, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from trishul_api.auth import RequestScope
@@ -20,7 +21,11 @@ from trishul_api.db.models import (
     MachineUnit,
     Principal,
     ServiceCall,
+    Team,
+    TeamMember,
 )
+from trishul_api.modules.core.teams.repository import current_member
+from trishul_api.modules.service.access import CallVisibility
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
@@ -40,6 +45,17 @@ _CLOSED_STATUSES = ("Closed", "Cancelled")
 # A call is assigned to a Service Engineer, so the assign picker lists only employees with that
 # designation (hr.designation code), not every employee of the branch.
 _SERVICE_ENGINEER_DESIGNATION = "SERVICE_ENG"
+
+
+def _visible(visibility: CallVisibility) -> ColumnElement[bool]:
+    """SQL form of CallVisibility.allows, for a user who does not see every call."""
+    conditions: list[ColumnElement[bool]] = []
+    if visibility.engineer_ids:
+        conditions.append(ServiceCall.assigned_engineer_id.in_(sorted(visibility.engineer_ids)))
+    if visibility.unassigned:
+        conditions.append(ServiceCall.assigned_engineer_id.is_(None))
+    return or_(*conditions) if conditions else false()
+
 
 _PRIORITY_RANK = case(
     {"Critical": 1, "High": 2, "Normal": 3, "Low": 4},
@@ -63,8 +79,21 @@ class ServiceCallRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def list(self, scope: RequestScope, query: ServiceCallQuery) -> Page[ServiceCallListItem]:
-        return paginate(self._session, self.list_statement(scope, query), query, ServiceCallListItem)
+    def list(
+        self, scope: RequestScope, query: ServiceCallQuery, visibility: CallVisibility
+    ) -> Page[ServiceCallListItem]:
+        return paginate(self._session, self.list_statement(scope, query, visibility), query, ServiceCallListItem)
+
+    def team_members(self, lead_employee_id: int) -> builtins.list[int]:
+        """Employees currently in the active teams this employee leads."""
+        return list(
+            self._session.scalars(
+                select(TeamMember.employee_id)
+                .join(Team, Team.id == TeamMember.team_id)
+                .where(Team.team_lead_employee_id == lead_employee_id, Team.is_active, current_member(date.today()))
+                .distinct()
+            )
+        )
 
     def get_list_item(self, call_id: int) -> ServiceCallListItem:
         """One call as the register shows it; the call must exist."""
@@ -194,14 +223,19 @@ class ServiceCallRepository:
         statement = statement.order_by(MachineUnit.serial_number).limit(query.limit)
         return [MachineUnitOption.model_validate(row) for row in self._session.execute(statement).mappings()]
 
-    def engineer_options(self, scope: RequestScope, query: EngineerOptionQuery) -> builtins.list[EngineerOption]:
-        """Engineers a team lead can assign a call to: active Service Engineers of the selected branch."""
+    def engineer_options(
+        self, scope: RequestScope, query: EngineerOptionQuery, visibility: CallVisibility
+    ) -> builtins.list[EngineerOption]:
+        """Engineers a team lead can assign a call to: active Service Engineers of the selected branch,
+        and only their own team's when they see just their team's calls."""
         name = func.concat_ws(" ", Employee.first_name, Employee.last_name)
         statement = (
             select(Employee.id, name.label("name"), Employee.employee_code)
             .join(Designation, Designation.id == Employee.designation_id)
             .where(Employee.is_active, Designation.code == _SERVICE_ENGINEER_DESIGNATION)
         )
+        if not visibility.everything:
+            statement = statement.where(Employee.id.in_(visibility.engineer_ids or [0]))
         if scope.branch_id is not None:
             statement = statement.where(Employee.branch_id == scope.branch_id)
         if query.search:
@@ -246,8 +280,12 @@ class ServiceCallRepository:
         )
 
     @staticmethod
-    def list_statement(scope: RequestScope, query: ServiceCallQuery) -> Select[*tuple[Any, ...]]:
+    def list_statement(
+        scope: RequestScope, query: ServiceCallQuery, visibility: CallVisibility
+    ) -> Select[*tuple[Any, ...]]:
         statement = ServiceCallRepository._register_select()
+        if not visibility.everything:
+            statement = statement.where(_visible(visibility))
         # Row-level security limits what the user may see; these narrow it to what they selected.
         if scope.branch_id is not None:
             statement = statement.where(ServiceCall.branch_id == scope.branch_id)

@@ -21,8 +21,7 @@ export const TRIP_ADJUST_PERMISSION = 'trk.trip.adjust';
  */
 export const TRIP_HISTORY_VIEW_PERMISSIONS = [
   'svc.call.view',
-  'svc.call.create',
-  'svc.call.assign',
+  'svc.call.view.team',
   'svc.call.view.assigned',
   'trk.trip.view.team',
 ] as const;

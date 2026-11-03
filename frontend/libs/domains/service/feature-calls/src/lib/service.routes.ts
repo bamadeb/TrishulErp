@@ -5,6 +5,7 @@ import {
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
   SERVICE_CALL_CREATE_PERMISSION,
+  SERVICE_CALL_IMPORT_LOG_PERMISSIONS,
   SERVICE_CALL_IMPORT_PERMISSION,
   SERVICE_CALL_OPEN_PERMISSIONS,
   SERVICE_CALL_VIEW_PERMISSIONS,
@@ -14,6 +15,8 @@ import { BydImportPage } from './byd-import.page';
 import { CallDetailPage } from './call-detail.page';
 import { CallFormPage } from './call-form.page';
 import { CallListPage } from './call-list.page';
+import { ImportLogDetailPage } from './import-log-detail.page';
+import { ImportLogPage } from './import-log.page';
 import { MachineFormPage } from './machine-form.page';
 import { MachineListPage } from './machine-list.page';
 import { MyTripsPage } from './my-trips.page';
@@ -39,6 +42,18 @@ export const serviceRoutes: Route[] = [
     title: 'Import service calls',
     canActivate: [permissionGuard(SERVICE_CALL_IMPORT_PERMISSION)],
     component: BydImportPage,
+  },
+  {
+    path: 'imports',
+    title: 'Import log',
+    canActivate: [permissionGuard(...SERVICE_CALL_IMPORT_LOG_PERMISSIONS)],
+    component: ImportLogPage,
+  },
+  {
+    path: 'imports/:importId',
+    title: 'Import',
+    canActivate: [permissionGuard(...SERVICE_CALL_IMPORT_LOG_PERMISSIONS)],
+    component: ImportLogDetailPage,
   },
   {
     path: 'machines',

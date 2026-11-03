@@ -17,7 +17,12 @@
   <span class="spacer"></span>
   <trishul-alert-bell />
   @if (!isCompact()) {
-  <span class="user-name">{{ auth.user()?.displayName }}</span>
+  <span class="user">
+    <span class="user-name">{{ auth.user()?.displayName }}</span>
+    @if (roleLabel(); as role) {
+    <span class="user-role" [matTooltip]="roleTooltip()">{{ role }}</span>
+    }
+  </span>
   }
   <button
     mat-icon-button

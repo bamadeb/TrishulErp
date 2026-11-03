@@ -42,6 +42,7 @@ TABLES = [
     "svc.service_call",
     "svc.call_status_log",
     "svc.byd_call_import",
+    "svc.byd_call_import_line",
 ]
 
 COMPANY, BRANCH, PRINCIPAL = 1, 1, 1
@@ -340,3 +341,66 @@ def test_import_requires_the_permission(settings: Settings, db: Engine) -> None:
     with make_client(settings, db, set()) as client:
         response = post_file(client, IMPORT, make_xlsx(ORDER_HEADERS, order_rows()))
     assert response.status_code == 403
+
+
+LOG = "/api/v1/svc/service-call-imports"
+
+
+def test_import_log_lists_uploads_and_each_rows_outcome(client: TestClient) -> None:
+    content = make_xlsx(ORDER_HEADERS, order_rows())
+    first = post_file(client, IMPORT, content).json()
+    rows = order_rows()
+    rows[0]["Priority"] = "Low"  # the second upload lowers T1's priority
+    second = post_file(client, IMPORT, make_xlsx(ORDER_HEADERS, rows)).json()
+
+    log = client.get(LOG)
+    assert log.status_code == 200, log.text
+    items = log.json()["items"]
+    assert [i["id"] for i in items] == [second["batchId"], first["batchId"]]  # newest first
+    assert (items[0]["fileName"], items[0]["branchName"], items[0]["importedByName"]) == (
+        "export.xlsx",
+        "Bhubaneswar",
+        "back.office@trishul.co",
+    )
+    assert (items[0]["updatedCount"], items[0]["failedCount"]) == (2, 1)
+
+    detail = client.get(f"{LOG}/{second['batchId']}").json()
+    by_row = {r["rowNumber"]: r for r in detail["rows"]}
+    assert [r["action"] for r in detail["rows"]] == ["update", "update", "skip"]
+    t1 = by_row[4]
+    assert t1["callNo"].startswith("SC-") and t1["serviceCallId"] is not None
+    assert t1["changes"] == [{"field": "Priority", "old": "High", "new": "Low"}]
+    assert by_row[5]["changes"] == []  # nothing changed on T2
+    assert by_row[6]["messages"] == ["No C4C Ticket ID; the row cannot be identified."]
+    # The first upload's inserts carry no changes.
+    assert all(r["changes"] == [] for r in client.get(f"{LOG}/{first['batchId']}").json()["rows"])
+
+
+def test_import_log_shows_names_for_a_changed_engineer(client: TestClient, db: Engine) -> None:
+    insert_row(db, "core.employee", id=301, company_id=COMPANY, branch_id=BRANCH, employee_code="E301",
+               first_name="Amit", last_name="Das", employee_type="Permanent", status="Active")
+    rows = order_rows()[:1]
+    post_file(client, IMPORT, make_xlsx(ORDER_HEADERS, rows))
+    rows[0]["Engineer Name"] = "Amit Das"
+    batch = post_file(client, IMPORT, make_xlsx(ORDER_HEADERS, rows)).json()["batchId"]
+    changes = client.get(f"{LOG}/{batch}").json()["rows"][0]["changes"]
+    assert changes == [{"field": "Engineer", "old": "Satyajit Tung", "new": "Amit Das"}]
+
+
+def test_import_log_needs_a_permission_and_hides_other_branches(settings: Settings, db: Engine) -> None:
+    # One block: closing a client disposes the in-memory database.
+    with (
+        make_client(settings, db, {"svc.call.import"}) as importer,
+        make_client(settings, db, set()) as nobody,
+        make_client(settings, db, {"svc.call.import.view"}) as viewer,
+    ):
+        batch = post_file(importer, IMPORT, make_xlsx(ORDER_HEADERS, order_rows())).json()["batchId"]
+        assert nobody.get(LOG).status_code == 403
+        assert viewer.get(f"{LOG}/{batch}").status_code == 200
+        # Moved to a branch the viewer can't use (make_client grants branch 1 only).
+        insert_row(db, "core.branch", id=2, company_id=COMPANY, code="CTC", name="Cuttack")
+        with Session(db) as s:
+            s.get(BydCallImport, batch).branch_id = 2  # type: ignore[union-attr]
+            s.commit()
+        assert viewer.get(LOG).json()["total"] == 0
+        assert viewer.get(f"{LOG}/{batch}").status_code == 404

@@ -27,6 +27,7 @@ def get_me(user: CurrentUserDep, repo: CoreRepo) -> Me:
         id=user.id,
         username=user.username,
         display_name=user.display_name,
+        role_names=repo.role_names(user.roles),
         email=user.email,
         default_branch_id=user.default_branch_id,
         permissions=sorted(user.permissions),

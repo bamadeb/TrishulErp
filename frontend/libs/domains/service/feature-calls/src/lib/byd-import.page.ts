@@ -11,7 +11,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
-import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 import { EMPTY, catchError, finalize } from 'rxjs';
 import { AuthStore } from '@trishul/core-auth';
@@ -19,24 +18,9 @@ import {
   BydImportApi,
   BydImportPreview,
   BydImportResult,
-  BydImportRow,
 } from '@trishul/service-data-access';
-import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
-
-const ACTION_LABELS: Record<string, string> = {
-  insert: 'New call',
-  update: 'Update',
-  skip: 'Skipped',
-};
-const ACTION_SEVERITY: Partial<Record<string, StatusSeverity>> = {
-  'New call': 'success',
-  Update: 'info',
-  Skipped: 'neutral',
-};
-const LINK_SEVERITY: Partial<Record<string, StatusSeverity>> = {
-  Linked: 'success',
-  'Needs linking': 'warn',
-};
+import { PageHeader } from '@trishul/shared-ui';
+import { ImportRowsTable } from './import-rows-table';
 
 /** Upload a Tata Hitachi BYD export, preview what it would do, then import (upsert) the calls. */
 @Component({
@@ -49,10 +33,9 @@ const LINK_SEVERITY: Partial<Record<string, StatusSeverity>> = {
     MatSelect,
     MatOption,
     MatProgressBar,
-    MatTableModule,
     RouterLink,
     PageHeader,
-    StatusBadge,
+    ImportRowsTable,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './byd-import.page.html',
@@ -81,21 +64,6 @@ export class BydImportPage {
   protected readonly ready = computed(
     () => this.file() !== null && this.branchId() !== null && !this.busy(),
   );
-
-  protected readonly columns = [
-    'rowNumber',
-    'c4CTicketId',
-    'account',
-    'action',
-    'linking',
-    'messages',
-  ];
-  protected readonly actionSeverity = ACTION_SEVERITY;
-  protected readonly linkSeverity = LINK_SEVERITY;
-
-  protected actionLabel(action: string): string {
-    return ACTION_LABELS[action] ?? action;
-  }
 
   protected onFileChange(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -141,9 +109,5 @@ export class BydImportPage {
           { duration: 6000 },
         );
       });
-  }
-
-  protected linkLabel(row: BydImportRow): string {
-    return row.needsLinking ? 'Needs linking' : 'Linked';
   }
 }

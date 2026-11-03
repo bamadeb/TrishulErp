@@ -9,11 +9,19 @@ from trishul_api.common.errors import (
     NOT_FOUND_RESPONSE,
     ApiError,
     Forbidden,
+    NotFound,
     problem_response,
 )
 from trishul_api.common.schemas import Page
-from trishul_api.modules.service.access import CAN_VIEW_CALLS, CAN_VIEW_OWN_CALLS
-from trishul_api.modules.service.imports.schemas import BydImportPreview, BydImportResult
+from trishul_api.modules.service.access import CAN_VIEW_CALLS, CAN_VIEW_OWN_CALLS, call_visibility
+from trishul_api.modules.service.imports.log_repository import ImportLogRepository
+from trishul_api.modules.service.imports.schemas import (
+    BydImportLogDetail,
+    BydImportLogItem,
+    BydImportLogQuery,
+    BydImportPreview,
+    BydImportResult,
+)
 from trishul_api.modules.service.imports.service import BydImportService
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
@@ -37,15 +45,16 @@ from trishul_api.modules.trk.service import TripService
 
 router = APIRouter(prefix="/svc", tags=["service"])
 
-# CAN_VIEW_CALLS (the register roles) and CAN_VIEW_OWN_CALLS (an engineer's own calls) live in access.py.
-# A call's detail, history and status change are open to both; engineers are limited to their own calls
-# inside the service. The status change itself is checked per status (access.allowed_statuses).
-CAN_OPEN_CALL = Depends(require_permission(*CAN_VIEW_CALLS, CAN_VIEW_OWN_CALLS))
+# CAN_VIEW_CALLS (all calls / the team's / the engineer's own) lives in access.py. The register, a call's
+# detail, history and status change are open to all three; which calls each sees is decided in the service
+# (access.call_visibility). The status change itself is checked per status (access.allowed_statuses).
+CAN_OPEN_CALL = Depends(require_permission(*CAN_VIEW_CALLS))
 # The call register roles, the engineer looking at their own call, and team leads reviewing trips.
-CAN_VIEW_CALL_TRIPS = (*CAN_VIEW_CALLS, CAN_VIEW_OWN_CALLS, "trk.trip.view.team")
+CAN_VIEW_CALL_TRIPS = (*CAN_VIEW_CALLS, "trk.trip.view.team")
 CAN_CREATE = Depends(require_permission("svc.call.create"))
 CAN_ASSIGN = Depends(require_permission("svc.call.assign"))
 CAN_IMPORT = Depends(require_permission("svc.call.import"))
+CAN_VIEW_IMPORTS = Depends(require_permission("svc.call.import.view", "svc.call.import"))
 
 CallId = Annotated[int, Path(alias="callId", gt=0)]
 
@@ -83,15 +92,16 @@ def _effective_branch_id(actor: CurrentUser, scope: ScopeDep, branch_id: int | N
 
 @router.get(
     "/service-calls",
-    summary="Call register for the selected branch and brand",
+    summary="Call register for the selected branch and brand (all calls, the team's, or the engineer's own)",
     dependencies=[Depends(require_permission(*CAN_VIEW_CALLS))],
 )
 def list_service_calls(
     query: Annotated[ServiceCallQuery, Query()],
+    actor: CurrentUserDep,
     scope: ScopeDep,
     repo: ServiceCallRepo,
 ) -> Page[ServiceCallListItem]:
-    return repo.list(scope, query)
+    return repo.list(scope, query, call_visibility(actor, repo.team_members))
 
 
 @router.post(
@@ -129,7 +139,7 @@ def update_service_call_triage(
 @router.get(
     "/service-calls/machine-options",
     summary="Machines to pick when logging a call (search by serial or model)",
-    dependencies=[Depends(require_permission(*CAN_VIEW_CALLS))],
+    dependencies=[Depends(require_permission(*CAN_VIEW_CALLS, "svc.call.create", "svc.call.assign"))],
 )
 def list_machine_options(
     query: Annotated[MachineOptionQuery, Query()],
@@ -146,16 +156,17 @@ def list_machine_options(
 )
 def list_engineer_options(
     query: Annotated[EngineerOptionQuery, Query()],
+    actor: CurrentUserDep,
     scope: ScopeDep,
     repo: ServiceCallRepo,
 ) -> list[EngineerOption]:
-    return repo.engineer_options(scope, query)
+    return repo.engineer_options(scope, query, call_visibility(actor, repo.team_members))
 
 
 @router.get(
     "/service-calls/assigned-to-me",
     summary="Service calls assigned to the signed-in engineer",
-    dependencies=[Depends(require_permission("svc.call.view.assigned"))],
+    dependencies=[Depends(require_permission(CAN_VIEW_OWN_CALLS))],
 )
 def list_assigned_service_calls(
     query: Annotated[AssignedServiceCallQuery, Query()],
@@ -221,6 +232,35 @@ def apply_service_call_import(
     content = _read_upload(file)
     branch = _effective_branch_id(actor, scope, branch_id)
     return BydImportService(db, actor).apply(content, file.filename or "upload.xlsx", branch, principal_id)
+
+
+@router.get(
+    "/service-call-imports",
+    summary="Log of service-call imports in the user's branches and brands, newest first",
+    dependencies=[CAN_VIEW_IMPORTS],
+)
+def list_service_call_imports(
+    query: Annotated[BydImportLogQuery, Query()],
+    actor: CurrentUserDep,
+    scope: ScopeDep,
+    db: DbSession,
+) -> Page[BydImportLogItem]:
+    return ImportLogRepository(db).list(actor, scope, query)
+
+
+@router.get(
+    "/service-call-imports/{importId}",
+    summary="One import and what happened to each row of its file",
+    dependencies=[CAN_VIEW_IMPORTS],
+    responses=NOT_FOUND_RESPONSE,
+)
+def get_service_call_import(
+    import_id: Annotated[int, Path(alias="importId", gt=0)], actor: CurrentUserDep, db: DbSession
+) -> BydImportLogDetail:
+    detail = ImportLogRepository(db).detail(actor, import_id)
+    if detail is None:
+        raise NotFound("Import not found.")
+    return detail
 
 
 # Declared last so the literal GET paths above (machine-options, engineer-options, assigned-to-me)

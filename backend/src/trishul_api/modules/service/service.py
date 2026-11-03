@@ -27,7 +27,7 @@ from trishul_api.db.models import (
 )
 from trishul_api.modules.alerts.engine import AlertEngine
 from trishul_api.modules.service import sla
-from trishul_api.modules.service.access import allowed_statuses, can_see_call
+from trishul_api.modules.service.access import CallVisibility, allowed_statuses, call_visibility
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
     CallStatusLogItem,
@@ -47,6 +47,14 @@ class ServiceCallService:
         self._db = db
         self._actor = actor
         self._repo = ServiceCallRepository(db)
+        self._visibility: CallVisibility | None = None
+
+    @property
+    def visibility(self) -> CallVisibility:
+        """Which calls this user sees (access.call_visibility); looked up once per request."""
+        if self._visibility is None:
+            self._visibility = call_visibility(self._actor, self._repo.team_members)
+        return self._visibility
 
     def create(self, scope: RequestScope, data: ServiceCallCreate) -> ServiceCallListItem:
         branch = self._resolve_branch(data.branch_id, scope)
@@ -101,7 +109,7 @@ class ServiceCallService:
     ) -> ServiceCallListItem:
         """A team lead reassigns and/or re-prioritises a call from the register."""
         call = self._db.get(ServiceCall, call_id)
-        if call is None or not call.is_active:
+        if call is None or not call.is_active or not self.visibility.allows(call.assigned_engineer_id):
             raise NotFound("Service call not found.")
         check_row_version(call.row_version, expected_row_version)
         changed = data.model_fields_set
@@ -120,6 +128,12 @@ class ServiceCallService:
                     raise ApiError(
                         "That engineer doesn't exist.",
                         errors={"engineerId": [f"Unknown or inactive employee {data.engineer_id}"]},
+                    )
+                if not self.visibility.allows(data.engineer_id):
+                    # A team lead assigns within their team; otherwise the call would drop off their list.
+                    raise ApiError(
+                        "That engineer isn't in your team.",
+                        errors={"engineerId": ["Pick an engineer from your team."]},
                     )
                 call.assigned_engineer_id = data.engineer_id
                 if call.current_status == "Logged":
@@ -159,7 +173,7 @@ class ServiceCallService:
     def detail(self, call_id: int) -> ServiceCallDetail:
         """One call in full, with the statuses this user may move it to."""
         detail = self._repo.detail(call_id)
-        if detail is None or not can_see_call(self._actor, detail.assigned_engineer_id):
+        if detail is None or not self.visibility.allows(detail.assigned_engineer_id):
             raise NotFound("Service call not found.")
         detail.allowed_statuses = allowed_statuses(  # type: ignore[assignment]
             self._actor, detail.current_status, detail.assigned_engineer_id
@@ -168,7 +182,7 @@ class ServiceCallService:
 
     def status_history(self, call_id: int) -> list[CallStatusLogItem]:
         exists, assignee = self._repo.assignment(call_id)
-        if not exists or not can_see_call(self._actor, assignee):
+        if not exists or not self.visibility.allows(assignee):
             raise NotFound("Service call not found.")
         return self._repo.status_history(call_id)
 
@@ -177,7 +191,7 @@ class ServiceCallService:
     ) -> ServiceCallDetail:
         """Move a call to another status (team lead: any call; engineer: their own) and record it."""
         call = self._db.get(ServiceCall, call_id)
-        if call is None or not call.is_active or not can_see_call(self._actor, call.assigned_engineer_id):
+        if call is None or not call.is_active or not self.visibility.allows(call.assigned_engineer_id):
             raise NotFound("Service call not found.")
         check_row_version(call.row_version, expected_row_version)
         if data.status == call.current_status:
