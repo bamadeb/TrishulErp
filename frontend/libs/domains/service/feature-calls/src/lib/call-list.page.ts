@@ -53,6 +53,11 @@ import {
 } from '@trishul/service-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import {
+  CallEngineersData,
+  CallEngineersDialog,
+  CallEngineersResult,
+} from './call-engineers.dialog';
+import {
   CustomerLinkDialog,
   CustomerLinkResult,
 } from './customer-link.dialog';
@@ -135,7 +140,7 @@ export class CallListPage {
   protected readonly canAssign = this.auth.hasPermission(
     SERVICE_CALL_ASSIGN_PERMISSION,
   );
-  /** Engineers of the selected branch, loaded once for the assign menu. */
+  /** Engineers of the selected branch, loaded once for the assign dialog. */
   protected readonly engineers = toSignal(
     this.canAssign
       ? this.api.engineerOptions().pipe(catchError(() => of([])))
@@ -200,11 +205,43 @@ export class CallListPage {
     if (call.priority !== priority) this.apply(call, { priority });
   }
 
-  protected setEngineer(
-    call: ServiceCallListItem,
-    engineerId: number | null,
-  ): void {
-    this.apply(call, { engineerId });
+  /** The lead, then anyone supporting; for the tooltip. */
+  protected engineerNames(call: ServiceCallListItem): string {
+    const support = (call.supportEngineers ?? []).map((e) => e.name);
+    return call.assignedEngineerName
+      ? [`${call.assignedEngineerName} (lead)`, ...support].join(', ')
+      : '';
+  }
+
+  /** Open the dialog to choose everyone on the call. */
+  protected assignEngineers(call: ServiceCallListItem): void {
+    const support = call.supportEngineers ?? [];
+    const onCall: EngineerOption[] = support.map((e) => ({
+      ...e,
+      employeeCode: '',
+    }));
+    if (call.assignedEngineerId != null && call.assignedEngineerName) {
+      onCall.push({
+        id: call.assignedEngineerId,
+        name: call.assignedEngineerName,
+        employeeCode: '',
+      });
+    }
+    // Keep people already on the call who aren't on offer (another branch), or Save would drop them.
+    const offered = this.engineers();
+    const missing = onCall.filter((e) => !offered.some((o) => o.id === e.id));
+    const data: CallEngineersData = {
+      callNo: call.callNo,
+      engineers: [...offered, ...missing],
+      leadId: call.assignedEngineerId,
+      supportIds: support.map((e) => e.id),
+    };
+    this.dialog
+      .open(CallEngineersDialog, { data })
+      .afterClosed()
+      .subscribe((result?: CallEngineersResult) => {
+        if (result) this.apply(call, result);
+      });
   }
 
   /** Open the search dialog to link the real customer (e.g. onto a BYD placeholder). */

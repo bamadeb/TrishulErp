@@ -157,8 +157,10 @@ const calls: (ServiceCallListItem & {
     isAscPriority: i % 5 === 0,
     coverageType: (['Warranty', 'Contract', 'Chargeable'] as const)[i % 3],
     currentStatus: status,
+    assignedEngineerId: null,
     assignedEngineerName:
       status === 'Logged' ? null : engineers[i % engineers.length],
+    supportEngineers: [],
     oemCallId: i % 3 === 0 ? `BYD-${700100 + i}` : null,
     slaDueAt: new Date(receivedAt.getTime() + 24 * 3600_000).toISOString(),
     rowVersion: btoa(`rv-${i}`),
@@ -250,6 +252,10 @@ export const mockRoutes: MockRoute[] = [
           MOCK_CUSTOMER_NAMES[body.customerId] ?? `Customer #${body.customerId}`;
       }
       if ('engineerId' in body) {
+        call.assignedEngineerId = body.engineerId ?? null;
+        call.supportEngineers = MOCK_ENGINEERS.filter((e) =>
+          body.supportEngineerIds?.includes(e.id),
+        ).map(({ id, name }) => ({ id, name }));
         if (body.engineerId == null) {
           call.assignedEngineerName = null;
           if (call.currentStatus === 'Assigned') call.currentStatus = 'Logged';
@@ -320,6 +326,7 @@ export const mockRoutes: MockRoute[] = [
         currentStatus: call.currentStatus,
         assignedEngineerId: null,
         assignedEngineerName: call.assignedEngineerName,
+        supportEngineers: call.supportEngineers,
         callerName: 'Nilamadhab Sahoo',
         callerPhone: '7894435328',
         oemCallId: call.oemCallId,
@@ -410,6 +417,7 @@ export const mockRoutes: MockRoute[] = [
         currentStatus: call.currentStatus,
         assignedEngineerId: null,
         assignedEngineerName: call.assignedEngineerName,
+        supportEngineers: call.supportEngineers,
         callerName: null,
         callerPhone: '7894435328',
         oemCallId: call.oemCallId,
@@ -450,7 +458,9 @@ export const mockRoutes: MockRoute[] = [
         isAscPriority: false,
         coverageType: null,
         currentStatus: 'Logged',
+        assignedEngineerId: null,
         assignedEngineerName: null,
+        supportEngineers: [],
         oemCallId: null,
         slaDueAt: null,
         rowVersion: btoa(`new-${Date.now()}`),

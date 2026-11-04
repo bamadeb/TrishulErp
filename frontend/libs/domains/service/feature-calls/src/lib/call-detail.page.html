@@ -124,6 +124,16 @@
         <dt>Engineer</dt>
         <dd>{{ c.assignedEngineerName ?? 'Unassigned' }}</dd>
       </div>
+      @if (c.supportEngineers?.length) {
+      <div>
+        <dt>Support engineers</dt>
+        <dd>
+          @for (e of c.supportEngineers; track e.id; let last = $last) {
+          {{ e.name }}{{ last ? '' : ', ' }}
+          }
+        </dd>
+      </div>
+      }
       <div><dt>Coverage</dt><dd>{{ c.coverageType ?? '—' }}</dd></div>
       <div><dt>Machine down</dt><dd>{{ c.isMachineDown ? 'Yes' : 'No' }}</dd></div>
       <div><dt>ASC priority</dt><dd>{{ c.isAscPriority ? 'Yes' : 'No' }}</dd></div>

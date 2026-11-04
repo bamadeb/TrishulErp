@@ -39,6 +39,7 @@ TABLES = [
     "core.audit_log",
     "svc.service_call",
     "svc.call_status_log",
+    "svc.call_assignment",
     "svc.sla_rule",
     "svc.sla_event",
     "svc.service_contract",
@@ -205,6 +206,25 @@ def test_unassigned_call_alerts_once_and_only_the_branch_team_lead(db: Engine) -
 
     assert run(db, NOW + timedelta(minutes=5)) == (0, 0)  # still open: no duplicate
     assert len(alerts(db)) == 1
+
+
+def test_support_engineers_receive_the_assigned_engineer_alert(db: Engine) -> None:
+    insert_row(
+        db, "svc.sla_rule", company_id=COMPANY, resolution_hours=24, alert_before_minutes=120, clock_type="Calendar"
+    )
+    add_rule(db, "SVC_SLA_DUE", {"stages": ["Due soon"]}, [ASSIGNED_ENGINEER])
+    insert_row(db, "core.employee", id=301, company_id=COMPANY, branch_id=BBSR, employee_code="E301", first_name="Lead")
+    insert_row(db, "core.app_user", id=15, username="lead", cognito_sub="sub-lead", employee_id=301)
+    add_call(db, 1, sla_due_at=NOW + timedelta(hours=1), assigned_engineer_id=301, current_status="In progress")
+    insert_row(db, "svc.call_assignment", service_call_id=1, engineer_employee_id=ENGINEER_EMPLOYEE,
+               assignment_type="Support", assigned_by_user_id=TL_BBSR, is_current=True)
+    # Taken off the call: no longer told about it.
+    insert_row(db, "svc.call_assignment", service_call_id=1, engineer_employee_id=301,
+               assignment_type="Support", assigned_by_user_id=TL_BBSR, is_current=False)
+
+    assert run(db) == (1, 0)
+    (alert,) = alerts(db)
+    assert recipients_of(db, alert.id) == {15, ENGINEER_USER}
 
 
 def test_condition_clearing_resolves_and_after_resolution_raises_again(db: Engine) -> None:

@@ -201,11 +201,12 @@ td {
   }
 }
 
-.menu-empty {
-  display: block;
-  padding: 0.5rem 1rem;
-  font: var(--mat-sys-body-small);
-  color: var(--mat-sys-on-surface-variant);
+// "+2": how many support engineers are on the call besides the lead.
+.eng-more {
+  margin-left: 0.25rem;
+  font-weight: 600;
+  color: var(--mat-sys-primary);
+  vertical-align: middle;
 }
 
 // A small, subtle "link customer" affordance next to the name.

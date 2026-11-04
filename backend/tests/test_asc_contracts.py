@@ -42,6 +42,7 @@ TABLES = [
     "core.team_member",
     "svc.service_call",
     "svc.call_status_log",
+    "svc.call_assignment",
     "svc.contract_plan",
     "svc.service_contract",
     "svc.contract_coverage",

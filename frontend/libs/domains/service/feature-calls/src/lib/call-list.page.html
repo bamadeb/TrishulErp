@@ -161,10 +161,9 @@
             type="button"
             mat-stroked-button
             class="assign-btn"
-            [matMenuTriggerFor]="engineerMenu"
-            [matMenuTriggerData]="{ call }"
+            (click)="assignEngineers(call)"
             [disabled]="busyId() === call.id"
-            [matTooltip]="call.assignedEngineerName ?? ''"
+            [matTooltip]="engineerNames(call)"
           >
             <mat-icon>{{
               call.assignedEngineerName ? 'engineering' : 'person_add'
@@ -172,10 +171,17 @@
             <span class="eng-name">{{
               call.assignedEngineerName ?? 'Assign'
             }}</span>
-            <mat-icon iconPositionEnd class="caret">arrow_drop_down</mat-icon>
+            @if (call.supportEngineers?.length) {
+            <span class="eng-more">+{{ call.supportEngineers.length }}</span>
+            }
           </button>
           } @else {
-          {{ call.assignedEngineerName ?? 'Unassigned' }}
+          <span [matTooltip]="engineerNames(call)">
+            {{ call.assignedEngineerName ?? 'Unassigned' }}
+            @if (call.supportEngineers?.length) {
+            <span class="eng-more">+{{ call.supportEngineers.length }}</span>
+            }
+          </span>
           }
         </td>
       </ng-container>
@@ -232,23 +238,6 @@
     @for (p of priorities; track p) {
     <button mat-menu-item (click)="setPriority(call, p)">
       <trishul-status-badge [status]="p" [severities]="prioritySeverity" />
-    </button>
-    }
-  </ng-template>
-</mat-menu>
-
-<mat-menu #engineerMenu="matMenu">
-  <ng-template matMenuContent let-call="call">
-    @for (e of engineers(); track e.id) {
-    <button mat-menu-item (click)="setEngineer(call, e.id)">
-      {{ e.name }} <span class="muted">· {{ e.employeeCode }}</span>
-    </button>
-    } @empty {
-    <span class="menu-empty">No engineers in this branch</span>
-    }
-    @if (call.assignedEngineerName) {
-    <button mat-menu-item (click)="setEngineer(call, null)">
-      <mat-icon>person_off</mat-icon> Unassign
     </button>
     }
   </ng-template>

@@ -1,20 +1,22 @@
 """Logging a service call: route -> service -> repository -> SQL (SQLite)."""
 
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 import httpx2 as httpx
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, update
+from sqlalchemy import Engine, select, update
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import get_current_user, get_db
+from trishul_api.common.errors import NotFound
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import MachineUnit
+from trishul_api.db.models import CallAssignment, MachineUnit, ServiceCall
 from trishul_api.main import create_app
+from trishul_api.modules.trk import handlers
 
 from .conftest import make_user
 from .sqlite_db import insert_row, sqlite_engine
@@ -38,6 +40,8 @@ TABLES = [
     "core.team_member",
     "svc.service_call",
     "svc.call_status_log",
+    "svc.call_assignment",
+    "svc.service_visit",
     "svc.contract_plan",
     "svc.service_contract",
     "svc.contract_coverage",
@@ -477,3 +481,152 @@ def test_engineer_sees_only_calls_assigned_to_them(
 
 def test_office_sees_every_call(client: TestClient, team_calls: dict[str, int]) -> None:
     assert listed(client) == set(team_calls.values())
+
+
+# ------------------------------------------------------------------ more than one engineer on a call
+
+
+def set_team(client: TestClient, call_id: int, lead: int | None, support: list[int]) -> httpx.Response:
+    call = client.get(f"{URL}/{call_id}").json()
+    return client.patch(
+        f"{URL}/{call_id}", json={"engineerId": lead, "supportEngineerIds": support}, headers=if_match(call)
+    )
+
+
+def assignment_rows(db: Engine, call_id: int) -> list[tuple[int, str, bool]]:
+    with Session(db) as session:
+        rows = session.scalars(select(CallAssignment).where(CallAssignment.service_call_id == call_id))
+        return sorted((r.engineer_employee_id, r.assignment_type, r.is_current) for r in rows)
+
+
+def test_call_takes_a_lead_and_support_engineers(client: TestClient, team_calls: dict[str, int]) -> None:
+    call_id = team_calls["unassigned"]
+    updated = set_team(client, call_id, ENGINEER_ID, [OTHER_ENGINEER_ID])
+    assert updated.status_code == 200, updated.text
+    body = updated.json()
+    assert body["assignedEngineerId"] == ENGINEER_ID and body["assignedEngineerName"] == "Satyajit Tung"
+    assert body["supportEngineers"] == [{"id": OTHER_ENGINEER_ID, "name": "Other Engineer"}]
+    assert body["currentStatus"] == "Assigned"
+
+    row = next(r for r in client.get(URL).json()["items"] if r["id"] == call_id)
+    assert row["supportEngineers"] == body["supportEngineers"]
+    assert client.get(f"{URL}/{call_id}").json()["supportEngineers"] == body["supportEngineers"]
+
+
+def test_changing_the_team_keeps_the_history(
+    client: TestClient, db: Engine, team_calls: dict[str, int]
+) -> None:
+    call_id = team_calls["unassigned"]
+    set_team(client, call_id, ENGINEER_ID, [OTHER_ENGINEER_ID])
+    # The two swap roles, which is two closed rows and two new ones.
+    swapped = set_team(client, call_id, OTHER_ENGINEER_ID, [ENGINEER_ID])
+    assert swapped.status_code == 200, swapped.text
+    assert swapped.json()["assignedEngineerId"] == OTHER_ENGINEER_ID
+    assert assignment_rows(db, call_id) == [
+        (ENGINEER_ID, "Primary", False),
+        (ENGINEER_ID, "Support", True),
+        (OTHER_ENGINEER_ID, "Primary", True),
+        (OTHER_ENGINEER_ID, "Support", False),
+    ]
+
+
+def test_changing_only_the_lead_keeps_the_support_engineers(
+    client: TestClient, team_calls: dict[str, int]
+) -> None:
+    call_id = team_calls["unassigned"]
+    call = set_team(client, call_id, ENGINEER_ID, [OTHER_ENGINEER_ID]).json()
+    # An older screen sending only engineerId; the new lead also stops being support.
+    moved = client.patch(f"{URL}/{call_id}", json={"engineerId": OTHER_ENGINEER_ID}, headers=if_match(call))
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["assignedEngineerId"] == OTHER_ENGINEER_ID and moved.json()["supportEngineers"] == []
+
+
+def test_the_lead_is_not_also_support(client: TestClient, team_calls: dict[str, int]) -> None:
+    body = set_team(client, team_calls["unassigned"], ENGINEER_ID, [ENGINEER_ID, OTHER_ENGINEER_ID]).json()
+    assert [e["id"] for e in body["supportEngineers"]] == [OTHER_ENGINEER_ID]
+
+
+def test_unassigning_clears_everyone(client: TestClient, db: Engine, team_calls: dict[str, int]) -> None:
+    call_id = team_calls["unassigned"]
+    call = set_team(client, call_id, ENGINEER_ID, [OTHER_ENGINEER_ID]).json()
+    cleared = client.patch(f"{URL}/{call_id}", json={"engineerId": None}, headers=if_match(call))
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["supportEngineers"] == [] and cleared.json()["currentStatus"] == "Logged"
+    assert not any(current for _, _, current in assignment_rows(db, call_id))
+
+
+def test_support_needs_a_lead(client: TestClient, team_calls: dict[str, int]) -> None:
+    rejected = set_team(client, team_calls["unassigned"], None, [ENGINEER_ID])
+    assert rejected.status_code == 400 and "engineerId" in rejected.json()["errors"]
+
+
+def test_unknown_support_engineer_is_rejected(client: TestClient, team_calls: dict[str, int]) -> None:
+    rejected = set_team(client, team_calls["unassigned"], ENGINEER_ID, [999])
+    assert rejected.status_code == 400 and "supportEngineerIds" in rejected.json()["errors"]
+
+
+def test_support_engineer_has_the_call_until_removed(
+    client: TestClient, settings: Settings, db: Engine, team_calls: dict[str, int]
+) -> None:
+    call_id = team_calls["other"]
+    set_team(client, call_id, OTHER_ENGINEER_ID, [ENGINEER_ID])
+    permissions = {"svc.call.view.assigned", "svc.call.status.update"}
+    with make_client(settings, db, permissions, employee_id=ENGINEER_ID) as engineer:
+        assert listed(engineer) == {team_calls["team"], call_id}
+        mine = engineer.get(f"{URL}/assigned-to-me").json()["items"]
+        assert {row["id"] for row in mine} == {team_calls["team"], call_id}
+        call = engineer.get(f"{URL}/{call_id}").json()
+        assert "Customer contacted" in call["allowedStatuses"]
+        moved = engineer.post(
+            f"{URL}/{call_id}/status", json={"status": "Customer contacted"}, headers=if_match(call)
+        )
+        assert moved.status_code == 200, moved.text
+
+        set_team(client, call_id, OTHER_ENGINEER_ID, [])
+        assert engineer.get(f"{URL}/{call_id}").status_code == 404
+        assert listed(engineer) == {team_calls["team"]}
+
+
+def test_team_lead_sees_a_call_their_engineer_supports(
+    client: TestClient, settings: Settings, db: Engine, team_calls: dict[str, int]
+) -> None:
+    set_team(client, team_calls["other"], OTHER_ENGINEER_ID, [ENGINEER_ID])
+    with make_client(settings, db, {"svc.call.view.team", "svc.call.assign"}, employee_id=LEAD_ID) as lead:
+        assert team_calls["other"] in listed(lead)
+        # The outside lead was put there by the office; the team lead may leave them on but can't add others.
+        kept = set_team(lead, team_calls["other"], OTHER_ENGINEER_ID, [ENGINEER_ID])
+        assert kept.status_code == 200, kept.text
+        outside = set_team(lead, team_calls["team"], ENGINEER_ID, [OTHER_ENGINEER_ID])
+        assert outside.status_code == 400 and "supportEngineerIds" in outside.json()["errors"]
+
+
+def start_trip(db: Engine, call_id: int, employee_id: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(handlers, "_get_or_create_activity", lambda *_, **__: None)
+    with Session(db) as session:
+        handlers.ServiceActivityHandler().resolve(session, employee_id, call_id, ACTOR_ID, 20.0, 85.0, datetime.now())
+        session.commit()
+
+
+def call_status(db: Engine, call_id: int) -> str:
+    with Session(db) as session:
+        call = session.get(ServiceCall, call_id)
+        assert call is not None
+        return call.current_status
+
+
+def test_support_engineer_can_start_a_trip_without_undoing_progress(
+    client: TestClient, db: Engine, team_calls: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    call_id = team_calls["team"]
+    set_team(client, call_id, ENGINEER_ID, [OTHER_ENGINEER_ID])
+    start_trip(db, call_id, OTHER_ENGINEER_ID, monkeypatch)
+    assert call_status(db, call_id) == "Trip started"
+
+    with Session(db) as session:
+        session.execute(update(ServiceCall).where(ServiceCall.id == call_id).values(current_status="In progress"))
+        session.commit()
+    start_trip(db, call_id, ENGINEER_ID, monkeypatch)  # the second engineer sets off later
+    assert call_status(db, call_id) == "In progress"
+
+    with pytest.raises(NotFound):
+        start_trip(db, call_id, LEAD_ID, monkeypatch)  # not on the call

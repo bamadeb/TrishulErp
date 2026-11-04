@@ -20,6 +20,13 @@ class ServiceCallQuery(PageQuery):
     priority: list[CallPriority] = Field(default_factory=list)
 
 
+class CallEngineer(ApiModel):
+    """An engineer on a call."""
+
+    id: int
+    name: str
+
+
 class ServiceCallListItem(ApiModel):
     """A row of the call register."""
 
@@ -36,7 +43,9 @@ class ServiceCallListItem(ApiModel):
     is_asc_priority: bool
     coverage_type: CoverageType | None
     current_status: CallStatus
-    assigned_engineer_name: str | None
+    assigned_engineer_id: int | None
+    assigned_engineer_name: str | None = Field(description="The lead engineer.")
+    support_engineers: list[CallEngineer] = Field(default_factory=list)
     oem_call_id: str | None
     sla_due_at: UtcDateTime | None
     row_version: RowVersion
@@ -79,11 +88,14 @@ class CallStatusLogItem(ApiModel):
 
 
 class ServiceCallTriageUpdate(InputModel):
-    """A team lead's quick triage from the call list: link the real customer, reassign an engineer
-    and/or change priority. Only the fields sent are changed; send engineerId null to unassign."""
+    """A team lead's quick triage from the call list: link the real customer, change the engineers
+    and/or change priority. Only the fields sent are changed; send engineerId null to unassign everyone."""
 
     priority: CallPriority | None = None
-    engineer_id: int | None = None
+    engineer_id: int | None = Field(None, description="The lead engineer.")
+    support_engineer_ids: list[int] = Field(
+        default_factory=list, max_length=20, description="Everyone else on the call; replaces the current list."
+    )
     customer_id: int | None = None
 
 
@@ -145,7 +157,8 @@ class ServiceCallDetail(ApiModel):
     coverage_type: CoverageType | None
     current_status: CallStatus
     assigned_engineer_id: int | None
-    assigned_engineer_name: str | None
+    assigned_engineer_name: str | None = Field(description="The lead engineer.")
+    support_engineers: list[CallEngineer] = Field(default_factory=list)
     caller_name: str | None
     caller_phone: str
     oem_call_id: str | None

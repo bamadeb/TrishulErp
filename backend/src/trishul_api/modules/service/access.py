@@ -1,6 +1,6 @@
 """Who may see and change what on a service call (shared by the router and the services)."""
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass
 from typing import get_args
 
@@ -53,12 +53,13 @@ class CallVisibility:
     unassigned: bool = False
     """Calls with no engineer yet."""
 
-    def allows(self, assigned_engineer_id: int | None) -> bool:
+    def allows(self, assignees: Collection[int]) -> bool:
+        """assignees: everyone on the call, lead and support (assignment.assignees)."""
         if self.everything:
             return True
-        if assigned_engineer_id is None:
+        if not assignees:
             return self.unassigned
-        return assigned_engineer_id in self.engineer_ids
+        return not self.engineer_ids.isdisjoint(assignees)
 
 
 def call_visibility(actor: CurrentUser, team_members: Callable[[int], Iterable[int]]) -> CallVisibility:
@@ -77,7 +78,7 @@ def call_visibility(actor: CurrentUser, team_members: Callable[[int], Iterable[i
     return CallVisibility(engineer_ids=frozenset(engineer_ids), unassigned=unassigned)
 
 
-def allowed_statuses(actor: CurrentUser, current_status: str, assigned_engineer_id: int | None) -> list[str]:
+def allowed_statuses(actor: CurrentUser, current_status: str, assignees: Collection[int]) -> list[str]:
     """The statuses this user may move the call to, in workflow order.
 
     * svc.call.assign (team lead): any status except the protected ones, on any call they can see.
@@ -87,11 +88,7 @@ def allowed_statuses(actor: CurrentUser, current_status: str, assigned_engineer_
     allowed: set[str] = set()
     if actor.can("svc.call.assign"):
         allowed.update(status for status in ALL_STATUSES if status not in _PROTECTED)
-    if (
-        actor.can("svc.call.status.update")
-        and actor.employee_id is not None
-        and assigned_engineer_id == actor.employee_id
-    ):
+    if actor.can("svc.call.status.update") and actor.employee_id in assignees:
         allowed.update(_ENGINEER_STATUSES)
     if actor.can("svc.call.close"):
         allowed.update({"Closed", "Completed"})

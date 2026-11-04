@@ -32,6 +32,7 @@ from trishul_api.db.models import (
     ServiceCall,
 )
 from trishul_api.db.models.generated.svc import ServiceCallCurrentStatus, ServiceCallPriority
+from trishul_api.modules.service.assignment import set_engineers, support_ids
 from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.imports.parser import BydCallRow, SourceKind, parse_byd_export
 from trishul_api.modules.service.imports.schemas import (
@@ -368,8 +369,10 @@ class BydImportService:
             call.sla_due_at = row.sla_due_at
         if row.external_reference:
             call.source_reference = row.external_reference[:150]
-        if res.engineer_id is not None:
-            call.assigned_engineer_id = res.engineer_id
+        if res.engineer_id is not None and res.engineer_id != call.assigned_engineer_id:
+            # BYD knows one engineer: that's the lead. Support engineers added in Trishul stay on the call.
+            support = support_ids(self._db, call.id) - {res.engineer_id}
+            set_engineers(self._db, call, res.engineer_id, support, self._actor.id, _now())
         # Advance the status without moving it backwards; honour a cancellation at any point.
         if res.status == "Cancelled":
             call.current_status = "Cancelled"

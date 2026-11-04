@@ -23,7 +23,10 @@ from trishul_api.db.models import (
     ServiceVisit,
     TrackableActivity,
 )
+from trishul_api.modules.service.assignment import assignees
 from trishul_api.modules.trk.schemas import ModuleCode
+
+_WORK_UNDER_WAY = ("Trip started", "Reached site", "In progress")
 
 
 class ActivityHandler(Protocol):
@@ -112,7 +115,7 @@ class ServiceActivityHandler:
         client_uuid: UUID | None = None,
     ) -> TrackableActivity:
         call = session.get(ServiceCall, reference_id)
-        if call is None or not call.is_active or call.assigned_engineer_id != employee_id:
+        if call is None or not call.is_active or employee_id not in assignees(session, call):
             raise NotFound("Service call not found, or not assigned to you.")
         if call.current_status in ("Closed", "Cancelled", "Completed"):
             raise ApiError(f"This call is {call.current_status.lower()}; you cannot start a trip for it.")
@@ -168,7 +171,9 @@ class ServiceActivityHandler:
             client_uuid=client_uuid,
             user_id=user_id,
         )
-        _advance_call(session, call, "Trip started", user_id, lat, lon, now, client_uuid)
+        # Another engineer on the call may have got there first: their progress isn't undone.
+        if call.current_status not in _WORK_UNDER_WAY:
+            _advance_call(session, call, "Trip started", user_id, lat, lon, now, client_uuid)
         return activity
 
     def on_stop(

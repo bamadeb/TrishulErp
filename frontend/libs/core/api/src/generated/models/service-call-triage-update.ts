@@ -3,11 +3,20 @@
 
 
 /**
- * A team lead's quick triage from the call list: link the real customer, reassign an engineer
- * and/or change priority. Only the fields sent are changed; send engineerId null to unassign.
+ * A team lead's quick triage from the call list: link the real customer, change the engineers
+ * and/or change priority. Only the fields sent are changed; send engineerId null to unassign everyone.
  */
 export interface ServiceCallTriageUpdate {
   customerId?: (number | null);
+
+  /**
+   * The lead engineer.
+   */
   engineerId?: (number | null);
   priority?: ('Critical' | 'High' | 'Normal' | 'Low' | null);
+
+  /**
+   * Everyone else on the call; replaces the current list.
+   */
+  supportEngineerIds?: Array<number>;
 }

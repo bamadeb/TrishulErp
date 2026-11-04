@@ -199,6 +199,12 @@ export type { CreateTrip$Params as CreateTrip$Params } from './fn/tracking/creat
 export { createTrip as createTrip } from './fn/tracking/create-trip';
 export type { UploadTripGpsPoints$Params as UploadTripGpsPoints$Params } from './fn/tracking/upload-trip-gps-points';
 export { uploadTripGpsPoints as uploadTripGpsPoints } from './fn/tracking/upload-trip-gps-points';
+export type { ListTripGpsDiagnostics$Params as ListTripGpsDiagnostics$Params } from './fn/tracking/list-trip-gps-diagnostics';
+export { listTripGpsDiagnostics as listTripGpsDiagnostics } from './fn/tracking/list-trip-gps-diagnostics';
+export type { UploadTripGpsDiagnostics$Params as UploadTripGpsDiagnostics$Params } from './fn/tracking/upload-trip-gps-diagnostics';
+export { uploadTripGpsDiagnostics as uploadTripGpsDiagnostics } from './fn/tracking/upload-trip-gps-diagnostics';
+export type { GetTripSyncStatus$Params as GetTripSyncStatus$Params } from './fn/tracking/get-trip-sync-status';
+export { getTripSyncStatus as getTripSyncStatus } from './fn/tracking/get-trip-sync-status';
 export type { StopTrip$Params as StopTrip$Params } from './fn/tracking/stop-trip';
 export { stopTrip as stopTrip } from './fn/tracking/stop-trip';
 export type { ListMyTrips$Params as ListMyTrips$Params } from './fn/tracking/list-my-trips';
