@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import RequestScope
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
-from trishul_api.common.schemas import Page
+from trishul_api.common.schemas import Page, PageQuery
 from trishul_api.db.models import (
     AppUser,
     Employee,
@@ -14,6 +15,7 @@ from trishul_api.db.models import (
     TrackableActivity,
     TrkTrip,
     TrkTripDistanceAdjustment,
+    TrkTripGpsDiagnostic,
     TrkTripGpsPoint,
     UserDevice,
 )
@@ -21,6 +23,7 @@ from trishul_api.modules.trk.constants import IN_PROGRESS
 from trishul_api.modules.trk.distance import GpsFix
 from trishul_api.modules.trk.schemas import (
     CallTripHistoryItem,
+    GpsDiagnosticItem,
     TripAdjustmentItem,
     TripListItem,
     TripListQuery,
@@ -78,6 +81,44 @@ class TripRepository:
                 )
             )
         )
+
+    def existing_diagnostic_ids(self, trip_id: int, event_ids: list[UUID]) -> set[UUID]:
+        if not event_ids:
+            return set()
+        return set(
+            self._session.scalars(
+                select(TrkTripGpsDiagnostic.event_id).where(
+                    TrkTripGpsDiagnostic.trip_id == trip_id, TrkTripGpsDiagnostic.event_id.in_(event_ids)
+                )
+            )
+        )
+
+    def diagnostics_for_trip(self, trip_id: int, query: PageQuery) -> Page[GpsDiagnosticItem]:
+        """A trip's diagnostic events in the order they happened."""
+        statement = (
+            select(*TrkTripGpsDiagnostic.__table__.c)
+            .where(TrkTripGpsDiagnostic.trip_id == trip_id)
+            .order_by(TrkTripGpsDiagnostic.recorded_at, TrkTripGpsDiagnostic.id)
+        )
+        return paginate(self._session, statement, query, GpsDiagnosticItem)
+
+    def gps_point_stats(self, trip_id: int) -> tuple[int, datetime | None, datetime | None]:
+        """Stored GPS points of a trip: count, first and last capture time."""
+        count, first, last = self._session.execute(
+            select(func.count(), func.min(TrkTripGpsPoint.recorded_at), func.max(TrkTripGpsPoint.recorded_at)).where(
+                TrkTripGpsPoint.trip_id == trip_id
+            )
+        ).one()
+        return count, first, last
+
+    def diagnostic_stats(self, trip_id: int) -> tuple[int, datetime | None, datetime | None]:
+        """Stored diagnostic events of a trip: count, first and last event time."""
+        count, first, last = self._session.execute(
+            select(
+                func.count(), func.min(TrkTripGpsDiagnostic.recorded_at), func.max(TrkTripGpsDiagnostic.recorded_at)
+            ).where(TrkTripGpsDiagnostic.trip_id == trip_id)
+        ).one()
+        return count, first, last
 
     def employee_branch_id(self, employee_id: int) -> int | None:
         return self._session.scalar(select(Employee.branch_id).where(Employee.id == employee_id))

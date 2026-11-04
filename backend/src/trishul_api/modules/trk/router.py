@@ -5,16 +5,19 @@ from fastapi import APIRouter, Depends, Path, Query, Response
 from trishul_api.auth import SIGNED_IN_USERS, CurrentUserDep, DbSession, ScopeDep, require_permission
 from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
-from trishul_api.common.schemas import Page
+from trishul_api.common.schemas import Page, PageQuery
 from trishul_api.modules.trk.constants import IN_PROGRESS
 from trishul_api.modules.trk.master_service import TripMasterService
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
     GpsBatchInput,
+    GpsDiagnosticBatchInput,
+    GpsDiagnosticItem,
+    GpsDiagnosticUploadResult,
     GpsUploadResult,
+    ModuleCodeItem,
     MyTripListQuery,
     StartTripInput,
-    ModuleCodeItem,
     StopTripInput,
     TripAdjustmentItem,
     TripListItem,
@@ -22,6 +25,8 @@ from trishul_api.modules.trk.schemas import (
     TripMasterData,
     TripOut,
     TripStatusItem,
+    TripSyncQuery,
+    TripSyncStatus,
     TripTypeItem,
     VehicleTypeItem,
 )
@@ -112,6 +117,47 @@ def upload_trip_gps_points(
     trip_id: TripId, data: GpsBatchInput, user: CurrentUserDep, service: TripServiceDep
 ) -> GpsUploadResult:
     return service.upload_gps(user, trip_id, data)
+
+
+@router.post(
+    "/trips/{tripId}/gps-diagnostics",
+    summary="Upload a batch of GPS diagnostic events (offline-tolerant, deduplicated by eventId)",
+    description="Explains gaps in the GPS trail. Accepted while the trip runs and for a grace period after it "
+    "is stopped, because a device that was offline uploads late.",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission("trk.trip.manage"))],
+)
+def upload_trip_gps_diagnostics(
+    trip_id: TripId, data: GpsDiagnosticBatchInput, user: CurrentUserDep, service: TripServiceDep
+) -> GpsDiagnosticUploadResult:
+    return service.upload_gps_diagnostics(user, trip_id, data)
+
+
+@router.get(
+    "/trips/{tripId}/gps-diagnostics",
+    summary="GPS diagnostic events of a trip (engineers: own trips only)",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission("trk.trip.view.team", "trk.trip.adjust", "trk.trip.manage"))],
+)
+def list_trip_gps_diagnostics(
+    trip_id: TripId, query: Annotated[PageQuery, Query()], user: CurrentUserDep, service: TripServiceDep
+) -> Page[GpsDiagnosticItem]:
+    return service.gps_diagnostics(user, trip_id, query)
+
+
+@router.get(
+    "/trips/{tripId}/sync/status",
+    summary="Has the server stored everything the device recorded for this trip?",
+    description="Read-only. The device sends how many GPS points and diagnostic events it recorded; the "
+    "server compares that with the unique records it persisted. Call it after the final upload, after a "
+    "restart that recovers an interrupted sync, and before deleting local data.",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission("trk.trip.view.team", "trk.trip.adjust", "trk.trip.manage"))],
+)
+def get_trip_sync_status(
+    trip_id: TripId, query: Annotated[TripSyncQuery, Query()], user: CurrentUserDep, service: TripServiceDep
+) -> TripSyncStatus:
+    return service.sync_status(user, trip_id, query)
 
 
 @router.post(

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
 
@@ -50,6 +50,104 @@ class GpsPointInput(InputModel):
 
 class GpsBatchInput(InputModel):
     points: list[GpsPointInput] = Field(min_length=1, max_length=500)
+
+
+class GpsDiagnosticEventInput(InputModel):
+    """One diagnostic event recorded by the app while tracking. `eventId` is generated on the device,
+    so a retried batch is deduplicated. Device-state flags are nullable: null means the device could not
+    tell, which is not the same as false. The position is optional (there may be no fix)."""
+
+    event_id: UUID
+    event_type: str = Field(
+        min_length=1, max_length=40, description="An event type code, e.g. LOCATION_CALLBACK_SILENCE."
+    )
+    recorded_at: UtcDateTime
+    duration_seconds: float | None = Field(None, ge=0, lt=10_000_000)
+    gps_enabled: bool | None = None
+    permission_granted: bool | None = None
+    battery_exempted: bool | None = None
+    power_save_mode: bool | None = None
+    device_idle_mode: bool | None = None
+    network_connected: bool | None = None
+    call_state: str | None = Field(None, max_length=20)
+    manufacturer: str | None = Field(None, max_length=60)
+    model: str | None = Field(None, max_length=100)
+    os_name: str | None = Field(None, max_length=20, description="Android or iOS.")
+    os_version: str | None = Field(None, max_length=30)
+    details: str | None = Field(None, max_length=500)
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
+    accuracy_m: float | None = Field(None, ge=0, le=99_999.9)
+
+    @model_validator(mode="after")
+    def _position_is_complete(self) -> "GpsDiagnosticEventInput":
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("latitude and longitude must be sent together or not at all.")
+        return self
+
+
+class GpsDiagnosticBatchInput(InputModel):
+    events: list[GpsDiagnosticEventInput] = Field(min_length=1, max_length=500)
+
+
+class GpsDiagnosticUploadResult(ApiModel):
+    accepted: int
+    duplicates_ignored: int
+
+
+class GpsDiagnosticItem(ApiModel):
+    id: int
+    event_id: UUID
+    event_type: str
+    recorded_at: UtcDateTime
+    duration_seconds: float | None
+    gps_enabled: bool | None
+    permission_granted: bool | None
+    battery_exempted: bool | None
+    power_save_mode: bool | None
+    device_idle_mode: bool | None
+    network_connected: bool | None
+    call_state: str | None
+    manufacturer: str | None
+    model: str | None
+    os_name: str | None
+    os_version: str | None
+    details: str | None
+    latitude: float | None
+    longitude: float | None
+    accuracy_m: float | None
+    received_at: UtcDateTime
+
+
+class TripSyncQuery(ApiModel):
+    """What the device believes it has recorded. The server cannot know how many points the phone
+    captured, so the app sends its own counts and the server compares them with what it stored."""
+
+    expected_gps_records: int | None = Field(None, ge=0, description="GPS points the device recorded.")
+    expected_diagnostic_records: int | None = Field(None, ge=0, description="Diagnostic events the device recorded.")
+
+
+class SyncSection(ApiModel):
+    """Stored (unique, persisted) records of one kind. `expectedRecords`, `pendingRecords` and
+    `syncComplete` are null when the device sent no expected count for this kind."""
+
+    stored_records: int
+    first_recorded_at: UtcDateTime | None
+    last_recorded_at: UtcDateTime | None
+    expected_records: int | None
+    pending_records: int | None
+    sync_complete: bool | None
+
+
+class TripSyncStatus(ApiModel):
+    trip_id: int
+    trip_status: TripStatus
+    gps_sync: SyncSection
+    diagnostics_sync: SyncSection
+    overall_sync_complete: bool = Field(
+        description="True only when the trip has ended, at least one expected count was sent, and every "
+        "count that was sent is met by the stored records."
+    )
 
 
 class StopTripInput(InputModel):

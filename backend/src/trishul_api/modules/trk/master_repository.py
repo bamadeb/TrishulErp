@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from trishul_api.db.models import (
     TrackableActivityModule,
+    TrkGpsDiagnosticEventType,
     TrkTripStatusMaster,
     TrkTripTypeMaster,
     TrkTripVehicleTypeMaster,
@@ -13,6 +14,7 @@ MasterModel = (
     | type[TrkTripTypeMaster]
     | type[TrkTripVehicleTypeMaster]
     | type[TrkTripStatusMaster]
+    | type[TrkGpsDiagnosticEventType]
 )
 
 

@@ -1,10 +1,10 @@
 """Common trip engine: the /trk endpoints, and the service's idempotency / conflict / dedup rules."""
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -13,12 +13,16 @@ from fastapi.testclient import TestClient
 from trishul_api.auth import RequestScope, get_current_user
 from trishul_api.common.errors import ApiError, Conflict, NotFound
 from trishul_api.common.schemas import Page
+from trishul_api.modules.trk.constants import LATE_UPLOAD_GRACE_DAYS
+from trishul_api.modules.trk.distance import GpsFix
 from trishul_api.modules.trk.master_service import InvalidMasterValue, TripMasterService
 from trishul_api.modules.trk.repository import TripRepository
 from trishul_api.modules.trk.router import get_trip_master_service, get_trip_service
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
     GpsBatchInput,
+    GpsDiagnosticBatchInput,
+    GpsDiagnosticUploadResult,
     GpsUploadResult,
     MyTripListQuery,
     StartTripInput,
@@ -26,6 +30,8 @@ from trishul_api.modules.trk.schemas import (
     TripListItem,
     TripListQuery,
     TripOut,
+    TripSyncQuery,
+    TripSyncStatus,
 )
 from trishul_api.modules.trk.service import TripService
 
@@ -61,6 +67,7 @@ class FakeTripService:
     def __init__(self) -> None:
         self.started: list[tuple[int, StartTripInput]] = []
         self.gps: list[tuple[int, int, GpsBatchInput]] = []
+        self.diagnostics: list[tuple[int, int, GpsDiagnosticBatchInput]] = []
         self.stopped: list[tuple[int, int]] = []
 
     def start(self, user: Any, data: StartTripInput) -> TripOut:
@@ -70,6 +77,28 @@ class FakeTripService:
     def upload_gps(self, user: Any, trip_id: int, batch: GpsBatchInput) -> GpsUploadResult:
         self.gps.append((user.id, trip_id, batch))
         return GpsUploadResult(accepted=len(batch.points), duplicates_ignored=0, trip_status="In progress")
+
+    def upload_gps_diagnostics(
+        self, user: Any, trip_id: int, batch: GpsDiagnosticBatchInput
+    ) -> GpsDiagnosticUploadResult:
+        self.diagnostics.append((user.id, trip_id, batch))
+        return GpsDiagnosticUploadResult(accepted=len(batch.events), duplicates_ignored=0)
+
+    def gps_diagnostics(self, user: Any, trip_id: int, query: Any) -> Page[Any]:
+        return Page(items=[], total=0, page=query.page, page_size=query.page_size)
+
+    def sync_status(self, user: Any, trip_id: int, query: TripSyncQuery) -> TripSyncStatus:
+        self.sync_query = query
+        empty = {
+            "storedRecords": 0, "firstRecordedAt": None, "lastRecordedAt": None,
+            "expectedRecords": None, "pendingRecords": None, "syncComplete": None,
+        }
+        return TripSyncStatus.model_validate(
+            {
+                "tripId": trip_id, "tripStatus": "Completed", "gpsSync": empty,
+                "diagnosticsSync": empty, "overallSyncComplete": False,
+            }
+        )
 
     def stop(self, user: Any, trip_id: int, data: StopTripInput) -> TripOut:
         self.stopped.append((user.id, trip_id))
@@ -164,6 +193,95 @@ def test_upload_gps_rejects_empty_batch(api: FastAPI, client: TestClient) -> Non
     assert client.post("/api/v1/trk/trips/5501/gps-points", json={"points": []}).status_code == 422
 
 
+def _diagnostic_event(**overrides: Any) -> dict[str, Any]:
+    return {
+        "eventId": str(uuid4()),
+        "eventType": "LOCATION_CALLBACK_SILENCE",
+        "recordedAt": "2026-11-03T11:33:37.000Z",
+        "durationSeconds": 59.4,
+        "gpsEnabled": True,
+        "permissionGranted": True,
+        "batteryExempted": False,
+        "powerSaveMode": True,
+        "deviceIdleMode": False,
+        "networkConnected": True,
+        "callState": "IDLE",
+        "manufacturer": "Samsung",
+        "details": "Location callback silence watchdog detected a gap",
+        **overrides,
+    }
+
+
+def test_upload_gps_diagnostics(api: FastAPI, client: TestClient) -> None:
+    _field_user(api)
+    service = use_trip_service(api)
+    response = client.post("/api/v1/trk/trips/5501/gps-diagnostics", json={"events": [_diagnostic_event()]})
+    assert response.status_code == 200
+    assert response.json() == {"accepted": 1, "duplicatesIgnored": 0}
+    assert service.diagnostics[0][1] == 5501
+
+
+def test_upload_gps_diagnostics_needs_manage_permission(api: FastAPI, client: TestClient) -> None:
+    api.dependency_overrides[get_current_user] = lambda: make_user(permissions=frozenset(), employee_id=5)
+    use_trip_service(api)
+    response = client.post("/api/v1/trk/trips/5501/gps-diagnostics", json={"events": [_diagnostic_event()]})
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"events": []},  # empty batch
+        {"events": [_diagnostic_event(eventId="not-a-uuid")]},
+        {"events": [_diagnostic_event(durationSeconds=-1)]},
+        {"events": [_diagnostic_event(latitude=20.3)]},  # latitude without longitude
+        {"events": [_diagnostic_event(latitude=91, longitude=85.8)]},
+        {"events": [_diagnostic_event(unknownField=1)]},  # mass assignment
+    ],
+)
+def test_upload_gps_diagnostics_validates_the_body(api: FastAPI, client: TestClient, body: dict[str, Any]) -> None:
+    _field_user(api)
+    use_trip_service(api)
+    assert client.post("/api/v1/trk/trips/5501/gps-diagnostics", json=body).status_code == 422
+
+
+def test_gps_diagnostics_accept_unknown_device_state_and_no_position(api: FastAPI, client: TestClient) -> None:
+    _field_user(api)
+    use_trip_service(api)
+    event = {"eventId": str(uuid4()), "eventType": "GPS_DISABLED", "recordedAt": "2026-11-03T09:30:00Z"}
+    assert client.post("/api/v1/trk/trips/5501/gps-diagnostics", json={"events": [event]}).status_code == 200
+
+
+def test_engineer_can_list_gps_diagnostics(api: FastAPI, client: TestClient) -> None:
+    _field_user(api)
+    use_trip_service(api)
+    assert client.get("/api/v1/trk/trips/5501/gps-diagnostics").status_code == 200
+
+
+def test_sync_status_passes_the_devices_expected_counts(api: FastAPI, client: TestClient) -> None:
+    _field_user(api)
+    service = use_trip_service(api)
+    response = client.get(
+        "/api/v1/trk/trips/5501/sync/status", params={"expectedGpsRecords": 36500, "expectedDiagnosticRecords": 12}
+    )
+    assert response.status_code == 200
+    assert response.json()["tripId"] == 5501
+    assert (service.sync_query.expected_gps_records, service.sync_query.expected_diagnostic_records) == (36500, 12)
+
+
+def test_sync_status_expected_counts_are_optional_but_not_negative(api: FastAPI, client: TestClient) -> None:
+    _field_user(api)
+    use_trip_service(api)
+    assert client.get("/api/v1/trk/trips/5501/sync/status").status_code == 200
+    assert client.get("/api/v1/trk/trips/5501/sync/status", params={"expectedGpsRecords": -1}).status_code == 422
+
+
+def test_sync_status_needs_a_tracking_permission(api: FastAPI, client: TestClient) -> None:
+    api.dependency_overrides[get_current_user] = lambda: make_user(permissions=frozenset(), employee_id=5)
+    use_trip_service(api)
+    assert client.get("/api/v1/trk/trips/5501/sync/status").status_code == 403
+
+
 def test_stop_and_get_trip(api: FastAPI, client: TestClient) -> None:
     user = _field_user(api)
     service = use_trip_service(api)
@@ -218,12 +336,19 @@ class _FakeRepo:
         active: Any = None,
         trip: Any = None,
         existing_times: set[datetime] | None = None,
+        existing_event_ids: set[UUID] | None = None,
+        fixes: list[Any] | None = None,
         branch_id: int | None = 1,
     ):
         self._by_uuid = by_uuid
         self._active = active
         self._trip = trip
         self._existing_times: set[datetime] = existing_times or set()
+        self._existing_event_ids: set[UUID] = existing_event_ids or set()
+        self._fixes: list[Any] = fixes or []
+        self.flushed = False
+        self._gps_stats: Any = (0, None, None)
+        self._diagnostic_stats: Any = (0, None, None)
         self._branch_id = branch_id
         self.added: list[Any] = []
         self.activity = SimpleNamespace(id=3301, module_code="SVC", source_id=9001)
@@ -246,6 +371,21 @@ class _FakeRepo:
     def existing_gps_times(self, _trip_id: int, _times: list[Any]) -> set[datetime]:
         return set(self._existing_times)
 
+    def existing_diagnostic_ids(self, _trip_id: int, _ids: list[UUID]) -> set[UUID]:
+        return set(self._existing_event_ids)
+
+    def gps_fixes(self, _trip_id: int) -> list[Any]:
+        return self._fixes
+
+    def flush(self) -> None:
+        self.flushed = True
+
+    def gps_point_stats(self, _trip_id: int) -> Any:
+        return self._gps_stats
+
+    def diagnostic_stats(self, _trip_id: int) -> Any:
+        return self._diagnostic_stats
+
     def add(self, obj: Any) -> None:
         self.added.append(obj)
 
@@ -265,6 +405,7 @@ class _FakeMasterRepo:
         "TrkTripTypeMaster": ["To site", "Return", "Site to site"],
         "TrkTripVehicleTypeMaster": ["Own bike", "Own car", "Company vehicle", "Public transport"],
         "TrkTripStatusMaster": ["In progress", "Completed", "Auto closed"],
+        "TrkGpsDiagnosticEventType": ["LOCATION_CALLBACK_SILENCE", "GPS_DISABLED", "GPS_ENABLED"],
     }
 
     def __init__(self, active: dict[str, list[str]] | None = None, default_type: str | None = "To site") -> None:
@@ -425,15 +566,184 @@ def test_upload_gps_deduplicates_within_and_across_batches() -> None:
     assert len(repo.added) == 1
 
 
-def test_upload_gps_rejects_a_stopped_trip() -> None:
-    trip = _existing_trip()
-    trip.status = "Completed"
-    service = _service_with(_FakeRepo(trip=trip))
-    batch = GpsBatchInput.model_validate(
+def _gps_batch() -> GpsBatchInput:
+    return GpsBatchInput.model_validate(
         {"points": [{"recordedAt": datetime(2026, 10, 28, 6, 36), "latitude": 20.1, "longitude": 85.1}]}
     )
+
+
+def _ended_trip(ended_ago: timedelta) -> Any:
+    trip = _existing_trip()
+    trip.status = "Completed"
+    trip.end_at = datetime.now(UTC).replace(tzinfo=None) - ended_ago
+    trip.gps_distance_km = Decimal("1.00")
+    return trip
+
+
+def test_late_gps_points_are_accepted_after_the_stop_and_the_distance_is_recomputed() -> None:
+    trip = _ended_trip(timedelta(hours=2))
+    repo = _FakeRepo(
+        trip=trip,
+        fixes=[
+            GpsFix(datetime(2026, 10, 28, 6, 36), 20.2961, 85.8245, accuracy_m=5.0),
+            GpsFix(datetime(2026, 10, 28, 6, 46), 20.3961, 85.8245, accuracy_m=5.0),  # ~11 km north
+        ],
+    )
+    result = _service_with(repo).upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+    assert result.accepted == 1
+    assert repo.flushed  # the recompute reads the points added by this request
+    assert Decimal("10") < trip.gps_distance_km < Decimal("12")
+    assert trip.status == "Completed"
+
+
+def test_late_gps_duplicates_do_not_touch_the_distance() -> None:
+    trip = _ended_trip(timedelta(hours=2))
+    repo = _FakeRepo(trip=trip, existing_times={datetime(2026, 10, 28, 6, 36)})
+    result = _service_with(repo).upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+    assert (result.accepted, result.duplicates_ignored) == (0, 1)
+    assert trip.gps_distance_km == Decimal("1.00")
+
+
+def test_late_gps_points_keep_a_manual_adjustment() -> None:
+    trip = _ended_trip(timedelta(hours=2))
+    trip.adjusted_distance_km = Decimal("7.50")
+    trip.is_distance_adjusted = True
+    _service_with(_FakeRepo(trip=trip)).upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+    assert trip.adjusted_distance_km == Decimal("7.50")
+
+
+def test_gps_points_are_rejected_after_the_grace_period() -> None:
+    service = _service_with(_FakeRepo(trip=_ended_trip(timedelta(days=LATE_UPLOAD_GRACE_DAYS, hours=1))))
     with pytest.raises(ApiError):
-        service.upload_gps(make_user(employee_id=5), 5501, batch)
+        service.upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+
+
+# ---------------------------------------------------------------- sync status
+
+
+def _sync(trip: Any, gps: Any = (0, None, None), diagnostics: Any = (0, None, None), **expected: int) -> Any:
+    repo = _FakeRepo(trip=trip)
+    repo._gps_stats, repo._diagnostic_stats = gps, diagnostics
+    query = TripSyncQuery.model_validate(expected)
+    return _service_with(repo).sync_status(make_user(employee_id=5), 5501, query)
+
+
+_T0, _T1 = datetime(2026, 10, 28, 6, 36), datetime(2026, 10, 28, 8, 5)
+
+
+def test_sync_complete_when_the_server_stored_everything_the_device_recorded() -> None:
+    status = _sync(
+        _ended_trip(timedelta(hours=1)), gps=(36500, _T0, _T1), diagnostics=(12, _T0, _T1),
+        expectedGpsRecords=36500, expectedDiagnosticRecords=12,
+    )
+    assert status.gps_sync.sync_complete and status.gps_sync.pending_records == 0
+    assert status.gps_sync.first_recorded_at == _T0.replace(tzinfo=UTC)  # served as UTC
+    assert status.gps_sync.last_recorded_at == _T1.replace(tzinfo=UTC)
+    assert status.diagnostics_sync.sync_complete
+    assert status.overall_sync_complete
+
+
+def test_sync_reports_pending_gps_points_and_is_not_complete() -> None:
+    status = _sync(_ended_trip(timedelta(hours=1)), gps=(36000, _T0, _T1), expectedGpsRecords=36500)
+    assert (status.gps_sync.stored_records, status.gps_sync.pending_records) == (36000, 500)
+    assert status.gps_sync.sync_complete is False
+    assert status.overall_sync_complete is False
+
+
+def test_sync_is_not_overall_complete_while_the_trip_is_in_progress() -> None:
+    status = _sync(_existing_trip(), gps=(10, _T0, _T1), expectedGpsRecords=10)
+    assert status.gps_sync.sync_complete is True
+    assert status.overall_sync_complete is False
+
+
+def test_sync_without_expected_counts_proves_nothing() -> None:
+    status = _sync(_ended_trip(timedelta(hours=1)), gps=(5, _T0, _T1))
+    assert status.gps_sync.stored_records == 5
+    assert status.gps_sync.expected_records is None and status.gps_sync.sync_complete is None
+    assert status.overall_sync_complete is False
+
+
+def test_sync_checks_only_the_kinds_the_device_sent_a_count_for() -> None:
+    status = _sync(_ended_trip(timedelta(hours=1)), gps=(10, _T0, _T1), expectedGpsRecords=10)
+    assert status.diagnostics_sync.sync_complete is None
+    assert status.overall_sync_complete is True
+
+
+def test_sync_cannot_read_another_engineers_trip() -> None:
+    repo = _FakeRepo(trip=_existing_trip())
+    with pytest.raises(NotFound):
+        _service_with(repo).sync_status(make_user(employee_id=99), 5501, TripSyncQuery())
+
+
+# ---------------------------------------------------------------- GPS diagnostics
+
+
+def _diagnostic_batch(*events: dict[str, Any]) -> GpsDiagnosticBatchInput:
+    return GpsDiagnosticBatchInput.model_validate({"events": list(events)})
+
+
+def test_diagnostics_are_deduplicated_by_event_id_within_and_across_batches() -> None:
+    stored, fresh = uuid4(), uuid4()
+    repo = _FakeRepo(trip=_existing_trip(), existing_event_ids={stored})
+    batch = _diagnostic_batch(
+        _diagnostic_event(eventId=str(stored)),  # duplicate of stored
+        _diagnostic_event(eventId=str(fresh)),  # new
+        _diagnostic_event(eventId=str(fresh)),  # duplicate within batch
+    )
+    result = _service_with(repo).upload_gps_diagnostics(make_user(employee_id=5), 5501, batch)
+    assert (result.accepted, result.duplicates_ignored) == (1, 2)
+    assert len(repo.added) == 1
+    row = repo.added[0]
+    assert (row.trip_id, row.event_id, row.event_type) == (5501, fresh, "LOCATION_CALLBACK_SILENCE")
+    assert row.recorded_at.tzinfo is None  # stored as naive UTC like every DATETIME2
+    assert row.power_save_mode is True and row.manufacturer == "Samsung"
+
+
+def test_diagnostics_keep_unknown_device_state_as_null() -> None:
+    repo = _FakeRepo(trip=_existing_trip())
+    event = {"eventId": str(uuid4()), "eventType": "GPS_DISABLED", "recordedAt": "2026-11-03T09:30:00Z"}
+    _service_with(repo).upload_gps_diagnostics(make_user(employee_id=5), 5501, _diagnostic_batch(event))
+    row = repo.added[0]
+    assert row.gps_enabled is None and row.latitude is None and row.call_state is None
+
+
+def test_diagnostics_reject_an_unknown_event_type() -> None:
+    repo = _FakeRepo(trip=_existing_trip())
+    service = _service_with(repo)
+    with pytest.raises(InvalidMasterValue):
+        service.upload_gps_diagnostics(
+            make_user(employee_id=5), 5501, _diagnostic_batch(_diagnostic_event(eventType="TELEPORTED"))
+        )
+    assert repo.added == []
+
+
+def test_diagnostics_accept_a_deactivated_event_type() -> None:
+    master = _FakeMasterRepo(active={"TrkGpsDiagnosticEventType": ["GPS_ENABLED"]})  # silence deactivated
+    repo = _FakeRepo(trip=_existing_trip())
+    _service_with(repo, master).upload_gps_diagnostics(
+        make_user(employee_id=5), 5501, _diagnostic_batch(_diagnostic_event())
+    )
+    assert len(repo.added) == 1
+
+
+def test_diagnostics_are_accepted_after_the_trip_ended() -> None:
+    repo = _FakeRepo(trip=_ended_trip(timedelta(hours=3)))
+    result = _service_with(repo).upload_gps_diagnostics(
+        make_user(employee_id=5), 5501, _diagnostic_batch(_diagnostic_event())
+    )
+    assert result.accepted == 1
+
+
+def test_diagnostics_are_rejected_after_the_grace_period() -> None:
+    service = _service_with(_FakeRepo(trip=_ended_trip(timedelta(days=LATE_UPLOAD_GRACE_DAYS + 1))))
+    with pytest.raises(ApiError):
+        service.upload_gps_diagnostics(make_user(employee_id=5), 5501, _diagnostic_batch(_diagnostic_event()))
+
+
+def test_diagnostics_cannot_be_added_to_another_engineers_trip() -> None:
+    service = _service_with(_FakeRepo(trip=_existing_trip()))
+    with pytest.raises(NotFound):
+        service.upload_gps_diagnostics(make_user(employee_id=99), 5501, _diagnostic_batch(_diagnostic_event()))
 
 
 # ---------------------------------------------------------------- manual distance adjustment

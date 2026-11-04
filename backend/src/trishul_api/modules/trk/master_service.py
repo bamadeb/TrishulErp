@@ -4,6 +4,7 @@ from trishul_api.auth import CurrentUser
 from trishul_api.common.errors import ApiError, Forbidden
 from trishul_api.db.models import (
     TrackableActivityModule,
+    TrkGpsDiagnosticEventType,
     TrkTripStatusMaster,
     TrkTripTypeMaster,
     TrkTripVehicleTypeMaster,
@@ -96,6 +97,16 @@ class TripMasterService:
         if unknown:
             raise InvalidMasterValue(
                 "Unknown trip status.", {"status": [f"'{value}' is not a trip status." for value in unknown]}
+            )
+
+    def require_known_diagnostic_event_types(self, event_types: list[str]) -> None:
+        """Every event type must exist. A type deactivated after the device recorded the event is still
+        accepted: the device may upload hours later, and refusing would drop the whole batch."""
+        unknown = sorted(set(event_types) - self._repo.all_codes(TrkGpsDiagnosticEventType))
+        if unknown:
+            raise InvalidMasterValue(
+                "Unknown GPS diagnostic event type.",
+                {"eventType": [f"'{value}' is not a GPS diagnostic event type." for value in unknown]},
             )
 
     @staticmethod

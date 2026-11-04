@@ -4,3 +4,7 @@ exist in every database; everything else about a status is data."""
 IN_PROGRESS = "In progress"
 COMPLETED = "Completed"
 AUTO_CLOSED = "Auto closed"
+
+# A device that was offline when the trip ended may upload its remaining GPS points and diagnostic
+# events after the trip is stopped. Beyond this many days the trip is treated as settled.
+LATE_UPLOAD_GRACE_DAYS = 7

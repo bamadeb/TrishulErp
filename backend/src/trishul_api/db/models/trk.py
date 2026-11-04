@@ -2,7 +2,7 @@
 # 0006 and these mirror its DDL. Re-run the generator against the migrated DB to fold this into
 # generated/ and then delete this file. Keep the columns in sync with migration 0006 until then.
 
-"""ORM models for the trk schema (common, cross-module trip tracking): 7 tables."""
+"""ORM models for the trk schema (common, cross-module trip tracking): 9 tables."""
 
 import datetime as dt
 import uuid
@@ -74,6 +74,16 @@ class TrkTripStatusMaster(_TrkMaster, Base, Audited):
 
     is_initial: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue(), doc="Status on start")
     is_final: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue(), doc="Trip has ended")
+
+
+class TrkGpsDiagnosticEventType(_TrkMaster, Base, Audited):
+    """GPS diagnostic event types (LOCATION_CALLBACK_SILENCE, GPS_DISABLED, ...). Table
+    trk.gps_diagnostic_event_type."""
+
+    __tablename__ = "gps_diagnostic_event_type"
+    __table_args__ = {"schema": "trk"}
+
+    code: Mapped[str] = mapped_column(sa.NVARCHAR(40), doc="Stable value sent by the app")
 
 
 class TrackableActivity(Base, Audited):
@@ -199,4 +209,40 @@ class TrkTripDistanceAdjustment(Base):
     adjusted_by_user_id: Mapped[int] = mapped_column(sa.BigInteger(), doc="Team Lead who adjusted")
     adjusted_at: Mapped[dt.datetime] = mapped_column(
         mssql.DATETIME2(0), server_default=sa.FetchedValue(), doc="When the adjustment was made"
+    )
+
+
+class TrkTripGpsDiagnostic(Base):
+    """A diagnostic event the app recorded while tracking: why the GPS trail has a gap and whether
+    tracking recovered. Deduplicated on (trip_id, event_id). Device-state flags are nullable: NULL means
+    the device could not tell. Table trk.trip_gps_diagnostic."""
+
+    __tablename__ = "trip_gps_diagnostic"
+    __table_args__ = {"schema": "trk"}
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    trip_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("trk.trip.id"), doc="Trip")
+    event_id: Mapped[uuid.UUID] = mapped_column(sa.Uuid(), doc="Client-generated id, for idempotency")
+    event_type: Mapped[str] = mapped_column(
+        sa.NVARCHAR(40), sa.ForeignKey("trk.gps_diagnostic_event_type.code"), doc="Event type"
+    )
+    recorded_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(3), doc="When the event happened on the device")
+    duration_seconds: Mapped[Decimal | None] = mapped_column(sa.Numeric(9, 1), doc="Length, e.g. of a silence")
+    gps_enabled: Mapped[bool | None] = mapped_column(sa.Boolean(), doc="Location services on")
+    permission_granted: Mapped[bool | None] = mapped_column(sa.Boolean(), doc="Location permission granted")
+    battery_exempted: Mapped[bool | None] = mapped_column(sa.Boolean(), doc="Exempt from battery optimisation")
+    power_save_mode: Mapped[bool | None] = mapped_column(sa.Boolean(), doc="Battery saver on")
+    device_idle_mode: Mapped[bool | None] = mapped_column(sa.Boolean(), doc="Doze / idle mode")
+    network_connected: Mapped[bool | None] = mapped_column(sa.Boolean(), doc="Network reachable")
+    call_state: Mapped[str | None] = mapped_column(sa.NVARCHAR(20), doc="Phone call state")
+    manufacturer: Mapped[str | None] = mapped_column(sa.NVARCHAR(60), doc="Device manufacturer")
+    model: Mapped[str | None] = mapped_column(sa.NVARCHAR(100), doc="Device model")
+    os_name: Mapped[str | None] = mapped_column(sa.NVARCHAR(20), doc="Android / iOS")
+    os_version: Mapped[str | None] = mapped_column(sa.NVARCHAR(30), doc="OS version")
+    details: Mapped[str | None] = mapped_column(sa.NVARCHAR(500), doc="Free-text detail")
+    latitude: Mapped[Decimal | None] = mapped_column(sa.Numeric(9, 6), doc="Last known position, if any")
+    longitude: Mapped[Decimal | None] = mapped_column(sa.Numeric(9, 6), doc="Last known position, if any")
+    accuracy_m: Mapped[Decimal | None] = mapped_column(sa.Numeric(6, 1), doc="Accuracy of that position")
+    received_at: Mapped[dt.datetime] = mapped_column(
+        mssql.DATETIME2(0), server_default=sa.FetchedValue(), doc="Server receipt time"
     )
