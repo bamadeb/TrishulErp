@@ -29,6 +29,7 @@ from trishul_api.db.models import (
 )
 from trishul_api.modules.core.teams.repository import current_member
 from trishul_api.modules.service.access import CallVisibility
+from trishul_api.modules.service.assignment import support_engineers, supports_call
 from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.trk.constants import IN_PROGRESS as TRIP_IN_PROGRESS
 from trishul_api.modules.service.schemas import (
@@ -59,6 +60,8 @@ def _visible(visibility: CallVisibility) -> ColumnElement[bool]:
         conditions.append(ServiceCall.assigned_engineer_id.in_(sorted(visibility.engineer_ids)))
     if visibility.unassigned:
         conditions.append(ServiceCall.assigned_engineer_id.is_(None))
+    if visibility.engineer_ids:
+        conditions.append(supports_call(visibility.engineer_ids))
     return or_(*conditions) if conditions else false()
 
 
@@ -108,7 +111,11 @@ class ServiceCallRepository:
     def list(
         self, scope: RequestScope, query: ServiceCallQuery, visibility: CallVisibility
     ) -> Page[ServiceCallListItem]:
-        return paginate(self._session, self.list_statement(scope, query, visibility), query, ServiceCallListItem)
+        page = paginate(self._session, self.list_statement(scope, query, visibility), query, ServiceCallListItem)
+        support = support_engineers(self._session, [item.id for item in page.items])
+        for item in page.items:
+            item.support_engineers = support.get(item.id, [])
+        return page
 
     def team_members(self, lead_employee_id: int) -> builtins.list[int]:
         """Employees currently in the active teams this employee leads."""
@@ -124,14 +131,9 @@ class ServiceCallRepository:
     def get_list_item(self, call_id: int) -> ServiceCallListItem:
         """One call as the register shows it; the call must exist."""
         row = self._session.execute(self._register_select().where(ServiceCall.id == call_id)).mappings().one()
-        return ServiceCallListItem.model_validate(row)
-
-    def assignment(self, call_id: int) -> tuple[bool, int | None]:
-        """(the call exists, its assigned engineer's employee id): a cheap check before showing its history."""
-        row = self._session.execute(
-            select(ServiceCall.assigned_engineer_id).where(ServiceCall.id == call_id, ServiceCall.is_active)
-        ).one_or_none()
-        return (row is not None, row[0] if row is not None else None)
+        item = ServiceCallListItem.model_validate(row)
+        item.support_engineers = support_engineers(self._session, [call_id]).get(call_id, [])
+        return item
 
     def status_history(self, call_id: int) -> builtins.list[CallStatusLogItem]:
         """Every status change of a call, newest first, with who made it."""
@@ -216,7 +218,11 @@ class ServiceCallRepository:
             .where(ServiceCall.id == call_id, ServiceCall.is_active)
         )
         row = self._session.execute(statement).mappings().one_or_none()
-        return ServiceCallDetail.model_validate(row) if row is not None else None
+        if row is None:
+            return None
+        detail = ServiceCallDetail.model_validate(row)
+        detail.support_engineers = support_engineers(self._session, [call_id]).get(call_id, [])
+        return detail
 
     # builtins.list: this class has a method named `list`, which otherwise shadows the builtin here.
     def machine_options(self, scope: RequestScope, query: MachineOptionQuery) -> builtins.list[MachineUnitOption]:
@@ -295,6 +301,7 @@ class ServiceCallRepository:
                 ServiceCall.is_asc_priority,
                 ServiceCall.coverage_type,
                 ServiceCall.current_status,
+                ServiceCall.assigned_engineer_id,
                 func.nullif(func.concat_ws(" ", Employee.first_name, Employee.last_name), "").label(
                     "assigned_engineer_name"
                 ),
@@ -382,9 +389,12 @@ class ServiceCallRepository:
             .outerjoin(CustomerSite, CustomerSite.id == ServiceCall.customer_site_id)
             .outerjoin(MachineUnit, MachineUnit.id == ServiceCall.machine_unit_id)
             .outerjoin(MachineModel, MachineModel.id == MachineUnit.model_id)
-            # The engineer only ever sees calls assigned to them. A reassigned call moves to the new
-            # engineer (assigned_engineer_id is updated), so it drops off the old engineer's list.
-            .where(ServiceCall.is_active, ServiceCall.assigned_engineer_id == engineer_id)
+            # The engineer only ever sees calls they are on, as lead or support. A reassigned call moves
+            # to the new engineer, so it drops off the old engineer's list.
+            .where(
+                ServiceCall.is_active,
+                or_(ServiceCall.assigned_engineer_id == engineer_id, supports_call([engineer_id])),
+            )
         )
         # Row-level security plus the selected branch / brand narrow it further.
         if scope.branch_id is not None:

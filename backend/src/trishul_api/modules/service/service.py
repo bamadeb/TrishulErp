@@ -28,6 +28,7 @@ from trishul_api.db.models import (
 from trishul_api.modules.alerts.engine import AlertEngine
 from trishul_api.modules.service import sla
 from trishul_api.modules.service.access import CallVisibility, allowed_statuses, call_visibility
+from trishul_api.modules.service.assignment import assignees, set_engineers, support_ids
 from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
@@ -116,9 +117,9 @@ class ServiceCallService:
     def update_triage(
         self, call_id: int, expected_row_version: bytes, data: ServiceCallTriageUpdate
     ) -> ServiceCallListItem:
-        """A team lead reassigns and/or re-prioritises a call from the register."""
+        """A team lead changes the engineers and/or re-prioritises a call from the register."""
         call = self._db.get(ServiceCall, call_id)
-        if call is None or not call.is_active or not self.visibility.allows(call.assigned_engineer_id):
+        if call is None or not call.is_active or not self.visibility.allows(assignees(self._db, call)):
             raise NotFound("Service call not found.")
         check_row_version(call.row_version, expected_row_version)
         changed = data.model_fields_set
@@ -126,31 +127,8 @@ class ServiceCallService:
 
         if "priority" in changed and data.priority is not None:
             call.priority = data.priority
-        if "engineer_id" in changed:
-            if data.engineer_id is not None:
-                if (
-                    self._db.scalars(
-                        select(Employee.id).where(Employee.id == data.engineer_id, Employee.is_active).limit(1)
-                    ).first()
-                    is None
-                ):
-                    raise ApiError(
-                        "That engineer doesn't exist.",
-                        errors={"engineerId": [f"Unknown or inactive employee {data.engineer_id}"]},
-                    )
-                if not self.visibility.allows(data.engineer_id):
-                    # A team lead assigns within their team; otherwise the call would drop off their list.
-                    raise ApiError(
-                        "That engineer isn't in your team.",
-                        errors={"engineerId": ["Pick an engineer from your team."]},
-                    )
-                call.assigned_engineer_id = data.engineer_id
-                if call.current_status == "Logged":
-                    call.current_status = "Assigned"
-            else:
-                call.assigned_engineer_id = None
-                if call.current_status == "Assigned":
-                    call.current_status = "Logged"
+        if "engineer_id" in changed or "support_engineer_ids" in changed:
+            self._assign(call, data)
         if "customer_id" in changed and data.customer_id is not None:
             linked = self._db.scalars(
                 select(Customer.id)
@@ -179,13 +157,54 @@ class ServiceCallService:
         self._db.commit()
         return self._repo.get_list_item(call_id)
 
+    def _assign(self, call: ServiceCall, data: ServiceCallTriageUpdate) -> None:
+        """Apply the lead and support engineers sent; the one left out keeps its current value."""
+        changed = data.model_fields_set
+        lead = data.engineer_id if "engineer_id" in changed else call.assigned_engineer_id
+        support = (
+            set(data.support_engineer_ids) if "support_engineer_ids" in changed else support_ids(self._db, call.id)
+        )
+        if lead is None:
+            if "support_engineer_ids" in changed and support:
+                raise ApiError(
+                    "Choose a lead engineer for this call.", errors={"engineerId": ["Required with support engineers."]}
+                )
+            support = set()
+        wanted = support if lead is None else support | {lead}
+
+        # Only people being added are checked: a team lead can keep someone an office user put on the call.
+        for engineer in sorted(wanted - assignees(self._db, call)):
+            self._check_engineer(engineer, "engineerId" if engineer == lead else "supportEngineerIds")
+        set_engineers(self._db, call, lead, support - {lead}, self._actor.id, _now())
+        if lead is not None and call.current_status == "Logged":
+            call.current_status = "Assigned"
+        elif lead is None and call.current_status == "Assigned":
+            call.current_status = "Logged"
+
+    def _check_engineer(self, engineer_id: int, field: str) -> None:
+        if (
+            self._db.scalars(select(Employee.id).where(Employee.id == engineer_id, Employee.is_active).limit(1)).first()
+            is None
+        ):
+            raise ApiError(
+                "That engineer doesn't exist.", errors={field: [f"Unknown or inactive employee {engineer_id}"]}
+            )
+        if not self.visibility.allows({engineer_id}):
+            # A team lead assigns within their team; otherwise the call could drop off their list.
+            raise ApiError("That engineer isn't in your team.", errors={field: ["Pick an engineer from your team."]})
+
     def detail(self, call_id: int) -> ServiceCallDetail:
         """One call in full, with the statuses this user may move it to."""
         detail = self._repo.detail(call_id)
-        if detail is None or not self.visibility.allows(detail.assigned_engineer_id):
+        if detail is None:
+            raise NotFound("Service call not found.")
+        on_call = {engineer.id for engineer in detail.support_engineers}
+        if detail.assigned_engineer_id is not None:
+            on_call.add(detail.assigned_engineer_id)
+        if not self.visibility.allows(on_call):
             raise NotFound("Service call not found.")
         detail.allowed_statuses = allowed_statuses(  # type: ignore[assignment]
-            self._actor, detail.current_status, detail.assigned_engineer_id
+            self._actor, detail.current_status, on_call
         )
         if detail.machine_unit_id is not None:
             detail.asc = ContractRepository(self._db).machine_asc([detail.machine_unit_id], date.today()).get(
@@ -194,8 +213,8 @@ class ServiceCallService:
         return detail
 
     def status_history(self, call_id: int) -> list[CallStatusLogItem]:
-        exists, assignee = self._repo.assignment(call_id)
-        if not exists or not self.visibility.allows(assignee):
+        call = self._db.get(ServiceCall, call_id)
+        if call is None or not call.is_active or not self.visibility.allows(assignees(self._db, call)):
             raise NotFound("Service call not found.")
         return self._repo.status_history(call_id)
 
@@ -204,14 +223,17 @@ class ServiceCallService:
     ) -> ServiceCallDetail:
         """Move a call to another status (team lead: any call; engineer: their own) and record it."""
         call = self._db.get(ServiceCall, call_id)
-        if call is None or not call.is_active or not self.visibility.allows(call.assigned_engineer_id):
+        if call is None or not call.is_active:
+            raise NotFound("Service call not found.")
+        on_call = assignees(self._db, call)
+        if not self.visibility.allows(on_call):
             raise NotFound("Service call not found.")
         check_row_version(call.row_version, expected_row_version)
         if data.status == call.current_status:
             raise ApiError(
                 "The call is already in that status.", errors={"status": [f"Already '{call.current_status}'."]}
             )
-        if data.status not in allowed_statuses(self._actor, call.current_status, call.assigned_engineer_id):
+        if data.status not in allowed_statuses(self._actor, call.current_status, on_call):
             raise Forbidden(f"You can't change this call to '{data.status}'.")
 
         previous = call.current_status

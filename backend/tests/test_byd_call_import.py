@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import get_current_user, get_db
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import BydCallImport, Customer, ServiceCall
+from trishul_api.db.models import BydCallImport, CallAssignment, Customer, ServiceCall
 from trishul_api.main import create_app
 
 from .conftest import make_user
@@ -41,6 +41,7 @@ TABLES = [
     "core.audit_log",
     "svc.service_call",
     "svc.call_status_log",
+    "svc.call_assignment",
     "svc.contract_plan",
     "svc.service_contract",
     "svc.contract_coverage",
@@ -291,6 +292,40 @@ def test_order_updates_the_call_a_request_created(client: TestClient, db: Engine
     assigned = calls(db)
     assert len(assigned) == 1  # same call, not a new one
     assert assigned[0].current_status == "Assigned" and assigned[0].assigned_engineer_id == ENGINEER_ID
+
+
+def test_new_engineer_from_byd_becomes_lead_and_support_stays(client: TestClient, db: Engine) -> None:
+    for employee, code, name in ((301, "E301", "Old"), (302, "E302", "Helper")):
+        insert_row(db, "core.employee", id=employee, company_id=COMPANY, branch_id=BRANCH, employee_code=code,
+                   first_name=name, last_name="Engineer", employee_type="Permanent", status="Active")
+    call_id = insert_row(db, "svc.service_call", company_id=COMPANY, branch_id=BRANCH, principal_id=PRINCIPAL,
+                         call_no="SC-0006", customer_id=CUSTOMER_ID, machine_unit_id=MACHINE_ID, oem_call_id="T6",
+                         assigned_engineer_id=301, current_status="Assigned")
+    insert_row(db, "svc.call_assignment", service_call_id=call_id, engineer_employee_id=301,
+               assignment_type="Primary", assigned_by_user_id=ACTOR_ID, is_current=True)
+    insert_row(db, "svc.call_assignment", service_call_id=call_id, engineer_employee_id=302,
+               assignment_type="Support", assigned_by_user_id=ACTOR_ID, is_current=True)
+
+    order = make_xlsx(ORDER_HEADERS, [{
+        "C4C Ticket ID": "T6",
+        "Service Order ID": "SO6",
+        "Subject": "Follow up",
+        "Account": CUSTOMER_NAME,
+        "Registered Product ID": MACHINE_RP,
+        "Priority": "Normal",
+        "Breakdown": "No",
+        "Engineer Name": ENGINEER_NAME,
+    }])
+    assert post_file(client, IMPORT, order).status_code == 201
+    with Session(db) as session:
+        assert session.get(ServiceCall, call_id).assigned_engineer_id == ENGINEER_ID  # type: ignore[union-attr]
+        current = session.scalars(
+            select(CallAssignment).where(CallAssignment.service_call_id == call_id, CallAssignment.is_current)
+        )
+        assert sorted((r.engineer_employee_id, r.assignment_type) for r in current) == [
+            (ENGINEER_ID, "Primary"),
+            (302, "Support"),
+        ]
 
 
 def test_update_keeps_an_existing_link_and_is_not_flagged(client: TestClient, db: Engine) -> None:

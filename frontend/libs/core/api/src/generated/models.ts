@@ -33,6 +33,7 @@ export type { BydImportPreview } from './models/byd-import-preview';
 export type { BydImportResult } from './models/byd-import-result';
 export type { BydImportRow } from './models/byd-import-row';
 export type { BydImportSummary } from './models/byd-import-summary';
+export type { CallEngineer } from './models/call-engineer';
 export type { CallStatusLogItem } from './models/call-status-log-item';
 export type { CallTripHistoryItem } from './models/call-trip-history-item';
 export type { CompanyCreate } from './models/company-create';

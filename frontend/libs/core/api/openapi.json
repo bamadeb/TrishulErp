@@ -17081,6 +17081,25 @@
         "title": "BydImportSummary",
         "description": "Counts for the whole file, shown on both preview and after import."
       },
+      "CallEngineer": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CallEngineer",
+        "description": "An engineer on a call."
+      },
       "CallStatusLogItem": {
         "properties": {
           "id": {
@@ -25121,7 +25140,15 @@
                 "type": "null"
               }
             ],
-            "title": "Assignedengineername"
+            "title": "Assignedengineername",
+            "description": "The lead engineer."
+          },
+          "supportEngineers": {
+            "items": {
+              "$ref": "#/components/schemas/CallEngineer"
+            },
+            "type": "array",
+            "title": "Supportengineers"
           },
           "callerName": {
             "anyOf": [
@@ -25295,6 +25322,7 @@
           "currentStatus",
           "assignedEngineerId",
           "assignedEngineerName",
+          "supportEngineers",
           "callerName",
           "callerPhone",
           "oemCallId",
@@ -25418,6 +25446,17 @@
             ],
             "title": "Currentstatus"
           },
+          "assignedEngineerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignedengineerid"
+          },
           "assignedEngineerName": {
             "anyOf": [
               {
@@ -25427,7 +25466,15 @@
                 "type": "null"
               }
             ],
-            "title": "Assignedengineername"
+            "title": "Assignedengineername",
+            "description": "The lead engineer."
+          },
+          "supportEngineers": {
+            "items": {
+              "$ref": "#/components/schemas/CallEngineer"
+            },
+            "type": "array",
+            "title": "Supportengineers"
           },
           "oemCallId": {
             "anyOf": [
@@ -25472,7 +25519,9 @@
           "isAscPriority",
           "coverageType",
           "currentStatus",
+          "assignedEngineerId",
           "assignedEngineerName",
+          "supportEngineers",
           "oemCallId",
           "slaDueAt",
           "rowVersion"
@@ -25553,7 +25602,17 @@
                 "type": "null"
               }
             ],
-            "title": "Engineerid"
+            "title": "Engineerid",
+            "description": "The lead engineer."
+          },
+          "supportEngineerIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Supportengineerids",
+            "description": "Everyone else on the call; replaces the current list."
           },
           "customerId": {
             "anyOf": [
@@ -25570,7 +25629,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ServiceCallTriageUpdate",
-        "description": "A team lead's quick triage from the call list: link the real customer, reassign an engineer\nand/or change priority. Only the fields sent are changed; send engineerId null to unassign."
+        "description": "A team lead's quick triage from the call list: link the real customer, change the engineers\nand/or change priority. Only the fields sent are changed; send engineerId null to unassign everyone."
       },
       "ServiceContractCreate": {
         "properties": {

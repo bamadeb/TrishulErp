@@ -91,6 +91,7 @@ class FakeServiceCallRepository:
             is_asc_priority=False,
             coverage_type="Warranty",
             current_status="Logged",
+            assigned_engineer_id=None,
             assigned_engineer_name=None,
             oem_call_id=None,
             sla_due_at=None,

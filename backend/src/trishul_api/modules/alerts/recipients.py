@@ -1,8 +1,8 @@
 """Who receives an alert: the rule's recipients turned into active users who may see the record.
 
 A role or a named user receives the alert only if they could open the record: the same brand / branch test as
-row-level security (rls.fn_can_see). People taken from the record itself (the call's assigned engineer, the
-user who logged it) always receive it. The background job's own 'system' account never does.
+row-level security (rls.fn_can_see). People taken from the record itself (the call's engineers, lead and
+support, and the user who logged it) always receive it. The background job's own 'system' account never does.
 """
 
 from collections.abc import Iterable
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from trishul_api.db.models import AppUser, Branch, Employee, Role, UserPrincipalAccess, UserRole
 from trishul_api.modules.alerts.conditions import Candidate
+from trishul_api.modules.service.assignment import support_ids
 
 SYSTEM_USERNAME = "system"
 _SEE_EVERYTHING = frozenset({"ADMIN", "MANAGEMENT", "ACCOUNTS"})
@@ -51,6 +52,8 @@ class RecipientResolver:
                 checked.update(self._usable([spec.app_user_id]))
             elif spec.recipient_type == "Assigned engineer" and candidate.assigned_engineer_id is not None:
                 users.update(self._engineer(candidate.assigned_engineer_id))
+                for engineer in support_ids(self._db, candidate.entity_id):
+                    users.update(self._engineer(engineer))
             elif spec.recipient_type == "Call logged by" and candidate.logged_by_user_id is not None:
                 users.update(self._usable([candidate.logged_by_user_id]))
         users.update(u for u in checked if self._can_see(u, candidate.principal_id, candidate.branch_id))
