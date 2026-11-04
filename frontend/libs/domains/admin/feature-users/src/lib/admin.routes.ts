@@ -4,8 +4,6 @@ import {
   ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_MANAGE_PERMISSION,
   CUSTOMER_VIEW_PERMISSIONS,
-  EMPLOYEE_MANAGE_PERMISSION,
-  EMPLOYEE_VIEW_PERMISSIONS,
   ROLE_MANAGE_PERMISSION,
   ROLE_VIEW_PERMISSIONS,
   TEAM_MANAGE_PERMISSION,
@@ -18,8 +16,6 @@ import { AlertRuleFormPage } from './alert-rule-form.page';
 import { AlertRuleListPage } from './alert-rule-list.page';
 import { CustomerFormPage } from './customer-form.page';
 import { CustomerListPage } from './customer-list.page';
-import { EmployeeFormPage } from './employee-form.page';
-import { EmployeeListPage } from './employee-list.page';
 import { RoleFormPage } from './role-form.page';
 import { RoleListPage } from './role-list.page';
 import { TeamFormPage } from './team-form.page';
@@ -47,24 +43,6 @@ export const adminRoutes: Route[] = [
     title: 'User',
     canActivate: [permissionGuard(...USER_VIEW_PERMISSIONS)],
     component: UserFormPage,
-  },
-  {
-    path: 'employees',
-    title: 'Employees',
-    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
-    component: EmployeeListPage,
-  },
-  {
-    path: 'employees/new',
-    title: 'Add employee',
-    canActivate: [permissionGuard(EMPLOYEE_MANAGE_PERMISSION)],
-    component: EmployeeFormPage,
-  },
-  {
-    path: 'employees/:employeeId',
-    title: 'Employee',
-    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
-    component: EmployeeFormPage,
   },
   {
     path: 'customers',

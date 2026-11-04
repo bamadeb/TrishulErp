@@ -1,0 +1,76 @@
+<trishul-page-header title="TA/DA Import" subtitle="Download the template, check the file, then import the preview." />
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>Upload</h2>
+      <p>The template is a CSV that opens in Excel. Required columns are validated before import.</p>
+    </div>
+    <button mat-stroked-button type="button" (click)="downloadTemplate()"><mat-icon>download</mat-icon> Download template</button>
+    <input #file class="sr-only" type="file" accept=".csv,.xlsx,.xls,text/csv" (change)="onFile($event)" />
+    <button mat-flat-button color="primary" type="button" (click)="file.click()">
+      <mat-icon>upload_file</mat-icon>
+      Choose file
+    </button>
+  </div>
+  @if (fileName()) {
+    <p class="note">Selected file: {{ fileName() }}</p>
+  }
+  @if (errors().length) {
+    <ul class="validation">
+      @for (error of errors(); track error) {
+        <li>{{ error }}</li>
+      }
+    </ul>
+  }
+  @if (preview().length) {
+    <div class="section-head">
+      <div>
+        <h2>Import preview ({{ preview().length }})</h2>
+        <p>These rows will be added to the TA/DA report.</p>
+      </div>
+      <button mat-flat-button color="primary" type="button" [disabled]="errors().length > 0" (click)="importRows()">Import</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Code</th><th>Name</th><th>Date</th><th>Ticket</th><th>From</th><th>To</th><th>Vehicle</th><th>KM</th></tr>
+        </thead>
+        <tbody>
+          @for (row of preview(); track row.id) {
+            <tr>
+              <td>{{ row.code }}</td><td>{{ row.name }}</td><td>{{ row.serviceDate }}</td><td>{{ row.ticket }}</td>
+              <td>{{ row.from }}</td><td>{{ row.to }}</td><td>{{ row.vehicle }}</td><td>{{ row.km }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<section class="table-card stack">
+  <div class="section-head">
+    <div>
+      <h2>Import history</h2>
+      <p>Files imported in this prototype.</p>
+    </div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>File</th><th>When</th><th>Rows</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        @for (row of history(); track row.id) {
+          <tr>
+            <td>{{ row.fileName }}</td>
+            <td>{{ row.importedAt }}</td>
+            <td>{{ row.rows }}</td>
+            <td><trishul-status-badge [status]="row.status" [severities]="status" /></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

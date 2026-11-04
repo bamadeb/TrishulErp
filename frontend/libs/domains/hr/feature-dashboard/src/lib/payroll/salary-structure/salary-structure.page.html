@@ -1,0 +1,80 @@
+<trishul-page-header
+  title="Employee Salary Structure"
+  subtitle="CTC, earnings and deductions for each employee."
+/>
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>Salary structures ({{ list.filtered().length }})</h2>
+      <p>List of salary structures in the current prototype.</p>
+    </div>
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput placeholder="Search by employee, department or designation" [value]="list.search()" (input)="list.onSearch($any($event.target).value)" />
+    </mat-form-field>
+    <button mat-flat-button color="primary" type="button" (click)="add()">
+      <mat-icon>add</mat-icon>
+      Add structure
+    </button>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Employee ID</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Designation</th>
+          <th>CTC</th>
+          <th>Gross</th>
+          <th>Basic</th>
+          <th>HRA</th>
+          <th>Allowances</th>
+          <th>Deductions</th>
+          <th>Net salary</th>
+          <th class="actions"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of list.pageRows(); track row.id; let i = $index) {
+          <tr>
+            <td>{{ list.rowNumber(i) }}</td>
+            <td>{{ row.employeeCode }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.designation }}</td>
+            <td>{{ inr(row.ctc) }}</td>
+            <td>{{ inr(row.gross) }}</td>
+            <td>{{ inr(row.basic) }}</td>
+            <td>{{ inr(row.hra) }}</td>
+            <td>{{ inr(row.allowances) }}</td>
+            <td>{{ inr(row.deductions) }}</td>
+            <td>{{ inr(netOf(row.gross, row.deductions)) }}</td>
+            <td class="actions">
+              <button mat-icon-button type="button" [matMenuTriggerFor]="menu" [attr.aria-label]="'Actions for ' + row.employeeCode">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item type="button" (click)="view(row)"><mat-icon>visibility</mat-icon> View</button>
+                <button mat-menu-item type="button" (click)="edit(row)"><mat-icon>edit</mat-icon> Edit</button>
+              </mat-menu>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td class="empty" colspan="13">No matching records.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <trishul-payroll-pager
+    [pageIndex]="list.pageIndex()"
+    [pageSize]="list.pageSize()"
+    [pageCount]="list.pageCount()"
+    [pages]="list.pages()"
+    [rangeLabel]="list.rangeLabel()"
+    (pageChange)="list.goTo($event)"
+    (sizeChange)="list.onPageSize($event)"
+  />
+</section>

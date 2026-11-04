@@ -1,0 +1,10 @@
+{
+  "name": "hr-data-access",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/hr/data-access/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:hr", "type:data-access"],
+  "// targets": "to see all targets run: nx show project hr-data-access --web",
+  "targets": {}
+}

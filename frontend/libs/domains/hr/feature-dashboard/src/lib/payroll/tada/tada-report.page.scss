@@ -1,0 +1,71 @@
+.cards.six {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.filters,
+.bulk,
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.filters {
+  margin-bottom: 0.75rem;
+}
+
+.filters mat-form-field {
+  width: 12.5rem;
+}
+
+.tabs {
+  margin-bottom: 1rem;
+  border: 0;
+}
+
+.delta {
+  display: block;
+  color: #15803d;
+  font: var(--mat-sys-label-small);
+}
+
+.delta.down {
+  color: #b91c1c;
+}
+
+.bulk {
+  margin: 0 1rem 0.75rem;
+}
+
+.sort {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.detail-row td {
+  background: #f8fbfe;
+}
+
+.detail-row h3 {
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.rates-panel {
+  padding: 1rem;
+}
+
+mat-progress-bar {
+  height: 4px;
+}
+
+.validation {
+  margin: 0 1rem 0.75rem;
+  color: var(--mat-sys-error);
+}
+

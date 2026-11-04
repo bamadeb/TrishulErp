@@ -1,0 +1,247 @@
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<h2 mat-dialog-title>{{ title() }}</h2>
+
+<mat-dialog-content>
+  @if (data.mode === 'view') {
+    <dl>
+      @for (line of lines(); track line.label) {
+        <div>
+          <dt>{{ line.label }}</dt>
+          <dd>{{ line.value }}</dd>
+        </div>
+      }
+    </dl>
+    @if (data.tab === 'grades' && gradeDesignations().length) {
+      <h3>Designations</h3>
+      <ul>
+        @for (item of gradeDesignations(); track item.id) {
+          <li>
+            {{ item.code }} — {{ item.name }}
+            @if (item.departmentName) {
+              ({{ item.departmentName }})
+            }
+            · {{ item.employeeCount }} employees · {{ item.isActive ? 'Active' : 'Inactive' }}
+          </li>
+        }
+      </ul>
+    }
+  } @else {
+    <div class="fields">
+      @switch (data.tab) {
+        @case ('departments') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Department code</mat-label>
+            <input matInput maxlength="20" [value]="form().code" (input)="setText('code', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Department name</mat-label>
+            <input matInput maxlength="80" [value]="form().name" (input)="setText('name', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Parent department</mat-label>
+            <mat-select [value]="form().parentDepartmentId" (selectionChange)="setId('parentDepartmentId', $event)">
+              <mat-option [value]="null">None</mat-option>
+              @for (item of departments(); track item.id) {
+                @if (item.id !== data.id) {
+                  <mat-option [value]="item.id">{{ item.code }} — {{ item.name }}</mat-option>
+                }
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Head of department</mat-label>
+            <mat-select [value]="form().headEmployeeId" (selectionChange)="setId('headEmployeeId', $event)">
+              <mat-option [value]="null">None</mat-option>
+              @for (item of employees(); track item.id) {
+                <mat-option [value]="item.id">{{ item.fullName }} ({{ item.employeeCode }})</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        @case ('designations') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Code</mat-label>
+            <input matInput maxlength="20" [value]="form().code" (input)="setText('code', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Name</mat-label>
+            <input matInput maxlength="80" [value]="form().name" (input)="setText('name', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Grade</mat-label>
+            <input matInput maxlength="10" [value]="form().grade" (input)="setText('grade', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Department</mat-label>
+            <mat-select [value]="form().departmentId" (selectionChange)="setId('departmentId', $event)">
+              <mat-option [value]="null">None</mat-option>
+              @for (item of departments(); track item.id) {
+                <mat-option [value]="item.id">{{ item.code }} — {{ item.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        @case ('grades') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ data.mode === 'edit' ? 'New grade' : 'Grade' }}</mat-label>
+            <input matInput maxlength="10" [value]="form().grade" (input)="setText('grade', $event)" />
+          </mat-form-field>
+          @if (data.mode === 'create') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Designation</mat-label>
+              <mat-select [value]="form().designationId" (selectionChange)="setId('designationId', $event)">
+                @for (item of designations(); track item.id) {
+                  <mat-option [value]="item.id">{{ item.code }} — {{ item.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+        }
+        @case ('locations') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Code</mat-label>
+            <input matInput maxlength="10" [value]="form().code" (input)="setText('code', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Name</mat-label>
+            <input matInput maxlength="120" [value]="form().name" (input)="setText('name', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Type</mat-label>
+            <mat-select [value]="form().branchType" (selectionChange)="setBranchType($event)">
+              @for (item of branchTypes; track item) {
+                <mat-option [value]="item">{{ item }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Company</mat-label>
+            <mat-select [value]="form().companyId" (selectionChange)="setId('companyId', $event)">
+              @for (item of companies(); track item.id) {
+                <mat-option [value]="item.id">{{ item.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>State</mat-label>
+            <mat-select [value]="form().stateId" (selectionChange)="setId('stateId', $event)">
+              @for (item of states(); track item.id) {
+                <mat-option [value]="item.id">{{ item.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Parent warehouse</mat-label>
+            <mat-select [value]="form().parentWarehouseId" (selectionChange)="setId('parentWarehouseId', $event)">
+              <mat-option [value]="null">None</mat-option>
+              @for (item of branches(); track item.id) {
+                @if (item.id !== data.id) {
+                  <mat-option [value]="item.id">{{ item.code }} — {{ item.name }}</mat-option>
+                }
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Address</mat-label>
+            <input matInput maxlength="500" [value]="form().address" (input)="setText('address', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Phone</mat-label>
+            <input matInput maxlength="20" [value]="form().phone" (input)="setText('phone', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Email</mat-label>
+            <input matInput maxlength="120" [value]="form().email" (input)="setText('email', $event)" />
+          </mat-form-field>
+        }
+        @case ('companies') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Code</mat-label>
+            <input matInput maxlength="10" [value]="form().code" (input)="setText('code', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Legal name</mat-label>
+            <input matInput maxlength="200" [value]="form().legalName" (input)="setText('legalName', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Trade name</mat-label>
+            <input matInput maxlength="200" [value]="form().tradeName" (input)="setText('tradeName', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>PAN</mat-label>
+            <input matInput maxlength="10" [value]="form().pan" (input)="setText('pan', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>CIN</mat-label>
+            <input matInput maxlength="21" [value]="form().cin" (input)="setText('cin', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>State</mat-label>
+            <mat-select [value]="form().stateId" (selectionChange)="setId('stateId', $event)">
+              <mat-option [value]="null">None</mat-option>
+              @for (item of states(); track item.id) {
+                <mat-option [value]="item.id">{{ item.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Address</mat-label>
+            <input matInput maxlength="500" [value]="form().address" (input)="setText('address', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Logo URL</mat-label>
+            <input matInput maxlength="500" [value]="form().logoUrl" (input)="setText('logoUrl', $event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Fiscal year start month</mat-label>
+            <input
+              matInput
+              type="number"
+              min="1"
+              max="12"
+              [value]="form().fiscalYearStartMonth"
+              (input)="setMonth($event)"
+            />
+          </mat-form-field>
+        }
+        @case ('hierarchy') {
+          @if (data.mode === 'create') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Employee</mat-label>
+              <mat-select [value]="form().employeeId" (selectionChange)="setId('employeeId', $event)">
+                @for (item of employees(); track item.id) {
+                  <mat-option [value]="item.id">{{ item.fullName }} ({{ item.employeeCode }})</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Reports to</mat-label>
+            <mat-select [value]="form().reportingManagerId" (selectionChange)="setId('reportingManagerId', $event)">
+              <mat-option [value]="null">None</mat-option>
+              @for (item of employees(); track item.id) {
+                @if (item.id !== form().employeeId && item.id !== data.id) {
+                  <mat-option [value]="item.id">{{ item.fullName }} ({{ item.employeeCode }})</mat-option>
+                }
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+      }
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="saving()">
+    {{ data.mode === 'view' ? 'Close' : 'Cancel' }}
+  </button>
+  @if (data.mode !== 'view') {
+    <button mat-flat-button color="primary" type="button" [disabled]="!canSave()" (click)="save()">
+      Save
+    </button>
+  }
+</mat-dialog-actions>

@@ -4,7 +4,11 @@
 export interface EmployeeListItem {
   branchId: number;
   branchName: (string | null);
+  companyName: (string | null);
+  confirmationDate: (string | null);
   createdAt: string;
+  dateOfBirth: (string | null);
+  dateOfJoining: (string | null);
   department: (string | null);
   departmentId: (number | null);
   designation: (string | null);
@@ -14,11 +18,14 @@ export interface EmployeeListItem {
   employeeType: 'Permanent' | 'Contract' | 'Trainee' | 'Consultant';
   firstName: string;
   fullName: string;
+  gender: ('Male' | 'Female' | 'Other' | null);
+  grade: (string | null);
   hasLogin: boolean;
   id: number;
   isActive: boolean;
   lastName: (string | null);
   mobile: (string | null);
+  reportingManagerName: (string | null);
   status: 'Active' | 'Notice' | 'Exited';
 
   /**

@@ -1,0 +1,40 @@
+<trishul-page-header title="Payroll Approvals" subtitle="Review payroll submitted for the selected month." />
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>Approvals ({{ list.filtered().length }})</h2>
+      <p>Pending rows can be approved or rejected here.</p>
+    </div>
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput placeholder="Search by employee, month or submitter" [value]="list.search()" (input)="list.onSearch($any($event.target).value)" />
+    </mat-form-field>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Employee</th><th>Payroll month</th><th>Net payable</th><th>Submitted by</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of list.pageRows(); track row.id; let i = $index) {
+          <tr>
+            <td>{{ list.rowNumber(i) }}</td>
+            <td>{{ row.employee }}</td>
+            <td>{{ row.month }}</td>
+            <td>{{ inr(row.net) }}</td>
+            <td>{{ row.submittedBy }}</td>
+            <td><trishul-status-badge [status]="row.status" [severities]="status" /></td>
+            <td>
+              <button mat-button type="button" color="primary" [disabled]="row.status !== 'Pending'" (click)="decide(row.id, row.employee, 'Approved')">Approve</button>
+              <button mat-button type="button" [disabled]="row.status !== 'Pending'" (click)="decide(row.id, row.employee, 'Rejected')">Reject</button>
+            </td>
+          </tr>
+        } @empty { <tr><td class="empty" colspan="7">No matching records.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+  <trishul-payroll-pager [pageIndex]="list.pageIndex()" [pageSize]="list.pageSize()" [pageCount]="list.pageCount()" [pages]="list.pages()" [rangeLabel]="list.rangeLabel()" (pageChange)="list.goTo($event)" (sizeChange)="list.onPageSize($event)" />
+</section>

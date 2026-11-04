@@ -1,0 +1,80 @@
+<trishul-page-header title="Payroll Reports" subtitle="Registers and summaries from the current prototype." />
+
+<nav class="tabs" aria-label="Payroll reports">
+  @for (report of reports; track report.id) {
+    <button type="button" class="tab" [class.selected]="selected() === report.id" (click)="select(report.id)">
+      {{ report.label }}
+    </button>
+  }
+</nav>
+
+<section class="table-card">
+  <div class="table-scroll">
+    @if (selected() === 'register') {
+      <table>
+        <thead><tr><th>Code</th><th>Employee</th><th>Department</th><th>Gross</th><th>Deductions</th><th>Net</th></tr></thead>
+        <tbody>
+          @for (row of salaries(); track row.id) {
+            <tr>
+              <td>{{ row.employeeCode }}</td><td>{{ row.name }}</td><td>{{ row.department }}</td>
+              <td>{{ inr(row.gross) }}</td><td>{{ inr(row.deductions) }}</td><td>{{ inr(netOf(row.gross, row.deductions)) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+    @if (selected() === 'employee') {
+      <table>
+        <thead><tr><th>Code</th><th>Employee</th><th>Designation</th><th>CTC</th><th>Basic</th><th>HRA</th><th>Allowances</th></tr></thead>
+        <tbody>
+          @for (row of salaries(); track row.id) {
+            <tr>
+              <td>{{ row.employeeCode }}</td><td>{{ row.name }}</td><td>{{ row.designation }}</td>
+              <td>{{ inr(row.ctc) }}</td><td>{{ inr(row.basic) }}</td><td>{{ inr(row.hra) }}</td><td>{{ inr(row.allowances) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+    @if (selected() === 'department') {
+      <table>
+        <thead><tr><th>Department</th><th>Employees</th><th>Gross</th><th>Deductions</th><th>Net</th></tr></thead>
+        <tbody>
+          @for (row of departments(); track row.name) {
+            <tr>
+              <td>{{ row.name }}</td><td>{{ row.employees }}</td><td>{{ inr(row.gross) }}</td>
+              <td>{{ inr(row.deductions) }}</td><td>{{ inr(netOf(row.gross, row.deductions)) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+    @if (selected() === 'deduction') {
+      <table>
+        <thead><tr><th>Code</th><th>Employee</th><th>Gross</th><th>Deductions</th><th>Deduction %</th></tr></thead>
+        <tbody>
+          @for (row of salaries(); track row.id) {
+            <tr>
+              <td>{{ row.employeeCode }}</td><td>{{ row.name }}</td><td>{{ inr(row.gross) }}</td>
+              <td>{{ inr(row.deductions) }}</td>
+              <td>{{ row.gross ? ((row.deductions / row.gross) * 100).toFixed(1) + '%' : '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+    @if (selected() === 'tada') {
+      <table>
+        <thead><tr><th>Code</th><th>Engineer</th><th>Ticket</th><th>Vehicle</th><th>KM</th><th>Payable</th><th>Status</th></tr></thead>
+        <tbody>
+          @for (row of tada(); track row.id) {
+            <tr>
+              <td>{{ row.code }}</td><td>{{ row.name }}</td><td>{{ row.ticket }}</td><td>{{ row.vehicle }}</td>
+              <td>{{ row.km }}</td><td>{{ inr(row.payable, 2) }}</td><td>{{ row.status }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</section>

@@ -1,0 +1,182 @@
+<trishul-page-header
+  title="Organization Management"
+  subtitle="Manage company structure, departments, designations, grades, locations and reporting hierarchy."
+/>
+
+<nav class="tabs" aria-label="Organization sections">
+  @for (item of tabs; track item.id) {
+    <button
+      type="button"
+      class="tab"
+      [class.selected]="tab() === item.id"
+      (click)="selectTab(item.id)"
+    >
+      <mat-icon>{{ item.icon }}</mat-icon>
+      {{ item.label }}
+    </button>
+  }
+</nav>
+
+<section class="cards" aria-label="Organization totals">
+  @for (card of cards(); track card.label) {
+    <article class="stat" [attr.data-tone]="card.tone">
+      <span class="stat-icon"><mat-icon>{{ card.icon }}</mat-icon></span>
+      <span>
+        <span class="stat-label">{{ card.label }}</span>
+        <strong>{{ card.count }}</strong>
+      </span>
+    </article>
+  }
+</section>
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>{{ current().noun }} ({{ store.total() }})</h2>
+      <p>List of all {{ current().noun.toLowerCase() }} in the organization.</p>
+    </div>
+    <label class="filter">
+      Status
+      <select [value]="store.query().status" (change)="onStatus($any($event.target).value)">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="all">All</option>
+      </select>
+    </label>
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        [placeholder]="current().search"
+        [value]="search()"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </mat-form-field>
+    @if (canManage) {
+      <button mat-flat-button color="primary" type="button" (click)="open('create')">
+        <mat-icon>add</mat-icon>
+        {{ current().addLabel }}
+      </button>
+    }
+  </div>
+
+  <div class="progress">
+    @if (store.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>{{ tab() === 'departments' ? 'Department Code' : 'Code' }}</th>
+          <th>{{ nameHeading() }}</th>
+          @if (tab() !== 'grades' && tab() !== 'hierarchy') {
+            <th>{{ headHeading() }}</th>
+          }
+          @if (tab() === 'hierarchy') {
+            <th>Reports to</th>
+          }
+          @if (tab() === 'designations' || tab() === 'locations') {
+            <th>{{ extraHeading() }}</th>
+          }
+          <th>Employees</th>
+          <th>Status</th>
+          <th class="actions"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.key; let i = $index) {
+          <tr>
+            <td>{{ rowNumber(i) }}</td>
+            <td>{{ row.code }}</td>
+            <td>{{ row.name }}</td>
+            @if (tab() !== 'grades') {
+              <td>
+                @if (row.head) {
+                  <span class="person">
+                    <span class="avatar" [style.background]="row.tone">{{ row.initials }}</span>
+                    {{ row.head }}
+                  </span>
+                } @else {
+                  —
+                }
+              </td>
+            }
+            @if (tab() === 'designations' || tab() === 'locations') {
+              <td>{{ row.extra }}</td>
+            }
+            <td>
+              <span class="count"><mat-icon>groups</mat-icon> {{ row.employees }}</span>
+            </td>
+            <td>
+              @if (row.status) {
+                <trishul-status-badge [status]="row.status" [severities]="activeSeverity" />
+              } @else {
+                —
+              }
+            </td>
+            <td class="actions">
+              <button
+                mat-icon-button
+                type="button"
+                [matMenuTriggerFor]="rowMenu"
+                [attr.aria-label]="'Actions for ' + row.code"
+              >
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #rowMenu="matMenu">
+                <button mat-menu-item type="button" (click)="open('view', row)">
+                  <mat-icon>visibility</mat-icon>
+                  View
+                </button>
+                @if (canManage) {
+                  <button mat-menu-item type="button" (click)="open('edit', row)">
+                    <mat-icon>edit</mat-icon>
+                    Edit
+                  </button>
+                  @if (row.canToggle) {
+                    <button mat-menu-item type="button" (click)="toggle(row)">
+                      <mat-icon>{{ row.active ? 'block' : 'check_circle' }}</mat-icon>
+                      {{ row.active ? 'Deactivate' : 'Activate' }}
+                    </button>
+                  }
+                }
+              </mat-menu>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td class="empty" [attr.colspan]="7">
+              {{ store.loading() ? 'Loading…' : 'No matching records.' }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <footer class="pager">
+    <label>
+      Items per page:
+      <select [value]="store.query().pageSize" (change)="onPageSize($any($event.target).value)">
+        <option value="10">10</option>
+        <option value="20">20</option>
+      </select>
+    </label>
+    <span>{{ rangeLabel() }}</span>
+    <div class="pages">
+      <button type="button" mat-icon-button aria-label="Previous page" [disabled]="pageIndex() === 0" (click)="goTo(pageIndex() - 1)">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      @for (n of pages(); track n) {
+        <button type="button" class="page" [class.selected]="n === pageIndex()" (click)="goTo(n)">{{ n + 1 }}</button>
+      }
+      <button type="button" mat-icon-button aria-label="Next page" [disabled]="pageIndex() >= pageCount() - 1" (click)="goTo(pageIndex() + 1)">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+  </footer>
+</section>

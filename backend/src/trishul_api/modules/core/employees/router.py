@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Path, Query, Response
 from trishul_api.auth import CurrentUserDep, DbSession, require_permission
 from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
-from trishul_api.common.schemas import Page
 from trishul_api.modules.core.employees.repository import EmployeeRepository
 from trishul_api.modules.core.employees.schemas import (
     CompanyOption,
@@ -13,9 +12,10 @@ from trishul_api.modules.core.employees.schemas import (
     DesignationOption,
     EmployeeCreate,
     EmployeeDetail,
-    EmployeeListItem,
+    EmployeeDirectoryPage,
     EmployeeQuery,
     EmployeeUpdate,
+    EmploymentEvent,
 )
 from trishul_api.modules.core.employees.service import EmployeeService
 
@@ -40,8 +40,18 @@ EmployeeRepo = Annotated[EmployeeRepository, Depends(get_employee_repository)]
 
 
 @router.get("/employees", summary="Employees, filtered and paged", dependencies=[CAN_VIEW])
-def list_employees(query: Annotated[EmployeeQuery, Query()], repo: EmployeeRepo) -> Page[EmployeeListItem]:
+def list_employees(query: Annotated[EmployeeQuery, Query()], repo: EmployeeRepo) -> EmployeeDirectoryPage:
     return repo.search(query)
+
+
+@router.get(
+    "/employees/{employeeId}/employment-history",
+    summary="Joining, confirmation and other employment events",
+    dependencies=[CAN_VIEW],
+    responses=NOT_FOUND_RESPONSE,
+)
+def list_employment_history(employee_id: EmployeeId, employees: Employees) -> list[EmploymentEvent]:
+    return employees.employment_history(employee_id)
 
 
 @router.get("/employees/{employeeId}", summary="One employee", dependencies=[CAN_VIEW], responses=NOT_FOUND_RESPONSE)

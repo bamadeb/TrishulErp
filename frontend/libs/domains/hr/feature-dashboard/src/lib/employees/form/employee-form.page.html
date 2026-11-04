@@ -1,0 +1,431 @@
+<div class="progress">
+  @if (loading() || saving()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<header class="head">
+  <a class="back" routerLink="/hr/employees" aria-label="Back to employees">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <div class="titles">
+    <p class="crumb">
+      <a routerLink="/hr/employees">Employees</a>
+      <span>/</span>
+      {{ isNew() ? 'Add Employee' : 'Edit Employee' }}
+    </p>
+    <h1>{{ isNew() ? 'Add Employee' : (employee()?.fullName ?? 'Employee') }}</h1>
+    <p class="sub">
+      {{
+        isNew()
+          ? 'Create a new employee and complete the onboarding details.'
+          : (employee()?.employeeCode ?? '')
+      }}
+    </p>
+  </div>
+  @if (employee(); as current) {
+    <div class="head-status">
+      <trishul-status-badge
+        [status]="current.isActive ? 'Active' : 'Inactive'"
+        [severities]="activeSeverity"
+      />
+      @if (current.hasLogin && current.userId) {
+        <a mat-stroked-button [routerLink]="['/admin/users', current.userId]">
+          Open user account
+        </a>
+      }
+      @if (canManage) {
+        @if (current.isActive) {
+          <button mat-stroked-button type="button" class="danger" (click)="deactivate()">
+            Deactivate
+          </button>
+        } @else {
+          <button mat-stroked-button type="button" (click)="activate()">Activate</button>
+        }
+      }
+    </div>
+  }
+</header>
+
+<form class="wizard" [formGroup]="form" (ngSubmit)="continue()" novalidate>
+  <nav class="steps" aria-label="Add employee steps">
+    @for (item of steps; track item.label; let i = $index) {
+      <button
+        type="button"
+        class="step"
+        [class.active]="step() === i"
+        [class.done]="step() > i"
+        (click)="goTo(i)"
+      >
+        <span class="bubble">
+          @if (step() > i) {
+            <mat-icon>check</mat-icon>
+          } @else {
+            {{ i + 1 }}
+          }
+        </span>
+        <span class="step-label">{{ item.label }}</span>
+      </button>
+    }
+  </nav>
+
+  @switch (step()) {
+    @case (0) {
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-icon"><mat-icon>person</mat-icon></span>
+          <div>
+            <h2>Personal Details</h2>
+            <p>Basic information and contact details of the employee.</p>
+          </div>
+        </div>
+        <div class="personal">
+          <div class="photo">
+            <label class="photo-pick">
+              <span class="frame">
+                <span class="avatar">
+                  @if (photoUrl(); as url) {
+                    <img [src]="url" alt="Employee photo preview" />
+                  } @else {
+                    <mat-icon>person</mat-icon>
+                  }
+                </span>
+                @if (canManage) {
+                  <span class="camera" aria-hidden="true">
+                    <mat-icon>photo_camera</mat-icon>
+                  </span>
+                }
+              </span>
+              @if (canManage) {
+                <input
+                  class="file"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                  (change)="onPhoto($event)"
+                />
+              }
+              <strong>Upload Photo</strong>
+              <span>JPG, PNG (Max 2 MB)</span>
+            </label>
+            @if (photoError()) {
+              <span class="photo-error">{{ photoError() }}</span>
+            }
+          </div>
+          <div class="grid-3">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Employee Code</mat-label>
+              <input matInput formControlName="employeeCode" autocomplete="off" />
+              <mat-error>A unique employee code is required.</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>First Name</mat-label>
+              <input matInput formControlName="firstName" />
+              <mat-error>First name is required.</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Last Name</mat-label>
+              <input matInput formControlName="lastName" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Gender</mat-label>
+              <mat-select formControlName="gender">
+                <mat-option value="">Select</mat-option>
+                @for (g of genders; track g) {
+                  <mat-option [value]="g">{{ g }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Date of Birth</mat-label>
+              <input
+                matInput
+                [matDatepicker]="dobPicker"
+                [max]="today"
+                formControlName="dateOfBirth"
+              />
+              <mat-datepicker-toggle matIconSuffix [for]="dobPicker" />
+              <mat-datepicker #dobPicker startView="multi-year" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Blood Group</mat-label>
+              <mat-select formControlName="bloodGroup">
+                <mat-option value="">Select</mat-option>
+                @for (g of bloodGroups; track g) {
+                  <mat-option [value]="g">{{ g }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Mobile Number</mat-label>
+              <input matInput formControlName="mobile" inputmode="tel" placeholder="+91" />
+              <mat-error>Enter a 10-digit Indian mobile number.</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Work Email</mat-label>
+              <input matInput type="email" formControlName="email" />
+              <mat-error>Enter a valid email address.</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Personal Email</mat-label>
+              <input matInput type="email" formControlName="personalEmail" />
+              <mat-error>Enter a valid email address.</mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-icon"><mat-icon>location_on</mat-icon></span>
+          <div>
+            <h2>Address Details</h2>
+            <p>Current and permanent address.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Current Address</mat-label>
+            <textarea
+              matInput
+              rows="3"
+              maxlength="250"
+              formControlName="currentAddress"
+            ></textarea>
+            <mat-hint align="end">{{ form.controls.currentAddress.value.length }} / 250</mat-hint>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Permanent Address</mat-label>
+            <textarea
+              matInput
+              rows="3"
+              maxlength="250"
+              formControlName="permanentAddress"
+            ></textarea>
+            <mat-hint align="end">{{ form.controls.permanentAddress.value.length }} / 250</mat-hint>
+          </mat-form-field>
+        </div>
+        <mat-checkbox
+          class="same"
+          [checked]="sameAddress()"
+          [disabled]="!canManage"
+          (change)="toggleSameAddress($event.checked)"
+        >
+          Same as Current Address
+        </mat-checkbox>
+      </section>
+    }
+    @case (1) {
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-icon"><mat-icon>apartment</mat-icon></span>
+          <div>
+            <h2>Organization</h2>
+            <p>Company, branch, department and reporting manager.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Company</mat-label>
+            <mat-select formControlName="companyId">
+              @for (c of companies(); track c.id) {
+                <mat-option [value]="c.id">{{ c.name }}</mat-option>
+              }
+            </mat-select>
+            <mat-error>Choose a company.</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Branch</mat-label>
+            <mat-select formControlName="branchId">
+              @for (b of branches(); track b.id) {
+                <mat-option [value]="b.id">{{ b.name }}</mat-option>
+              }
+            </mat-select>
+            <mat-error>Choose a branch.</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Department</mat-label>
+            <mat-select formControlName="departmentId">
+              <mat-option [value]="NONE">None</mat-option>
+              @for (d of departments(); track d.id) {
+                <mat-option [value]="d.id">{{ d.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Designation</mat-label>
+            <mat-select formControlName="designationId">
+              <mat-option [value]="NONE">None</mat-option>
+              @for (d of designations(); track d.id) {
+                <mat-option [value]="d.id">{{ d.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="wide" subscriptSizing="dynamic">
+            <mat-label>Reports to</mat-label>
+            <mat-icon matPrefix>supervisor_account</mat-icon>
+            <input
+              matInput
+              formControlName="manager"
+              [matAutocomplete]="managerAuto"
+              placeholder="Search a manager by code or name"
+            />
+            @if (canManage && form.controls.manager.value) {
+              <button
+                matSuffix
+                mat-icon-button
+                type="button"
+                aria-label="Clear manager"
+                (click)="clearManager()"
+              >
+                <mat-icon>close</mat-icon>
+              </button>
+            }
+            <mat-autocomplete
+              #managerAuto="matAutocomplete"
+              [displayWith]="managerText"
+              (optionSelected)="onManagerPicked($event.option.value)"
+            >
+              @for (m of managerList(); track m.id) {
+                <mat-option [value]="m">{{ managerLabel(m) }}</mat-option>
+              }
+            </mat-autocomplete>
+            <mat-error>Pick a manager from the list, or clear the field.</mat-error>
+          </mat-form-field>
+        </div>
+      </section>
+    }
+    @case (2) {
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-icon"><mat-icon>badge</mat-icon></span>
+          <div>
+            <h2>Employment</h2>
+            <p>Employment type, status and dates.</p>
+          </div>
+        </div>
+        <div class="grid-3">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Type</mat-label>
+            <mat-select formControlName="employeeType">
+              @for (t of employeeTypes; track t) {
+                <mat-option [value]="t">{{ t }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Status</mat-label>
+            <mat-select formControlName="status">
+              @for (s of hrStatuses; track s) {
+                <mat-option [value]="s">{{ s }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Date of joining</mat-label>
+            <input matInput [matDatepicker]="joiningPicker" formControlName="dateOfJoining" />
+            <mat-datepicker-toggle matIconSuffix [for]="joiningPicker" />
+            <mat-datepicker #joiningPicker />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Date of exit</mat-label>
+            <input matInput [matDatepicker]="exitPicker" formControlName="dateOfExit" />
+            <mat-datepicker-toggle matIconSuffix [for]="exitPicker" />
+            <mat-datepicker #exitPicker />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Mobile app platform</mat-label>
+            <mat-select formControlName="mobilePlatform">
+              <mat-option [value]="''">None</mat-option>
+              <mat-option value="Android">Android</mat-option>
+              <mat-option value="iOS">iOS</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </section>
+    }
+    @case (3) {
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-icon"><mat-icon>info</mat-icon></span>
+          <div>
+            <h2>Additional Details</h2>
+            <p>Emergency contact and personal notes kept on this screen.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Marital status</mat-label>
+            <mat-select formControlName="maritalStatus">
+              <mat-option value="">Select</mat-option>
+              <mat-option value="Single">Single</mat-option>
+              <mat-option value="Married">Married</mat-option>
+              <mat-option value="Other">Other</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Nationality</mat-label>
+            <input matInput formControlName="nationality" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Emergency contact name</mat-label>
+            <input matInput formControlName="emergencyName" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Emergency contact number</mat-label>
+            <input matInput formControlName="emergencyPhone" inputmode="tel" />
+            <mat-error>Enter a 10-digit Indian mobile number.</mat-error>
+          </mat-form-field>
+        </div>
+      </section>
+    }
+    @case (4) {
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-icon"><mat-icon>description</mat-icon></span>
+          <div>
+            <h2>Documents &amp; Onboarding</h2>
+            <p>Choose files to review with this employee. They are not uploaded.</p>
+          </div>
+        </div>
+        @if (canManage) {
+          <label class="drop">
+            <mat-icon>upload_file</mat-icon>
+            <strong>Upload documents</strong>
+            <span>PDF, JPG, PNG</span>
+            <input type="file" multiple accept=".pdf,image/jpeg,image/png" (change)="onDocuments($event)" />
+          </label>
+        }
+        @if (documents().length) {
+          <ul class="files">
+            @for (file of documents(); track file.name + $index) {
+              <li>
+                <mat-icon>attach_file</mat-icon>
+                <span>{{ file.name }}</span>
+                <button mat-icon-button type="button" aria-label="Remove file" (click)="removeDocument($index)">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+  }
+
+  <footer class="actions">
+    <a mat-button routerLink="/hr/employees">Cancel</a>
+    @if (canManage) {
+      <div class="action-end">
+        <button mat-stroked-button type="button" [disabled]="saving()" (click)="save()">
+          Save as Draft
+        </button>
+        <button mat-flat-button type="submit" [disabled]="saving()">
+          {{ step() === steps.length - 1 ? (isNew() ? 'Save employee' : 'Save changes') : 'Continue' }}
+          @if (step() < steps.length - 1) {
+            <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+          }
+        </button>
+      </div>
+    }
+  </footer>
+</form>
