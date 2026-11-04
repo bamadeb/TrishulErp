@@ -1,0 +1,45 @@
+<trishul-page-header title="Statutory Compliance" subtitle="PF, ESI, professional tax and TDS for the current period." />
+
+<nav class="tabs" aria-label="Statutory schemes">
+  @for (scheme of schemes; track scheme.id) {
+    <button type="button" class="tab" [class.selected]="selected() === scheme.id" (click)="select(scheme.id)">
+      {{ scheme.name }}
+    </button>
+  }
+</nav>
+
+<section class="cards four" aria-label="Scheme totals">
+  <article class="stat"><span><span class="stat-label">Employees</span><strong>{{ totals().people }}</strong></span></article>
+  <article class="stat"><span><span class="stat-label">Employee share</span><strong>{{ inr(totals().employee) }}</strong></span></article>
+  <article class="stat"><span><span class="stat-label">Employer share</span><strong>{{ inr(totals().employer) }}</strong></span></article>
+  <article class="stat"><span><span class="stat-label">Total</span><strong>{{ inr(totals().total) }}</strong></span></article>
+</section>
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>{{ current().name }} — {{ current().period }}</h2>
+      <p>Compliance report for this scheme.</p>
+    </div>
+    <trishul-status-badge [status]="current().status" [severities]="status" />
+    <button mat-stroked-button type="button" (click)="viewReport(current())">View report</button>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Employee code</th><th>Name</th><th>Employee share</th><th>Employer share</th><th>Total</th></tr>
+      </thead>
+      <tbody>
+        @for (row of current().rows; track row.code) {
+          <tr>
+            <td>{{ row.code }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ inr(row.employeeShare) }}</td>
+            <td>{{ inr(row.employerShare) }}</td>
+            <td>{{ inr(row.employeeShare + row.employerShare) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

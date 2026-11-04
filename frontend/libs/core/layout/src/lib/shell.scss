@@ -62,7 +62,7 @@
 }
 
 .sidebar {
-  width: 15rem;
+  width: 17.5rem;
   background: var(--mat-sys-surface);
   border-right: 1px solid var(--mat-sys-outline-variant);
   border-radius: 0;
@@ -125,6 +125,23 @@
 
 .sidebar .nav-child [matListItemTitle] {
   font-size: 0.9rem;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.sidebar .nav-subgroup {
+  width: calc(100% - 0.25rem);
+  margin: 0.2rem 0 0.1rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mat-sys-on-surface);
+}
+
+.sidebar .nav-children .nav-children {
+  margin-left: 0.65rem;
 }
 
 // In the slide-out menu on small screens, the selects stack above the links.

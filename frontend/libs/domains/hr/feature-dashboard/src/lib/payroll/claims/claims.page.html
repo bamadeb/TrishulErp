@@ -1,0 +1,41 @@
+<trishul-page-header title="Reimbursements & Claims" subtitle="Travel, medical and other claims waiting on a decision." />
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>Claims ({{ list.filtered().length }})</h2>
+      <p>Pending claims can be approved or rejected.</p>
+    </div>
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput placeholder="Search by employee, type or date" [value]="list.search()" (input)="list.onSearch($any($event.target).value)" />
+    </mat-form-field>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Employee</th><th>Claim type</th><th>Claim date</th><th>Amount</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of list.pageRows(); track row.id; let i = $index) {
+          <tr>
+            <td>{{ list.rowNumber(i) }}</td>
+            <td>{{ row.employee }}</td>
+            <td>{{ row.type }}</td>
+            <td>{{ row.date }}</td>
+            <td>{{ inr(row.amount) }}</td>
+            <td><trishul-status-badge [status]="row.status" [severities]="status" /></td>
+            <td>
+              <button mat-button type="button" (click)="view(row)">View</button>
+              <button mat-button type="button" color="primary" [disabled]="row.status !== 'Pending'" (click)="decide(row, 'Approved')">Approve</button>
+              <button mat-button type="button" [disabled]="row.status !== 'Pending'" (click)="decide(row, 'Rejected')">Reject</button>
+            </td>
+          </tr>
+        } @empty { <tr><td class="empty" colspan="7">No matching records.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+  <trishul-payroll-pager [pageIndex]="list.pageIndex()" [pageSize]="list.pageSize()" [pageCount]="list.pageCount()" [pages]="list.pages()" [rangeLabel]="list.rangeLabel()" (pageChange)="list.goTo($event)" (sizeChange)="list.onPageSize($event)" />
+</section>

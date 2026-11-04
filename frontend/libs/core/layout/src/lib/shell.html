@@ -62,6 +62,41 @@
       @if (!isCollapsed(item.label)) {
       <div class="nav-children">
         @for (child of item.children; track child.label) {
+        @if (child.children) {
+        <button
+          type="button"
+          class="nav-group nav-subgroup"
+          [class.collapsed]="isCollapsed(child.label)"
+          [attr.aria-expanded]="!isCollapsed(child.label)"
+          (click)="toggleGroup(child.label)"
+        >
+          @if (child.icon) {
+          <mat-icon class="group-icon">{{ child.icon }}</mat-icon>
+          }
+          <span class="group-label">{{ child.label }}</span>
+          <mat-icon class="chevron">expand_more</mat-icon>
+        </button>
+        @if (!isCollapsed(child.label)) {
+        <div class="nav-children">
+          @for (leaf of child.children; track leaf.label) {
+          <a
+            mat-list-item
+            class="nav-child"
+            [routerLink]="leaf.route"
+            routerLinkActive
+            #leafLink="routerLinkActive"
+            [activated]="leafLink.isActive"
+            (click)="closeMenuOnCompact()"
+          >
+            @if (leaf.icon) {
+            <mat-icon matListItemIcon>{{ leaf.icon }}</mat-icon>
+            }
+            <span matListItemTitle>{{ leaf.label }}</span>
+          </a>
+          }
+        </div>
+        }
+        } @else {
         <a
           mat-list-item
           class="nav-child"
@@ -76,6 +111,7 @@
           }
           <span matListItemTitle>{{ child.label }}</span>
         </a>
+        }
         }
       </div>
       } } @else {

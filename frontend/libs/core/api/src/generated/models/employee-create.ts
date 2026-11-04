@@ -4,11 +4,15 @@
 export interface EmployeeCreate {
   branchId: number;
   companyId: number;
+  currentAddress?: (string | null);
+  dateOfBirth?: (string | null);
   dateOfExit?: (string | null);
   dateOfJoining?: (string | null);
   departmentId?: (number | null);
   designationId?: (number | null);
   email?: (string | null);
+  emergencyContactName?: (string | null);
+  emergencyContactPhone?: (string | null);
 
   /**
    * Unique across all employees.
@@ -16,6 +20,7 @@ export interface EmployeeCreate {
   employeeCode: string;
   employeeType: 'Permanent' | 'Contract' | 'Trainee' | 'Consultant';
   firstName: string;
+  gender?: ('Male' | 'Female' | 'Other' | null);
   lastName?: (string | null);
 
   /**
@@ -23,6 +28,13 @@ export interface EmployeeCreate {
    */
   mobile?: (string | null);
   mobilePlatform?: ('Android' | 'iOS' | null);
+  permanentAddress?: (string | null);
+  personalEmail?: (string | null);
+
+  /**
+   * JPG or PNG data URL. Stored as core.attachment.
+   */
+  photo?: (string | null);
   reportingManagerId?: (number | null);
   status?: 'Active' | 'Notice' | 'Exited';
 }

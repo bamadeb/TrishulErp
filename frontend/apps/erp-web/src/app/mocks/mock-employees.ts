@@ -5,8 +5,8 @@ import {
   DesignationOption,
   EmployeeCreate,
   EmployeeDetail,
+  EmployeeDirectoryPage,
   EmployeeUpdate,
-  PageEmployeeListItem,
 } from '@trishul/core-api';
 import { MockRoute } from '@trishul/core-http';
 
@@ -53,6 +53,14 @@ type Seed = {
   dateOfJoining: string | null;
   dateOfExit: string | null;
   mobilePlatform: EmployeeDetail['mobilePlatform'];
+  gender: EmployeeDetail['gender'];
+  dateOfBirth: string | null;
+  personalEmail: string | null;
+  currentAddress: string | null;
+  permanentAddress: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  photo: string | null;
 };
 
 const named = (id: number | null): string | null => {
@@ -74,6 +82,16 @@ function detail(s: Seed): EmployeeDetail {
       : null,
     companyName: companies.find((c) => c.id === s.companyId)?.name ?? null,
     reportingManagerName: named(s.reportingManagerId),
+    grade: null,
+    confirmationDate: null,
+    gender: s.gender,
+    dateOfBirth: s.dateOfBirth,
+    personalEmail: s.personalEmail,
+    currentAddress: s.currentAddress,
+    permanentAddress: s.permanentAddress,
+    emergencyContactName: s.emergencyContactName,
+    emergencyContactPhone: s.emergencyContactPhone,
+    photo: s.photo,
     createdAt: new Date().toISOString(),
     rowVersion: rowVersion(),
   };
@@ -99,6 +117,14 @@ const seeds: Seed[] = [
     dateOfJoining: '2021-04-01',
     dateOfExit: null,
     mobilePlatform: 'Android',
+    gender: null,
+    dateOfBirth: null,
+    personalEmail: null,
+    currentAddress: null,
+    permanentAddress: null,
+    emergencyContactName: null,
+    emergencyContactPhone: null,
+    photo: null,
   },
   {
     id: 11,
@@ -119,6 +145,14 @@ const seeds: Seed[] = [
     dateOfJoining: '2022-07-15',
     dateOfExit: null,
     mobilePlatform: null,
+    gender: null,
+    dateOfBirth: null,
+    personalEmail: null,
+    currentAddress: null,
+    permanentAddress: null,
+    emergencyContactName: null,
+    emergencyContactPhone: null,
+    photo: null,
   },
   {
     id: 12,
@@ -139,6 +173,14 @@ const seeds: Seed[] = [
     dateOfJoining: null,
     dateOfExit: null,
     mobilePlatform: null,
+    gender: null,
+    dateOfBirth: null,
+    personalEmail: null,
+    currentAddress: null,
+    permanentAddress: null,
+    emergencyContactName: null,
+    emergencyContactPhone: null,
+    photo: null,
   },
 ];
 
@@ -195,32 +237,57 @@ export const mockEmployeeRoutes: MockRoute[] = [
   {
     method: 'GET',
     path: '/core/employees',
-    handle: (req): PageEmployeeListItem => {
+    handle: (req): EmployeeDirectoryPage => {
       const page = Number(req.params.get('page') ?? 1);
       const pageSize = Number(req.params.get('pageSize') ?? 20);
       const search = (req.params.get('search') ?? '').toLowerCase();
       const status = req.params.get('status') ?? 'active';
+      const lifecycle = req.params.get('lifecycle');
       const branchId = req.params.get('branchId');
+      const departmentId = req.params.get('departmentId');
+      const designationId = req.params.get('designationId');
       const employeeType = req.params.get('employeeType');
-      const rows = seeds
-        .filter(
-          (s) =>
-            (status === 'all' || s.isActive === (status === 'active')) &&
-            (!branchId || s.branchId === Number(branchId)) &&
-            (!employeeType || s.employeeType === employeeType) &&
-            (!search ||
-              [s.employeeCode, s.firstName, s.lastName, s.mobile, s.email].some(
-                (v) => v?.toLowerCase().includes(search),
-              )),
-        )
-        .map(detail);
+      const matched = seeds.filter(
+        (s) =>
+          (!branchId || s.branchId === Number(branchId)) &&
+          (!departmentId || s.departmentId === Number(departmentId)) &&
+          (!designationId || s.designationId === Number(designationId)) &&
+          (!employeeType || s.employeeType === employeeType) &&
+          (!search ||
+            [s.employeeCode, s.firstName, s.lastName, s.mobile, s.email].some((v) =>
+              v?.toLowerCase().includes(search),
+            )),
+      );
+      const visible = matched.filter((s) => {
+        if (lifecycle === 'active') return s.isActive;
+        if (lifecycle === 'archived') return !s.isActive;
+        if (lifecycle === 'notice') return s.status === 'Notice';
+        if (lifecycle === 'exited') return s.status === 'Exited';
+        if (lifecycle === 'probation') return false;
+        if (lifecycle === 'all') return true;
+        return status === 'all' || s.isActive === (status === 'active');
+      });
+      const rows = visible.map(detail);
       return {
         items: rows.slice((page - 1) * pageSize, page * pageSize),
         total: rows.length,
         page,
         pageSize,
+        counts: {
+          allEmployees: matched.length,
+          active: matched.filter((s) => s.isActive).length,
+          probation: 0,
+          notice: matched.filter((s) => s.status === 'Notice').length,
+          exited: matched.filter((s) => s.status === 'Exited').length,
+          archived: matched.filter((s) => !s.isActive).length,
+        },
       };
     },
+  },
+  {
+    method: 'GET',
+    path: '/core/employees/:employeeId/employment-history',
+    handle: () => [],
   },
   {
     method: 'GET',
@@ -252,6 +319,14 @@ export const mockEmployeeRoutes: MockRoute[] = [
         dateOfJoining: body.dateOfJoining ?? null,
         dateOfExit: body.dateOfExit ?? null,
         mobilePlatform: body.mobilePlatform ?? null,
+        gender: body.gender ?? null,
+        dateOfBirth: body.dateOfBirth ?? null,
+        personalEmail: body.personalEmail ?? null,
+        currentAddress: body.currentAddress ?? null,
+        permanentAddress: body.permanentAddress ?? null,
+        emergencyContactName: body.emergencyContactName ?? null,
+        emergencyContactPhone: body.emergencyContactPhone ?? null,
+        photo: body.photo ?? null,
       };
       seeds.push(seed);
       return detail(seed);
@@ -296,6 +371,30 @@ export const mockEmployeeRoutes: MockRoute[] = [
           'mobilePlatform' in body
             ? (body.mobilePlatform ?? null)
             : seed.mobilePlatform,
+        gender: 'gender' in body ? (body.gender ?? null) : seed.gender,
+        dateOfBirth:
+          'dateOfBirth' in body ? (body.dateOfBirth ?? null) : seed.dateOfBirth,
+        personalEmail:
+          'personalEmail' in body
+            ? (body.personalEmail ?? null)
+            : seed.personalEmail,
+        currentAddress:
+          'currentAddress' in body
+            ? (body.currentAddress ?? null)
+            : seed.currentAddress,
+        permanentAddress:
+          'permanentAddress' in body
+            ? (body.permanentAddress ?? null)
+            : seed.permanentAddress,
+        emergencyContactName:
+          'emergencyContactName' in body
+            ? (body.emergencyContactName ?? null)
+            : seed.emergencyContactName,
+        emergencyContactPhone:
+          'emergencyContactPhone' in body
+            ? (body.emergencyContactPhone ?? null)
+            : seed.emergencyContactPhone,
+        photo: 'photo' in body ? (body.photo ?? null) : seed.photo,
       });
       return detail(seed);
     },

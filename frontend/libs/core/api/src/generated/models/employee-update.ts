@@ -8,17 +8,29 @@
 export interface EmployeeUpdate {
   branchId?: (number | null);
   companyId?: (number | null);
+  currentAddress?: (string | null);
+  dateOfBirth?: (string | null);
   dateOfExit?: (string | null);
   dateOfJoining?: (string | null);
   departmentId?: (number | null);
   designationId?: (number | null);
   email?: (string | null);
+  emergencyContactName?: (string | null);
+  emergencyContactPhone?: (string | null);
   employeeCode?: (string | null);
   employeeType?: ('Permanent' | 'Contract' | 'Trainee' | 'Consultant' | null);
   firstName?: (string | null);
+  gender?: ('Male' | 'Female' | 'Other' | null);
   lastName?: (string | null);
   mobile?: (string | null);
   mobilePlatform?: ('Android' | 'iOS' | null);
+  permanentAddress?: (string | null);
+  personalEmail?: (string | null);
+
+  /**
+   * JPG or PNG data URL. Stored as core.attachment.
+   */
+  photo?: (string | null);
   reportingManagerId?: (number | null);
   status?: ('Active' | 'Notice' | 'Exited' | null);
 }

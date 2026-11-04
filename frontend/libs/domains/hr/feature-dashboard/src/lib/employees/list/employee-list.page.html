@@ -1,0 +1,370 @@
+<trishul-page-header
+  title="Employee Management"
+  subtitle="Manage employee records, status and lifecycle."
+>
+  <a
+    mat-flat-button
+    color="primary"
+    routerLink="new"
+    *trishulHasPermission="'core.employee.manage'"
+  >
+    <mat-icon>person_add</mat-icon>
+    Add Employee
+  </a>
+</trishul-page-header>
+
+<section class="overview" aria-label="Employee overview">
+  <div class="overview-head">
+    <div>
+      <h2><mat-icon>groups</mat-icon> Employee Overview</h2>
+      <p>Workforce snapshot across selected company and branches.</p>
+    </div>
+    <p class="updated">Last Updated: {{ updatedLabel }}</p>
+  </div>
+  <div class="overview-cards">
+    @for (card of cards(); track card.id) {
+      <button
+        type="button"
+        class="overview-card"
+        [class.selected]="prefs.filters().lifecycle === card.id"
+        [attr.data-tone]="card.tone"
+        (click)="selectCard(card.id)"
+      >
+        <span class="card-icon" aria-hidden="true"><mat-icon>{{ card.icon }}</mat-icon></span>
+        <span class="card-copy">
+          <strong>{{ card.count }}</strong>
+          <span class="card-title">{{ card.title }}</span>
+          <span class="card-desc">{{ card.description }}</span>
+        </span>
+      </button>
+    }
+  </div>
+</section>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="Search by employee code, name, mobile or email"
+      aria-label="Search employees"
+      [value]="searchText()"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select [value]="prefs.filters().lifecycle" (valueChange)="selectCard($event)">
+      @for (card of cards(); track card.id) {
+        <mat-option [value]="card.id">{{ card.title }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Branch</mat-label>
+    <mat-select [value]="prefs.filters().branchId" (valueChange)="onBranch($event)">
+      <mat-option [value]="null">Any branch</mat-option>
+      @for (branch of branches(); track branch.id) {
+        <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Department</mat-label>
+    <mat-select [value]="prefs.filters().departmentId" (valueChange)="onDepartment($event)">
+      <mat-option [value]="null">Any department</mat-option>
+      @for (department of departments(); track department.id) {
+        <mat-option [value]="department.id">{{ department.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Designation</mat-label>
+    <mat-select [value]="prefs.filters().designationId" (valueChange)="onDesignation($event)">
+      <mat-option [value]="null">Any designation</mat-option>
+      @for (designation of designations(); track designation.id) {
+        <mat-option [value]="designation.id">{{ designation.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Employment type</mat-label>
+    <mat-select [value]="prefs.filters().employeeType" (valueChange)="onType($event)">
+      <mat-option [value]="null">Any type</mat-option>
+      @for (type of employeeTypes; track type) {
+        <mat-option [value]="type">{{ type }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <button mat-button type="button" class="reset" (click)="clearFilters()">
+    <mat-icon>filter_alt_off</mat-icon>
+    Clear
+  </button>
+</div>
+
+<div class="view-bar">
+  <button mat-stroked-button type="button" [matMenuTriggerFor]="savedViews">
+    <mat-icon>star</mat-icon>
+    Saved Views
+  </button>
+  <mat-menu #savedViews="matMenu">
+    @for (view of prefs.views(); track view.id) {
+      <button mat-menu-item type="button" (click)="selectView(view.id)">
+        <mat-icon>{{ prefs.activeViewId() === view.id ? 'check' : '' }}</mat-icon>
+        <span>{{ view.name }}</span>
+        @if (prefs.defaultViewId() === view.id) {
+          <span class="default-mark">Default</span>
+        }
+      </button>
+    }
+    <button mat-menu-item type="button" (click)="createView()">
+      <mat-icon>add</mat-icon>
+      Create New View
+    </button>
+    @if (activeView(); as view) {
+      @if (!view.builtin) {
+        <button mat-menu-item type="button" (click)="renameView(view)">
+          <mat-icon>edit</mat-icon>
+          Rename
+        </button>
+        <button mat-menu-item type="button" (click)="deleteView(view)">
+          <mat-icon>delete</mat-icon>
+          Delete
+        </button>
+      }
+    }
+    <button mat-menu-item type="button" (click)="setDefault(prefs.activeViewId())">
+      <mat-icon>push_pin</mat-icon>
+      Set as default
+    </button>
+  </mat-menu>
+
+  <div class="view-tabs" role="tablist" aria-label="Saved views">
+    @for (view of prefs.views(); track view.id) {
+      <button
+        type="button"
+        role="tab"
+        class="view-tab"
+        [class.active]="prefs.activeViewId() === view.id"
+        [attr.aria-selected]="prefs.activeViewId() === view.id"
+        (click)="selectView(view.id)"
+      >
+        {{ view.name }}
+      </button>
+    }
+  </div>
+
+  <span class="spacer"></span>
+  <button mat-button type="button" (click)="saveCurrentView()">
+    <mat-icon>bookmark_add</mat-icon>
+    Save Current View
+  </button>
+  <button mat-stroked-button type="button" (click)="columnsOpen.set(true)">
+    <mat-icon>view_column</mat-icon>
+    Customize Columns
+  </button>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (store.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  <div class="table-scroll">
+    <table
+      mat-table
+      [dataSource]="store.items()"
+      matSort
+      matSortDisableClear
+      [matSortActive]="store.query().sort?.replace('-', '') || 'fullName'"
+      [matSortDirection]="store.query().sort?.startsWith('-') ? 'desc' : 'asc'"
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="employeeCode">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="employeeCode">Code</th>
+        <td mat-cell *matCellDef="let e">{{ e.employeeCode }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="fullName">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="fullName">Name</th>
+        <td mat-cell *matCellDef="let e">
+          <a class="name" [routerLink]="[e.id]">{{ e.fullName }}</a>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="mobile">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="mobile">Mobile</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.mobile) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="email">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="email">Email</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.email) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="company">
+        <th mat-header-cell *matHeaderCellDef>Company</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.companyName) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="branch">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="branch">Branch</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.branchName) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="department">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="department">Department</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.department) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="designation">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="designation">Designation</th>
+        <td mat-cell *matCellDef="let e">
+          {{ text(e.designation) }}
+          @if (e.department && !showDepartment()) {
+            <div class="muted">{{ e.department }}</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="grade">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="grade">Grade</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.grade) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="dateOfJoining">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="dateOfJoining">Date of joining</th>
+        <td mat-cell *matCellDef="let e">{{ e.dateOfJoining ? (e.dateOfJoining | date: 'dd MMM y') : '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="confirmationDate">
+        <th mat-header-cell *matHeaderCellDef>Confirmation</th>
+        <td mat-cell *matCellDef="let e">
+          {{ e.confirmationDate ? (e.confirmationDate | date: 'dd MMM y') : '—' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="employeeType">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="employeeType">Type</th>
+        <td mat-cell *matCellDef="let e">{{ e.employeeType }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let e">
+          <trishul-status-badge [status]="statusLabel(e)" [severities]="statusSeverity" />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="employmentStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="status">Employment status</th>
+        <td mat-cell *matCellDef="let e">
+          <trishul-status-badge [status]="statusLabel(e)" [severities]="statusSeverity" />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="reportingManager">
+        <th mat-header-cell *matHeaderCellDef>Reporting manager</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.reportingManagerName) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="gender">
+        <th mat-header-cell *matHeaderCellDef>Gender</th>
+        <td mat-cell *matCellDef="let e">{{ text(e.gender) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="dateOfBirth">
+        <th mat-header-cell *matHeaderCellDef>Date of birth</th>
+        <td mat-cell *matCellDef="let e">{{ e.dateOfBirth ? (e.dateOfBirth | date: 'dd MMM y') : '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="yearsInService">
+        <th mat-header-cell *matHeaderCellDef>Years in service</th>
+        <td mat-cell *matCellDef="let e">
+          {{ yearsInService(e.dateOfJoining) ?? '—' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="login">
+        <th mat-header-cell *matHeaderCellDef>Login</th>
+        <td mat-cell *matCellDef="let e">
+          @if (e.hasLogin) {
+            <mat-icon class="has-login" aria-label="Has a sign-in account">check_circle</mat-icon>
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>
+          <span class="sr-only">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let e" class="actions">
+          <button
+            mat-icon-button
+            [matMenuTriggerFor]="menu"
+            [attr.aria-label]="'Actions for ' + e.employeeCode"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <a mat-menu-item [routerLink]="[e.id]">
+              <mat-icon>visibility</mat-icon>
+              View Employee
+            </a>
+            @if (canManage) {
+              <a mat-menu-item [routerLink]="[e.id]">
+                <mat-icon>edit</mat-icon>
+                Edit Employee
+              </a>
+              @if (e.isActive) {
+                <button mat-menu-item type="button" (click)="deactivate(e)">
+                  <mat-icon>swap_horiz</mat-icon>
+                  Change Status
+                </button>
+              } @else {
+                <button mat-menu-item type="button" (click)="activate(e)">
+                  <mat-icon>swap_horiz</mat-icon>
+                  Change Status
+                </button>
+              }
+            }
+            <button mat-menu-item type="button" (click)="showHistory(e)">
+              <mat-icon>history</mat-icon>
+              View Employment History
+            </button>
+          </mat-menu>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="displayedColumns().length">
+          {{ store.loading() ? 'Loading…' : 'No employees match these filters.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator
+    [length]="store.total()"
+    [pageIndex]="store.query().page - 1"
+    [pageSize]="store.query().pageSize"
+    [pageSizeOptions]="[10, 20, 50, 100]"
+    [showFirstLastButtons]="true"
+    aria-label="Pages of employees"
+    (page)="onPage($event)"
+  />
+</div>
+
+@if (columnsOpen()) {
+  <button class="backdrop" type="button" aria-label="Close customize columns" (click)="columnsOpen.set(false)"></button>
+  <trishul-employee-columns-drawer
+    [selected]="prefs.columns()"
+    (applied)="applyColumns($event)"
+    (dismissed)="columnsOpen.set(false)"
+  />
+}

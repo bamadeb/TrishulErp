@@ -1,0 +1,67 @@
+<trishul-page-header title="Payroll Settings" subtitle="Period, calculation, attendance, approval and allowance rates." />
+
+<div class="settings-grid">
+  <section class="settings-card">
+    <h2>Payroll period</h2>
+    <div class="fields">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Cycle</mat-label>
+        <input matInput [value]="draft().period" readonly />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Cutoff day</mat-label>
+        <input matInput type="number" min="1" max="28" [value]="draft().cutoffDay" (input)="setNumber('cutoffDay', $event)" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Pay day</mat-label>
+        <input matInput type="number" min="1" max="28" [value]="draft().payDay" (input)="setNumber('payDay', $event)" />
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section class="settings-card">
+    <h2>Salary calculation</h2>
+    <div class="fields">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Working days</mat-label>
+        <input matInput type="number" min="1" max="31" [value]="draft().workingDays" (input)="setNumber('workingDays', $event)" />
+      </mat-form-field>
+      <label class="check">
+        <input type="checkbox" [checked]="draft().lopProRata" (change)="setFlag('lopProRata', $event)" />
+        Loss of pay is pro-rated
+      </label>
+    </div>
+  </section>
+
+  <section class="settings-card">
+    <h2>Attendance integration</h2>
+    <label class="check">
+      <input type="checkbox" [checked]="draft().attendanceIntegration" (change)="setFlag('attendanceIntegration', $event)" />
+      Use attendance when the payroll run is processed
+    </label>
+  </section>
+
+  <section class="settings-card">
+    <h2>Approval workflow</h2>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Steps</mat-label>
+      <input matInput [value]="draft().workflow" (input)="setText($event)" />
+    </mat-form-field>
+  </section>
+
+  <section class="settings-card">
+    <h2>Allowance configuration</h2>
+    <div class="fields">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Bike ₹ / KM</mat-label>
+        <input matInput type="number" min="0" step="0.1" [value]="draft().bikePerKm" (input)="setNumber('bikePerKm', $event)" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Car ₹ / KM</mat-label>
+        <input matInput type="number" min="0" step="0.1" [value]="draft().carPerKm" (input)="setNumber('carPerKm', $event)" />
+      </mat-form-field>
+    </div>
+  </section>
+</div>
+
+<button mat-flat-button color="primary" type="button" (click)="save()">Save settings</button>

@@ -13,9 +13,15 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import CurrentUser
 from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
-from trishul_api.db.models import Branch, Company, Department, Designation, Employee
+from trishul_api.db.models import Branch, Company, Department, Designation, Employee, EmployeeProfile, Attachment
+from trishul_api.modules.core.employees.photos import data_url, decode_photo, read_photo, store_photo
 from trishul_api.modules.core.employees.repository import EmployeeRepository
-from trishul_api.modules.core.employees.schemas import EmployeeCreate, EmployeeDetail, EmployeeUpdate
+from trishul_api.modules.core.employees.schemas import (
+    EmployeeCreate,
+    EmployeeDetail,
+    EmployeeUpdate,
+    EmploymentEvent,
+)
 
 _DUPLICATE = "Another employee already has this code or mobile number."
 # Fields copied straight from the request to the row (code and mobile are handled separately for uniqueness).
@@ -32,6 +38,15 @@ _PLAIN_FIELDS = (
     "date_of_joining",
     "date_of_exit",
     "mobile_platform",
+)
+_PROFILE_FIELDS = (
+    "date_of_birth",
+    "gender",
+    "personal_email",
+    "current_address",
+    "permanent_address",
+    "emergency_contact_name",
+    "emergency_contact_phone",
 )
 
 
@@ -59,6 +74,9 @@ class EmployeeService:
             **{field: getattr(data, field) for field in _PLAIN_FIELDS},
         )
         self._repo.add(employee)
+        self._repo.flush()
+        self._write_profile(employee.id, data, actor, create=True)
+        self._store_photo(employee.id, data.photo, actor)
         new_id = self._save(employee)
         return self._detail(new_id)
 
@@ -84,6 +102,9 @@ class EmployeeService:
             if field in changed:
                 setattr(employee, field, getattr(data, field))
 
+        self._write_profile(employee.id, data, actor, create=False)
+        if "photo" in changed and data.photo:
+            self._store_photo(employee.id, data.photo, actor)
         self._touch(employee, actor)
         self._save(employee)
         return self._detail(employee_id)
@@ -97,6 +118,10 @@ class EmployeeService:
             self._touch(employee, actor)
             self._db.commit()
         return self._detail(employee_id)
+
+    def employment_history(self, employee_id: int) -> list[EmploymentEvent]:
+        self._require(employee_id)
+        return self._repo.employment_history(employee_id)
 
     def activate(self, actor: CurrentUser, employee_id: int) -> EmployeeDetail:
         employee = self._require(employee_id)
@@ -115,7 +140,39 @@ class EmployeeService:
         return employee
 
     def _detail(self, employee_id: int) -> EmployeeDetail:
-        return EmployeeDetail.model_validate(self._repo.detail_row(employee_id))
+        row = dict(self._repo.detail_row(employee_id))
+        row["photo"] = self._photo_url(employee_id)
+        return EmployeeDetail.model_validate(row)
+
+    def _store_photo(self, employee_id: int, photo: str | None, actor: CurrentUser) -> None:
+        if not photo:
+            return
+        raw, content_type = decode_photo(photo)
+        key = store_photo(employee_id, raw)
+        self._repo.retire_photos(employee_id)
+        self._repo.add(
+            Attachment(
+                entity_type="core.employee",
+                entity_id=employee_id,
+                category="Photo",
+                file_name="photo.jpg",
+                content_type=content_type,
+                file_size_bytes=len(raw),
+                s3_key=key,
+                created_by_user_id=actor.id,
+                is_active=True,
+                verification_status="Not required",
+            )
+        )
+
+    def _photo_url(self, employee_id: int) -> str | None:
+        photo = self._repo.latest_photo(employee_id)
+        if photo is None:
+            return None
+        raw = read_photo(photo.s3_key)
+        if raw is None:
+            return None
+        return data_url(photo.content_type or "image/jpeg", raw)
 
     def _save(self, employee: Employee) -> int:
         try:
@@ -164,3 +221,24 @@ class EmployeeService:
     def _touch(employee: Employee, actor: CurrentUser) -> None:
         employee.updated_at = datetime.now(UTC).replace(tzinfo=None)
         employee.updated_by_user_id = actor.id
+
+    def _write_profile(
+        self, employee_id: int, data: EmployeeCreate | EmployeeUpdate, actor: CurrentUser, *, create: bool
+    ) -> None:
+        """Personal details live on hr.employee_profile, one row per employee."""
+        changed = data.model_fields_set
+        sent = [field for field in _PROFILE_FIELDS if field in changed]
+        if not create and not sent:
+            return
+        profile = self._repo.profile(employee_id)
+        if profile is None:
+            profile = EmployeeProfile(employee_id=employee_id, created_by_user_id=actor.id)
+            self._repo.add(profile)
+        for field in sent:
+            value = getattr(data, field)
+            if field == "personal_email":
+                value = str(value) if value else None
+            setattr(profile, field, value)
+        if not create:
+            profile.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            profile.updated_by_user_id = actor.id

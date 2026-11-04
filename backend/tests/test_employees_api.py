@@ -23,7 +23,11 @@ TABLES = [
     "core.branch",
     "hr.department",
     "hr.designation",
+    "hr.employee_profile",
+    "hr.employment_history",
     "core.app_user",
+    "core.audit_log",
+    "core.attachment",
 ]
 COMPANY = 1
 PUNE, MUMBAI = 1, 2
@@ -94,6 +98,13 @@ def create(client: TestClient, **changes: Any) -> httpx.Response:
         "departmentId": DEPT,
         "designationId": DESIG,
         "employeeType": "Permanent",
+        "gender": "Male",
+        "dateOfBirth": "1990-06-07",
+        "personalEmail": "nikhil.home@example.com",
+        "currentAddress": "Plot 12, Bhubaneswar",
+        "permanentAddress": "Plot 12, Bhubaneswar",
+        "emergencyContactName": "Rakesh",
+        "emergencyContactPhone": "9876500199",
     } | changes
     return client.post(URL, json=body)
 
@@ -113,6 +124,28 @@ def test_create_resolves_names_and_defaults(client: TestClient) -> None:
     assert employee["status"] == "Active"
     assert employee["isActive"] is True
     assert employee["hasLogin"] is False and employee["userId"] is None
+    assert employee["gender"] == "Male"
+    assert employee["dateOfBirth"] == "1990-06-07"
+    assert employee["personalEmail"] == "nikhil.home@example.com"
+    assert employee["currentAddress"] == "Plot 12, Bhubaneswar"
+    assert employee["permanentAddress"] == "Plot 12, Bhubaneswar"
+    assert employee["emergencyContactName"] == "Rakesh"
+    assert employee["emergencyContactPhone"] == "9876500199"
+    assert employee["photo"] is None
+
+
+_PNG = (
+    "data:image/png;base64,"
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+def test_photo_is_stored_and_returned(client: TestClient) -> None:
+    created = create(client, employeeCode="E103", mobile="9876500103", photo=_PNG)
+    assert created.status_code == 201, created.text
+    assert created.json()["photo"] == _PNG
+    again = client.get(f"{URL}/{created.json()['id']}")
+    assert again.json()["photo"] == _PNG
 
 
 def test_duplicate_code_and_mobile_are_rejected(client: TestClient) -> None:
@@ -148,6 +181,29 @@ def test_list_filters_by_status_branch_and_search(client: TestClient) -> None:
     found = client.get(URL, params={"search": "asha"}).json()["items"]
     assert [e["firstName"] for e in found] == ["Asha"]
     assert client.get(URL, params={"status": "inactive"}).json()["total"] == 0
+    leads = client.get(URL, params={"designationId": DESIG, "departmentId": DEPT}).json()["items"]
+    assert {e["employeeCode"] for e in leads} == {"E010", "E100", "E101"}
+    everyone_all = client.get(URL, params={"status": "all"}).json()
+    assert everyone_all["counts"]["allEmployees"] == everyone_all["total"] == 3
+    assert everyone_all["counts"]["active"] == 3
+    assert everyone_all["counts"]["probation"] == 0
+    assert everyone_all["counts"]["notice"] == 0
+    exited = create(client, employeeCode="E102", mobile="9876500102", firstName="Nila", status="Exited")
+    assert exited.status_code == 201
+    notice = client.get(URL, params={"lifecycle": "exited", "status": "all"}).json()
+    assert [e["firstName"] for e in notice["items"]] == ["Nila"]
+    assert notice["counts"]["exited"] == 1
+    assert notice["counts"]["allEmployees"] == 4
+    rahul = next(e for e in everyone["items"] if e["employeeCode"] == "E010")
+    assert rahul["companyName"] == "Trishul"
+    assert rahul["dateOfJoining"] is None
+    assert rahul["confirmationDate"] is None
+    assert rahul["gender"] is None
+
+
+def test_employment_history_is_empty_until_events_exist(client: TestClient) -> None:
+    assert client.get(f"{URL}/{RAHUL}/employment-history").json() == []
+    assert client.get(f"{URL}/999/employment-history").status_code == 404
 
 
 def test_get_one_and_unknown_is_404(client: TestClient) -> None:

@@ -16,7 +16,7 @@ export default [
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           // Layering: app -> feature -> data-access / ui -> core -> api / util.
-          // Domains (scope:service, scope:sales, ...) may use core and shared, never each other.
+          // Domains (scope:service, scope:sales, scope:hr, ...) may use core and shared, never each other.
           depConstraints: [
             {
               sourceTag: 'type:app',
@@ -84,6 +84,14 @@ export default [
               sourceTag: 'scope:admin',
               onlyDependOnLibsWithTags: [
                 'scope:admin',
+                'scope:shared',
+                'scope:core',
+              ],
+            },
+            {
+              sourceTag: 'scope:hr',
+              onlyDependOnLibsWithTags: [
+                'scope:hr',
                 'scope:shared',
                 'scope:core',
               ],

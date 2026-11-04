@@ -1,12 +1,12 @@
 import {
   ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_VIEW_PERMISSIONS,
-  EMPLOYEE_VIEW_PERMISSIONS,
   ROLE_VIEW_PERMISSIONS,
   TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
+import { EMPLOYEE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
 import {
   ASC_VIEW_PERMISSIONS,
   MACHINE_VIEW_PERMISSIONS,
@@ -78,12 +78,6 @@ export const navItems: NavItem[] = [
         permissions: [...CUSTOMER_VIEW_PERMISSIONS],
       },
       {
-        label: 'Employees',
-        icon: 'badge',
-        route: '/admin/employees',
-        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
-      },
-      {
         label: 'Users',
         icon: 'manage_accounts',
         route: '/admin/users',
@@ -114,6 +108,37 @@ export const navItems: NavItem[] = [
     icon: 'diversity_3',
     children: [
       { label: 'HR Dashboard', icon: 'insights', route: '/hr/dashboard' },
+      {
+        label: 'Employee Management',
+        icon: 'badge',
+        route: '/hr/employees',
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Organization Management',
+        icon: 'account_tree',
+        route: '/hr/organization',
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Payroll Management',
+        icon: 'payments',
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+        children: [
+          { label: 'Payroll Dashboard', icon: 'insights', route: '/hr/payroll/dashboard' },
+          { label: 'Employee Salary Structure', icon: 'account_balance', route: '/hr/payroll/salary-structure' },
+          { label: 'Salary Components', icon: 'category', route: '/hr/payroll/components' },
+          { label: 'Payroll Processing', icon: 'play_circle', route: '/hr/payroll/processing' },
+          { label: 'Payroll Approvals', icon: 'fact_check', route: '/hr/payroll/approvals' },
+          { label: 'Payslips', icon: 'receipt_long', route: '/hr/payroll/payslips' },
+          { label: 'Reimbursements & Claims', icon: 'request_quote', route: '/hr/payroll/claims' },
+          { label: 'Service Engineer TA/DA Report', icon: 'two_wheeler', route: '/hr/payroll/tada' },
+          { label: 'TA/DA Import', icon: 'upload_file', route: '/hr/payroll/tada-import' },
+          { label: 'Statutory Compliance', icon: 'gavel', route: '/hr/payroll/compliance' },
+          { label: 'Payroll Reports', icon: 'assessment', route: '/hr/payroll/reports' },
+          { label: 'Payroll Settings', icon: 'settings', route: '/hr/payroll/settings' },
+        ],
+      },
     ],
   },
 ];

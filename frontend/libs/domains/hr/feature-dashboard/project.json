@@ -1,0 +1,10 @@
+{
+  "name": "hr-feature-dashboard",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/hr/feature-dashboard/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:hr", "type:feature"],
+  "// targets": "to see all targets run: nx show project hr-feature-dashboard --web",
+  "targets": {}
+}

@@ -1,0 +1,71 @@
+<trishul-page-header
+  title="Payroll Dashboard"
+  subtitle="Monthly payroll snapshot for the current pay cycle."
+/>
+
+<section class="cards" aria-label="Payroll totals">
+  @for (card of cards(); track card.label) {
+    <article class="stat">
+      <span class="stat-icon"><mat-icon>{{ card.icon }}</mat-icon></span>
+      <span>
+        <span class="stat-label">{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </span>
+    </article>
+  }
+</section>
+
+<div class="panels">
+  <section class="panel" aria-label="Monthly payroll trend">
+    <h2>Monthly Payroll Trend</h2>
+    <div class="trend">
+      @for (point of trend(); track point.month) {
+        <div class="bar-col">
+          <div class="bar" [style.height.%]="point.height" [attr.title]="inr(point.net)"></div>
+          <span>{{ point.month }}</span>
+        </div>
+      }
+    </div>
+  </section>
+  <section class="panel" aria-label="Department-wise payroll distribution">
+    <h2>Department-wise Payroll Distribution</h2>
+    <div class="dist">
+      @for (row of distribution(); track row.name) {
+        <div class="dist-row">
+          <span>{{ row.name }}</span>
+          <span class="track"><span class="fill" [style.width.%]="row.width"></span></span>
+          <span>{{ inr(row.gross) }}</span>
+        </div>
+      }
+    </div>
+  </section>
+</div>
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>Recent Payroll Activities</h2>
+      <p>Latest payroll, approval and import events.</p>
+    </div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Activity</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of activities; track row.text) {
+          <tr>
+            <td>{{ row.when }}</td>
+            <td>{{ row.text }}</td>
+            <td><trishul-status-badge [status]="row.status" [severities]="status" /></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

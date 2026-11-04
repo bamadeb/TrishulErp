@@ -7,7 +7,7 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { PageEmployeeListItem } from '../../models/page-employee-list-item';
+import { EmployeeDirectoryPage } from '../../models/employee-directory-page';
 
 export interface ListEmployees$Params {
   page?: number;
@@ -19,12 +19,14 @@ export interface ListEmployees$Params {
   sort?: (string | null);
   search?: (string | null);
   status?: 'active' | 'inactive' | 'all';
+  lifecycle?: ('all' | 'active' | 'probation' | 'notice' | 'exited' | 'archived' | null);
   branchId?: (number | null);
   departmentId?: (number | null);
+  designationId?: (number | null);
   employeeType?: ('Permanent' | 'Contract' | 'Trainee' | 'Consultant' | null);
 }
 
-export function listEmployees(http: HttpClient, rootUrl: string, params?: ListEmployees$Params, context?: HttpContext): Observable<StrictHttpResponse<PageEmployeeListItem>> {
+export function listEmployees(http: HttpClient, rootUrl: string, params?: ListEmployees$Params, context?: HttpContext): Observable<StrictHttpResponse<EmployeeDirectoryPage>> {
   const rb = new RequestBuilder(rootUrl, listEmployees.PATH, 'get');
   if (params) {
     rb.query('page', params.page, {});
@@ -32,8 +34,10 @@ export function listEmployees(http: HttpClient, rootUrl: string, params?: ListEm
     rb.query('sort', params.sort, {});
     rb.query('search', params.search, {});
     rb.query('status', params.status, {});
+    rb.query('lifecycle', params.lifecycle, {});
     rb.query('branchId', params.branchId, {});
     rb.query('departmentId', params.departmentId, {});
+    rb.query('designationId', params.designationId, {});
     rb.query('employeeType', params.employeeType, {});
   }
 
@@ -42,7 +46,7 @@ export function listEmployees(http: HttpClient, rootUrl: string, params?: ListEm
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<PageEmployeeListItem>;
+      return r as StrictHttpResponse<EmployeeDirectoryPage>;
     })
   );
 }

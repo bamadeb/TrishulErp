@@ -57,6 +57,12 @@
       ],
       "@trishul/admin-feature-users": [
         "./libs/domains/admin/feature-users/src/index.ts"
+      ],
+      "@trishul/hr-data-access": [
+        "./libs/domains/hr/data-access/src/index.ts"
+      ],
+      "@trishul/hr-feature-dashboard": [
+        "./libs/domains/hr/feature-dashboard/src/index.ts"
       ]
     }
   },

@@ -43,7 +43,12 @@ export const appRoutes: Route[] = [
         canActivate: [permissionGuard('core.alert.view')],
         component: AlertsPage,
       },
-      // Phase 1+: masters, admin, inventory, purchase, sales, presales, hr, accounts, integration, reports.
+      {
+        path: 'hr',
+        loadChildren: () =>
+          import('@trishul/hr-feature-dashboard').then((m) => m.hrRoutes),
+      },
+      // Phase 1+: masters, inventory, purchase, sales, presales, accounts, integration, reports.
       { path: 'forbidden', title: 'Access denied', component: ForbiddenPage },
       { path: '**', title: 'Not found', component: NotFoundPage },
     ],

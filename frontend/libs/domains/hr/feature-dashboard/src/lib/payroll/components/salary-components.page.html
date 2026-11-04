@@ -1,0 +1,52 @@
+<trishul-page-header title="Salary Components" subtitle="Earnings and deductions used to build a salary." />
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>Components ({{ list.filtered().length }})</h2>
+      <p>Fixed amounts and percentages, and who they apply to.</p>
+    </div>
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput placeholder="Search by component name or applicability" [value]="list.search()" (input)="list.onSearch($any($event.target).value)" />
+    </mat-form-field>
+    <button mat-flat-button color="primary" type="button" (click)="add()"><mat-icon>add</mat-icon> Add component</button>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Component</th><th>Type</th><th>Calculation</th><th>Amount / %</th><th>Applicability</th><th>Status</th>
+          <th class="actions"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of list.pageRows(); track row.id; let i = $index) {
+          <tr>
+            <td>{{ list.rowNumber(i) }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.type }}</td>
+            <td>{{ row.calculation }}</td>
+            <td>{{ row.calculation === 'Percentage' ? row.value + '%' : inr(row.value) }}</td>
+            <td>{{ row.applicability }}</td>
+            <td><trishul-status-badge [status]="row.active ? 'Active' : 'Inactive'" [severities]="status" /></td>
+            <td class="actions">
+              <button mat-icon-button type="button" [matMenuTriggerFor]="menu" [attr.aria-label]="'Actions for ' + row.name">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item type="button" (click)="view(row)"><mat-icon>visibility</mat-icon> View</button>
+                <button mat-menu-item type="button" (click)="edit(row)"><mat-icon>edit</mat-icon> Edit</button>
+                <button mat-menu-item type="button" (click)="toggle(row)">
+                  <mat-icon>{{ row.active ? 'block' : 'check_circle' }}</mat-icon>
+                  {{ row.active ? 'Deactivate' : 'Activate' }}
+                </button>
+              </mat-menu>
+            </td>
+          </tr>
+        } @empty { <tr><td class="empty" colspan="8">No matching records.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+  <trishul-payroll-pager [pageIndex]="list.pageIndex()" [pageSize]="list.pageSize()" [pageCount]="list.pageCount()" [pages]="list.pages()" [rangeLabel]="list.rangeLabel()" (pageChange)="list.goTo($event)" (sizeChange)="list.onPageSize($event)" />
+</section>

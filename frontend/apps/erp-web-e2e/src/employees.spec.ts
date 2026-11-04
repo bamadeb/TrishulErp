@@ -6,7 +6,7 @@ import { signIn } from './sign-in';
 // EMP0012 Amit Joshi (no login). Data resets on every page load.
 
 async function openEmployees(page: Page): Promise<void> {
-  await page.goto('/admin/employees');
+  await page.goto('/hr/employees');
   await signIn(page);
   await expect(page.locator('h1')).toHaveText('Employees');
 }
@@ -33,7 +33,7 @@ test('the menu leads to the employee list with details and status', async ({
   await page.goto('/');
   await signIn(page);
   await page.getByRole('link', { name: 'Employees' }).click();
-  await expect(page).toHaveURL(/\/admin\/employees$/);
+  await expect(page).toHaveURL(/\/hr\/employees$/);
   const rahul = page.getByRole('row', { name: /Rahul Patil/ });
   for (const text of [
     'EMP0010',
@@ -61,7 +61,7 @@ test('add an employee', async ({ page }) => {
   await selectFromForm(page, form, 'Branch', 'Pune');
   await page.getByRole('button', { name: 'Add employee' }).click();
 
-  await expect(page).toHaveURL(/\/admin\/employees\/\d+$/);
+  await expect(page).toHaveURL(/\/hr\/employees\/\d+$/);
   await expect(page.locator('h1')).toHaveText('Test User');
 });
 
@@ -75,7 +75,7 @@ test('a new employee needs a code, name, company and branch', async ({
     page.getByText('A unique employee code is required.'),
   ).toBeVisible();
   await expect(page.getByText('Choose a company.')).toBeVisible();
-  await expect(page).toHaveURL(/\/admin\/employees\/new$/);
+  await expect(page).toHaveURL(/\/hr\/employees\/new$/);
 });
 
 test("change an employee's designation", async ({ page }) => {
