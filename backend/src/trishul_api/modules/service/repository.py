@@ -2,7 +2,7 @@ import builtins
 from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, case, false, func, or_, select
+from sqlalchemy import ColumnElement, Select, case, exists, false, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from trishul_api.auth import RequestScope
@@ -21,12 +21,16 @@ from trishul_api.db.models import (
     MachineUnit,
     Principal,
     ServiceCall,
+    ServiceVisit,
+    TrackableActivity,
     Team,
     TeamMember,
+    TrkTrip,
 )
 from trishul_api.modules.core.teams.repository import current_member
 from trishul_api.modules.service.access import CallVisibility
 from trishul_api.modules.service.contracts.repository import ContractRepository
+from trishul_api.modules.trk.constants import IN_PROGRESS as TRIP_IN_PROGRESS
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
@@ -56,6 +60,27 @@ def _visible(visibility: CallVisibility) -> ColumnElement[bool]:
     if visibility.unassigned:
         conditions.append(ServiceCall.assigned_engineer_id.is_(None))
     return or_(*conditions) if conditions else false()
+
+
+def _trip_ongoing() -> ColumnElement[bool]:
+    """True while any trip of the call (across its visits) has been started and not yet stopped.
+    Trips hang off trk.trackable_activity, which for SVC points at a service_visit."""
+    ongoing = (
+        exists()
+        .where(
+            ServiceVisit.service_call_id == ServiceCall.id,
+            TrackableActivity.module_code == "SVC",
+            TrackableActivity.source_table == "service_visit",
+            TrackableActivity.source_id == ServiceVisit.id,
+            TrkTrip.trackable_activity_id == TrackableActivity.id,
+            TrkTrip.status == TRIP_IN_PROGRESS,
+            TrkTrip.end_at.is_(None),
+            TrkTrip.is_active,
+        )
+        .correlate(ServiceCall)
+    )
+    # SQL Server has no boolean expressions in a select list, hence the CASE around the EXISTS.
+    return case((ongoing, True), else_=False)
 
 
 _PRIORITY_RANK = case(
@@ -276,6 +301,7 @@ class ServiceCallRepository:
                 ServiceCall.oem_call_id,
                 ServiceCall.sla_due_at,
                 ServiceCall.row_version,
+                _trip_ongoing().label("is_trip_ongoing"),
             )
             .join(Customer, Customer.id == ServiceCall.customer_id)
             .join(Principal, Principal.id == ServiceCall.principal_id)

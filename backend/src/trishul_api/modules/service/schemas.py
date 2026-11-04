@@ -40,6 +40,7 @@ class ServiceCallListItem(ApiModel):
     oem_call_id: str | None
     sla_due_at: UtcDateTime | None
     row_version: RowVersion
+    is_trip_ongoing: bool = Field(False, description="A trip of this call has been started and not yet stopped.")
 
 
 class ServiceCallCreate(InputModel):

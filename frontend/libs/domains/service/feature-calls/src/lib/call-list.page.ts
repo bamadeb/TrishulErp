@@ -152,6 +152,7 @@ export class CallListPage {
     'complaint',
     'priority',
     'status',
+    'trip',
     'engineer',
     'slaDueAt',
     'actions',

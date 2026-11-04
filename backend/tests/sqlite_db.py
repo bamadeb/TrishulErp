@@ -33,7 +33,7 @@ from sqlalchemy.sql.type_api import TypeEngine
 
 from trishul_api.db.models import Base
 
-SCHEMAS = ("core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt")
+SCHEMAS = ("core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt", "trk")  # SQLite allows only 10 attached databases, so only those the tables use are attached
 
 
 @compiles(DATETIME2, "sqlite")
@@ -86,9 +86,11 @@ def sqlite_engine(tables: Iterable[str]) -> Engine:
     # One shared connection; FastAPI runs sync endpoints on worker threads, one request at a time here.
     engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
 
+    wanted = {name.split(".")[0] for name in tables}
+
     @event.listens_for(engine, "connect")
     def _attach_schemas(dbapi_connection: Any, _record: Any) -> None:
-        for schema in SCHEMAS:
+        for schema in (s for s in SCHEMAS if s in wanted):
             dbapi_connection.execute(f"ATTACH DATABASE ':memory:' AS {schema}")
 
     Base.metadata.create_all(engine, tables=[Base.metadata.tables[name] for name in tables])

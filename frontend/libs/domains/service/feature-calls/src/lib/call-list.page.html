@@ -153,6 +153,19 @@
         </td>
       </ng-container>
 
+      <ng-container matColumnDef="trip">
+        <th mat-header-cell *matHeaderCellDef>Trip</th>
+        <td mat-cell *matCellDef="let call">
+          @if (call.isTripOngoing) {
+          <div class="ongoing-trip">
+            <span class="dot" aria-hidden="true"></span> Ongoing Trip
+          </div>
+          } @else {
+          <span class="muted">—</span>
+          }
+        </td>
+      </ng-container>
+
       <ng-container matColumnDef="engineer">
         <th mat-header-cell *matHeaderCellDef>Engineer</th>
         <td mat-cell *matCellDef="let call">
