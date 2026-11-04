@@ -1,6 +1,9 @@
 import { Route } from '@angular/router';
 import { permissionGuard } from '@trishul/core-auth';
 import {
+  ASC_IMPORT_PERMISSION,
+  ASC_MANAGE_PERMISSION,
+  ASC_VIEW_PERMISSIONS,
   MACHINE_MANAGE_PERMISSION,
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
@@ -11,6 +14,10 @@ import {
   SERVICE_CALL_VIEW_PERMISSIONS,
   TRIP_HISTORY_VIEW_PERMISSIONS,
 } from '@trishul/service-data-access';
+import { AscFormPage } from './asc-form.page';
+import { AscImportPage } from './asc-import.page';
+import { AscListPage } from './asc-list.page';
+import { AscPlansPage } from './asc-plans.page';
 import { BydImportPage } from './byd-import.page';
 import { CallDetailPage } from './call-detail.page';
 import { CallFormPage } from './call-form.page';
@@ -72,6 +79,36 @@ export const serviceRoutes: Route[] = [
     title: 'Machine',
     canActivate: [permissionGuard(...MACHINE_VIEW_PERMISSIONS)],
     component: MachineFormPage,
+  },
+  {
+    path: 'asc',
+    title: 'ASC contracts',
+    canActivate: [permissionGuard(...ASC_VIEW_PERMISSIONS)],
+    component: AscListPage,
+  },
+  {
+    path: 'asc/new',
+    title: 'Add ASC',
+    canActivate: [permissionGuard(ASC_MANAGE_PERMISSION)],
+    component: AscFormPage,
+  },
+  {
+    path: 'asc/plans',
+    title: 'ASC plans',
+    canActivate: [permissionGuard(...ASC_VIEW_PERMISSIONS)],
+    component: AscPlansPage,
+  },
+  {
+    path: 'asc/import',
+    title: 'Import ASC register',
+    canActivate: [permissionGuard(ASC_IMPORT_PERMISSION)],
+    component: AscImportPage,
+  },
+  {
+    path: 'asc/:contractId',
+    title: 'ASC',
+    canActivate: [permissionGuard(...ASC_VIEW_PERMISSIONS)],
+    component: AscFormPage,
   },
   {
     path: 'my-trips',

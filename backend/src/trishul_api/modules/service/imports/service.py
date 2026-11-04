@@ -32,6 +32,7 @@ from trishul_api.db.models import (
     ServiceCall,
 )
 from trishul_api.db.models.generated.svc import ServiceCallCurrentStatus, ServiceCallPriority
+from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.imports.parser import BydCallRow, SourceKind, parse_byd_export
 from trishul_api.modules.service.imports.schemas import (
     BydImportPreview,
@@ -312,6 +313,13 @@ class BydImportService:
 
     def _insert_call(self, row: BydCallRow, res: _Resolution, ctx: _Context, batch_id: int) -> ServiceCall:
         customer_id = res.customer_id if res.customer_matched else self._placeholder_customer_id(ctx)
+        received_at = row.received_at or _now()
+        # A machine under ASC on the day of the call: link the contract and attend it first.
+        contract_id = (
+            ContractRepository(self._db).active_contract_id(res.machine_id, received_at.date())
+            if res.machine_id is not None
+            else None
+        )
         call = ServiceCall(
             company_id=ctx.company_id,
             branch_id=ctx.branch_id,
@@ -331,9 +339,11 @@ class BydImportService:
             caller_phone=(row.caller_phone or _PLACEHOLDER_PHONE)[:15],
             machine_unit_id=res.machine_id,
             is_machine_down=row.is_breakdown,
-            coverage_type="Warranty" if row.is_warranty else None,
+            coverage_type="Warranty" if row.is_warranty else ("Contract" if contract_id is not None else None),
+            service_contract_id=contract_id,
+            is_asc_priority=contract_id is not None,
             priority=res.priority,
-            received_at=row.received_at or _now(),
+            received_at=received_at,
             received_by_user_id=self._actor.id,
             source_reference=row.external_reference[:150] if row.external_reference else None,
             current_status=res.status,

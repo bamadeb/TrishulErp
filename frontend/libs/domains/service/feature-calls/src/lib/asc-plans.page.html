@@ -1,0 +1,141 @@
+<trishul-page-header
+  title="ASC plans & prices"
+  subtitle="Annual service contract packages offered, by machine class"
+>
+  <a mat-button routerLink="/service/asc">
+    <mat-icon>arrow_back</mat-icon>
+    ASC contracts
+  </a>
+  <button
+    mat-flat-button
+    type="button"
+    (click)="edit(null)"
+    *trishulHasPermission="managePermission"
+  >
+    <mat-icon>add</mat-icon>
+    Add plan
+  </button>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Show</mat-label>
+    <mat-select [value]="status()" (valueChange)="setStatus($event)">
+      <mat-option value="active">Offered</mat-option>
+      <mat-option value="inactive">Not offered</mat-option>
+      <mat-option value="all">All</mat-option>
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  <div class="table-scroll">
+    <table mat-table [dataSource]="plans()">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Plan</th>
+        <td mat-cell *matCellDef="let p">
+          <div class="name">{{ p.name }}</div>
+          <div class="muted">{{ p.code }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="machineClass">
+        <th mat-header-cell *matHeaderCellDef>Machine class</th>
+        <td mat-cell *matCellDef="let p">{{ p.machineClass ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="duration">
+        <th mat-header-cell *matHeaderCellDef>Period</th>
+        <td mat-cell *matCellDef="let p">
+          {{ p.durationMonths }} months
+          @if (p.visitsIncluded !== null) {
+          <div class="muted">{{ p.visitsIncluded }} visits</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="price">
+        <th mat-header-cell *matHeaderCellDef>Price (₹)</th>
+        <td mat-cell *matCellDef="let p">
+          {{ p.price !== null ? (p.price | number: '1.0-0') : '—' }}
+          @if (p.gstPct !== null) {
+          <div class="muted">+ GST {{ p.gstPct | number: '1.0-2' }}%</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="total">
+        <th mat-header-cell *matHeaderCellDef>Total (₹)</th>
+        <td mat-cell *matCellDef="let p">
+          <b>{{ p.totalPrice !== null ? (p.totalPrice | number: '1.0-0') : '—' }}</b>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="benefits">
+        <th mat-header-cell *matHeaderCellDef>Benefits</th>
+        <td mat-cell *matCellDef="let p" class="muted">
+          {{ p.servicePriority }} priority
+          @if (p.partsDiscountPct && p.partsDiscountPct !== '0.00') {
+          · {{ p.partsDiscountPct | number: '1.0-2' }}% off parts }
+          @if (p.coversLabour) { · labour }
+          @if (p.coversTravel) { · travel }
+          @if (p.coversParts) { · parts }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let p">
+          <trishul-status-badge
+            [status]="p.isActive ? 'Active' : 'Inactive'"
+            [severities]="activeSeverity"
+          />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>
+          <span class="sr-only">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let p" class="actions">
+          @if (canManage) {
+          <button
+            mat-icon-button
+            [matMenuTriggerFor]="menu"
+            [attr.aria-label]="'Actions for ' + p.code"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item (click)="edit(p)">
+              <mat-icon>edit</mat-icon>Edit
+            </button>
+            @if (p.isActive) {
+            <button mat-menu-item (click)="setActive(p, false)">
+              <mat-icon>block</mat-icon>Stop offering
+            </button>
+            } @else {
+            <button mat-menu-item (click)="setActive(p, true)">
+              <mat-icon>check_circle</mat-icon>Offer again
+            </button>
+            }
+          </mat-menu>
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="columns.length">
+          {{ loading() ? 'Loading…' : 'No plans.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>

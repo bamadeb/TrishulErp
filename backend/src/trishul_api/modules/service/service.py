@@ -6,7 +6,7 @@ call's status is recorded in svc.call_status_log (see status_log.py) and shown a
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,6 +28,7 @@ from trishul_api.db.models import (
 from trishul_api.modules.alerts.engine import AlertEngine
 from trishul_api.modules.service import sla
 from trishul_api.modules.service.access import CallVisibility, allowed_statuses, call_visibility
+from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
     CallStatusLogItem,
@@ -62,6 +63,12 @@ class ServiceCallService:
         self._check_references(data, branch.company_id, principal.id)
 
         received_at = data.received_at.replace(tzinfo=None) if data.received_at else _now()
+        # A machine under ASC on the day of the call: link the contract and attend it first.
+        contract_id = (
+            ContractRepository(self._db).active_contract_id(data.machine_unit_id, received_at.date())
+            if data.machine_unit_id is not None
+            else None
+        )
         # SLA due time comes from svc.sla_rule only (see sla.py); no matching rule leaves it blank.
         sla_target = sla.match_rule(
             sla.active_rules(self._db, branch.company_id),
@@ -89,7 +96,9 @@ class ServiceCallService:
             caller_name=data.caller_name,
             caller_phone=data.caller_phone,
             is_machine_down=data.is_machine_down,
-            is_asc_priority=False,
+            is_asc_priority=contract_id is not None,
+            service_contract_id=contract_id,
+            coverage_type="Contract" if contract_id is not None else None,
             priority=data.priority,
             received_at=received_at,
             sla_due_at=sla.due_at(received_at, sla_target),
@@ -178,6 +187,10 @@ class ServiceCallService:
         detail.allowed_statuses = allowed_statuses(  # type: ignore[assignment]
             self._actor, detail.current_status, detail.assigned_engineer_id
         )
+        if detail.machine_unit_id is not None:
+            detail.asc = ContractRepository(self._db).machine_asc([detail.machine_unit_id], date.today()).get(
+                detail.machine_unit_id
+            )
         return detail
 
     def status_history(self, call_id: int) -> list[CallStatusLogItem]:

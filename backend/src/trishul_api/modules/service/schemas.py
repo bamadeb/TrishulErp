@@ -4,6 +4,7 @@ from pydantic import Field
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
 from trishul_api.db.models import ServiceCallCoverageType, ServiceCallCurrentStatus, ServiceCallPriority
+from trishul_api.modules.service.contracts.schemas import MachineAsc
 
 # Value lists come from the svc.service_call CHECK constraints, through the generated models.
 CallStatus = ServiceCallCurrentStatus
@@ -97,6 +98,7 @@ class MachineUnitOption(ApiModel):
     serial_number: str
     model_name: str | None
     customer_name: str | None
+    asc: MachineAsc | None = Field(None, description="The machine's ASC today; null when it has never had one.")
 
 
 class EngineerOptionQuery(ApiModel):
@@ -154,6 +156,7 @@ class ServiceCallDetail(ApiModel):
     site_name: str | None
     site_address: str | None
     needs_master_linking: bool
+    asc: MachineAsc | None = Field(None, description="The machine's ASC today; null without a machine or ASC.")
     allowed_statuses: list[CallStatus] = Field(
         default_factory=list, description="Statuses the signed-in user may move this call to."
     )

@@ -26,6 +26,7 @@ from trishul_api.db.models import (
 )
 from trishul_api.modules.core.teams.repository import current_member
 from trishul_api.modules.service.access import CallVisibility
+from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
@@ -221,7 +222,12 @@ class ServiceCallRepository:
                 )
             )
         statement = statement.order_by(MachineUnit.serial_number).limit(query.limit)
-        return [MachineUnitOption.model_validate(row) for row in self._session.execute(statement).mappings()]
+        options = [MachineUnitOption.model_validate(row) for row in self._session.execute(statement).mappings()]
+        # So the call form can show whether the picked machine is under ASC.
+        asc = ContractRepository(self._session).machine_asc([o.id for o in options], date.today())
+        for option in options:
+            option.asc = asc.get(option.id)
+        return options
 
     def engineer_options(
         self, scope: RequestScope, query: EngineerOptionQuery, visibility: CallVisibility

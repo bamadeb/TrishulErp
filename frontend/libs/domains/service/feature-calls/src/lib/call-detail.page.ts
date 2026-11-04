@@ -31,6 +31,7 @@ import {
   ServiceCallDetail,
 } from '@trishul/service-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
+import { AscBadge } from './asc-badge';
 
 const STATUS_SEVERITY: Record<CallStatus, StatusSeverity> = {
   Logged: 'info',
@@ -76,6 +77,7 @@ const PRIORITY_SEVERITY: Record<CallPriority, StatusSeverity> = {
     MatOption,
     PageHeader,
     StatusBadge,
+    AscBadge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './call-detail.page.html',

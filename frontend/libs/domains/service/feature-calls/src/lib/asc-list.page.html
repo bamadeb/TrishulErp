@@ -1,0 +1,156 @@
+<trishul-page-header
+  title="ASC contracts"
+  subtitle="Annual service contracts of customer machines"
+>
+  <a mat-stroked-button routerLink="plans">
+    <mat-icon>sell</mat-icon>
+    Plans &amp; prices
+  </a>
+  <a
+    mat-stroked-button
+    routerLink="import"
+    *trishulHasPermission="importPermission"
+  >
+    <mat-icon>upload_file</mat-icon>
+    Import register
+  </a>
+  <a mat-flat-button routerLink="new" *trishulHasPermission="managePermission">
+    <mat-icon>add</mat-icon>
+    Add ASC
+  </a>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="ASC no, book no, serial or customer"
+      aria-label="Search ASC contracts"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Show</mat-label>
+    <mat-select
+      [value]="store.query().status"
+      (valueChange)="store.updateQuery({ status: $event })"
+    >
+      @for (status of statusFilters; track status) {
+      <mat-option [value]="status">{{ statusLabels[status] }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Branch</mat-label>
+    <mat-select
+      [value]="store.query().branchId ?? null"
+      (valueChange)="store.updateQuery({ branchId: $event ?? undefined })"
+    >
+      <mat-option [value]="null">All branches</mat-option>
+      @for (b of branches(); track b.id) {
+      <mat-option [value]="b.id">{{ b.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  <div class="table-scroll">
+    <table
+      mat-table
+      [dataSource]="store.items()"
+      matSort
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="contractNo">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>ASC no</th>
+        <td mat-cell *matCellDef="let a">
+          <a class="name" [routerLink]="[a.id]">{{ a.contractNo }}</a>
+          @if (a.bookNo) {
+          <div class="muted">Book {{ a.bookNo }}</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="machineSerialNo">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Machine</th>
+        <td mat-cell *matCellDef="let a">
+          <div>{{ a.machineSerialNo ?? '—' }}</div>
+          <div class="muted">{{ a.machineModel }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="customerName">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Customer</th>
+        <td mat-cell *matCellDef="let a">
+          <div>{{ a.customerName }}</div>
+          <div class="muted">{{ a.customerCode }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="branch">
+        <th mat-header-cell *matHeaderCellDef>Branch</th>
+        <td mat-cell *matCellDef="let a">
+          <div>{{ a.branchName ?? '—' }}</div>
+          @if (a.engineerName) {
+          <div class="muted">{{ a.engineerName }}</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="endDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Period</th>
+        <td mat-cell *matCellDef="let a">
+          {{ a.startDate | date: 'dd MMM yy' }} – {{ a.endDate | date: 'dd MMM yy' }}
+          <div class="muted">
+            {{ a.planName ?? (a.isRenewal ? 'Renewal' : 'New') }}
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="visits">
+        <th mat-header-cell *matHeaderCellDef>Visits</th>
+        <td mat-cell *matCellDef="let a">
+          {{ a.visitsUsed }}{{ a.visitsIncluded !== null ? ' / ' + a.visitsIncluded : '' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="value">
+        <th mat-header-cell *matHeaderCellDef>Value (₹)</th>
+        <td mat-cell *matCellDef="let a">
+          {{ a.contractValue !== null ? (a.contractValue | number: '1.0-0') : '—' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="state">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let a">
+          <trishul-status-badge [status]="a.state" [severities]="stateSeverity" />
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="columns.length">
+          {{ store.loading() ? 'Loading…' : 'No ASC contracts match these filters.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator
+    [length]="store.total()"
+    [pageIndex]="store.query().page - 1"
+    [pageSize]="store.query().pageSize"
+    [pageSizeOptions]="[20, 50, 100]"
+    aria-label="Pages of ASC contracts"
+    (page)="onPage($event)"
+  />
+</div>

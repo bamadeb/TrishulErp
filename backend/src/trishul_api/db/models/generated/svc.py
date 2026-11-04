@@ -86,6 +86,14 @@ class ServiceContract(Base):
     renewed_from_contract_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("svc.service_contract.id"))
     enrolled_on: Mapped[dt.date | None] = mapped_column(sa.Date())
     enrolled_by_employee_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.employee.id"))
+    branch_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.branch.id"))
+    book_no: Mapped[str | None] = mapped_column(sa.NVARCHAR(20))
+    oem_contract_id: Mapped[str | None] = mapped_column(sa.NVARCHAR(40))
+    receipt_no: Mapped[str | None] = mapped_column(sa.NVARCHAR(60))
+    invoice_ref: Mapped[str | None] = mapped_column(sa.NVARCHAR(60))
+    is_renewal: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    engineer_employee_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.employee.id"))
+    engineer_name: Mapped[str | None] = mapped_column(sa.NVARCHAR(100))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -766,6 +774,8 @@ class ContractPlan(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    machine_class: Mapped[str | None] = mapped_column(sa.NVARCHAR(40))
+    gst_pct: Mapped[Decimal | None] = mapped_column(sa.Numeric(5, 2))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 

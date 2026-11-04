@@ -1,0 +1,203 @@
+<trishul-page-header
+  [title]="isNew() ? 'Add ASC' : 'ASC ' + (contract()?.contractNo ?? '')"
+  [subtitle]="
+    isNew()
+      ? 'Annual service contract for a customer machine'
+      : (contract()?.customerName ?? '') + ' · ' + (contract()?.machineSerialNo ?? '')
+  "
+>
+  <a mat-button routerLink="/service/asc">
+    <mat-icon>arrow_back</mat-icon>
+    All ASC contracts
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+<div class="layout">
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section>
+      <h2>Machine</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Machine</mat-label>
+          <mat-icon matPrefix>precision_manufacturing</mat-icon>
+          <input
+            matInput
+            formControlName="machine"
+            [matAutocomplete]="machineAuto"
+            placeholder="Search by serial number or model"
+          />
+          <mat-autocomplete #machineAuto="matAutocomplete" [displayWith]="machineText">
+            @for (m of machineOptions(); track m.id) {
+            <mat-option [value]="m">{{ machineLabel(m) }}</mat-option>
+            }
+          </mat-autocomplete>
+          @if (isNew()) {
+          <mat-hint>The ASC is for this machine's owner. Not listed? Add the machine first.</mat-hint>
+          }
+          <mat-error>Pick the machine from the list.</mat-error>
+        </mat-form-field>
+        @if (pickedMachine(); as m) {
+        <div class="wide">
+          <trishul-asc-badge [asc]="m.asc" />
+        </div>
+        }
+      </div>
+    </section>
+
+    <section>
+      <h2>Plan &amp; period</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Plan</mat-label>
+          <mat-select formControlName="contractPlanId">
+            <mat-option [value]="null">No plan (enter the details)</mat-option>
+            @for (p of plans(); track p.id) {
+            <mat-option [value]="p.id">{{ planLabel(p) }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Picking a plan fills the end date, visits and value.</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Start date</mat-label>
+          <input matInput type="date" formControlName="startDate" />
+          <mat-error>Required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Expiry date</mat-label>
+          <input matInput type="date" formControlName="endDate" />
+          <mat-error>Required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Visits included</mat-label>
+          <input matInput type="number" min="0" formControlName="visitsIncluded" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Visits done</mat-label>
+          <input matInput type="number" min="0" formControlName="visitsUsed" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Contract value (₹, with GST)</mat-label>
+          <input matInput type="number" min="0" formControlName="contractValue" />
+        </mat-form-field>
+        <mat-checkbox formControlName="isRenewal">Renewal</mat-checkbox>
+      </div>
+    </section>
+
+    <section>
+      <h2>Branch &amp; engineer</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Branch</mat-label>
+          <mat-select formControlName="branchId">
+            @for (b of branches(); track b.id) {
+            <mat-option [value]="b.id">{{ b.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-error>Choose a branch.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Service engineer</mat-label>
+          <mat-select formControlName="engineerEmployeeId">
+            <mat-option [value]="null">Not set</mat-option>
+            @for (e of engineers(); track e.id) {
+            <mat-option [value]="e.id">{{ e.name }} · {{ e.employeeCode }}</mat-option>
+            }
+          </mat-select>
+          @if (contract()?.engineerName && !contract()?.engineerEmployeeId) {
+          <mat-hint>From the register: {{ contract()?.engineerName }}</mat-hint>
+          }
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
+      <h2>Documents</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Book no</mat-label>
+          <input matInput formControlName="bookNo" autocomplete="off" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Money receipt (MR) no &amp; date</mat-label>
+          <input matInput formControlName="receiptNo" autocomplete="off" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Invoice no / date</mat-label>
+          <input matInput formControlName="invoiceRef" autocomplete="off" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>OEM enrol / contract ID</mat-label>
+          <input matInput formControlName="oemContractId" autocomplete="off" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Terms / notes</mat-label>
+          <textarea matInput rows="2" formControlName="terms"></textarea>
+        </mat-form-field>
+      </div>
+    </section>
+
+    @if (canManage && contract()?.state !== 'Cancelled') {
+    <div class="buttons">
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="saving() || (!isNew() && form.pristine)"
+      >
+        {{ isNew() ? 'Add ASC' : 'Save changes' }}
+      </button>
+      <a mat-button routerLink="/service/asc">Cancel</a>
+    </div>
+    }
+  </form>
+
+  @if (contract(); as c) {
+  <aside class="card side" aria-label="ASC status">
+    <h2>Status</h2>
+    <div class="status-line">
+      <trishul-status-badge [status]="c.state" [severities]="stateSeverity" />
+      <span>{{ c.startDate | date: 'dd MMM yyyy' }} – {{ c.endDate | date: 'dd MMM yyyy' }}</span>
+    </div>
+    <p class="muted">
+      {{ c.visitsUsed }}{{ c.visitsIncluded !== null ? ' of ' + c.visitsIncluded : '' }} visits done
+      @if (c.contractValue !== null) { · ₹{{ c.contractValue | number: '1.0-0' }} }
+    </p>
+    <p class="muted">
+      Customer: {{ c.customerName }} ({{ c.customerCode }})<br />
+      Machine:
+      @if (c.machineUnitId) {
+      <a [routerLink]="['/service/machines', c.machineUnitId]">{{ c.machineSerialNo }}</a>
+      } @else { — }
+      · {{ c.machineModel }}
+    </p>
+    @if (c.renewedFromContractId) {
+    <p class="muted">
+      Renewal of
+      <a [routerLink]="['/service/asc', c.renewedFromContractId]">{{ c.renewedFromContractNo }}</a>
+    </p>
+    } @if (c.renewedByContractId) {
+    <p class="muted">
+      Renewed:
+      <a [routerLink]="['/service/asc', c.renewedByContractId]">see the new ASC</a>
+    </p>
+    }
+    @if (canManage && c.state !== 'Cancelled') {
+    @if (!c.renewedByContractId) {
+    <button mat-flat-button type="button" (click)="renew()">
+      <mat-icon>autorenew</mat-icon>
+      Renew
+    </button>
+    }
+    <button mat-stroked-button type="button" class="danger" (click)="cancel()">
+      <mat-icon>block</mat-icon>
+      Cancel ASC
+    </button>
+    }
+  </aside>
+  }
+</div>

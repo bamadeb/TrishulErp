@@ -25,6 +25,7 @@ from trishul_api.modules.core.router import router as core_router
 from trishul_api.modules.core.teams.router import router as teams_router
 from trishul_api.modules.core.users.router import router as users_router
 from trishul_api.modules.presales.router import router as presales_router
+from trishul_api.modules.service.contracts.router import router as contracts_router
 from trishul_api.modules.service.machines.router import router as machines_router
 from trishul_api.modules.service.router import router as service_router
 from trishul_api.modules.trk.router import router as trk_router
@@ -42,6 +43,7 @@ V1_ROUTERS: list[APIRouter] = [
     devices_router,
     service_router,
     machines_router,
+    contracts_router,
     presales_router,
     trk_router,
 ]

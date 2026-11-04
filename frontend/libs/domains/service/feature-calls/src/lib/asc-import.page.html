@@ -1,0 +1,171 @@
+<trishul-page-header
+  title="Import ASC register"
+  subtitle="Upload the ASC Excel the team keeps; contracts already here (same machine and start date) are updated"
+>
+  <a mat-stroked-button routerLink="/service/asc">
+    <mat-icon>list</mat-icon>
+    ASC contracts
+  </a>
+</trishul-page-header>
+
+<div class="controls">
+  <div class="file">
+    <input
+      type="file"
+      hidden
+      #fileInput
+      accept=".xlsx"
+      (change)="onFileChange($event)"
+    />
+    <button mat-stroked-button type="button" (click)="fileInput.click()">
+      <mat-icon>upload_file</mat-icon>
+      Choose file
+    </button>
+    <span class="file-name">{{ file()?.name ?? 'No file chosen' }}</span>
+  </div>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="branch">
+    <mat-label>Default branch</mat-label>
+    <mat-select
+      [value]="branchId()"
+      (valueChange)="branchId.set($event)"
+      aria-label="Branch for rows whose branch isn't in Trishul"
+    >
+      @for (branch of branches(); track branch.id) {
+      <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <span class="spacer"></span>
+
+  <button mat-stroked-button [disabled]="!ready()" (click)="run(false)">
+    Preview
+  </button>
+  <button mat-flat-button [disabled]="!ready()" (click)="run(true)">
+    <mat-icon>publish</mat-icon>
+    Import
+  </button>
+</div>
+
+<p class="muted">
+  Each row's own branch is used; the default branch is only for rows whose branch isn't in
+  Trishul. Machines, customers and models not yet in Trishul are added.
+</p>
+
+@if (busy()) {
+<mat-progress-bar mode="indeterminate" />
+} @if (result(); as r) {
+<div class="summary">
+  <span class="chip total">{{ r.summary.total }} rows</span>
+  <span class="chip success">{{ r.summary.inserts }} new ASC</span>
+  <span class="chip info">{{ r.summary.updates }} updated</span>
+  @if (r.summary.skips) {
+  <span class="chip neutral">{{ r.summary.skips }} skipped</span>
+  } @if (r.summary.newMachines) {
+  <span class="chip warn">{{ r.summary.newMachines }} new machines</span>
+  } @if (r.summary.newCustomers) {
+  <span class="chip warn">{{ r.summary.newCustomers }} new customers</span>
+  } @if (r.summary.newModels) {
+  <span class="chip warn">{{ r.summary.newModels }} new models</span>
+  }
+  <span class="src">Sheet “{{ r.summary.sheetName }}” · {{ r.summary.fileName }}</span>
+</div>
+
+@if (r.applied) {
+<div class="banner done">
+  <mat-icon>check_circle</mat-icon>
+  <span>Import complete. <a routerLink="/service/asc">Open the ASC contracts</a>.</span>
+</div>
+} @else {
+<div class="banner note">
+  <mat-icon>visibility</mat-icon>
+  <span>Preview only — nothing has been saved. Review the rows, then choose Import.</span>
+</div>
+}
+
+<div class="filters">
+  <mat-button-toggle-group
+    [value]="rowFilter()"
+    (change)="rowFilter.set($event.value)"
+    aria-label="Rows to show"
+  >
+    <mat-button-toggle value="all">All</mat-button-toggle>
+    <mat-button-toggle value="insert">New ASC</mat-button-toggle>
+    <mat-button-toggle value="update">Updated</mat-button-toggle>
+    <mat-button-toggle value="new">Adds masters</mat-button-toggle>
+    <mat-button-toggle value="skip">Skipped</mat-button-toggle>
+  </mat-button-toggle-group>
+</div>
+
+<div class="table-card">
+  <div class="table-scroll">
+    <table mat-table [dataSource]="rows()">
+      <ng-container matColumnDef="rowNumber">
+        <th mat-header-cell *matHeaderCellDef>Row</th>
+        <td mat-cell *matCellDef="let row">{{ row.rowNumber }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="serialNumber">
+        <th mat-header-cell *matHeaderCellDef>Machine</th>
+        <td mat-cell *matCellDef="let row">
+          <div>{{ row.serialNumber ?? '—' }}</div>
+          <div class="muted">{{ row.model }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="customer">
+        <th mat-header-cell *matHeaderCellDef>Customer</th>
+        <td mat-cell *matCellDef="let row">
+          <div>{{ row.customerName ?? '—' }}</div>
+          <div class="muted">{{ row.customerCode }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="branch">
+        <th mat-header-cell *matHeaderCellDef>Branch</th>
+        <td mat-cell *matCellDef="let row">{{ row.branch ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="period">
+        <th mat-header-cell *matHeaderCellDef>Period</th>
+        <td mat-cell *matCellDef="let row">
+          @if (row.startDate) {
+          {{ row.startDate | date: 'dd MMM yy' }} – {{ row.endDate | date: 'dd MMM yy' }}
+          } @else { — }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="action">
+        <th mat-header-cell *matHeaderCellDef>Action</th>
+        <td mat-cell *matCellDef="let row">
+          <trishul-status-badge
+            [status]="actionLabel(row.action)"
+            [severities]="actionSeverity"
+          />
+          @if (row.contractId) {
+          <div>
+            <a [routerLink]="['/service/asc', row.contractId]">{{ row.contractNo }}</a>
+          </div>
+          } @if (created(row); as what) {
+          <div class="muted">Adds {{ what }}</div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="messages">
+        <th mat-header-cell *matHeaderCellDef>Notes</th>
+        <td mat-cell *matCellDef="let row" class="muted">
+          {{ row.messages.join(' ') }}
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="muted empty" [attr.colspan]="columns.length">No rows to show.</td>
+      </tr>
+    </table>
+  </div>
+</div>
+}

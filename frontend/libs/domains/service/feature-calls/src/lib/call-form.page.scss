@@ -37,6 +37,14 @@ h2 {
   align-self: center;
 }
 
+.asc-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  font: var(--mat-sys-body-small);
+}
+
 .muted {
   color: var(--mat-sys-on-surface-variant);
 }

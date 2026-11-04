@@ -81,6 +81,14 @@
           }
         </mat-hint>
       </mat-form-field>
+      @if (selectedMachine(); as m) {
+      <div class="wide asc-line">
+        <trishul-asc-badge [asc]="m.asc" />
+        @if (m.asc?.state === 'Active') {
+        <span class="muted">This call will be marked as an ASC priority call.</span>
+        }
+      </div>
+      }
     </div>
   </section>
 

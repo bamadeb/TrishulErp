@@ -8,6 +8,7 @@ import {
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
 import {
+  ASC_VIEW_PERMISSIONS,
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
   SERVICE_CALL_IMPORT_LOG_PERMISSIONS,
@@ -39,6 +40,12 @@ export const navItems: NavItem[] = [
         icon: 'precision_manufacturing',
         route: '/service/machines',
         permissions: [...MACHINE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'ASC contracts',
+        icon: 'verified',
+        route: '/service/asc',
+        permissions: [...ASC_VIEW_PERMISSIONS],
       },
       {
         label: 'My trips',

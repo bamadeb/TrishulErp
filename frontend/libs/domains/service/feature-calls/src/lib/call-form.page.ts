@@ -57,6 +57,7 @@ import {
 } from '@trishul/service-data-access';
 import { AuthStore } from '@trishul/core-auth';
 import { PageHeader } from '@trishul/shared-ui';
+import { AscBadge } from './asc-badge';
 
 type CustomerChoice = Pick<CustomerListItem, 'id' | 'name' | 'code'>;
 type CustomerValue = CustomerChoice | string;
@@ -97,6 +98,7 @@ function pickedCustomer(control: AbstractControl): ValidationErrors | null {
     MatIcon,
     MatProgressBar,
     PageHeader,
+    AscBadge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './call-form.page.html',
@@ -205,6 +207,18 @@ export class CallFormPage {
     { initialValue: [] as MachineUnitOption[] | null },
   );
   protected readonly hasCustomer = signal(false);
+
+  private readonly machineId = toSignal(
+    this.form.controls.machineUnitId.valueChanges,
+    { initialValue: null },
+  );
+  /** The picked machine, for its ASC status. */
+  protected readonly selectedMachine = computed(() => {
+    const id = this.machineId();
+    return id === null
+      ? null
+      : ((this.machineOptions() ?? []).find((m) => m.id === id) ?? null);
+  });
 
   constructor() {
     if (!this.canCreate) this.form.disable();

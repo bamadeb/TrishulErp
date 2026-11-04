@@ -52,9 +52,24 @@ const LOOKUPS: Record<string, LookupValueOut[]> = {
 };
 
 const MOCK_MACHINES: MachineUnitOption[] = [
-  { id: 1, serialNumber: 'THX600123', modelName: 'EX 200LC', customerName: 'Shree Ganesh Infra' },
-  { id: 2, serialNumber: 'THB700456', modelName: 'SHINRAI BX80', customerName: 'Deccan Fabricators' },
-  { id: 3, serialNumber: 'API300789', modelName: 'GA 37 VSD+', customerName: 'Sahyadri Pharma' },
+  {
+    id: 1,
+    serialNumber: 'THX600123',
+    modelName: 'EX 200LC',
+    customerName: 'Shree Ganesh Infra',
+    asc: {
+      contractId: 1,
+      contractNo: 'ANGUL/ASC/00001',
+      state: 'Active',
+      planName: 'ASC 12 months - 20 Ton',
+      startDate: '2026-04-01',
+      endDate: '2027-03-31',
+      visitsIncluded: 12,
+      visitsUsed: 5,
+    },
+  },
+  { id: 2, serialNumber: 'THB700456', modelName: 'SHINRAI BX80', customerName: 'Deccan Fabricators', asc: null },
+  { id: 3, serialNumber: 'API300789', modelName: 'GA 37 VSD+', customerName: 'Sahyadri Pharma', asc: null },
 ];
 
 /** Fixtures used when config.json has "useMockApi": true. They mirror the API contract, not real data. */
@@ -315,6 +330,7 @@ export const mockRoutes: MockRoute[] = [
         siteName: null,
         siteAddress: null,
         needsMasterLinking: false,
+        asc: null,
         allowedStatuses: CALL_STATUSES.filter(
           (s) =>
             s !== call.currentStatus &&
@@ -404,6 +420,7 @@ export const mockRoutes: MockRoute[] = [
         siteName: null,
         siteAddress: null,
         needsMasterLinking: false,
+        asc: null,
         allowedStatuses: CALL_STATUSES.filter(
           (s) =>
             s !== call.currentStatus &&

@@ -41,6 +41,9 @@ TABLES = [
     "core.audit_log",
     "svc.service_call",
     "svc.call_status_log",
+    "svc.contract_plan",
+    "svc.service_contract",
+    "svc.contract_coverage",
     "svc.byd_call_import",
     "svc.byd_call_import_line",
 ]
