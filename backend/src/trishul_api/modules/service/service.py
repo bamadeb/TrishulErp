@@ -28,7 +28,7 @@ from trishul_api.db.models import (
 from trishul_api.modules.alerts.engine import AlertEngine
 from trishul_api.modules.service import sla
 from trishul_api.modules.service.access import CallVisibility, allowed_statuses, call_visibility
-from trishul_api.modules.service.assignment import assignees, set_engineers, support_ids
+from trishul_api.modules.service.assignment import assignees, plan_visit, set_engineers, support_ids
 from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
@@ -40,6 +40,7 @@ from trishul_api.modules.service.schemas import (
     ServiceCallTriageUpdate,
 )
 from trishul_api.modules.service.status_log import record_status_change
+from trishul_api.modules.service.workload import leave_on
 
 log = logging.getLogger(__name__)
 
@@ -129,6 +130,8 @@ class ServiceCallService:
             call.priority = data.priority
         if "engineer_id" in changed or "support_engineer_ids" in changed:
             self._assign(call, data)
+        if data.visit_date is not None:
+            self._plan_visit(call, data.visit_date)
         if "customer_id" in changed and data.customer_id is not None:
             linked = self._db.scalars(
                 select(Customer.id)
@@ -147,6 +150,9 @@ class ServiceCallService:
             call.customer_id = data.customer_id
             call.external_account_name = None  # now linked to a real customer master
             call.needs_master_linking = call.machine_unit_id is None and call.external_product_id is not None
+        # Checked after the customer: the machine has to be the customer's being linked here.
+        if "machine_unit_id" in changed and data.machine_unit_id != call.machine_unit_id:
+            self._link_machine(call, data.machine_unit_id)
 
         call.updated_at = _now()
         call.updated_by_user_id = self._actor.id
@@ -156,6 +162,34 @@ class ServiceCallService:
             )
         self._db.commit()
         return self._repo.get_list_item(call_id)
+
+    def _plan_visit(self, call: ServiceCall, day: date) -> None:
+        engineer = call.assigned_engineer_id
+        if engineer is None:
+            raise ApiError("Assign an engineer before planning a visit.", errors={"engineerId": ["Required."]})
+        if day < date.today():
+            raise ApiError("A visit can't be planned in the past.", errors={"visitDate": ["Pick today or later."]})
+        if leave_on(self._db, [engineer], day).get(engineer) is False:
+            raise ApiError("That engineer is on leave that day.", errors={"visitDate": ["On approved leave."]})
+        plan_visit(self._db, call, engineer, day, self._actor.id, _now())
+
+    def _link_machine(self, call: ServiceCall, machine_id: int | None) -> None:
+        """Put the machine on the call (or take it off), and follow its ASC on the day the call came in."""
+        contract_id = None
+        if machine_id is not None:
+            problem = self._machine_problem(machine_id, call.customer_id, call.principal_id)
+            if problem:
+                raise ApiError("That machine can't be linked to this call.", errors={"machineUnitId": [problem]})
+            contract_id = ContractRepository(self._db).active_contract_id(machine_id, call.received_at.date())
+            call.external_product_id = None  # now linked to a real machine
+        call.machine_unit_id = machine_id
+        call.service_contract_id = contract_id
+        call.is_asc_priority = contract_id is not None
+        if call.coverage_type != "Warranty":  # warranty comes from BYD and doesn't depend on the ASC
+            call.coverage_type = "Contract" if contract_id is not None else None
+        call.needs_master_linking = call.external_account_name is not None or (
+            call.machine_unit_id is None and call.external_product_id is not None
+        )
 
     def _assign(self, call: ServiceCall, data: ServiceCallTriageUpdate) -> None:
         """Apply the lead and support engineers sent; the one left out keeps its current value."""
@@ -301,24 +335,30 @@ class ServiceCallService:
         elif customer_company != company_id:
             errors["customerId"] = ["That customer belongs to another company."]
         if data.machine_unit_id is not None:
-            # A deactivated machine can't be picked for a new call, and the machine must be the customer's own.
-            machine = self._db.execute(
-                select(MachineUnit.customer_id, MachineUnit.principal_id)
-                .where(MachineUnit.id == data.machine_unit_id, MachineUnit.is_active)
-                .limit(1)
-            ).first()
-            if machine is None:
-                errors["machineUnitId"] = [f"Unknown or inactive machine {data.machine_unit_id}"]
-            elif machine.customer_id != data.customer_id:
-                errors["machineUnitId"] = ["That machine is not registered to this customer."]
-            elif machine.principal_id != principal_id:
-                errors["machineUnitId"] = ["That machine is of another brand."]
+            problem = self._machine_problem(data.machine_unit_id, data.customer_id, principal_id)
+            if problem:
+                errors["machineUnitId"] = [problem]
         if not self._lookup_of_type(data.call_type_lookup_id, "CALL_TYPE"):
             errors["callTypeLookupId"] = ["Not a valid call type."]
         if not self._lookup_of_type(data.call_source_lookup_id, "CALL_SOURCE"):
             errors["callSourceLookupId"] = ["Not a valid call source."]
         if errors:
             raise ApiError("Some of the selected values don't exist.", errors=errors)
+
+    def _machine_problem(self, machine_id: int, customer_id: int, principal_id: int) -> str | None:
+        """Why this machine can't go on a call: a deactivated one can't be picked, and it must be the customer's."""
+        machine = self._db.execute(
+            select(MachineUnit.customer_id, MachineUnit.principal_id)
+            .where(MachineUnit.id == machine_id, MachineUnit.is_active)
+            .limit(1)
+        ).first()
+        if machine is None:
+            return f"Unknown or inactive machine {machine_id}"
+        if machine.customer_id != customer_id:
+            return "That machine is not registered to this customer."
+        if machine.principal_id != principal_id:
+            return "That machine is of another brand."
+        return None
 
     def _lookup_of_type(self, value_id: int, type_code: str) -> bool:
         return (

@@ -6064,6 +6064,261 @@
         }
       }
     },
+    "/svc/service-calls/unassigned": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Calls waiting for an engineer, most urgent first, with their warranty / ASC cover",
+        "operationId": "list_unassigned_service_calls",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Critical",
+                  "High",
+                  "Normal",
+                  "Low"
+                ],
+                "type": "string"
+              },
+              "title": "Priority"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_UnassignedCallItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-calls/engineer-workload": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Each engineer's availability and calls on a date, best choice first",
+        "operationId": "list_engineer_workload",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "onDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Ondate"
+            }
+          },
+          {
+            "name": "callId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Adds the distance to this call and puts the closest first.",
+              "title": "Callid"
+            },
+            "description": "Adds the distance to this call and puts the closest first."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EngineerWorkload"
+                  },
+                  "title": "Response List Engineer Workload"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/svc/service-calls/assigned-to-me": {
       "get": {
         "tags": [
@@ -21156,6 +21411,88 @@
         ],
         "title": "EngineerOption"
       },
+      "EngineerWorkload": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "Available",
+              "Half-day leave",
+              "Holiday",
+              "On leave"
+            ],
+            "title": "Availability",
+            "default": "Available"
+          },
+          "callsOnDate": {
+            "type": "integer",
+            "title": "Callsondate",
+            "description": "Calls with a visit for this engineer on the day.",
+            "default": 0
+          },
+          "openCalls": {
+            "type": "integer",
+            "title": "Opencalls",
+            "description": "Unfinished calls the engineer is on, as lead or support, on any day.",
+            "default": 0
+          },
+          "distanceKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancekm",
+            "description": "From the engineer's last known position to the site; null if either is unknown."
+          },
+          "sameBranch": {
+            "type": "boolean",
+            "title": "Samebranch",
+            "description": "Same branch as the call.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "employeeCode",
+          "branchName",
+          "availability",
+          "callsOnDate",
+          "openCalls",
+          "distanceKm",
+          "sameBranch"
+        ],
+        "title": "EngineerWorkload",
+        "description": "An engineer on a given day, best choice first."
+      },
       "FieldChange": {
         "properties": {
           "field": {
@@ -24124,6 +24461,37 @@
         ],
         "title": "Page[TripListItem]"
       },
+      "Page_UnassignedCallItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UnassignedCallItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[UnassignedCallItem]"
+      },
       "Page_UserListItem_": {
         "properties": {
           "items": {
@@ -25359,9 +25727,24 @@
             "type": "string",
             "title": "Principalcode"
           },
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
+          },
           "customerName": {
             "type": "string",
             "title": "Customername"
+          },
+          "machineUnitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineunitid"
           },
           "machineSerialNo": {
             "anyOf": [
@@ -25510,7 +25893,9 @@
           "callNo",
           "receivedAt",
           "principalCode",
+          "customerId",
           "customerName",
+          "machineUnitId",
           "machineSerialNo",
           "machineModel",
           "complaintDescription",
@@ -25624,12 +26009,37 @@
               }
             ],
             "title": "Customerid"
+          },
+          "machineUnitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineunitid",
+            "description": "Must be registered to the call's customer."
+          },
+          "visitDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visitdate",
+            "description": "Plan the lead engineer's visit for this day."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "ServiceCallTriageUpdate",
-        "description": "A team lead's quick triage from the call list: link the real customer, change the engineers\nand/or change priority. Only the fields sent are changed; send engineerId null to unassign everyone."
+        "description": "A team lead's quick triage from the call list: link the real customer and machine, change the\nengineers and/or change priority. Only the fields sent are changed; send engineerId null to unassign\neveryone and machineUnitId null to take the machine off the call."
       },
       "ServiceContractCreate": {
         "properties": {
@@ -28669,6 +29079,193 @@
           "isDefault"
         ],
         "title": "TripTypeItem"
+      },
+      "UnassignedCallItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Receivedat"
+          },
+          "principalCode": {
+            "type": "string",
+            "title": "Principalcode"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "customerName": {
+            "type": "string",
+            "title": "Customername"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location",
+            "description": "The site's address, or else the customer's billing address."
+          },
+          "machineUnitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineunitid"
+          },
+          "machineSerialNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machineserialno"
+          },
+          "machineModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machinemodel"
+          },
+          "machineWarrantyEndDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machinewarrantyenddate"
+          },
+          "complaintDescription": {
+            "type": "string",
+            "title": "Complaintdescription"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Normal",
+              "Low"
+            ],
+            "title": "Priority"
+          },
+          "isMachineDown": {
+            "type": "boolean",
+            "title": "Ismachinedown"
+          },
+          "isAscPriority": {
+            "type": "boolean",
+            "title": "Isascpriority"
+          },
+          "coverageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Warranty",
+                  "Contract",
+                  "Chargeable",
+                  "Goodwill"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragetype"
+          },
+          "cover": {
+            "type": "string",
+            "enum": [
+              "ASC + Warranty",
+              "ASC",
+              "Warranty",
+              "Chargeable",
+              "Goodwill",
+              "Not covered",
+              "Unknown"
+            ],
+            "title": "Cover",
+            "description": "Unknown: no machine is linked, so cover can't be worked out.",
+            "default": "Unknown"
+          },
+          "slaDueAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sladueat"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "callNo",
+          "receivedAt",
+          "principalCode",
+          "branchName",
+          "customerName",
+          "location",
+          "machineUnitId",
+          "machineSerialNo",
+          "machineModel",
+          "machineWarrantyEndDate",
+          "complaintDescription",
+          "priority",
+          "isMachineDown",
+          "isAscPriority",
+          "coverageType",
+          "cover",
+          "slaDueAt",
+          "rowVersion"
+        ],
+        "title": "UnassignedCallItem",
+        "description": "A call waiting for an engineer, with what the team lead weighs up: how urgent, who pays, and where."
       },
       "UserCreate": {
         "properties": {

@@ -5,12 +5,16 @@ import { mockCustomerRoutes } from './mock-customers';
 import { mockEmployeeRoutes } from './mock-employees';
 import { mockServiceImportRoutes } from './mock-service-import';
 import { mockUserRoutes } from './mock-users';
-import { PageServiceCallListItem } from '@trishul/core-api';
+import {
+  PageServiceCallListItem,
+  PageUnassignedCallItem,
+} from '@trishul/core-api';
 import {
   CALL_STATUSES,
   CallPriority,
   CallStatusLogItem,
   EngineerOption,
+  EngineerWorkload,
   LookupValueOut,
   MachineUnitOption,
   ServiceCallCreate,
@@ -148,7 +152,9 @@ const calls: (ServiceCallListItem & {
     principalCode: brand === 'Atlas Copco' ? 'ATLAS_COPCO' : 'TATA_HITACHI',
     principalId: brand === 'Atlas Copco' ? 1 : 2,
     branchId: (i % 3) + 1,
+    customerId: (i % customers.length) + 1,
     customerName: customers[i % customers.length],
+    machineUnitId: 1000 + i,
     machineSerialNo: `${serialPrefix}${String(600000 + i * 37)}`,
     machineModel: model,
     complaintDescription: complaints[i % complaints.length],
@@ -234,6 +240,53 @@ export const mockRoutes: MockRoute[] = [
     },
   },
   {
+    method: 'GET',
+    path: '/svc/service-calls/unassigned',
+    handle: (): PageUnassignedCallItem => {
+      const rows = calls.filter((c) => c.assignedEngineerName === null);
+      return {
+        items: rows.slice(0, 20).map((c) => ({
+          id: c.id,
+          callNo: c.callNo,
+          receivedAt: c.receivedAt,
+          principalCode: c.principalCode,
+          branchName: 'Bhubaneswar',
+          customerName: c.customerName,
+          location: 'Plot 12, Industrial Estate',
+          machineUnitId: c.machineUnitId,
+          machineSerialNo: c.machineSerialNo,
+          machineModel: c.machineModel,
+          machineWarrantyEndDate: null,
+          complaintDescription: c.complaintDescription,
+          priority: c.priority,
+          isMachineDown: c.isMachineDown,
+          isAscPriority: c.isAscPriority,
+          coverageType: c.coverageType,
+          cover: c.isAscPriority ? 'ASC' : 'Not covered',
+          slaDueAt: c.slaDueAt,
+          rowVersion: c.rowVersion,
+        })),
+        total: rows.length,
+        page: 1,
+        pageSize: 20,
+      };
+    },
+  },
+  {
+    method: 'GET',
+    path: '/svc/service-calls/engineer-workload',
+    handle: (): EngineerWorkload[] =>
+      MOCK_ENGINEERS.map((e, i) => ({
+        ...e,
+        branchName: 'Bhubaneswar',
+        availability: i === 2 ? 'On leave' : 'Available',
+        callsOnDate: i,
+        openCalls: i + 2,
+        distanceKm: null,
+        sameBranch: true,
+      })),
+  },
+  {
     method: 'PATCH',
     path: '/svc/service-calls/:callId',
     handle: (req, params): ServiceCallListItem => {
@@ -248,8 +301,15 @@ export const mockRoutes: MockRoute[] = [
       const body = req.body as ServiceCallTriageUpdate;
       if (body.priority) call.priority = body.priority;
       if (body.customerId != null) {
+        call.customerId = body.customerId;
         call.customerName =
           MOCK_CUSTOMER_NAMES[body.customerId] ?? `Customer #${body.customerId}`;
+      }
+      if ('machineUnitId' in body) {
+        const machine = MOCK_MACHINES.find((m) => m.id === body.machineUnitId);
+        call.machineUnitId = machine?.id ?? null;
+        call.machineSerialNo = machine?.serialNumber ?? null;
+        call.machineModel = machine?.modelName ?? null;
       }
       if ('engineerId' in body) {
         call.assignedEngineerId = body.engineerId ?? null;
@@ -449,7 +509,9 @@ export const mockRoutes: MockRoute[] = [
         callNo: `SC/25-26/${String(Math.floor(Math.random() * 90000) + 10000)}`,
         receivedAt: body.receivedAt ?? new Date().toISOString(),
         principalCode: 'TATA_HITACHI',
+        customerId: body.customerId,
         customerName: `Customer #${body.customerId}`,
+        machineUnitId: machine?.id ?? null,
         machineSerialNo: machine?.serialNumber ?? null,
         machineModel: machine?.modelName ?? null,
         complaintDescription: body.complaintDescription,

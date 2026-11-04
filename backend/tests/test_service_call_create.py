@@ -1,7 +1,7 @@
 """Logging a service call: route -> service -> repository -> SQL (SQLite)."""
 
 from collections.abc import Iterator
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import httpx2 as httpx
@@ -14,7 +14,7 @@ from trishul_api.auth import get_current_user, get_db
 from trishul_api.common.errors import NotFound
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import CallAssignment, MachineUnit, ServiceCall
+from trishul_api.db.models import CallAssignment, MachineUnit, ServiceCall, ServiceVisit
 from trishul_api.main import create_app
 from trishul_api.modules.trk import handlers
 
@@ -42,6 +42,9 @@ TABLES = [
     "svc.call_status_log",
     "svc.call_assignment",
     "svc.service_visit",
+    "hr.holiday",
+    "hr.leave_type",
+    "hr.leave_request",
     "svc.contract_plan",
     "svc.service_contract",
     "svc.contract_coverage",
@@ -400,6 +403,264 @@ def test_link_customer_rejects_unknown(client: TestClient) -> None:
     rejected = client.patch(f"{URL}/{call['id']}", json={"customerId": 999}, headers=if_match(call))
     assert rejected.status_code == 400
     assert "customerId" in rejected.json()["errors"]
+
+
+def test_link_customer_and_their_machine_together(client: TestClient, db: Engine) -> None:
+    call = create(client, machineUnitId=None).json()
+    insert_row(db, "core.machine_unit", id=201, serial_number="SN-2", model_id=1, principal_id=PRINCIPAL,
+               customer_id=101, status="Sold")
+    url = f"{URL}/{call['id']}"
+    linked = client.patch(url, json={"customerId": 101, "machineUnitId": 201}, headers=if_match(call))
+    assert linked.status_code == 200, linked.text
+    assert linked.json()["customerId"] == 101
+    assert linked.json()["machineUnitId"] == 201
+    assert linked.json()["machineSerialNo"] == "SN-2"
+
+
+def test_link_machine_clears_the_linking_flag(client: TestClient, db: Engine) -> None:
+    call = create(client, machineUnitId=None).json()
+    with Session(db) as s:
+        s.execute(update(ServiceCall).values(external_product_id="RP-9", needs_master_linking=True))
+        s.commit()
+    linked = client.patch(f"{URL}/{call['id']}", json={"machineUnitId": MACHINE_ID}, headers=if_match(call))
+    assert linked.status_code == 200, linked.text
+    with Session(db) as s:
+        row = s.get(ServiceCall, call["id"])
+        assert row is not None
+        assert row.needs_master_linking is False and row.external_product_id is None
+
+
+def test_link_machine_still_flags_an_unlinked_customer(client: TestClient, db: Engine) -> None:
+    call = create(client).json()
+    with Session(db) as s:
+        s.execute(update(ServiceCall).values(external_account_name="Unknown Account", needs_master_linking=True))
+        s.commit()
+    cleared = client.patch(f"{URL}/{call['id']}", json={"machineUnitId": None}, headers=if_match(call))
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["machineUnitId"] is None
+    with Session(db) as s:
+        row = s.get(ServiceCall, call["id"])
+        assert row is not None and row.needs_master_linking is True
+
+
+def test_link_machine_rejects_another_customers_machine(client: TestClient) -> None:
+    call = create(client, machineUnitId=None).json()
+    url = f"{URL}/{call['id']}"
+    rejected = client.patch(url, json={"customerId": 101, "machineUnitId": MACHINE_ID}, headers=if_match(call))
+    assert rejected.status_code == 400
+    assert "machineUnitId" in rejected.json()["errors"]
+    assert client.get(url).json()["customerName"] == CUSTOMER_NAME  # nothing half-saved
+
+
+def test_link_machine_rejects_unknown_or_other_brand(client: TestClient, db: Engine) -> None:
+    insert_row(db, "core.principal", id=2, code="OTHER", name="Other brand")
+    insert_row(db, "core.machine_unit", id=202, serial_number="SN-3", model_id=1, principal_id=2,
+               customer_id=CUSTOMER_ID, status="Sold")
+    call = create(client, machineUnitId=None).json()
+    url = f"{URL}/{call['id']}"
+    for machine_id in (999, 202):
+        rejected = client.patch(url, json={"machineUnitId": machine_id}, headers=if_match(call))
+        assert rejected.status_code == 400
+        assert "machineUnitId" in rejected.json()["errors"]
+
+
+def test_keeping_the_current_machine_is_not_rechecked(client: TestClient, db: Engine) -> None:
+    """A BYD call can hold a machine with no owner yet; saving the customer must not reject it."""
+    call = create(client).json()
+    with Session(db) as s:
+        s.execute(update(MachineUnit).values(customer_id=None))
+        s.commit()
+    body = {"customerId": 101, "machineUnitId": MACHINE_ID}
+    kept = client.patch(f"{URL}/{call['id']}", json=body, headers=if_match(call))
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["machineUnitId"] == MACHINE_ID
+
+
+def test_link_machine_follows_its_asc(client: TestClient, db: Engine) -> None:
+    call = create(client, machineUnitId=None).json()
+    assert call["isAscPriority"] is False
+    insert_row(db, "svc.service_contract", id=1, company_id=COMPANY, contract_no="ASC-1", customer_id=CUSTOMER_ID,
+               contract_type="ASC", start_date=date(2020, 1, 1), end_date=date(2099, 1, 1), status="Active")
+    insert_row(db, "svc.contract_coverage", id=1, service_contract_id=1, machine_unit_id=MACHINE_ID)
+    url = f"{URL}/{call['id']}"
+    linked = client.patch(url, json={"machineUnitId": MACHINE_ID}, headers=if_match(call)).json()
+    assert linked["isAscPriority"] is True and linked["coverageType"] == "Contract"
+    cleared = client.patch(url, json={"machineUnitId": None}, headers=if_match(linked)).json()
+    assert cleared["isAscPriority"] is False and cleared["coverageType"] is None
+
+
+TODAY = date.today().isoformat()
+UNASSIGNED_URL = f"{URL}/unassigned"
+WORKLOAD_URL = f"{URL}/engineer-workload"
+
+
+def add_engineer(db: Engine, employee_id: int, first_name: str) -> None:
+    insert_row(db, "core.employee", id=employee_id, company_id=COMPANY, branch_id=BRANCH,
+               employee_code=f"E{employee_id}", first_name=first_name, designation_id=1,
+               employee_type="Permanent", status="Active")
+
+
+def workload(client: TestClient, **params: Any) -> dict[str, dict[str, Any]]:
+    rows = client.get(WORKLOAD_URL, params={"onDate": TODAY} | params).json()
+    return {row["name"]: row for row in rows}
+
+
+def test_unassigned_lists_only_calls_without_an_engineer_most_urgent_first(client: TestClient) -> None:
+    low = create(client, priority="Low").json()
+    critical = create(client, priority="Critical").json()
+    taken = create(client).json()
+    client.patch(f"{URL}/{taken['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(taken))
+    response = client.get(UNASSIGNED_URL)
+    assert response.status_code == 200, response.text
+    assert [item["id"] for item in response.json()["items"]] == [critical["id"], low["id"]]
+
+
+@pytest.mark.parametrize(
+    ("warranty_end", "under_asc", "machine", "cover"),
+    [
+        (date(2099, 1, 1), False, True, "Warranty"),
+        (date(2020, 1, 1), True, True, "ASC"),
+        (date(2099, 1, 1), True, True, "ASC + Warranty"),
+        (date(2020, 1, 1), False, True, "Not covered"),
+        (None, False, False, "Unknown"),
+    ],
+)
+def test_unassigned_shows_the_cover(
+    client: TestClient, db: Engine, warranty_end: date | None, under_asc: bool, machine: bool, cover: str
+) -> None:
+    with Session(db) as s:
+        s.execute(update(MachineUnit).values(warranty_end_date=warranty_end))
+        s.commit()
+    if under_asc:
+        insert_row(db, "svc.service_contract", id=1, company_id=COMPANY, contract_no="ASC-1",
+                   customer_id=CUSTOMER_ID, contract_type="ASC", start_date=date(2020, 1, 1),
+                   end_date=date(2099, 1, 1), status="Active")
+        insert_row(db, "svc.contract_coverage", id=1, service_contract_id=1, machine_unit_id=MACHINE_ID)
+    create(client, machineUnitId=MACHINE_ID if machine else None)
+    assert client.get(UNASSIGNED_URL).json()["items"][0]["cover"] == cover
+
+
+def test_unassigned_needs_the_assign_permission(settings: Settings, db: Engine) -> None:
+    with make_client(settings, db, {"svc.call.view"}) as viewer:
+        assert viewer.get(UNASSIGNED_URL).status_code == 403
+        assert viewer.get(WORKLOAD_URL, params={"onDate": TODAY}).status_code == 403
+
+
+def test_assign_for_a_date_plans_a_visit_and_counts_on_that_day_only(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Free")
+    call = create(client).json()
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    assigned = client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID, "visitDate": tomorrow},
+                            headers=if_match(call))
+    assert assigned.status_code == 200, assigned.text
+    assert assigned.json()["currentStatus"] == "Assigned"
+    assert client.get(UNASSIGNED_URL).json()["items"] == []
+
+    on_the_day = workload(client, onDate=tomorrow)
+    assert on_the_day["Satyajit Tung"]["callsOnDate"] == 1
+    assert on_the_day["Satyajit Tung"]["openCalls"] == 1
+    assert on_the_day["Free"]["callsOnDate"] == 0
+    assert workload(client)["Satyajit Tung"]["callsOnDate"] == 0  # today: not that engineer's busy day
+    assert list(on_the_day) == ["Free", "Satyajit Tung"]  # the free engineer comes first
+
+
+def test_a_planned_visit_becomes_the_engineers_trip(
+    client: TestClient, db: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    call = create(client).json()
+    client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID, "visitDate": TODAY}, headers=if_match(call))
+    start_trip(db, call["id"], ENGINEER_ID, monkeypatch)
+    with Session(db) as s:
+        visits = list(s.scalars(select(ServiceVisit)))
+    assert [(v.visit_no, v.status, v.planned_date) for v in visits] == [(1, "On the way", date.today())]
+
+
+def test_reassigning_drops_the_old_engineers_day(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Second")
+    call = create(client).json()
+    url = f"{URL}/{call['id']}"
+    first = client.patch(url, json={"engineerId": ENGINEER_ID, "visitDate": TODAY}, headers=if_match(call)).json()
+    client.patch(url, json={"engineerId": 310, "visitDate": TODAY}, headers=if_match(first))
+    day = workload(client)
+    assert day["Satyajit Tung"]["callsOnDate"] == 0
+    assert day["Second"]["callsOnDate"] == 1
+
+
+def test_replanning_moves_the_same_visit(client: TestClient, db: Engine) -> None:
+    call = create(client).json()
+    url = f"{URL}/{call['id']}"
+    first = client.patch(url, json={"engineerId": ENGINEER_ID, "visitDate": TODAY}, headers=if_match(call)).json()
+    tomorrow = date.today() + timedelta(days=1)
+    client.patch(url, json={"visitDate": tomorrow.isoformat()}, headers=if_match(first))
+    with Session(db) as s:
+        assert [v.planned_date for v in s.scalars(select(ServiceVisit))] == [tomorrow]
+
+
+def test_visit_date_rules(client: TestClient, db: Engine) -> None:
+    call = create(client).json()
+    url = f"{URL}/{call['id']}"
+    no_lead = client.patch(url, json={"visitDate": TODAY}, headers=if_match(call))
+    assert no_lead.status_code == 400 and "engineerId" in no_lead.json()["errors"]
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    past = client.patch(url, json={"engineerId": ENGINEER_ID, "visitDate": yesterday}, headers=if_match(call))
+    assert past.status_code == 400 and "visitDate" in past.json()["errors"]
+    assert client.get(url).json()["assignedEngineerName"] is None  # nothing half-saved
+
+
+def add_leave(db: Engine, *, half_day: bool = False, status: str = "Approved") -> None:
+    if not half_day and status == "Approved":
+        insert_row(db, "hr.leave_type", id=1, code="CL", name="Casual leave")
+    today = date.today()
+    insert_row(db, "hr.leave_request", employee_id=ENGINEER_ID, leave_type_id=1, from_date=today, to_date=today,
+               is_half_day=half_day, days=1, status=status)
+
+
+def test_engineer_on_leave_is_last_and_cannot_be_assigned(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Free")
+    add_leave(db)
+    assert workload(client)["Satyajit Tung"]["availability"] == "On leave"
+    assert list(workload(client)) == ["Free", "Satyajit Tung"]
+    call = create(client).json()
+    rejected = client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID, "visitDate": TODAY},
+                            headers=if_match(call))
+    assert rejected.status_code == 400 and "visitDate" in rejected.json()["errors"]
+
+
+def test_half_day_leave_and_holiday_only_warn(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Free")
+    insert_row(db, "hr.leave_type", id=1, code="CL", name="Casual leave")
+    add_leave(db, half_day=True)
+    insert_row(db, "hr.holiday", branch_id=None, holiday_date=date.today(), name="Diwali", holiday_type="Festival")
+    day = workload(client)
+    assert day["Satyajit Tung"]["availability"] == "Half-day leave"
+    assert day["Free"]["availability"] == "Holiday"
+    call = create(client).json()
+    allowed = client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID, "visitDate": TODAY},
+                           headers=if_match(call))
+    assert allowed.status_code == 200, allowed.text
+
+
+def test_workload_distance_and_order_for_a_call(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Near")
+    insert_row(db, "core.customer_site", id=1, customer_id=CUSTOMER_ID, site_name="Mine", address="Angul",
+               latitude=20.84, longitude=85.10)
+    call = create(client).json()
+    with Session(db) as s:
+        s.execute(update(ServiceCall).values(customer_site_id=1))
+        s.commit()
+    for visit_id, engineer, lat in ((1, ENGINEER_ID, 22.0), (2, 310, 20.85)):
+        insert_row(db, "svc.service_visit", id=visit_id, service_call_id=call["id"], visit_no=visit_id,
+                   visit_purpose="Inspection", engineer_employee_id=engineer, status="Completed",
+                   site_latitude=lat, site_longitude=85.10, planned_date=date(2020, 1, 1))
+    day = workload(client, callId=call["id"])
+    assert list(day) == ["Near", "Satyajit Tung"]
+    assert day["Near"]["distanceKm"] == 1.1
+    assert day["Near"]["sameBranch"] is True
+    assert workload(client)["Near"]["distanceKm"] is None
+
+
+def test_workload_rejects_an_unknown_call(client: TestClient) -> None:
+    assert client.get(WORKLOAD_URL, params={"onDate": TODAY, "callId": 999}).status_code == 404
 
 
 def test_engineer_options_lists_only_service_engineers(client: TestClient) -> None:

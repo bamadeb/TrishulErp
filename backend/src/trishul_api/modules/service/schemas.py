@@ -1,4 +1,5 @@
 import datetime as dt
+from typing import Literal
 
 from pydantic import Field
 
@@ -10,6 +11,8 @@ from trishul_api.modules.service.contracts.schemas import MachineAsc
 CallStatus = ServiceCallCurrentStatus
 CallPriority = ServiceCallPriority
 CoverageType = ServiceCallCoverageType
+CallCover = Literal["ASC + Warranty", "ASC", "Warranty", "Chargeable", "Goodwill", "Not covered", "Unknown"]
+Availability = Literal["Available", "Half-day leave", "Holiday", "On leave"]
 
 # A phone / landline: digits with optional +, spaces, hyphens or brackets. The column holds 15 chars.
 _PHONE_PATTERN = r"^[0-9+\-() ]{6,15}$"
@@ -34,7 +37,9 @@ class ServiceCallListItem(ApiModel):
     call_no: str
     received_at: UtcDateTime
     principal_code: str
+    customer_id: int
     customer_name: str
+    machine_unit_id: int | None
     machine_serial_no: str | None
     machine_model: str | None
     complaint_description: str
@@ -88,8 +93,9 @@ class CallStatusLogItem(ApiModel):
 
 
 class ServiceCallTriageUpdate(InputModel):
-    """A team lead's quick triage from the call list: link the real customer, change the engineers
-    and/or change priority. Only the fields sent are changed; send engineerId null to unassign everyone."""
+    """A team lead's quick triage from the call list: link the real customer and machine, change the
+    engineers and/or change priority. Only the fields sent are changed; send engineerId null to unassign
+    everyone and machineUnitId null to take the machine off the call."""
 
     priority: CallPriority | None = None
     engineer_id: int | None = Field(None, description="The lead engineer.")
@@ -97,6 +103,57 @@ class ServiceCallTriageUpdate(InputModel):
         default_factory=list, max_length=20, description="Everyone else on the call; replaces the current list."
     )
     customer_id: int | None = None
+    machine_unit_id: int | None = Field(None, description="Must be registered to the call's customer.")
+    visit_date: dt.date | None = Field(None, description="Plan the lead engineer's visit for this day.")
+
+
+class UnassignedCallQuery(PageQuery):
+    priority: list[CallPriority] = Field(default_factory=list)
+
+
+class UnassignedCallItem(ApiModel):
+    """A call waiting for an engineer, with what the team lead weighs up: how urgent, who pays, and where."""
+
+    id: int
+    call_no: str
+    received_at: UtcDateTime
+    principal_code: str
+    branch_name: str | None
+    customer_name: str
+    location: str | None = Field(description="The site's address, or else the customer's billing address.")
+    machine_unit_id: int | None
+    machine_serial_no: str | None
+    machine_model: str | None
+    machine_warranty_end_date: dt.date | None
+    complaint_description: str
+    priority: CallPriority
+    is_machine_down: bool
+    is_asc_priority: bool
+    coverage_type: CoverageType | None
+    cover: CallCover = Field("Unknown", description="Unknown: no machine is linked, so cover can't be worked out.")
+    sla_due_at: UtcDateTime | None
+    row_version: RowVersion
+
+
+class EngineerWorkloadQuery(ApiModel):
+    on_date: dt.date
+    call_id: int | None = Field(None, description="Adds the distance to this call and puts the closest first.")
+
+
+class EngineerWorkload(ApiModel):
+    """An engineer on a given day, best choice first."""
+
+    id: int
+    name: str
+    employee_code: str
+    branch_name: str | None
+    availability: Availability = "Available"
+    calls_on_date: int = Field(0, description="Calls with a visit for this engineer on the day.")
+    open_calls: int = Field(0, description="Unfinished calls the engineer is on, as lead or support, on any day.")
+    distance_km: float | None = Field(
+        None, description="From the engineer's last known position to the site; null if either is unknown."
+    )
+    same_branch: bool = Field(False, description="Same branch as the call.")
 
 
 class MachineOptionQuery(ApiModel):

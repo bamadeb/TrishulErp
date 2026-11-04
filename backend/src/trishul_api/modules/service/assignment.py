@@ -6,12 +6,12 @@ of who was on the call. Everyone on the call sees it in their list and can work 
 """
 
 from collections.abc import Collection, Iterable
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import ColumnElement, and_, exists, func, select
+from sqlalchemy import ColumnElement, Select, and_, exists, func, select
 from sqlalchemy.orm import Session
 
-from trishul_api.db.models import CallAssignment, CallAssignmentAssignmentType, Employee, ServiceCall
+from trishul_api.db.models import CallAssignment, CallAssignmentAssignmentType, Employee, ServiceCall, ServiceVisit
 from trishul_api.modules.service.schemas import CallEngineer
 
 
@@ -103,3 +103,38 @@ def set_engineers(
             )
         )
     call.assigned_engineer_id = lead_id
+    # Someone off the call no longer has that day's visit, or it would still count in their workload.
+    on_call = {engineer for engineer, _ in wanted}
+    for visit in db.scalars(_planned_visits(call.id)):
+        if visit.engineer_employee_id not in on_call:
+            visit.status = "Cancelled"
+            visit.updated_at = now
+            visit.updated_by_user_id = user_id
+
+
+def _planned_visits(call_id: int) -> Select[ServiceVisit]:
+    return select(ServiceVisit).where(
+        ServiceVisit.service_call_id == call_id, ServiceVisit.status == "Planned", ServiceVisit.is_active
+    )
+
+
+def plan_visit(db: Session, call: ServiceCall, engineer_id: int, day: date, user_id: int, now: datetime) -> None:
+    """Put the engineer's visit on that day. Starting a trip picks this visit up (trk.handlers)."""
+    visit = db.scalars(_planned_visits(call.id).where(ServiceVisit.engineer_employee_id == engineer_id)).first()
+    if visit is not None:
+        visit.planned_date = day
+        visit.updated_at = now
+        visit.updated_by_user_id = user_id
+        return
+    last = db.scalar(select(func.max(ServiceVisit.visit_no)).where(ServiceVisit.service_call_id == call.id)) or 0
+    db.add(
+        ServiceVisit(
+            service_call_id=call.id,
+            visit_no=last + 1,
+            visit_purpose="Inspection",
+            engineer_employee_id=engineer_id,
+            planned_date=day,
+            status="Planned",
+            created_by_user_id=user_id,
+        )
+    )

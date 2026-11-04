@@ -11,6 +11,7 @@ import {
   ASC_VIEW_PERMISSIONS,
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
+  SERVICE_CALL_ASSIGN_PERMISSION,
   SERVICE_CALL_IMPORT_LOG_PERMISSIONS,
   SERVICE_CALL_IMPORT_PERMISSION,
   SERVICE_CALL_VIEW_PERMISSIONS,
@@ -34,6 +35,12 @@ export const navItems: NavItem[] = [
         icon: 'support_agent',
         route: '/service/calls',
         permissions: [...SERVICE_CALL_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Assign engineers',
+        icon: 'assignment_ind',
+        route: '/service/assign',
+        permissions: [SERVICE_CALL_ASSIGN_PERMISSION],
       },
       {
         label: 'Machines',

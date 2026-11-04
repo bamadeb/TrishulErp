@@ -7,6 +7,7 @@ import {
   MACHINE_MANAGE_PERMISSION,
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
+  SERVICE_CALL_ASSIGN_PERMISSION,
   SERVICE_CALL_CREATE_PERMISSION,
   SERVICE_CALL_IMPORT_LOG_PERMISSIONS,
   SERVICE_CALL_IMPORT_PERMISSION,
@@ -19,6 +20,7 @@ import { AscImportPage } from './asc-import.page';
 import { AscListPage } from './asc-list.page';
 import { AscPlansPage } from './asc-plans.page';
 import { BydImportPage } from './byd-import.page';
+import { CallAssignPage } from './call-assign.page';
 import { CallDetailPage } from './call-detail.page';
 import { CallFormPage } from './call-form.page';
 import { CallListPage } from './call-list.page';
@@ -49,6 +51,12 @@ export const serviceRoutes: Route[] = [
     title: 'Import service calls',
     canActivate: [permissionGuard(SERVICE_CALL_IMPORT_PERMISSION)],
     component: BydImportPage,
+  },
+  {
+    path: 'assign',
+    title: 'Assign engineers',
+    canActivate: [permissionGuard(SERVICE_CALL_ASSIGN_PERMISSION)],
+    component: CallAssignPage,
   },
   {
     path: 'imports',

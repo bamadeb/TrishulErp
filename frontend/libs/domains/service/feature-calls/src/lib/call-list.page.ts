@@ -58,6 +58,7 @@ import {
   CallEngineersResult,
 } from './call-engineers.dialog';
 import {
+  CustomerLinkData,
   CustomerLinkDialog,
   CustomerLinkResult,
 } from './customer-link.dialog';
@@ -244,15 +245,22 @@ export class CallListPage {
       });
   }
 
-  /** Open the search dialog to link the real customer (e.g. onto a BYD placeholder). */
+  /** Open the dialog to link the real customer and their machine (e.g. onto a BYD placeholder). */
   protected linkCustomer(call: ServiceCallListItem): void {
+    const data: CustomerLinkData = {
+      callNo: call.callNo,
+      customerId: call.customerId,
+      customerName: call.customerName,
+      machineUnitId: call.machineUnitId,
+      machineLabel: [call.machineSerialNo, call.machineModel]
+        .filter(Boolean)
+        .join(' · '),
+    };
     this.dialog
-      .open(CustomerLinkDialog, {
-        data: { callNo: call.callNo, customerName: call.customerName },
-      })
+      .open(CustomerLinkDialog, { data })
       .afterClosed()
       .subscribe((result?: CustomerLinkResult) => {
-        if (result) this.apply(call, { customerId: result.id });
+        if (result) this.apply(call, result);
       });
   }
 
