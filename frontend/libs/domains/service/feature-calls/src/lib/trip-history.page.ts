@@ -1,5 +1,10 @@
-import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
@@ -13,6 +18,7 @@ import {
   CallTripHistoryItem,
   TRIP_ADJUST_PERMISSION,
   TripHistoryStore,
+  TripRoute,
   TripStatus,
 } from '@trishul/service-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
@@ -31,11 +37,40 @@ interface DistanceRow {
   pct: number;
 }
 
+const MAP_W = 300;
+const MAP_H = 200;
+const MAP_PAD = 16;
+
+interface MapPoint {
+  x: number;
+  y: number;
+}
+
+interface RouteMap {
+  path: string;
+  start: MapPoint;
+  end: MapPoint;
+  mock: MapPoint[];
+}
+
+/** Friendly names for the diagnostic event codes the phone sends; unknown codes are shown as sent. */
+const EVENT_LABELS: Record<string, string> = {
+  GPS_DISABLED: 'GPS turned off',
+  GPS_ENABLED: 'GPS turned on',
+  PERMISSION_REVOKED: 'Location permission removed',
+  PERMISSION_DENIED: 'Location permission denied',
+  POWER_SAVE_ON: 'Power saving turned on',
+  LOCATION_GAP: 'Gap in location updates',
+  NETWORK_LOST: 'Network lost',
+  NETWORK_RESTORED: 'Network back',
+};
+
 /** Trip history for one service call: every trip across its visits, with GPS vs. adjusted distance. */
 @Component({
   selector: 'trishul-trip-history-page',
   imports: [
     DatePipe,
+    DecimalPipe,
     RouterLink,
     MatTableModule,
     MatProgressBar,
@@ -66,8 +101,73 @@ export class TripHistoryPage {
     if (callId) this.store.load(callId);
   }
 
+  /** The selected trip's trail projected onto a 300x200 canvas (equirectangular, aspect kept). */
+  protected readonly map = computed<RouteMap | null>(() => {
+    const points = this.store.route()?.points ?? [];
+    if (!points.length) return null;
+    const lats = points.map((p) => p.latitude);
+    const lngs = points.map((p) => p.longitude);
+    const minLat = Math.min(...lats);
+    const minLng = Math.min(...lngs);
+    const kx = Math.cos(((minLat + Math.max(...lats)) / 2) * (Math.PI / 180));
+    const w = Math.max((Math.max(...lngs) - minLng) * kx, 1e-6);
+    const h = Math.max(Math.max(...lats) - minLat, 1e-6);
+    const scale = Math.min((MAP_W - 2 * MAP_PAD) / w, (MAP_H - 2 * MAP_PAD) / h);
+    const offX = (MAP_W - w * scale) / 2;
+    const offY = (MAP_H - h * scale) / 2;
+    const at = (p: { latitude: number; longitude: number }): MapPoint => ({
+      x: offX + (p.longitude - minLng) * kx * scale,
+      y: MAP_H - (offY + (p.latitude - minLat) * scale),
+    });
+    const xy = points.map(at);
+    return {
+      path: xy.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '),
+      start: xy[0],
+      end: xy[xy.length - 1],
+      mock: xy.filter((_, i) => points[i].isMockLocation),
+    };
+  });
+
+  protected mapsUrl(route: TripRoute): string {
+    const pts = route.points;
+    if (!pts.length) return '#';
+    const f = (p: { latitude: number; longitude: number }) =>
+      `${p.latitude},${p.longitude}`;
+    // Sample a few points in between so Google follows the real path, not the shortest road.
+    const mid = [0.25, 0.5, 0.75].map((r) => pts[Math.floor(pts.length * r)]);
+    return (
+      'https://www.google.com/maps/dir/?api=1&travelmode=driving' +
+      `&origin=${f(pts[0])}&destination=${f(pts[pts.length - 1])}` +
+      `&waypoints=${mid.map(f).join('|')}`
+    );
+  }
+
+  protected accuracy(m: number | null | undefined): string {
+    return m === null || m === undefined ? '—' : `${m.toFixed(1)} m`;
+  }
+
+  protected eventLabel(type: string): string {
+    return EVENT_LABELS[type] ?? type.replace(/_/g, ' ').toLowerCase();
+  }
+
   protected fmtKm(value: number | null | undefined): string {
     return value === null || value === undefined ? '—' : value.toFixed(2);
+  }
+
+  protected battery(pct: number | null | undefined): string {
+    return pct === null || pct === undefined ? '—' : `${pct}%`;
+  }
+
+  /** e.g. "samsung SM-E025F · Android 12 · app 1.7". */
+  protected device(trip: CallTripHistoryItem): string {
+    const name = [trip.deviceManufacturer, trip.deviceModel]
+      .filter(Boolean)
+      .join(' ');
+    const os = [trip.devicePlatform, trip.deviceOsVersion]
+      .filter(Boolean)
+      .join(' ');
+    const app = trip.deviceAppVersion ? `app ${trip.deviceAppVersion}` : '';
+    return [name, os, app].filter(Boolean).join(' · ') || '—';
   }
 
   protected duration(minutes: number | null | undefined): string {

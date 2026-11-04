@@ -22,6 +22,11 @@ export interface ServiceCallListItem {
   id: number;
   isAscPriority: boolean;
   isMachineDown: boolean;
+
+  /**
+   * A trip of this call has been started and not yet stopped.
+   */
+  isTripOngoing: boolean;
   machineModel: (string | null);
   machineSerialNo: (string | null);
   machineUnitId: (number | null);

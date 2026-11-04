@@ -23,6 +23,7 @@ from trishul_api.modules.trk.repository import TripRepository
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
     CallTripHistoryItem,
+    TripRoute,
     GpsBatchInput,
     GpsDiagnosticBatchInput,
     GpsDiagnosticItem,
@@ -164,6 +165,12 @@ class TripService:
         """Diagnostic events of a trip: the engineer's own, or any trip in a reviewer's branches."""
         self._viewable_trip(user, trip_id)
         return self._repo.diagnostics_for_trip(trip_id, query)
+
+    def route(self, user: CurrentUser, trip_id: int) -> TripRoute:
+        """GPS trail and trail quality of a trip: the engineer's own, or any trip in a reviewer's branches."""
+        self._viewable_trip(user, trip_id)
+        points, quality = self._repo.route_points(trip_id)
+        return TripRoute(trip_id=trip_id, points=points, quality=quality)
 
     def sync_status(self, user: CurrentUser, trip_id: int, query: TripSyncQuery) -> TripSyncStatus:
         """Compare what the device says it recorded with what the server persisted, so the app knows

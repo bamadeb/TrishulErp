@@ -24,12 +24,16 @@ from trishul_api.modules.trk.distance import GpsFix
 from trishul_api.modules.trk.schemas import (
     CallTripHistoryItem,
     GpsDiagnosticItem,
+    GpsQuality,
+    RoutePoint,
     TripAdjustmentItem,
     TripListItem,
     TripListQuery,
 )
 
 # The distance used for reporting: the Team Lead's manual value wins, else the Maps value, else GPS.
+POOR_ACCURACY_M = 50
+MAX_ROUTE_POINTS = 1000
 _EFFECTIVE_DISTANCE_KM = func.coalesce(
     TrkTrip.adjusted_distance_km, TrkTrip.map_distance_km, TrkTrip.gps_distance_km
 )
@@ -157,6 +161,26 @@ class TripRepository:
             .where(TrkTripDistanceAdjustment.trip_id == TrkTrip.id)
             .scalar_subquery()
         )
+        def last_fix(column: Any) -> Any:
+            return (
+                select(column)
+                .where(TrkTripGpsPoint.trip_id == TrkTrip.id)
+                .order_by(TrkTripGpsPoint.recorded_at.desc(), TrkTripGpsPoint.id.desc())
+                .limit(1)
+                .correlate(TrkTrip)
+                .scalar_subquery()
+            )
+
+        def first_battery() -> Any:
+            return (
+                select(TrkTripGpsPoint.battery_pct)
+                .where(TrkTripGpsPoint.trip_id == TrkTrip.id, TrkTripGpsPoint.battery_pct.is_not(None))
+                .order_by(TrkTripGpsPoint.recorded_at, TrkTripGpsPoint.id)
+                .limit(1)
+                .correlate(TrkTrip)
+                .scalar_subquery()
+            )
+
         rows = self._session.execute(
             select(
                 TrkTrip.id,
@@ -178,11 +202,22 @@ class TripRepository:
                 TrkTrip.is_distance_adjusted,
                 _EFFECTIVE_DISTANCE_KM.label("effective_distance_km"),
                 adjustment_count.label("adjustment_count"),
+                last_fix(TrkTripGpsPoint.latitude).label("last_latitude"),
+                last_fix(TrkTripGpsPoint.longitude).label("last_longitude"),
+                last_fix(TrkTripGpsPoint.recorded_at).label("last_gps_at"),
+                first_battery().label("start_battery_pct"),
+                last_fix(TrkTripGpsPoint.battery_pct).label("end_battery_pct"),
+                UserDevice.manufacturer.label("device_manufacturer"),
+                UserDevice.model.label("device_model"),
+                UserDevice.platform.label("device_platform"),
+                UserDevice.os_version.label("device_os_version"),
+                UserDevice.app_version.label("device_app_version"),
                 TrkTrip.row_version,
             )
             .join(TrackableActivity, TrackableActivity.id == TrkTrip.trackable_activity_id)
             .join(ServiceVisit, ServiceVisit.id == TrackableActivity.source_id)
             .join(Employee, Employee.id == TrkTrip.employee_id)
+            .outerjoin(UserDevice, UserDevice.id == TrkTrip.user_device_id)
             .where(
                 TrackableActivity.module_code == "SVC",
                 TrackableActivity.source_table == "service_visit",
@@ -192,6 +227,35 @@ class TripRepository:
             .order_by(TrkTrip.start_at, TrkTrip.id)
         )
         return [CallTripHistoryItem.model_validate(row) for row in rows.mappings()]
+
+    def route_points(self, trip_id: int) -> tuple[list[RoutePoint], GpsQuality]:
+        rows = self._session.execute(
+            select(
+                TrkTripGpsPoint.recorded_at,
+                TrkTripGpsPoint.latitude,
+                TrkTripGpsPoint.longitude,
+                TrkTripGpsPoint.accuracy_m,
+                TrkTripGpsPoint.is_mock_location,
+            )
+            .where(TrkTripGpsPoint.trip_id == trip_id)
+            .order_by(TrkTripGpsPoint.recorded_at, TrkTripGpsPoint.id)
+        ).mappings().all()
+        accuracies = [float(r["accuracy_m"]) for r in rows if r["accuracy_m"] is not None]
+        quality = GpsQuality(
+            point_count=len(rows),
+            avg_accuracy_m=round(sum(accuracies) / len(accuracies), 1) if accuracies else None,
+            max_accuracy_m=max(accuracies) if accuracies else None,
+            poor_accuracy_count=sum(1 for a in accuracies if a > POOR_ACCURACY_M),
+            mock_location_count=sum(1 for r in rows if r["is_mock_location"]),
+            first_recorded_at=rows[0]["recorded_at"] if rows else None,
+            last_recorded_at=rows[-1]["recorded_at"] if rows else None,
+        )
+        # Thin long trails evenly for drawing, always keeping the first and last point.
+        step = max(1, -(-len(rows) // MAX_ROUTE_POINTS))
+        kept = rows[::step]
+        if rows and kept[-1] is not rows[-1]:
+            kept = [*kept, rows[-1]]
+        return [RoutePoint.model_validate(r) for r in kept], quality
 
     def gps_fixes(self, trip_id: int) -> list[GpsFix]:
         rows = self._session.execute(

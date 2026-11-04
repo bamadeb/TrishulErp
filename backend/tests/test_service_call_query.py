@@ -62,7 +62,7 @@ def test_status_and_priority_filters() -> None:
 
 
 def test_register_roles_see_every_call() -> None:
-    assert "assigned_engineer_id" not in sql(RequestScope(1, None)).split("WHERE", 1)[1]
+    assert "assigned_engineer_id" not in sql(RequestScope(1, None)).rsplit("WHERE", 1)[1]
 
 
 def test_team_lead_sees_their_team_and_unassigned_calls() -> None:
@@ -73,7 +73,7 @@ def test_team_lead_sees_their_team_and_unassigned_calls() -> None:
 def test_engineer_sees_only_their_own_calls() -> None:
     text = sql(RequestScope(1, None), CallVisibility(engineer_ids=frozenset({55})))
     assert "svc.service_call.assigned_engineer_id IN (55)" in text
-    assert "IS NULL" not in text
+    assert "assigned_engineer_id IS NULL" not in text
 
 
 def test_no_view_rights_match_nothing() -> None:

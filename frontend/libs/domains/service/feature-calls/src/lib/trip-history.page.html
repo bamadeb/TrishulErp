@@ -148,6 +148,18 @@
           <dt>Engineer</dt>
           <dd>{{ trip.engineerName ?? '—' }}</dd>
         </div>
+        <div>
+          <dt>Battery at start</dt>
+          <dd>{{ battery(trip.startBatteryPct) }}</dd>
+        </div>
+        <div>
+          <dt>{{ trip.endAt ? 'Battery at end' : 'Battery now' }}</dt>
+          <dd>{{ battery(trip.endBatteryPct) }}</dd>
+        </div>
+        <div class="wide">
+          <dt>Device</dt>
+          <dd>{{ device(trip) }}</dd>
+        </div>
       </dl>
 
       @if (trip.status !== 'In progress') {
@@ -164,6 +176,122 @@
           </p>
         </div>
       }
+
+      <div class="evidence">
+        <h3>GPS evidence</h3>
+        @if (store.evidenceLoading()) {
+          <mat-progress-bar mode="indeterminate" />
+        } @else if (store.evidenceFailed()) {
+          <p class="muted">Could not load the GPS details of this trip.</p>
+        } @else {
+          @if (store.route(); as route) {
+            @if (map(); as m) {
+              <svg
+                class="route-map"
+                viewBox="0 0 300 200"
+                role="img"
+                [attr.aria-label]="'Route of trip #' + trip.id"
+              >
+                <polyline class="line" [attr.points]="m.path" />
+                @for (p of m.mock; track $index) {
+                  <circle class="mock" [attr.cx]="p.x" [attr.cy]="p.y" r="3" />
+                }
+                <circle class="start" [attr.cx]="m.start.x" [attr.cy]="m.start.y" r="5" />
+                <circle class="end" [attr.cx]="m.end.x" [attr.cy]="m.end.y" r="5" />
+              </svg>
+              <div class="map-legend">
+                <span><i class="start"></i> Start</span>
+                <span><i class="end"></i> {{ trip.endAt ? 'End' : 'Latest' }}</span>
+                @if (m.mock.length) {
+                  <span><i class="mock"></i> Fake GPS</span>
+                }
+                <a [href]="mapsUrl(route)" target="_blank" rel="noopener">
+                  Open in Google Maps
+                </a>
+              </div>
+            } @else {
+              <p class="muted">No GPS points were recorded for this trip.</p>
+            }
+
+            <dl class="facts quality">
+              <div>
+                <dt>GPS points</dt>
+                <dd>{{ route.quality.pointCount }}</dd>
+              </div>
+              <div>
+                <dt>Avg accuracy</dt>
+                <dd>{{ accuracy(route.quality.avgAccuracyM) }}</dd>
+              </div>
+              <div>
+                <dt>Worst accuracy</dt>
+                <dd>{{ accuracy(route.quality.maxAccuracyM) }}</dd>
+              </div>
+              <div>
+                <dt>Poor fixes (&gt; 50 m)</dt>
+                <dd [class.warn]="route.quality.poorAccuracyCount > 0">
+                  {{ route.quality.poorAccuracyCount }}
+                </dd>
+              </div>
+              <div>
+                <dt>Fake GPS points</dt>
+                <dd [class.bad]="route.quality.mockLocationCount > 0">
+                  {{ route.quality.mockLocationCount }}
+                </dd>
+              </div>
+              <div>
+                <dt>Trail check</dt>
+                <dd>
+                  @if (route.quality.pointCount === 0) {
+                    <span class="chip warn">No data</span>
+                  } @else if (route.quality.mockLocationCount > 0) {
+                    <span class="chip bad">Fake GPS seen</span>
+                  } @else if (route.quality.poorAccuracyCount > 0) {
+                    <span class="chip warn">Some weak fixes</span>
+                  } @else {
+                    <span class="chip good">Good</span>
+                  }
+                </dd>
+              </div>
+            </dl>
+          }
+
+          @if (store.syncStatus(); as sync) {
+            <p class="sync">
+              <mat-icon inline>{{ trip.status === 'In progress' ? 'sync' : 'cloud_done' }}</mat-icon>
+              @if (trip.status === 'In progress') {
+                Live — the phone is still sending data.
+              }
+              Stored on server: {{ sync.gpsSync.storedRecords }} GPS points,
+              {{ sync.diagnosticsSync.storedRecords }} device events.
+              @if (sync.gpsSync.lastRecordedAt) {
+                Last fix {{ sync.gpsSync.lastRecordedAt | date: 'dd MMM, HH:mm:ss' }}.
+              }
+            </p>
+          }
+
+          <h4>Device events</h4>
+          @if (store.diagnostics().length === 0) {
+            <p class="muted">
+              No GPS problems were reported by the phone during this trip.
+            </p>
+          } @else {
+            <ul class="events">
+              @for (e of store.diagnostics(); track e.id) {
+                <li>
+                  <span class="when">{{ e.recordedAt | date: 'HH:mm:ss' }}</span>
+                  <span class="what">{{ eventLabel(e.eventType) }}</span>
+                  @if (e.durationSeconds !== null) {
+                    <span class="muted">· {{ e.durationSeconds | number: '1.0-0' }}s</span>
+                  }
+                  @if (e.details) {
+                    <div class="muted detail">{{ e.details }}</div>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        }
+      </div>
 
       <div class="audit">
         <div class="audit-head">

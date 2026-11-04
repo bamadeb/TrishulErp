@@ -26,6 +26,7 @@ from trishul_api.modules.trk.schemas import (
     TripOut,
     TripStatusItem,
     TripSyncQuery,
+    TripRoute,
     TripSyncStatus,
     TripTypeItem,
     VehicleTypeItem,
@@ -143,6 +144,16 @@ def list_trip_gps_diagnostics(
     trip_id: TripId, query: Annotated[PageQuery, Query()], user: CurrentUserDep, service: TripServiceDep
 ) -> Page[GpsDiagnosticItem]:
     return service.gps_diagnostics(user, trip_id, query)
+
+
+@router.get(
+    "/trips/{tripId}/route",
+    summary="GPS trail of a trip for drawing a map, with GPS quality figures (engineers: own trips only)",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission("trk.trip.view.team", "trk.trip.adjust", "trk.trip.manage"))],
+)
+def get_trip_route(trip_id: TripId, user: CurrentUserDep, service: TripServiceDep) -> TripRoute:
+    return service.route(user, trip_id)
 
 
 @router.get(

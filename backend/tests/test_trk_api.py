@@ -87,6 +87,16 @@ class FakeTripService:
     def gps_diagnostics(self, user: Any, trip_id: int, query: Any) -> Page[Any]:
         return Page(items=[], total=0, page=query.page, page_size=query.page_size)
 
+    def route(self, user: Any, trip_id: int) -> Any:
+        return {
+            "tripId": trip_id,
+            "points": [],
+            "quality": {
+                "pointCount": 0, "avgAccuracyM": None, "maxAccuracyM": None, "poorAccuracyCount": 0,
+                "mockLocationCount": 0, "firstRecordedAt": None, "lastRecordedAt": None,
+            },
+        }
+
     def sync_status(self, user: Any, trip_id: int, query: TripSyncQuery) -> TripSyncStatus:
         self.sync_query = query
         empty = {
@@ -250,6 +260,20 @@ def test_gps_diagnostics_accept_unknown_device_state_and_no_position(api: FastAP
     use_trip_service(api)
     event = {"eventId": str(uuid4()), "eventType": "GPS_DISABLED", "recordedAt": "2026-11-03T09:30:00Z"}
     assert client.post("/api/v1/trk/trips/5501/gps-diagnostics", json={"events": [event]}).status_code == 200
+
+
+def test_engineer_can_read_trip_route(api: FastAPI, client: TestClient) -> None:
+    _field_user(api)
+    use_trip_service(api)
+    response = client.get("/api/v1/trk/trips/5501/route")
+    assert response.status_code == 200
+    assert response.json()["quality"]["pointCount"] == 0
+
+
+def test_trip_route_needs_a_trip_permission(api: FastAPI, client: TestClient) -> None:
+    api.dependency_overrides[get_current_user] = lambda: make_user(permissions=frozenset(), employee_id=5)
+    use_trip_service(api)
+    assert client.get("/api/v1/trk/trips/5501/route").status_code == 403
 
 
 def test_engineer_can_list_gps_diagnostics(api: FastAPI, client: TestClient) -> None:

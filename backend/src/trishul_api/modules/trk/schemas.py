@@ -256,7 +256,45 @@ class CallTripHistoryItem(ApiModel):
     is_distance_adjusted: bool
     effective_distance_km: float | None
     adjustment_count: int
+    last_latitude: float | None = Field(None, description="Latest recorded GPS fix of the trip, if any.")
+    last_longitude: float | None = None
+    last_gps_at: UtcDateTime | None = None
+    start_battery_pct: int | None = Field(None, description="Phone battery on the first GPS fix of the trip.")
+    end_battery_pct: int | None = Field(None, description="Phone battery on the latest GPS fix (final one once stopped).")
+    device_manufacturer: str | None = None
+    device_model: str | None = None
+    device_platform: str | None = None
+    device_os_version: str | None = None
+    device_app_version: str | None = None
     row_version: RowVersion
+
+
+class RoutePoint(ApiModel):
+    recorded_at: UtcDateTime
+    latitude: float
+    longitude: float
+    accuracy_m: float | None
+    is_mock_location: bool
+
+
+class GpsQuality(ApiModel):
+    """Quality of the whole GPS trail (never of the thinned-out points returned for drawing)."""
+
+    point_count: int
+    avg_accuracy_m: float | None
+    max_accuracy_m: float | None
+    poor_accuracy_count: int = Field(description="Points less accurate than 50 m.")
+    mock_location_count: int = Field(description="Points flagged as fake GPS.")
+    first_recorded_at: UtcDateTime | None
+    last_recorded_at: UtcDateTime | None
+
+
+class TripRoute(ApiModel):
+    """The GPS trail of a trip for drawing a map, plus quality figures of the full trail."""
+
+    trip_id: int
+    points: list[RoutePoint] = Field(description="Oldest first; thinned to at most 1000 points.")
+    quality: GpsQuality
 
 
 class MasterItem(ApiModel):

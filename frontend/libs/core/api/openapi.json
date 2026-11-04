@@ -13927,6 +13927,94 @@
         }
       }
     },
+    "/trk/trips/{tripId}/route": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "GPS trail of a trip for drawing a map, with GPS quality figures (engineers: own trips only)",
+        "operationId": "get_trip_route",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Tripid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripRoute"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/trk/trips/{tripId}/sync/status": {
       "get": {
         "tags": [
@@ -17559,6 +17647,120 @@
             "type": "integer",
             "title": "Adjustmentcount"
           },
+          "lastLatitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastlatitude",
+            "description": "Latest recorded GPS fix of the trip, if any."
+          },
+          "lastLongitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastlongitude"
+          },
+          "lastGpsAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastgpsat"
+          },
+          "startBatteryPct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startbatterypct",
+            "description": "Phone battery on the first GPS fix of the trip."
+          },
+          "endBatteryPct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endbatterypct",
+            "description": "Phone battery on the latest GPS fix (final one once stopped)."
+          },
+          "deviceManufacturer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Devicemanufacturer"
+          },
+          "deviceModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Devicemodel"
+          },
+          "devicePlatform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviceplatform"
+          },
+          "deviceOsVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviceosversion"
+          },
+          "deviceAppVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviceappversion"
+          },
           "rowVersion": {
             "type": "string",
             "title": "Rowversion"
@@ -17585,6 +17787,16 @@
           "isDistanceAdjusted",
           "effectiveDistanceKm",
           "adjustmentCount",
+          "lastLatitude",
+          "lastLongitude",
+          "lastGpsAt",
+          "startBatteryPct",
+          "endBatteryPct",
+          "deviceManufacturer",
+          "deviceModel",
+          "devicePlatform",
+          "deviceOsVersion",
+          "deviceAppVersion",
           "rowVersion"
         ],
         "title": "CallTripHistoryItem",
@@ -22109,6 +22321,82 @@
         ],
         "title": "GpsPointInput"
       },
+      "GpsQuality": {
+        "properties": {
+          "pointCount": {
+            "type": "integer",
+            "title": "Pointcount"
+          },
+          "avgAccuracyM": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avgaccuracym"
+          },
+          "maxAccuracyM": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxaccuracym"
+          },
+          "poorAccuracyCount": {
+            "type": "integer",
+            "title": "Pooraccuracycount",
+            "description": "Points less accurate than 50 m."
+          },
+          "mockLocationCount": {
+            "type": "integer",
+            "title": "Mocklocationcount",
+            "description": "Points flagged as fake GPS."
+          },
+          "firstRecordedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstrecordedat"
+          },
+          "lastRecordedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastrecordedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pointCount",
+          "avgAccuracyM",
+          "maxAccuracyM",
+          "poorAccuracyCount",
+          "mockLocationCount",
+          "firstRecordedAt",
+          "lastRecordedAt"
+        ],
+        "title": "GpsQuality",
+        "description": "Quality of the whole GPS trail (never of the thinned-out points returned for drawing)."
+      },
       "GpsUploadResult": {
         "properties": {
           "accepted": {
@@ -25116,6 +25404,47 @@
         "title": "RoleUpdate",
         "description": "Only the fields sent are changed. permissionCodes, when sent, is the role's complete list."
       },
+      "RoutePoint": {
+        "properties": {
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recordedat"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "accuracyM": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracym"
+          },
+          "isMockLocation": {
+            "type": "boolean",
+            "title": "Ismocklocation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recordedAt",
+          "latitude",
+          "longitude",
+          "accuracyM",
+          "isMockLocation"
+        ],
+        "title": "RoutePoint"
+      },
       "ServiceCallCreate": {
         "properties": {
           "customerId": {
@@ -25885,6 +26214,12 @@
           "rowVersion": {
             "type": "string",
             "title": "Rowversion"
+          },
+          "isTripOngoing": {
+            "type": "boolean",
+            "title": "Istripongoing",
+            "description": "A trip of this call has been started and not yet stopped.",
+            "default": false
           }
         },
         "type": "object",
@@ -25909,7 +26244,8 @@
           "supportEngineers",
           "oemCallId",
           "slaDueAt",
-          "rowVersion"
+          "rowVersion",
+          "isTripOngoing"
         ],
         "title": "ServiceCallListItem",
         "description": "A row of the call register."
@@ -28951,6 +29287,33 @@
           "rowVersion"
         ],
         "title": "TripOut"
+      },
+      "TripRoute": {
+        "properties": {
+          "tripId": {
+            "type": "integer",
+            "title": "Tripid"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/RoutePoint"
+            },
+            "type": "array",
+            "title": "Points",
+            "description": "Oldest first; thinned to at most 1000 points."
+          },
+          "quality": {
+            "$ref": "#/components/schemas/GpsQuality"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tripId",
+          "points",
+          "quality"
+        ],
+        "title": "TripRoute",
+        "description": "The GPS trail of a trip for drawing a map, plus quality figures of the full trail."
       },
       "TripStatusItem": {
         "properties": {
