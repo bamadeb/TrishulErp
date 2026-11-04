@@ -151,6 +151,13 @@ td {
   background: color-mix(in srgb, #22c55e 15%, transparent);
   color: #15803d;
   font-weight: 500;
+  border: 0;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, #22c55e 28%, transparent);
+  }
 
   .dot {
     width: 0.5rem;

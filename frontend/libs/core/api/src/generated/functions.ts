@@ -269,6 +269,8 @@ export type { ListTripGpsDiagnostics$Params as ListTripGpsDiagnostics$Params } f
 export { listTripGpsDiagnostics as listTripGpsDiagnostics } from './fn/tracking/list-trip-gps-diagnostics';
 export type { UploadTripGpsDiagnostics$Params as UploadTripGpsDiagnostics$Params } from './fn/tracking/upload-trip-gps-diagnostics';
 export { uploadTripGpsDiagnostics as uploadTripGpsDiagnostics } from './fn/tracking/upload-trip-gps-diagnostics';
+export type { GetTripRoute$Params as GetTripRoute$Params } from './fn/tracking/get-trip-route';
+export { getTripRoute as getTripRoute } from './fn/tracking/get-trip-route';
 export type { GetTripSyncStatus$Params as GetTripSyncStatus$Params } from './fn/tracking/get-trip-sync-status';
 export { getTripSyncStatus as getTripSyncStatus } from './fn/tracking/get-trip-sync-status';
 export type { StopTrip$Params as StopTrip$Params } from './fn/tracking/stop-trip';

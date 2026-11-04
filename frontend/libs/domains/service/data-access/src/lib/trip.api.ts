@@ -1,14 +1,20 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import {
   AdjustDistanceInput,
   ApiClient,
   CallTripHistoryItem,
+  GpsDiagnosticItem,
+  TripRoute,
+  TripSyncStatus,
   PageTripListItem,
   TripAdjustmentItem,
   TripOut,
   adjustTripDistance,
+  getTripRoute,
+  getTripSyncStatus,
   listMyTrips,
+  listTripGpsDiagnostics,
   listServiceCallTrips,
   listTripAdjustments,
   withRowVersion,
@@ -27,6 +33,23 @@ export class TripApi {
   /** The signed-in engineer's own trips; the API never returns anyone else's. */
   myTrips(query: MyTripsQuery): Observable<PageTripListItem> {
     return this.api.call(listMyTrips, query);
+  }
+
+  /** The GPS trail of a trip (thinned for drawing) and the quality of the full trail. */
+  route(tripId: number): Observable<TripRoute> {
+    return this.api.call(getTripRoute, { tripId });
+  }
+
+  /** GPS diagnostic events of a trip (GPS off, permission lost, power saving ...), oldest first. */
+  diagnostics(tripId: number): Observable<GpsDiagnosticItem[]> {
+    return this.api
+      .call(listTripGpsDiagnostics, { tripId, page: 1, pageSize: 200 })
+      .pipe(map((page) => page.items));
+  }
+
+  /** What the server has stored for the trip so far. */
+  syncStatus(tripId: number): Observable<TripSyncStatus> {
+    return this.api.call(getTripSyncStatus, { tripId });
   }
 
   /** The manual-adjustment audit trail of a trip, newest first. */

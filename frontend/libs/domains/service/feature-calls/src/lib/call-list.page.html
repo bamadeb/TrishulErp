@@ -157,9 +157,14 @@
         <th mat-header-cell *matHeaderCellDef>Trip</th>
         <td mat-cell *matCellDef="let call">
           @if (call.isTripOngoing) {
-          <div class="ongoing-trip">
+          <button
+            type="button"
+            class="ongoing-trip"
+            matTooltip="View ongoing trip details"
+            (click)="showOngoingTrip(call)"
+          >
             <span class="dot" aria-hidden="true"></span> Ongoing Trip
-          </div>
+          </button>
           } @else {
           <span class="muted">—</span>
           }

@@ -177,6 +177,9 @@ export type { TripMasterData } from './models/trip-master-data';
 export type { TripOut } from './models/trip-out';
 export type { TripStatusItem } from './models/trip-status-item';
 export type { TripSyncStatus } from './models/trip-sync-status';
+export type { TripRoute } from './models/trip-route';
+export type { RoutePoint } from './models/route-point';
+export type { GpsQuality } from './models/gps-quality';
 export type { TripTypeItem } from './models/trip-type-item';
 export type { UserCreate } from './models/user-create';
 export type { UserCreated } from './models/user-created';
@@ -454,6 +457,8 @@ export type { ListTripGpsDiagnostics$Params as ListTripGpsDiagnostics$Params } f
 export { listTripGpsDiagnostics as listTripGpsDiagnostics } from './fn/tracking/list-trip-gps-diagnostics';
 export type { UploadTripGpsDiagnostics$Params as UploadTripGpsDiagnostics$Params } from './fn/tracking/upload-trip-gps-diagnostics';
 export { uploadTripGpsDiagnostics as uploadTripGpsDiagnostics } from './fn/tracking/upload-trip-gps-diagnostics';
+export type { GetTripRoute$Params as GetTripRoute$Params } from './fn/tracking/get-trip-route';
+export { getTripRoute as getTripRoute } from './fn/tracking/get-trip-route';
 export type { GetTripSyncStatus$Params as GetTripSyncStatus$Params } from './fn/tracking/get-trip-sync-status';
 export { getTripSyncStatus as getTripSyncStatus } from './fn/tracking/get-trip-sync-status';
 export type { StopTrip$Params as StopTrip$Params } from './fn/tracking/stop-trip';

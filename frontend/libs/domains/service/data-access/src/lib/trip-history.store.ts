@@ -7,12 +7,15 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { EMPTY, catchError, pipe, switchMap, tap } from 'rxjs';
+import { EMPTY, catchError, forkJoin, of, pipe, switchMap, tap } from 'rxjs';
 import { TripApi } from './trip.api';
 import {
   CallTripHistoryItem,
+  GpsDiagnosticItem,
   TripAdjustmentItem,
   TripOut,
+  TripRoute,
+  TripSyncStatus,
 } from './trip.models';
 
 interface TripHistoryState {
@@ -22,6 +25,12 @@ interface TripHistoryState {
   selectedTripId: number | null;
   adjustments: TripAdjustmentItem[];
   adjustmentsLoading: boolean;
+  /** GPS evidence of the selected trip; each part fails independently. */
+  route: TripRoute | null;
+  diagnostics: GpsDiagnosticItem[];
+  syncStatus: TripSyncStatus | null;
+  evidenceLoading: boolean;
+  evidenceFailed: boolean;
 }
 
 const initialState: TripHistoryState = {
@@ -31,6 +40,11 @@ const initialState: TripHistoryState = {
   selectedTripId: null,
   adjustments: [],
   adjustmentsLoading: false,
+  route: null,
+  diagnostics: [],
+  syncStatus: null,
+  evidenceLoading: false,
+  evidenceFailed: false,
 };
 
 /** State of a service call's trip-history page. Provide it in the page component, not in root. */
@@ -67,9 +81,48 @@ export const TripHistoryStore = signalStore(
       ),
     );
 
+    const loadEvidence = rxMethod<number | null>(
+      pipe(
+        tap(() =>
+          patchState(store, {
+            route: null,
+            diagnostics: [],
+            syncStatus: null,
+            evidenceFailed: false,
+            evidenceLoading: true,
+          }),
+        ),
+        switchMap((tripId) => {
+          if (tripId === null) {
+            patchState(store, { evidenceLoading: false });
+            return EMPTY;
+          }
+          // A failed part must not hide the others, so each falls back to null.
+          return forkJoin({
+            route: api.route(tripId).pipe(catchError(() => of(null))),
+            diagnostics: api
+              .diagnostics(tripId)
+              .pipe(catchError(() => of(null))),
+            syncStatus: api.syncStatus(tripId).pipe(catchError(() => of(null))),
+          }).pipe(
+            tap((r) =>
+              patchState(store, {
+                route: r.route,
+                diagnostics: r.diagnostics ?? [],
+                syncStatus: r.syncStatus,
+                evidenceFailed: !r.route && !r.diagnostics && !r.syncStatus,
+                evidenceLoading: false,
+              }),
+            ),
+          );
+        }),
+      ),
+    );
+
     const select = (tripId: number | null): void => {
       patchState(store, { selectedTripId: tripId });
       loadAdjustments(tripId);
+      loadEvidence(tripId);
     };
 
     const load = rxMethod<number>(

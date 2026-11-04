@@ -7,6 +7,11 @@ export type {
   AdjustDistanceInput,
   TripOut,
   TripListItem,
+  TripRoute,
+  RoutePoint,
+  GpsQuality,
+  GpsDiagnosticItem,
+  TripSyncStatus,
 } from '@trishul/core-api';
 
 export type TripStatus = CallTripHistoryItem['status'];

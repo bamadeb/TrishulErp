@@ -9,9 +9,15 @@
 export interface CallTripHistoryItem {
   adjustedDistanceKm: (number | null);
   adjustmentCount: number;
+  deviceAppVersion: (string | null);
+  deviceManufacturer: (string | null);
+  deviceModel: (string | null);
+  deviceOsVersion: (string | null);
+  devicePlatform: (string | null);
   durationMinutes: (number | null);
   effectiveDistanceKm: (number | null);
   endAt: (string | null);
+  endBatteryPct: (number | null);
   endLatitude: (number | null);
   endLongitude: (number | null);
   engineerEmployeeId: number;
@@ -19,9 +25,13 @@ export interface CallTripHistoryItem {
   gpsDistanceKm: (number | null);
   id: number;
   isDistanceAdjusted: boolean;
+  lastGpsAt: (string | null);
+  lastLatitude: (number | null);
+  lastLongitude: (number | null);
   mapDistanceKm: (number | null);
   rowVersion: string;
   startAt: string;
+  startBatteryPct: (number | null);
   startLatitude: number;
   startLongitude: number;
   status: string;

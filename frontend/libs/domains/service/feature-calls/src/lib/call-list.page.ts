@@ -57,6 +57,7 @@ import {
   CallEngineersDialog,
   CallEngineersResult,
 } from './call-engineers.dialog';
+import { OngoingTripDialog } from './ongoing-trip.dialog';
 import {
   CustomerLinkDialog,
   CustomerLinkResult,
@@ -243,6 +244,15 @@ export class CallListPage {
       .subscribe((result?: CallEngineersResult) => {
         if (result) this.apply(call, result);
       });
+  }
+
+  /** Show the trip currently running on the call. */
+  protected showOngoingTrip(call: ServiceCallListItem): void {
+    this.dialog.open(OngoingTripDialog, {
+      data: { callId: call.id, callNo: call.callNo },
+      width: '520px',
+      maxWidth: '95vw',
+    });
   }
 
   /** Open the search dialog to link the real customer (e.g. onto a BYD placeholder). */
