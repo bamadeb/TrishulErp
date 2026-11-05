@@ -10,15 +10,15 @@ current configuration needs only a sign-in, like the other trip master data.
 
 Idempotent: every statement checks first.
 
-Revision ID: 0020_tracking_config
-Revises: 0019_public_transport_manual
+Revision ID: 0021_tracking_config
+Revises: 0020_merge_asc_manual_travel
 Created: 2026-11-05
 """
 
 from alembic import op
 
-revision = "0020_tracking_config"
-down_revision = "0019_public_transport_manual"
+revision = "0021_tracking_config"
+down_revision = "0020_merge_asc_manual_travel"
 branch_labels = None
 depends_on = None
 

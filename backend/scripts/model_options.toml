@@ -23,6 +23,7 @@ audited = [
     "core.attachment",
     "svc.service_call",
     "svc.service_visit",
+    "svc.contract_visit",
     "sal.sales_invoice",
     "sal.receipt",
     "sal.credit_note",

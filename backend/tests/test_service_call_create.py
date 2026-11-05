@@ -569,6 +569,46 @@ def test_assign_for_a_date_plans_a_visit_and_counts_on_that_day_only(client: Tes
     assert list(on_the_day) == ["Free", "Satyajit Tung"]  # the free engineer comes first
 
 
+def test_assigning_several_engineers_gives_each_the_day(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Second")
+    add_engineer(db, 311, "Third")
+    call = create(client).json()
+    body = {"engineerId": ENGINEER_ID, "supportEngineerIds": [310, 311], "visitDate": TODAY}
+    assigned = client.patch(f"{URL}/{call['id']}", json=body, headers=if_match(call))
+    assert assigned.status_code == 200, assigned.text
+    assert assigned.json()["assignedEngineerName"] == "Satyajit Tung"
+    assert [e["id"] for e in assigned.json()["supportEngineers"]] == [310, 311]
+    assert client.get(UNASSIGNED_URL).json()["items"] == []
+    day = workload(client)
+    assert [day[name]["callsOnDate"] for name in ("Satyajit Tung", "Second", "Third")] == [1, 1, 1]
+    assert [day[name]["openCalls"] for name in ("Satyajit Tung", "Second", "Third")] == [1, 1, 1]
+    with Session(db) as s:
+        assert sorted(v.visit_no for v in s.scalars(select(ServiceVisit))) == [1, 2, 3]
+
+
+def test_taking_a_support_engineer_off_drops_their_day(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Second")
+    call = create(client).json()
+    url = f"{URL}/{call['id']}"
+    body = {"engineerId": ENGINEER_ID, "supportEngineerIds": [310], "visitDate": TODAY}
+    assigned = client.patch(url, json=body, headers=if_match(call)).json()
+    client.patch(url, json={"supportEngineerIds": []}, headers=if_match(assigned))
+    day = workload(client)
+    assert day["Second"]["callsOnDate"] == 0
+    assert day["Satyajit Tung"]["callsOnDate"] == 1
+
+
+def test_support_engineer_on_leave_stops_the_assignment(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Free")
+    add_leave(db)  # Satyajit Tung
+    call = create(client).json()
+    url = f"{URL}/{call['id']}"
+    body = {"engineerId": 310, "supportEngineerIds": [ENGINEER_ID], "visitDate": TODAY}
+    rejected = client.patch(url, json=body, headers=if_match(call))
+    assert rejected.status_code == 400 and "visitDate" in rejected.json()["errors"]
+    assert client.get(url).json()["assignedEngineerName"] is None  # nothing half-saved
+
+
 def test_a_planned_visit_becomes_the_engineers_trip(
     client: TestClient, db: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:

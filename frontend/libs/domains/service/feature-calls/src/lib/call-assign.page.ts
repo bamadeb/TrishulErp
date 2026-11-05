@@ -11,7 +11,8 @@ import {
   toObservable,
   toSignal,
 } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import {
   MatDatepicker,
@@ -31,6 +32,7 @@ import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import {
   EMPTY,
@@ -99,7 +101,7 @@ function startOfToday(): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-/** Team lead's board: pick a waiting call, compare the engineers for the day, and assign one. */
+/** Team lead's board: pick a waiting call, compare the engineers for the day, and assign one or more. */
 @Component({
   selector: 'trishul-call-assign-page',
   imports: [
@@ -119,6 +121,9 @@ function startOfToday(): Date {
     MatDatepickerInput,
     MatDatepickerToggle,
     MatButton,
+    MatIconButton,
+    MatCheckbox,
+    MatTooltip,
     MatIcon,
     PageHeader,
     StatusBadge,
@@ -138,12 +143,12 @@ export class CallAssignPage {
   protected readonly coverSeverity = COVER_SEVERITY;
   protected readonly availabilitySeverity = AVAILABILITY_SEVERITY;
   protected readonly engineerColumns = [
+    'pick',
     'engineer',
     'availability',
     'callsOnDate',
     'openCalls',
     'distance',
-    'action',
   ];
 
   protected readonly today = startOfToday();
@@ -155,8 +160,9 @@ export class CallAssignPage {
     priority: [] as CallPriority[],
   });
   protected readonly selectedId = signal<number | null>(null);
-  /** The engineer being assigned, so the buttons disable while it saves. */
-  protected readonly busyId = signal<number | null>(null);
+  /** Everyone ticked for the selected call; the first is the lead. */
+  private readonly picked = signal<number[]>([]);
+  protected readonly saving = signal(false);
   protected readonly loadingCalls = signal(false);
   protected readonly loadingEngineers = signal(false);
 
@@ -208,6 +214,16 @@ export class CallAssignPage {
       this.callsPage().items.find((c) => c.id === this.selectedId()) ?? null,
   );
 
+  /** Who will go on the call, lead first. Changing the date drops anyone on leave that day. */
+  protected readonly team = computed(() =>
+    this.picked()
+      .map((id) => this.engineers().find((e) => e.id === id))
+      .filter(
+        (e): e is EngineerWorkload => !!e && e.availability !== 'On leave',
+      ),
+  );
+  protected readonly support = computed(() => this.team().slice(1));
+
   constructor() {
     this.search$
       .pipe(debounceTime(350), distinctUntilChanged(), takeUntilDestroyed())
@@ -240,18 +256,49 @@ export class CallAssignPage {
     return !!call.slaDueAt && new Date(call.slaDueAt) < new Date();
   }
 
-  protected assign(engineer: EngineerWorkload): void {
+  /** The ticks belong to one call, so choosing another starts afresh. */
+  protected selectCall(id: number | null): void {
+    this.selectedId.set(id);
+    this.picked.set([]);
+  }
+
+  protected isPicked(engineer: EngineerWorkload): boolean {
+    return this.team().some((e) => e.id === engineer.id);
+  }
+
+  protected isLead(engineer: EngineerWorkload): boolean {
+    return this.team()[0]?.id === engineer.id;
+  }
+
+  protected toggle(engineer: EngineerWorkload): void {
+    this.picked.update((ids) =>
+      ids.includes(engineer.id)
+        ? ids.filter((id) => id !== engineer.id)
+        : [...ids, engineer.id],
+    );
+  }
+
+  protected makeLead(engineer: EngineerWorkload): void {
+    this.picked.update((ids) => [
+      engineer.id,
+      ...ids.filter((id) => id !== engineer.id),
+    ]);
+  }
+
+  protected assign(): void {
     const call = this.selected();
-    if (!call) return;
+    const [lead, ...support] = this.team();
+    if (!call || !lead) return;
     const day = this.date();
-    this.busyId.set(engineer.id);
+    this.saving.set(true);
     this.api
       .updateTriage(call.id, call.rowVersion, {
-        engineerId: engineer.id,
+        engineerId: lead.id,
+        supportEngineerIds: support.map((e) => e.id),
         visitDate: isoDate(day),
       })
       .pipe(
-        finalize(() => this.busyId.set(null)),
+        finalize(() => this.saving.set(false)),
         catchError(() => {
           this.refresh.update((n) => n + 1); // e.g. 409: someone else got there first
           return EMPTY;
@@ -264,8 +311,9 @@ export class CallAssignPage {
           day: '2-digit',
           month: 'short',
         });
+        const others = support.length ? ` +${support.length}` : '';
         this.snackBar.open(
-          `${call.callNo} assigned to ${engineer.name} for ${when}`,
+          `${call.callNo} assigned to ${lead.name}${others} for ${when}`,
           'OK',
           { duration: 4000 },
         );
@@ -276,6 +324,6 @@ export class CallAssignPage {
   private selectNextAfter(call: UnassignedCallItem): void {
     const rows = this.callsPage().items;
     const index = rows.findIndex((c) => c.id === call.id);
-    this.selectedId.set((rows[index + 1] ?? rows[index - 1])?.id ?? null);
+    this.selectCall((rows[index + 1] ?? rows[index - 1])?.id ?? null);
   }
 }

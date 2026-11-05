@@ -11,7 +11,7 @@ import { RouterLink } from '@angular/router';
 import { AuthStore } from '@trishul/core-auth';
 import { ASC_VIEW_PERMISSIONS, MachineAsc } from '@trishul/service-data-access';
 
-/** A machine's ASC as calls show it: under ASC (till when, visits used), starting later, expired, or none. */
+/** A machine's ASC as calls show it: under ASC (till when, visits used and left), starting later, expired, or none. */
 @Component({
   selector: 'trishul-asc-badge',
   imports: [DatePipe, MatIcon, RouterLink],
@@ -36,7 +36,8 @@ import { ASC_VIEW_PERMISSIONS, MachineAsc } from '@trishul/service-data-access';
         }
         @if (a.visitsIncluded !== null && a.state === 'Active') {
           <span class="visits"
-            >· {{ a.visitsUsed }}/{{ a.visitsIncluded }} visits</span
+            >· {{ a.visitsUsed }}/{{ a.visitsIncluded }} visits,
+            {{ a.visitsRemaining }} left</span
           >
         }
         @if (canOpen) {

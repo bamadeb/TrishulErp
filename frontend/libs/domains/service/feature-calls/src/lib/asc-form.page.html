@@ -164,7 +164,8 @@
       <span>{{ c.startDate | date: 'dd MMM yyyy' }} – {{ c.endDate | date: 'dd MMM yyyy' }}</span>
     </div>
     <p class="muted">
-      {{ c.visitsUsed }}{{ c.visitsIncluded !== null ? ' of ' + c.visitsIncluded : '' }} visits done
+      <b>{{ c.visitsUsed }}</b>{{ c.visitsIncluded !== null ? ' of ' + c.visitsIncluded : '' }} visits used
+      @if (c.visitsRemaining !== null) { · <b>{{ c.visitsRemaining }}</b> left }
       @if (c.contractValue !== null) { · ₹{{ c.contractValue | number: '1.0-0' }} }
     </p>
     <p class="muted">
@@ -199,5 +200,8 @@
     </button>
     }
   </aside>
+  <section class="card wide" aria-label="Visits from service calls">
+    <trishul-asc-call-visits [contract]="c" (updated)="onVisitsCounted($event)" />
+  </section>
   }
 </div>

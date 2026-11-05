@@ -10,6 +10,8 @@ from trishul_api.common.schemas import Page
 from trishul_api.modules.service.contracts.asc_import import AscImportService
 from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.contracts.schemas import (
+    AscCallVisit,
+    AscCallVisitSet,
     AscImportResult,
     ContractFormOptions,
     ContractPlanCreate,
@@ -30,9 +32,11 @@ router = APIRouter(prefix="/svc", tags=["contracts"])
 CAN_VIEW = Depends(require_permission("svc.contract.view", "svc.contract.manage"))
 CAN_MANAGE = Depends(require_permission("svc.contract.manage"))
 CAN_IMPORT = Depends(require_permission("svc.contract.import"))
+CAN_COUNT_VISITS = Depends(require_permission("svc.contract.visit"))
 
 ContractId = Annotated[int, Path(alias="contractId", gt=0)]
 PlanId = Annotated[int, Path(alias="planId", gt=0)]
+CallId = Annotated[int, Path(alias="callId", gt=0)]
 RowVersionDep = Annotated[bytes, Depends(if_match_row_version)]
 
 # The register is a few hundred kilobytes to a few megabytes.
@@ -213,6 +217,33 @@ def renew_service_contract(
 )
 def cancel_service_contract(contract_id: ContractId, actor: CurrentUserDep, db: DbSession) -> ServiceContractDetail:
     return ContractService(db, actor).cancel(contract_id)
+
+
+@router.get(
+    "/service-contracts/{contractId}/call-visits",
+    summary="Finished service calls under an ASC and the visits counted for each",
+    dependencies=[CAN_VIEW],
+    responses=NOT_FOUND_RESPONSE,
+)
+def list_contract_call_visits(contract_id: ContractId, actor: CurrentUserDep, db: DbSession) -> list[AscCallVisit]:
+    return ContractService(db, actor).call_visits(contract_id)
+
+
+@router.put(
+    "/service-contracts/{contractId}/call-visits/{callId}",
+    summary="Record the visits a completed service call took (0 takes it off the ASC's count)",
+    dependencies=[CAN_COUNT_VISITS],
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+)
+def update_contract_call_visits(
+    contract_id: ContractId,
+    call_id: CallId,
+    data: AscCallVisitSet,
+    actor: CurrentUserDep,
+    db: DbSession,
+    row_version: RowVersionDep,
+) -> ServiceContractDetail:
+    return ContractService(db, actor).set_call_visits(contract_id, call_id, row_version, data)
 
 
 def _read_upload(file: UploadFile) -> bytes:

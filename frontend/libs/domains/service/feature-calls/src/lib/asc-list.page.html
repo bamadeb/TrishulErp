@@ -119,6 +119,9 @@
         <th mat-header-cell *matHeaderCellDef>Visits</th>
         <td mat-cell *matCellDef="let a">
           {{ a.visitsUsed }}{{ a.visitsIncluded !== null ? ' / ' + a.visitsIncluded : '' }}
+          @if (a.visitsRemaining !== null) {
+          <div class="muted">{{ a.visitsRemaining }} left</div>
+          }
         </td>
       </ng-container>
 

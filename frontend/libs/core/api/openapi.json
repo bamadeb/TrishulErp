@@ -9210,6 +9210,226 @@
         }
       }
     },
+    "/svc/service-contracts/{contractId}/call-visits": {
+      "get": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Finished service calls under an ASC and the visits counted for each",
+        "operationId": "list_contract_call_visits",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contractId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Contractid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AscCallVisit"
+                  },
+                  "title": "Response List Contract Call Visits"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-contracts/{contractId}/call-visits/{callId}": {
+      "put": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Record the visits a completed service call took (0 takes it off the ASC's count)",
+        "operationId": "update_contract_call_visits",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contractId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Contractid"
+            }
+          },
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AscCallVisitSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceContractDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pre/sales-activities/assigned-to-me": {
       "get": {
         "tags": [
@@ -15666,6 +15886,119 @@
         ],
         "title": "AlertTypeItem",
         "description": "One entry of the alert type catalogue: what a rule can alert on and the settings it takes."
+      },
+      "AscCallVisit": {
+        "properties": {
+          "serviceCallId": {
+            "type": "integer",
+            "title": "Servicecallid"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "currentStatus": {
+            "type": "string",
+            "title": "Currentstatus"
+          },
+          "complaintDescription": {
+            "type": "string",
+            "title": "Complaintdescription"
+          },
+          "engineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineername"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Receivedat"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "visits": {
+            "type": "integer",
+            "title": "Visits"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "countable": {
+            "type": "boolean",
+            "title": "Countable",
+            "description": "False when a counted call was reopened: finish it to change the count."
+          }
+        },
+        "type": "object",
+        "required": [
+          "serviceCallId",
+          "callNo",
+          "currentStatus",
+          "complaintDescription",
+          "engineerName",
+          "receivedAt",
+          "finishedAt",
+          "visits",
+          "remarks",
+          "countable"
+        ],
+        "title": "AscCallVisit",
+        "description": "A finished service call under an ASC and the visits counted for it (0 = not counted yet)."
+      },
+      "AscCallVisitSet": {
+        "properties": {
+          "visits": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Visits",
+            "description": "0 takes the call off the ASC's count."
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "visits"
+        ],
+        "title": "AscCallVisitSet",
+        "description": "The actual visits a completed call took; replaces what was recorded for it."
       },
       "AscImportResult": {
         "properties": {
@@ -23118,6 +23451,18 @@
           "visitsUsed": {
             "type": "integer",
             "title": "Visitsused"
+          },
+          "visitsRemaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visitsremaining",
+            "description": "Visits still available; null when the ASC sets no limit."
           }
         },
         "type": "object",
@@ -23129,7 +23474,8 @@
           "startDate",
           "endDate",
           "visitsIncluded",
-          "visitsUsed"
+          "visitsUsed",
+          "visitsRemaining"
         ],
         "title": "MachineAsc",
         "description": "A machine's ASC as a service call shows it: the one running today, else the next one to start,\nelse the last one that ended. Cancelled contracts are left out."
@@ -26679,6 +27025,18 @@
             "type": "integer",
             "title": "Visitsused"
           },
+          "visitsRemaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visitsremaining",
+            "description": "Visits still available; null when the ASC sets no limit."
+          },
           "contractValue": {
             "anyOf": [
               {
@@ -26842,6 +27200,7 @@
           "endDate",
           "visitsIncluded",
           "visitsUsed",
+          "visitsRemaining",
           "contractValue",
           "isRenewal",
           "engineerName",
@@ -26995,6 +27354,18 @@
             "type": "integer",
             "title": "Visitsused"
           },
+          "visitsRemaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visitsremaining",
+            "description": "Visits still available; null when the ASC sets no limit."
+          },
           "contractValue": {
             "anyOf": [
               {
@@ -27052,6 +27423,7 @@
           "endDate",
           "visitsIncluded",
           "visitsUsed",
+          "visitsRemaining",
           "contractValue",
           "isRenewal",
           "engineerName",

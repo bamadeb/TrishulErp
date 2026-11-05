@@ -65,6 +65,7 @@ import {
   confirmAction,
 } from '@trishul/shared-ui';
 import { AscBadge } from './asc-badge';
+import { AscCallVisits } from './asc-call-visits';
 import { ASC_STATE_SEVERITY } from './asc-list.page';
 
 type MachineValue = MachineUnitOption | string;
@@ -128,6 +129,7 @@ export function amount(value: string | null): number | null {
     PageHeader,
     StatusBadge,
     AscBadge,
+    AscCallVisits,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './asc-form.page.html',
@@ -292,6 +294,14 @@ export class AscFormPage {
         if (current) this.show(saved);
         else void this.router.navigate(['/service/asc', saved.id]);
       });
+  }
+
+  /** Keeps what's being typed in the form, but its visit total and row version must not go stale. */
+  protected onVisitsCounted(updated: ServiceContractDetail): void {
+    this.contract.set(updated);
+    this.form.controls.visitsUsed.reset(updated.visitsUsed, {
+      emitEvent: false,
+    });
   }
 
   protected renew(): void {

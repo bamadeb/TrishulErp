@@ -108,6 +108,7 @@ class ServiceContractListItem(ApiModel):
     end_date: dt.date
     visits_included: int | None
     visits_used: int
+    visits_remaining: int | None = Field(description="Visits still available; null when the ASC sets no limit.")
     contract_value: Decimal | None
     is_renewal: bool
     engineer_name: str | None
@@ -207,6 +208,29 @@ class MachineAsc(ApiModel):
     end_date: dt.date
     visits_included: int | None
     visits_used: int
+    visits_remaining: int | None = Field(description="Visits still available; null when the ASC sets no limit.")
+
+
+class AscCallVisit(ApiModel):
+    """A finished service call under an ASC and the visits counted for it (0 = not counted yet)."""
+
+    service_call_id: int
+    call_no: str
+    current_status: str
+    complaint_description: str
+    engineer_name: str | None
+    received_at: UtcDateTime
+    finished_at: UtcDateTime | None
+    visits: int
+    remarks: str | None
+    countable: bool = Field(description="False when a counted call was reopened: finish it to change the count.")
+
+
+class AscCallVisitSet(InputModel):
+    """The actual visits a completed call took; replaces what was recorded for it."""
+
+    visits: int = Field(ge=0, le=200, description="0 takes the call off the ASC's count.")
+    remarks: str | None = Field(None, max_length=300)
 
 
 # --------------------------------------------------------------------------------------------- import

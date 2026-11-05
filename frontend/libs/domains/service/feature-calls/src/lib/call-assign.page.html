@@ -1,6 +1,6 @@
 <trishul-page-header
   title="Assign engineers"
-  subtitle="Pick a waiting call, compare the engineers for the day, and assign"
+  subtitle="Pick a waiting call, compare the engineers for the day, and assign one or more"
 />
 
 <div class="board">
@@ -49,7 +49,7 @@
           class="call"
           [class.selected]="call.id === selectedId()"
           [attr.aria-pressed]="call.id === selectedId()"
-          (click)="selectedId.set(call.id)"
+          (click)="selectCall(call.id)"
         >
           <span class="call-top">
             <span class="call-no">{{ call.callNo }}</span>
@@ -135,7 +135,7 @@
       Assigning <b>{{ call.callNo }}</b> — {{ call.customerName }}.
       <a [routerLink]="['/service/calls', call.id]" target="_blank">Open call</a>
       } @else {
-      Select a call on the left to assign it.
+      Select a call on the left, then tick who goes.
       }
     </p>
 
@@ -147,10 +147,39 @@
 
     <div class="table-scroll">
       <table mat-table [dataSource]="engineers()">
+        <ng-container matColumnDef="pick">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let e">
+            <mat-checkbox
+              [checked]="isPicked(e)"
+              [disabled]="!selected() || saving() || e.availability === 'On leave'"
+              [attr.aria-label]="'Put ' + e.name + ' on the call'"
+              (change)="toggle(e)"
+            />
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="engineer">
           <th mat-header-cell *matHeaderCellDef>Engineer</th>
           <td mat-cell *matCellDef="let e">
-            <div class="strong">{{ e.name }}</div>
+            <div class="name">
+              <span class="strong">{{ e.name }}</span>
+              @if (isLead(e)) {
+              <span class="lead"><mat-icon inline>star</mat-icon> Lead</span>
+              } @else if (isPicked(e)) {
+              <button
+                mat-icon-button
+                type="button"
+                class="make-lead"
+                [disabled]="saving()"
+                (click)="makeLead(e)"
+                matTooltip="Make lead"
+                [attr.aria-label]="'Make ' + e.name + ' the lead'"
+              >
+                <mat-icon>star_border</mat-icon>
+              </button>
+              }
+            </div>
             <div class="muted">
               {{ e.employeeCode }}
               @if (e.branchName) { · {{ e.branchName }} }
@@ -189,21 +218,6 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="action">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let e">
-            <button
-              mat-flat-button
-              type="button"
-              [disabled]="!selected() || busyId() !== null || e.availability === 'On leave'"
-              [attr.aria-label]="'Assign to ' + e.name"
-              (click)="assign(e)"
-            >
-              Assign
-            </button>
-          </td>
-        </ng-container>
-
         <tr mat-header-row *matHeaderRowDef="engineerColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: engineerColumns"></tr>
         <tr *matNoDataRow>
@@ -215,10 +229,35 @@
       </table>
     </div>
 
+    <div class="assign-bar">
+      <span class="team">
+        @if (team()[0]; as lead) {
+        <b>{{ lead.name }}</b> leads
+        @if (support().length) {
+        · supported by
+        @for (e of support(); track e.id; let last = $last) {
+        {{ e.name }}{{ last ? '' : ', ' }}
+        }
+        }
+        } @else {
+        Nobody ticked yet. The first one ticked leads.
+        }
+      </span>
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="!selected() || !team().length || saving()"
+        (click)="assign()"
+      >
+        Assign{{ team().length > 1 ? ' ' + team().length + ' engineers' : '' }}
+      </button>
+    </div>
+
     <p class="note">
-      The date column counts visits planned for that day. "All open" is every
-      unfinished call the engineer is on. Distance is measured from where they
-      last started a trip, and appears once the site has GPS coordinates.
+      The date column counts visits planned for that day; everyone assigned
+      gets one. "All open" is every unfinished call the engineer is on. Distance
+      is measured from where they last started a trip, and appears once the site
+      has GPS coordinates.
     </p>
   </section>
 </div>

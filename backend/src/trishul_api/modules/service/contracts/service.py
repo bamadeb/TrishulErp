@@ -4,6 +4,10 @@ A contract takes its customer and brand from the machine it covers. Picking a pl
 given: end date (start + the plan's months - 1 day), visits and value (plan price with GST). Two live
 ASCs on one machine may not overlap. Renewing makes a new contract linked to the old one; cancelling
 keeps the record (status Cancelled) so the history stays.
+
+visits_used is the contract's total. It starts from what the register or the form says, and the ASC
+Manager adds to it from completed service calls (svc.contract_visit, one row per call). It never goes
+past visits_included, and a contract with no visits_included has no limit to check.
 """
 
 import calendar
@@ -19,9 +23,25 @@ from trishul_api.auth import CurrentUser, RequestScope
 from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
 from trishul_api.common.numbering import next_document_no
-from trishul_api.db.models import ContractCoverage, ContractPlan, Customer, Principal, ServiceContract
-from trishul_api.modules.service.contracts.repository import ASC, ContractRepository, plan_item, plan_total
+from trishul_api.db.models import (
+    ContractCoverage,
+    ContractPlan,
+    ContractVisit,
+    Customer,
+    Principal,
+    ServiceCall,
+    ServiceContract,
+)
+from trishul_api.modules.service.contracts.repository import (
+    ASC,
+    COUNTABLE_STATUSES,
+    ContractRepository,
+    plan_item,
+    plan_total,
+)
 from trishul_api.modules.service.contracts.schemas import (
+    AscCallVisit,
+    AscCallVisitSet,
     ContractPlanCreate,
     ContractPlanItem,
     ContractPlanUpdate,
@@ -116,6 +136,7 @@ class ContractService:
             created_by_user_id=self._actor.id,
             **{field: getattr(data, field) for field in _CONTRACT_FIELDS},
         )
+        self._check_within_limit(contract)
         self._set_engineer(contract, data.engineer_employee_id)
         self._db.add(contract)
         self._db.flush()
@@ -132,6 +153,7 @@ class ContractService:
         if contract.status == "Cancelled":
             raise ApiError("A cancelled ASC can't be changed.")
         changed = data.model_fields_set
+        visits_before = (contract.visits_used, contract.visits_included)
 
         if "contract_plan_id" in changed:
             plan = self._check_plan(data.contract_plan_id)
@@ -157,6 +179,71 @@ class ContractService:
         for field in _CONTRACT_FIELDS:
             if field in changed and getattr(data, field) is not None:
                 setattr(contract, field, getattr(data, field))
+        # Only a real change is checked: the form sends these with every save.
+        if (contract.visits_used, contract.visits_included) != visits_before:
+            self._check_within_limit(contract)
+            if contract.visits_used < self._repo.visits_counted(contract.id):
+                raise ApiError(
+                    "Service calls already count for more visits than that. Change them in the ASC's call list.",
+                    errors={"visitsUsed": ["Lower than the visits counted from service calls."]},
+                )
+        self._touch(contract)
+        self._db.commit()
+        return self._detail(contract_id)
+
+    def call_visits(self, contract_id: int) -> list[AscCallVisit]:
+        return self._repo.call_visits(self._require(contract_id))
+
+    def set_call_visits(
+        self, contract_id: int, call_id: int, expected_row_version: bytes, data: AscCallVisitSet
+    ) -> ServiceContractDetail:
+        """Record how many visits a completed call took. Only the difference moves the contract's total, so
+        changing a call from 1 to 2 takes one more visit, and 0 gives its visits back."""
+        self._require(contract_id)
+        contract = self._repo.lock(contract_id)
+        check_row_version(contract.row_version, expected_row_version)
+        if contract.status == "Cancelled":
+            raise ApiError("A cancelled ASC can't take visits.")
+        record = self._repo.visit_record(call_id)
+        if record is not None and record.service_contract_id != contract.id:
+            other = self._repo.contract_no(record.service_contract_id)
+            raise ApiError(f"This call's visits are counted on ASC {other}.")
+        # A counted call stays on the ASC even if its machine was changed afterwards.
+        call = self._db.get(ServiceCall, call_id) if record else self._repo.call_under_contract(contract, call_id)
+        if call is None:
+            raise NotFound("That service call isn't under this ASC.")
+        if call.current_status not in COUNTABLE_STATUSES:
+            raise ApiError("Only a completed service call can be counted.")
+
+        change = data.visits - (record.visits if record is not None else 0)
+        if change > 0 and contract.visits_included is not None:
+            left = max(contract.visits_included - contract.visits_used, 0)
+            if change > left:
+                raise ApiError(
+                    f"Only {left} of {contract.visits_included} visits are left on this ASC.",
+                    errors={"visits": [f"At most {left} more."]},
+                )
+        now = _now()
+        if data.visits == 0:
+            if record is not None:
+                self._db.delete(record)
+        elif record is None:
+            self._db.add(
+                ContractVisit(
+                    service_contract_id=contract.id,
+                    service_call_id=call_id,
+                    visits=data.visits,
+                    remarks=data.remarks,
+                    created_at=now,
+                    created_by_user_id=self._actor.id,
+                )
+            )
+        else:
+            record.visits = data.visits
+            record.remarks = data.remarks
+            record.updated_at = now
+            record.updated_by_user_id = self._actor.id
+        contract.visits_used += change
         self._touch(contract)
         self._db.commit()
         return self._detail(contract_id)
@@ -314,6 +401,13 @@ class ContractService:
         if end < start:
             raise ApiError(
                 "The end date is before the start date.", errors={"endDate": ["Must be on or after the start."]}
+            )
+
+    def _check_within_limit(self, contract: ServiceContract) -> None:
+        if contract.visits_included is not None and contract.visits_used > contract.visits_included:
+            raise ApiError(
+                "Visits done can't be more than the visits included.",
+                errors={"visitsUsed": [f"At most {contract.visits_included}."]},
             )
 
     def _check_overlap(self, machine_id: int, start: dt.date, end: dt.date, exclude_id: int | None) -> None:

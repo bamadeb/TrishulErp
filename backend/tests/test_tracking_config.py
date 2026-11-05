@@ -19,7 +19,7 @@ from .sqlite_db import insert_row, sqlite_engine
 URL = "/api/v1/trk/tracking-config"
 PARAMS = f"{URL}/parameters"
 
-# (code, name, type, value, default, unit, min, max, allowed, order) as seeded by migration 0020
+# (code, name, type, value, default, unit, min, max, allowed, order) as seeded by migration 0021
 SEED = [
     ("movingIntervalMs", "Moving interval", "int", "3000", "3000", "ms", 500, 60000, None, 1),
     (

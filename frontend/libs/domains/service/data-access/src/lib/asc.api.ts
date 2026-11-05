@@ -11,15 +11,19 @@ import {
   deactivateContractPlan,
   getServiceContract,
   getServiceContractFormOptions,
+  listContractCallVisits,
   listContractPlans,
   listServiceContracts,
   previewServiceContractImport,
   renewServiceContract,
+  updateContractCallVisits,
   updateContractPlan,
   updateServiceContract,
   withRowVersion,
 } from '@trishul/core-api';
 import {
+  AscCallVisit,
+  AscCallVisitSet,
   AscImportResult,
   AscQuery,
   ContractFormOptions,
@@ -71,6 +75,25 @@ export class AscApi {
 
   cancel(contractId: number): Observable<ServiceContractDetail> {
     return this.api.call(cancelServiceContract, { contractId });
+  }
+
+  /** Finished service calls under the ASC and the visits counted for each. */
+  callVisits(contractId: number): Observable<AscCallVisit[]> {
+    return this.api.call(listContractCallVisits, { contractId });
+  }
+
+  /** Records the actual visits of a completed call (0 takes it off the count). */
+  setCallVisits(
+    contractId: number,
+    callId: number,
+    rowVersion: string,
+    body: AscCallVisitSet,
+  ): Observable<ServiceContractDetail> {
+    return this.api.call(
+      updateContractCallVisits,
+      { contractId, callId, body },
+      withRowVersion(rowVersion),
+    );
   }
 
   /** Active plans of the selected brand and the engineers of a branch. */

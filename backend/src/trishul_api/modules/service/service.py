@@ -164,14 +164,16 @@ class ServiceCallService:
         return self._repo.get_list_item(call_id)
 
     def _plan_visit(self, call: ServiceCall, day: date) -> None:
-        engineer = call.assigned_engineer_id
-        if engineer is None:
+        """Everyone on the call gets the day, so it counts in each engineer's workload."""
+        if call.assigned_engineer_id is None:
             raise ApiError("Assign an engineer before planning a visit.", errors={"engineerId": ["Required."]})
         if day < date.today():
             raise ApiError("A visit can't be planned in the past.", errors={"visitDate": ["Pick today or later."]})
-        if leave_on(self._db, [engineer], day).get(engineer) is False:
-            raise ApiError("That engineer is on leave that day.", errors={"visitDate": ["On approved leave."]})
-        plan_visit(self._db, call, engineer, day, self._actor.id, _now())
+        team = sorted(assignees(self._db, call))
+        if False in leave_on(self._db, team, day).values():
+            raise ApiError("Someone on this call is on leave that day.", errors={"visitDate": ["On approved leave."]})
+        for engineer in team:
+            plan_visit(self._db, call, engineer, day, self._actor.id, _now())
 
     def _link_machine(self, call: ServiceCall, machine_id: int | None) -> None:
         """Put the machine on the call (or take it off), and follow its ASC on the day the call came in."""

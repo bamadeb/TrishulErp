@@ -6,6 +6,8 @@ import { allOf } from '@trishul/shared-util';
 
 // API types come from the generated client; permission codes, filters and labels are added here.
 export type {
+  AscCallVisit,
+  AscCallVisitSet,
   AscImportResult,
   AscImportRow,
   AscImportSummary,
@@ -46,8 +48,9 @@ export const ASC_STATUS_LABELS: Record<AscStatusFilter, string> = {
 };
 
 /**
- * Who may open the ASC screens / change contracts and plans / upload the register.
- * The API checks the same codes: backend/src/trishul_api/modules/service/contracts/router.py.
+ * Who may open the ASC screens / change contracts and plans / upload the register / count visits
+ * from service calls. The API checks the same codes:
+ * backend/src/trishul_api/modules/service/contracts/router.py.
  */
 export const ASC_VIEW_PERMISSIONS = [
   'svc.contract.view',
@@ -55,3 +58,4 @@ export const ASC_VIEW_PERMISSIONS = [
 ] as const;
 export const ASC_MANAGE_PERMISSION = 'svc.contract.manage';
 export const ASC_IMPORT_PERMISSION = 'svc.contract.import';
+export const ASC_VISIT_PERMISSION = 'svc.contract.visit';
