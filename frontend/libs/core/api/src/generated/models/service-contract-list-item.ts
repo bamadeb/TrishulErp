@@ -22,5 +22,10 @@ export interface ServiceContractListItem {
   startDate: string;
   state: 'Active' | 'Upcoming' | 'Expired' | 'Cancelled';
   visitsIncluded: (number | null);
+
+  /**
+   * Visits still available; null when the ASC sets no limit.
+   */
+  visitsRemaining: (number | null);
   visitsUsed: number;
 }

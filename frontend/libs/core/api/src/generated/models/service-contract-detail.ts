@@ -38,5 +38,10 @@ export interface ServiceContractDetail {
   state: 'Active' | 'Upcoming' | 'Expired' | 'Cancelled';
   terms: (string | null);
   visitsIncluded: (number | null);
+
+  /**
+   * Visits still available; null when the ASC sets no limit.
+   */
+  visitsRemaining: (number | null);
   visitsUsed: number;
 }

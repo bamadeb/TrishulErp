@@ -20,15 +20,18 @@ from trishul_api.db.models import (
     Branch,
     ContractCoverage,
     ContractPlan,
+    ContractVisit,
     Customer,
     Designation,
     Employee,
     MachineModel,
     MachineUnit,
     Principal,
+    ServiceCall,
     ServiceContract,
 )
 from trishul_api.modules.service.contracts.schemas import (
+    AscCallVisit,
     ContractEngineerOption,
     ContractPlanItem,
     ContractPlanQuery,
@@ -40,6 +43,8 @@ from trishul_api.modules.service.contracts.schemas import (
 
 ASC = "ASC"
 EXPIRING_DAYS = 30
+COUNTABLE_STATUSES = ("Completed", "Closed")
+"""A service call can be counted as ASC visits once the work is finished."""
 _SERVICE_ENGINEER_DESIGNATION = "SERVICE_ENG"  # as in the service-call engineer picker
 
 _SORT_COLUMNS: SortColumns = {
@@ -59,6 +64,15 @@ def state_expression(today: dt.date) -> ColumnElement[str]:
         (ServiceContract.end_date < today, literal("Expired")),
         else_=literal("Active"),
     )
+
+
+def visits_remaining() -> ColumnElement[int | None]:
+    """Visits still available; never below 0 even if the register brought in more than the limit."""
+    return case(
+        (ServiceContract.visits_included.is_(None), None),
+        (ServiceContract.visits_used >= ServiceContract.visits_included, 0),
+        else_=ServiceContract.visits_included - ServiceContract.visits_used,
+    ).label("visits_remaining")
 
 
 def plan_total(price: Decimal | None, gst_pct: Decimal | None) -> Decimal | None:
@@ -102,6 +116,7 @@ def _list_select(today: dt.date) -> Select[*tuple[Any, ...]]:
             ServiceContract.end_date,
             ServiceContract.visits_included,
             ServiceContract.visits_used,
+            visits_remaining(),
             ServiceContract.contract_value,
             ServiceContract.is_renewal,
             ServiceContract.engineer_name,
@@ -238,6 +253,7 @@ class ContractRepository:
                 ServiceContract.end_date,
                 ServiceContract.visits_included,
                 ServiceContract.visits_used,
+                visits_remaining(),
             )
             .join(ContractCoverage, ContractCoverage.service_contract_id == ServiceContract.id)
             .outerjoin(ContractPlan, ContractPlan.id == ServiceContract.contract_plan_id)
@@ -273,6 +289,92 @@ class ContractRepository:
             .order_by(ServiceContract.end_date.desc())
             .limit(1)
         )
+
+    # ------------------------------------------------------------------ visits counted from service calls
+
+    def lock(self, contract_id: int) -> ServiceContract:
+        """The contract, held until commit so two people counting visits can't pass its limit together."""
+        return self._session.scalars(
+            select(ServiceContract)
+            .where(ServiceContract.id == contract_id)
+            # As in common/numbering.py: the SQL Server dialect ignores .with_for_update().
+            .with_hint(ServiceContract, "WITH (UPDLOCK, ROWLOCK)", "mssql")
+            .execution_options(populate_existing=True)
+        ).one()
+
+    def _under_contract(self, contract: ServiceContract) -> ColumnElement[bool]:
+        """Calls linked to the ASC, and calls on its machine in its period logged before the ASC reached
+        Trishul (a register upload doesn't go back and link them)."""
+        linked = ServiceCall.service_contract_id == contract.id
+        machine_id = self.covered_machine(contract.id)
+        if machine_id is None:
+            return linked
+        return or_(
+            linked,
+            and_(
+                ServiceCall.service_contract_id.is_(None),
+                ServiceCall.machine_unit_id == machine_id,
+                ServiceCall.received_at >= dt.datetime.combine(contract.start_date, dt.time.min),
+                ServiceCall.received_at < dt.datetime.combine(contract.end_date + dt.timedelta(days=1), dt.time.min),
+            ),
+        )
+
+    def call_visits(self, contract: ServiceContract) -> builtins.list[AscCallVisit]:
+        """The finished calls of an ASC, plus any counted call that has since moved on; newest first."""
+        finished_at = func.coalesce(ServiceCall.completed_at, ServiceCall.closed_at)
+        rows = self._session.execute(
+            select(
+                ServiceCall.id.label("service_call_id"),
+                ServiceCall.call_no,
+                ServiceCall.current_status,
+                ServiceCall.complaint_description,
+                func.concat_ws(" ", Employee.first_name, Employee.last_name).label("engineer_name"),
+                ServiceCall.received_at,
+                finished_at.label("finished_at"),
+                func.coalesce(ContractVisit.visits, 0).label("visits"),
+                ContractVisit.remarks,
+            )
+            .outerjoin(Employee, Employee.id == ServiceCall.assigned_engineer_id)
+            .outerjoin(ContractVisit, ContractVisit.service_call_id == ServiceCall.id)
+            .where(
+                ServiceCall.is_active,
+                or_(
+                    ContractVisit.service_contract_id == contract.id,
+                    and_(
+                        ContractVisit.id.is_(None),
+                        ServiceCall.current_status.in_(COUNTABLE_STATUSES),
+                        self._under_contract(contract),
+                    ),
+                ),
+            )
+            .order_by(finished_at.desc(), ServiceCall.id.desc())
+        ).mappings()
+        return [
+            AscCallVisit.model_validate({**row, "countable": row["current_status"] in COUNTABLE_STATUSES})
+            for row in rows
+        ]
+
+    def call_under_contract(self, contract: ServiceContract, call_id: int) -> ServiceCall | None:
+        return self._session.scalars(
+            select(ServiceCall).where(
+                ServiceCall.id == call_id, ServiceCall.is_active, self._under_contract(contract)
+            )
+        ).one_or_none()
+
+    def visit_record(self, call_id: int) -> ContractVisit | None:
+        return self._session.scalar(select(ContractVisit).where(ContractVisit.service_call_id == call_id))
+
+    def visits_counted(self, contract_id: int) -> int:
+        """Of a contract's visits_used, how many came from service calls."""
+        return (
+            self._session.scalar(
+                select(func.sum(ContractVisit.visits)).where(ContractVisit.service_contract_id == contract_id)
+            )
+            or 0
+        )
+
+    def contract_no(self, contract_id: int) -> str | None:
+        return self._session.scalar(select(ServiceContract.contract_no).where(ServiceContract.id == contract_id))
 
     # ------------------------------------------------------------------ plans
 

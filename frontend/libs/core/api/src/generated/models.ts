@@ -13,6 +13,8 @@ export type { AlertRuleTestMatch } from './models/alert-rule-test-match';
 export type { AlertRuleTestResult } from './models/alert-rule-test-result';
 export type { AlertRuleUpdate } from './models/alert-rule-update';
 export type { AlertTypeItem } from './models/alert-type-item';
+export type { AscCallVisit } from './models/asc-call-visit';
+export type { AscCallVisitSet } from './models/asc-call-visit-set';
 export type { AscImportResult } from './models/asc-import-result';
 export type { AscImportRow } from './models/asc-import-row';
 export type { AscImportSummary } from './models/asc-import-summary';

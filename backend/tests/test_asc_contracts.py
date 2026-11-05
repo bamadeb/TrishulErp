@@ -9,13 +9,13 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
-from sqlalchemy import Engine, func, select
+from sqlalchemy import Engine, func, select, update
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import get_current_user, get_db
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import Customer, MachineModel, MachineUnit, ServiceContract
+from trishul_api.db.models import ContractVisit, Customer, MachineModel, MachineUnit, ServiceCall, ServiceContract
 from trishul_api.main import create_app
 from trishul_api.modules.service.contracts.service import add_months, plan_end_date
 
@@ -52,6 +52,7 @@ TABLES = [
     "svc.contract_plan",
     "svc.service_contract",
     "svc.contract_coverage",
+    "svc.contract_visit",
     "svc.sla_rule",
     "svc.sla_event",
     "core.alert_rule",
@@ -128,7 +129,7 @@ def make_client(settings: Settings, db: Engine, permissions: set[str]) -> TestCl
 @pytest.fixture
 def client(settings: Settings, db: Engine) -> Iterator[TestClient]:
     calls = {"svc.call.create", "svc.call.view", "svc.call.assign"}
-    with make_client(settings, db, MANAGE | calls) as test_client:
+    with make_client(settings, db, MANAGE | calls | {"svc.contract.visit"}) as test_client:
         yield test_client
 
 
@@ -242,9 +243,177 @@ def test_viewing_needs_permission_and_managing_needs_manage(settings: Settings, 
         assert viewer.post(f"{URL}/import/preview", files={"file": ("a.xlsx", b"x")}).status_code == 403
 
 
+# --------------------------------------------------------------------------------------- visit counting
+
+
+def log_call(client: TestClient) -> int:
+    """A service call on the ASC machine."""
+    created = client.post("/api/v1/svc/service-calls", json={
+        "customerId": CUSTOMER_ID, "principalId": PRINCIPAL, "machineUnitId": MACHINE_ID,
+        "callTypeLookupId": 21, "callSourceLookupId": 11, "complaintDescription": "Hydraulic leak",
+        "callerPhone": "9876543210",
+    })
+    assert created.status_code == 201, created.text
+    return created.json()["id"]
+
+
+def set_call(db: Engine, call_id: int, status: str, **columns: Any) -> None:
+    with Session(db) as s:
+        s.execute(update(ServiceCall).where(ServiceCall.id == call_id).values(current_status=status, **columns))
+        s.commit()
+
+
+def completed_call(client: TestClient, db: Engine) -> int:
+    call_id = log_call(client)
+    set_call(db, call_id, "Completed", completed_at=dt.datetime.now())
+    return call_id
+
+
+def count_visits(client: TestClient, contract_id: int, call_id: int, visits: int, **fields: Any) -> Any:
+    version = client.get(f"{URL}/{contract_id}").json()["rowVersion"]
+    return client.put(
+        f"{URL}/{contract_id}/call-visits/{call_id}", json={"visits": visits} | fields, headers={"If-Match": version}
+    )
+
+
+def test_two_visits_on_one_call_take_two_off_the_contract(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    assert (asc["visitsUsed"], asc["visitsRemaining"]) == (0, 6)
+    call_id = completed_call(client, db)
+
+    listed = client.get(f"{URL}/{asc['id']}/call-visits").json()
+    assert [(c["serviceCallId"], c["visits"], c["countable"]) for c in listed] == [(call_id, 0, True)]
+
+    counted = count_visits(client, asc["id"], call_id, 2, remarks="Second trip for the seal kit")
+    assert counted.status_code == 200, counted.text
+    assert (counted.json()["visitsUsed"], counted.json()["visitsRemaining"]) == (2, 4)
+    assert client.get(f"{URL}/{asc['id']}/call-visits").json()[0]["remarks"] == "Second trip for the seal kit"
+    assert client.get(URL).json()["items"][0]["visitsRemaining"] == 4
+
+
+def test_changing_a_count_moves_the_total_by_the_difference(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    call_id = completed_call(client, db)
+    assert count_visits(client, asc["id"], call_id, 1).json()["visitsUsed"] == 1
+    assert count_visits(client, asc["id"], call_id, 3).json()["visitsUsed"] == 3
+    assert count_visits(client, asc["id"], call_id, 2).json()["visitsUsed"] == 2
+    removed = count_visits(client, asc["id"], call_id, 0).json()
+    assert (removed["visitsUsed"], removed["visitsRemaining"]) == (0, 6)
+    assert count(db, ContractVisit) == 0
+    assert client.get(f"{URL}/{asc['id']}/call-visits").json()[0]["visits"] == 0  # can be counted again
+
+
+def test_visits_on_top_of_the_register_count_cannot_pass_the_limit(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client, visitsUsed=4).json()  # 4 of 6 done before Trishul
+    first, second = completed_call(client, db), completed_call(client, db)
+    assert count_visits(client, asc["id"], first, 2).json()["visitsRemaining"] == 0
+    refused = count_visits(client, asc["id"], second, 1)
+    assert refused.status_code == 400
+    assert refused.json()["detail"] == "Only 0 of 6 visits are left on this ASC."
+    too_many = count_visits(client, asc["id"], first, 3)  # +1 on the same call
+    assert too_many.status_code == 400
+    assert client.get(f"{URL}/{asc['id']}").json()["visitsUsed"] == 6
+    assert count_visits(client, asc["id"], first, 1).json()["visitsRemaining"] == 1  # lowering always works
+    assert count_visits(client, asc["id"], second, 1).json()["visitsUsed"] == 6
+
+
+def test_counting_from_a_stale_page_is_refused(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    url = f"{URL}/{asc['id']}/call-visits/{completed_call(client, db)}"
+    assert client.put(url, json={"visits": 1}).status_code == 428  # If-Match required
+    assert client.put(url, json={"visits": 1}, headers={"If-Match": '"AAAAAAAAAAA="'}).status_code == 409
+    assert client.get(f"{URL}/{asc['id']}").json()["visitsUsed"] == 0
+
+
+def test_an_asc_with_no_visit_limit_shows_none_remaining_and_takes_visits(client: TestClient, db: Engine) -> None:
+    asc = client.post(URL, json={"machineUnitId": MACHINE_ID, "startDate": str(TODAY),
+                                 "endDate": str(TODAY + dt.timedelta(days=90))}).json()
+    assert asc["visitsRemaining"] is None
+    counted = count_visits(client, asc["id"], completed_call(client, db), 5).json()
+    assert (counted["visitsUsed"], counted["visitsRemaining"]) == (5, None)
+
+
+def test_only_a_completed_or_closed_call_counts(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    open_call = log_call(client)
+    assert client.get(f"{URL}/{asc['id']}/call-visits").json() == []
+    assert count_visits(client, asc["id"], open_call, 1).status_code == 400
+    set_call(db, open_call, "Closed", closed_at=dt.datetime.now())
+    assert count_visits(client, asc["id"], open_call, 1).status_code == 200
+
+
+def test_a_reopened_call_keeps_its_count_but_cannot_change_until_finished(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    call_id = completed_call(client, db)
+    count_visits(client, asc["id"], call_id, 1)
+    set_call(db, call_id, "Reopened")
+    listed = client.get(f"{URL}/{asc['id']}/call-visits").json()
+    assert (listed[0]["visits"], listed[0]["countable"]) == (1, False)
+    assert count_visits(client, asc["id"], call_id, 2).status_code == 400
+    set_call(db, call_id, "Completed")
+    assert count_visits(client, asc["id"], call_id, 2).json()["visitsUsed"] == 2
+
+
+def test_a_call_logged_before_the_asc_reached_trishul_can_be_counted(client: TestClient, db: Engine) -> None:
+    call_id = completed_call(client, db)  # no ASC yet, so the call isn't linked to one
+    asc = add_asc(client).json()
+    assert [c["serviceCallId"] for c in client.get(f"{URL}/{asc['id']}/call-visits").json()] == [call_id]
+    assert count_visits(client, asc["id"], call_id, 1).json()["visitsUsed"] == 1
+
+
+def test_a_call_outside_the_contract_is_refused(client: TestClient, db: Engine) -> None:
+    call_id = completed_call(client, db)  # logged today
+    asc = add_asc(client, startDate=str(TODAY + dt.timedelta(days=30))).json()
+    assert client.get(f"{URL}/{asc['id']}/call-visits").json() == []
+    assert count_visits(client, asc["id"], call_id, 1).status_code == 404
+
+
+def test_a_cancelled_asc_takes_no_visits(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    call_id = completed_call(client, db)
+    client.post(f"{URL}/{asc['id']}/cancel")
+    assert count_visits(client, asc["id"], call_id, 1).status_code == 400
+
+
+def test_the_form_cannot_pass_the_limit_or_drop_below_counted_visits(client: TestClient, db: Engine) -> None:
+    assert add_asc(client, visitsUsed=7).status_code == 400  # plan gives 6
+    asc = add_asc(client, visitsUsed=1).json()
+    count_visits(client, asc["id"], completed_call(client, db), 2)
+    fresh = client.get(f"{URL}/{asc['id']}").json()
+    headers = {"If-Match": fresh["rowVersion"]}
+    assert client.patch(f"{URL}/{asc['id']}", json={"visitsUsed": 7}, headers=headers).status_code == 400
+    assert client.patch(f"{URL}/{asc['id']}", json={"visitsIncluded": 2}, headers=headers).status_code == 400
+    assert client.patch(f"{URL}/{asc['id']}", json={"visitsUsed": 1}, headers=headers).status_code == 400
+    saved = client.patch(f"{URL}/{asc['id']}", json={"visitsUsed": 3, "bookNo": "B1"}, headers=headers)
+    assert saved.status_code == 200, saved.text  # the form sends visits unchanged with every save
+
+
+def test_register_upload_leaves_the_total_of_a_contract_with_counted_visits(client: TestClient, db: Engine) -> None:
+    upload(client, "import", register(register_rows()))
+    with Session(db) as s:
+        contract_id = s.scalars(select(ServiceContract.id).where(ServiceContract.customer_id == CUSTOMER_ID)).one()
+    assert count_visits(client, contract_id, completed_call(client, db), 1).json()["visitsUsed"] == 3  # register: 2
+
+    again = upload(client, "import", register(register_rows()))
+    row = next(r for r in again.json()["rows"] if r["serialNumber"] == "S200-54828")
+    assert any("Visit Done ignored" in m for m in row["messages"])
+    assert client.get(f"{URL}/{contract_id}").json()["visitsUsed"] == 3
+
+
+def test_counting_needs_its_own_permission(settings: Settings, db: Engine, client: TestClient) -> None:
+    asc = add_asc(client).json()
+    call_id = completed_call(client, db)
+    with make_client(settings, db, MANAGE) as manager, make_client(
+        settings, db, {"svc.contract.view", "svc.contract.visit"}
+    ) as asc_manager:
+        assert manager.get(f"{URL}/{asc['id']}/call-visits").status_code == 200
+        assert count_visits(manager, asc["id"], call_id, 1).status_code == 403
+        assert count_visits(asc_manager, asc["id"], call_id, 1).status_code == 200
+
+
 # ------------------------------------------------------------------------------------------- import
 
-REGISTER_HEADERS = ["Branch", "SE", "Dealer", "Customer", "Cust Code", "Cust Contact no", "Cust.Type", "Model",
+REGISTER_HEADERS =["Branch", "SE", "Dealer", "Customer", "Cust Code", "Cust Contact no", "Cust.Type", "Model",
                     "M/C Sl No", "DOC", "Cont. Amt.", "MR No.", "Invoice/Date", "Book No", "Enrol ID/Contract ID",
                     "Renew or New", "Start Date", "Exp- Date", "12Month/6Month", "Visit Done", "Visit Due"]
 

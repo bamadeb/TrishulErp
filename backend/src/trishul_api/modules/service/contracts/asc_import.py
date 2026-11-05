@@ -10,6 +10,9 @@ those contracts instead of adding them again. A machine not in Trishul is create
 (matched on the OEM customer code, then on the name) and its model (matched on the model code, e.g.
 "EX-210SP" = "EX-210 SUPER+"; a model not in the master is added). Preview runs the same steps without
 writing anything.
+
+Once the ASC Manager has counted visits from service calls on a contract, Trishul holds its visit total:
+the register's "Visit Done" no longer overwrites it.
 """
 
 from __future__ import annotations
@@ -34,6 +37,7 @@ from trishul_api.db.models import (
     Branch,
     ContractCoverage,
     ContractPlan,
+    ContractVisit,
     Customer,
     Employee,
     MachineModel,
@@ -337,6 +341,7 @@ class _Context:
     customers_by_name: dict[str, int | None] = field(default_factory=dict)
     contracts: dict[tuple[int, dt.date], ServiceContract | None] = field(default_factory=dict)
     machine_contracts: dict[int, list[tuple[dt.date, dt.date, int | None]]] = field(default_factory=dict)
+    counted_contracts: set[int] = field(default_factory=set)  # with visits counted from service calls
     marked_customers: set[int] = field(default_factory=set)
     next_placeholder: int = -1
 
@@ -433,6 +438,10 @@ class AscImportService:
             out.action = "update"
             if contract is not None:
                 out.contract_id, out.contract_no = contract.id, contract.contract_no
+                if contract.id in ctx.counted_contracts and row.visits_used not in (0, contract.visits_used):
+                    out.messages.append(
+                        f"Visit Done ignored: Trishul counts {contract.visits_used} visits from service calls."
+                    )
                 if ctx.apply:
                     self._fill(contract, row, ctx, end, branch_id)
         else:
@@ -607,7 +616,7 @@ class AscImportService:
         contract.branch_id = branch_id
         if row.visits_included is not None:
             contract.visits_included = row.visits_included
-        if new or row.visits_used:
+        if new or (row.visits_used and contract.id not in ctx.counted_contracts):
             contract.visits_used = row.visits_used
         if row.amount is not None:
             contract.contract_value = row.amount
@@ -700,6 +709,7 @@ class AscImportService:
                 ctx.machine_contracts.setdefault(machine_id, []).append(
                     (contract.start_date, contract.end_date, contract.id)
                 )
+        ctx.counted_contracts.update(db.scalars(select(ContractVisit.service_contract_id).distinct()))
         return ctx
 
     def _principal(self, principal_id: int | None) -> Principal:

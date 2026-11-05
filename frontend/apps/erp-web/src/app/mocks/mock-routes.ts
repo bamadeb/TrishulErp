@@ -70,6 +70,7 @@ const MOCK_MACHINES: MachineUnitOption[] = [
       endDate: '2027-03-31',
       visitsIncluded: 12,
       visitsUsed: 5,
+      visitsRemaining: 7,
     },
   },
   { id: 2, serialNumber: 'THB700456', modelName: 'SHINRAI BX80', customerName: 'Deccan Fabricators', asc: null },

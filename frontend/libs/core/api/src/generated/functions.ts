@@ -187,6 +187,10 @@ export type { RenewServiceContract$Params as RenewServiceContract$Params } from 
 export { renewServiceContract as renewServiceContract } from './fn/contracts/renew-service-contract';
 export type { CancelServiceContract$Params as CancelServiceContract$Params } from './fn/contracts/cancel-service-contract';
 export { cancelServiceContract as cancelServiceContract } from './fn/contracts/cancel-service-contract';
+export type { ListContractCallVisits$Params as ListContractCallVisits$Params } from './fn/contracts/list-contract-call-visits';
+export { listContractCallVisits as listContractCallVisits } from './fn/contracts/list-contract-call-visits';
+export type { UpdateContractCallVisits$Params as UpdateContractCallVisits$Params } from './fn/contracts/update-contract-call-visits';
+export { updateContractCallVisits as updateContractCallVisits } from './fn/contracts/update-contract-call-visits';
 export type { ListAssignedSalesActivities$Params as ListAssignedSalesActivities$Params } from './fn/presales/list-assigned-sales-activities';
 export { listAssignedSalesActivities as listAssignedSalesActivities } from './fn/presales/list-assigned-sales-activities';
 export type { ListOrganizationDepartments$Params as ListOrganizationDepartments$Params } from './fn/organization/list-organization-departments';
