@@ -5,9 +5,12 @@ import {
   CallStatusLogItem,
   CustomerListItem,
   EngineerOption,
+  EngineerWorkload,
+  ListUnassignedServiceCalls$Params,
   LookupValueOut,
   MachineUnitOption,
   PageServiceCallListItem,
+  PageUnassignedCallItem,
   ServiceCallCreate,
   ServiceCallDetail,
   ServiceCallListItem,
@@ -19,9 +22,11 @@ import {
   listCallStatusHistory,
   listCustomers,
   listEngineerOptions,
+  listEngineerWorkload,
   listLookupValues,
   listMachineOptions,
   listServiceCalls,
+  listUnassignedServiceCalls,
   updateServiceCallTriage,
   withRowVersion,
 } from '@trishul/core-api';
@@ -87,6 +92,21 @@ export class ServiceCallApi {
   }
 
   /** Team-lead triage: reassign and/or re-prioritise. rowVersion guards against a stale change (409). */
+  /** Calls waiting for an engineer, most urgent first. */
+  unassigned(
+    query: ListUnassignedServiceCalls$Params,
+  ): Observable<PageUnassignedCallItem> {
+    return this.api.call(listUnassignedServiceCalls, query);
+  }
+
+  /** Each engineer's availability and calls on a day (yyyy-mm-dd), best choice first. */
+  engineerWorkload(
+    onDate: string,
+    callId?: number,
+  ): Observable<EngineerWorkload[]> {
+    return this.api.call(listEngineerWorkload, { onDate, callId });
+  }
+
   updateTriage(
     callId: number,
     rowVersion: string,

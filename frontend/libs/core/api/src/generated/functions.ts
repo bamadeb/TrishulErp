@@ -125,6 +125,10 @@ export type { ListMachineOptions$Params as ListMachineOptions$Params } from './f
 export { listMachineOptions as listMachineOptions } from './fn/service/list-machine-options';
 export type { ListEngineerOptions$Params as ListEngineerOptions$Params } from './fn/service/list-engineer-options';
 export { listEngineerOptions as listEngineerOptions } from './fn/service/list-engineer-options';
+export type { ListUnassignedServiceCalls$Params as ListUnassignedServiceCalls$Params } from './fn/service/list-unassigned-service-calls';
+export { listUnassignedServiceCalls as listUnassignedServiceCalls } from './fn/service/list-unassigned-service-calls';
+export type { ListEngineerWorkload$Params as ListEngineerWorkload$Params } from './fn/service/list-engineer-workload';
+export { listEngineerWorkload as listEngineerWorkload } from './fn/service/list-engineer-workload';
 export type { ListAssignedServiceCalls$Params as ListAssignedServiceCalls$Params } from './fn/service/list-assigned-service-calls';
 export { listAssignedServiceCalls as listAssignedServiceCalls } from './fn/service/list-assigned-service-calls';
 export type { ListServiceCallTrips$Params as ListServiceCallTrips$Params } from './fn/service/list-service-call-trips';

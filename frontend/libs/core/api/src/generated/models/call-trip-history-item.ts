@@ -17,6 +17,10 @@ export interface CallTripHistoryItem {
   durationMinutes: (number | null);
   effectiveDistanceKm: (number | null);
   endAt: (string | null);
+
+  /**
+   * Phone battery on the latest GPS fix (final one once stopped).
+   */
   endBatteryPct: (number | null);
   endLatitude: (number | null);
   endLongitude: (number | null);
@@ -26,11 +30,19 @@ export interface CallTripHistoryItem {
   id: number;
   isDistanceAdjusted: boolean;
   lastGpsAt: (string | null);
+
+  /**
+   * Latest recorded GPS fix of the trip, if any.
+   */
   lastLatitude: (number | null);
   lastLongitude: (number | null);
   mapDistanceKm: (number | null);
   rowVersion: string;
   startAt: string;
+
+  /**
+   * Phone battery on the first GPS fix of the trip.
+   */
   startBatteryPct: (number | null);
   startLatitude: number;
   startLongitude: number;

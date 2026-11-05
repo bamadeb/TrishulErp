@@ -30,6 +30,8 @@ from trishul_api.modules.service.schemas import (
     CallStatusLogItem,
     EngineerOption,
     EngineerOptionQuery,
+    EngineerWorkload,
+    EngineerWorkloadQuery,
     MachineOptionQuery,
     MachineUnitOption,
     ServiceCallCreate,
@@ -38,8 +40,11 @@ from trishul_api.modules.service.schemas import (
     ServiceCallQuery,
     ServiceCallStatusChange,
     ServiceCallTriageUpdate,
+    UnassignedCallItem,
+    UnassignedCallQuery,
 )
 from trishul_api.modules.service.service import ServiceCallService
+from trishul_api.modules.service.workload import engineer_workload
 from trishul_api.modules.trk.schemas import CallTripHistoryItem
 from trishul_api.modules.trk.service import TripService
 
@@ -161,6 +166,36 @@ def list_engineer_options(
     repo: ServiceCallRepo,
 ) -> list[EngineerOption]:
     return repo.engineer_options(scope, query, call_visibility(actor, repo.team_members))
+
+
+@router.get(
+    "/service-calls/unassigned",
+    summary="Calls waiting for an engineer, most urgent first, with their warranty / ASC cover",
+    dependencies=[CAN_ASSIGN],
+)
+def list_unassigned_service_calls(
+    query: Annotated[UnassignedCallQuery, Query()],
+    actor: CurrentUserDep,
+    scope: ScopeDep,
+    repo: ServiceCallRepo,
+) -> Page[UnassignedCallItem]:
+    return repo.list_unassigned(scope, query, call_visibility(actor, repo.team_members))
+
+
+@router.get(
+    "/service-calls/engineer-workload",
+    summary="Each engineer's availability and calls on a date, best choice first",
+    dependencies=[CAN_ASSIGN],
+    responses=NOT_FOUND_RESPONSE,
+)
+def list_engineer_workload(
+    query: Annotated[EngineerWorkloadQuery, Query()],
+    actor: CurrentUserDep,
+    scope: ScopeDep,
+    db: DbSession,
+    repo: ServiceCallRepo,
+) -> list[EngineerWorkload]:
+    return engineer_workload(db, scope, query, call_visibility(actor, repo.team_members))
 
 
 @router.get(

@@ -3,7 +3,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import ColumnElement, Select, case, exists, false, func, or_, select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import InstrumentedAttribute, Session, aliased
 
 from trishul_api.auth import RequestScope
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
@@ -28,13 +28,14 @@ from trishul_api.db.models import (
     TrkTrip,
 )
 from trishul_api.modules.core.teams.repository import current_member
-from trishul_api.modules.service.access import CallVisibility
+from trishul_api.modules.service.access import FINISHED_STATUSES, CallVisibility
 from trishul_api.modules.service.assignment import support_engineers, supports_call
 from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.trk.constants import IN_PROGRESS as TRIP_IN_PROGRESS
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
+    CallCover,
     CallStatusLogItem,
     EngineerOption,
     EngineerOptionQuery,
@@ -43,6 +44,8 @@ from trishul_api.modules.service.schemas import (
     ServiceCallDetail,
     ServiceCallListItem,
     ServiceCallQuery,
+    UnassignedCallItem,
+    UnassignedCallQuery,
 )
 
 # Calls the engineer no longer needs to travel to: hidden unless the client asks for them by status.
@@ -51,6 +54,7 @@ _CLOSED_STATUSES = ("Closed", "Cancelled")
 # A call is assigned to a Service Engineer, so the assign picker lists only employees with that
 # designation (hr.designation code), not every employee of the branch.
 _SERVICE_ENGINEER_DESIGNATION = "SERVICE_ENG"
+_ENGINEER_NAME = func.concat_ws(" ", Employee.first_name, Employee.last_name)
 
 
 def _visible(visibility: CallVisibility) -> ColumnElement[bool]:
@@ -99,6 +103,24 @@ _SORT_COLUMNS: SortColumns = {
     "priority": _PRIORITY_RANK,
     "slaDueAt": ServiceCall.sla_due_at,
 }
+
+
+def _cover(item: UnassignedCallItem, under_asc_today: bool) -> CallCover:
+    """Who pays. The ASC and warranty come from the machine too: older calls never had them worked out."""
+    under_asc = under_asc_today or item.is_asc_priority or item.coverage_type == "Contract"
+    warranty_end = item.machine_warranty_end_date
+    under_warranty = item.coverage_type == "Warranty" or (
+        warranty_end is not None and warranty_end >= item.received_at.date()
+    )
+    if under_asc and under_warranty:
+        return "ASC + Warranty"
+    if under_asc:
+        return "ASC"
+    if under_warranty:
+        return "Warranty"
+    if item.coverage_type == "Chargeable" or item.coverage_type == "Goodwill":
+        return item.coverage_type
+    return "Unknown" if item.machine_unit_id is None else "Not covered"
 
 
 class ServiceCallRepository:
@@ -260,14 +282,12 @@ class ServiceCallRepository:
             option.asc = asc.get(option.id)
         return options
 
-    def engineer_options(
-        self, scope: RequestScope, query: EngineerOptionQuery, visibility: CallVisibility
-    ) -> builtins.list[EngineerOption]:
+    @staticmethod
+    def engineers_statement(scope: RequestScope, visibility: CallVisibility) -> Select[*tuple[Any, ...]]:
         """Engineers a team lead can assign a call to: active Service Engineers of the selected branch,
         and only their own team's when they see just their team's calls."""
-        name = func.concat_ws(" ", Employee.first_name, Employee.last_name)
         statement = (
-            select(Employee.id, name.label("name"), Employee.employee_code)
+            select(Employee.id, _ENGINEER_NAME.label("name"), Employee.employee_code)
             .join(Designation, Designation.id == Employee.designation_id)
             .where(Employee.is_active, Designation.code == _SERVICE_ENGINEER_DESIGNATION)
         )
@@ -275,6 +295,17 @@ class ServiceCallRepository:
             statement = statement.where(Employee.id.in_(visibility.engineer_ids or [0]))
         if scope.branch_id is not None:
             statement = statement.where(Employee.branch_id == scope.branch_id)
+        return statement
+
+    @staticmethod
+    def engineer_branch() -> InstrumentedAttribute[int]:
+        return Employee.branch_id
+
+    def engineer_options(
+        self, scope: RequestScope, query: EngineerOptionQuery, visibility: CallVisibility
+    ) -> builtins.list[EngineerOption]:
+        name = _ENGINEER_NAME
+        statement = self.engineers_statement(scope, visibility)
         if query.search:
             term = query.search.strip()
             statement = statement.where(
@@ -292,7 +323,9 @@ class ServiceCallRepository:
                 ServiceCall.call_no,
                 ServiceCall.received_at,
                 Principal.code.label("principal_code"),
+                ServiceCall.customer_id,
                 Customer.name.label("customer_name"),
+                ServiceCall.machine_unit_id,
                 MachineUnit.serial_number.label("machine_serial_no"),
                 MachineModel.model_name.label("machine_model"),
                 ServiceCall.complaint_description,
@@ -347,6 +380,79 @@ class ServiceCallRepository:
 
         return order_by_sort(
             statement, query.sort, _SORT_COLUMNS, default="-receivedAt", tiebreaker=ServiceCall.id.desc()
+        )
+
+    def list_unassigned(
+        self, scope: RequestScope, query: UnassignedCallQuery, visibility: CallVisibility
+    ) -> Page[UnassignedCallItem]:
+        page = paginate(self._session, self.unassigned_statement(scope, query, visibility), query, UnassignedCallItem)
+        machines = [item.machine_unit_id for item in page.items if item.machine_unit_id is not None]
+        asc = ContractRepository(self._session).machine_asc(machines, date.today())
+        for item in page.items:
+            contract = asc.get(item.machine_unit_id) if item.machine_unit_id is not None else None
+            item.cover = _cover(item, contract is not None and contract.state == "Active")
+        return page
+
+    @staticmethod
+    def unassigned_statement(
+        scope: RequestScope, query: UnassignedCallQuery, visibility: CallVisibility
+    ) -> Select[*tuple[Any, ...]]:
+        # The call's own site, or else where its machine is kept.
+        site = func.coalesce(ServiceCall.customer_site_id, MachineUnit.customer_site_id)
+        statement = (
+            select(
+                ServiceCall.id,
+                ServiceCall.call_no,
+                ServiceCall.received_at,
+                Principal.code.label("principal_code"),
+                Branch.name.label("branch_name"),
+                Customer.name.label("customer_name"),
+                func.coalesce(CustomerSite.address, Customer.billing_address).label("location"),
+                ServiceCall.machine_unit_id,
+                MachineUnit.serial_number.label("machine_serial_no"),
+                MachineModel.model_name.label("machine_model"),
+                MachineUnit.warranty_end_date.label("machine_warranty_end_date"),
+                ServiceCall.complaint_description,
+                ServiceCall.priority,
+                ServiceCall.is_machine_down,
+                ServiceCall.is_asc_priority,
+                ServiceCall.coverage_type,
+                ServiceCall.sla_due_at,
+                ServiceCall.row_version,
+            )
+            .join(Customer, Customer.id == ServiceCall.customer_id)
+            .join(Principal, Principal.id == ServiceCall.principal_id)
+            .outerjoin(Branch, Branch.id == ServiceCall.branch_id)
+            .outerjoin(MachineUnit, MachineUnit.id == ServiceCall.machine_unit_id)
+            .outerjoin(MachineModel, MachineModel.id == MachineUnit.model_id)
+            .outerjoin(CustomerSite, CustomerSite.id == site)
+            .where(
+                ServiceCall.is_active,
+                ServiceCall.assigned_engineer_id.is_(None),
+                ServiceCall.current_status.notin_(sorted(FINISHED_STATUSES)),
+            )
+        )
+        if not (visibility.everything or visibility.unassigned):
+            statement = statement.where(false())
+        if scope.branch_id is not None:
+            statement = statement.where(ServiceCall.branch_id == scope.branch_id)
+        if scope.principal_id is not None:
+            statement = statement.where(ServiceCall.principal_id == scope.principal_id)
+        if query.priority:
+            statement = statement.where(ServiceCall.priority.in_(query.priority))
+        if query.search:
+            term = query.search.strip()
+            statement = statement.where(
+                or_(
+                    ServiceCall.call_no.contains(term, autoescape=True),
+                    ServiceCall.oem_call_id.contains(term, autoescape=True),
+                    Customer.name.contains(term, autoescape=True),
+                    MachineUnit.serial_number.contains(term, autoescape=True),
+                )
+            )
+        # What needs attending first, then the longest waiting.
+        return statement.order_by(
+            _PRIORITY_RANK, ServiceCall.is_machine_down.desc(), ServiceCall.is_asc_priority.desc(), ServiceCall.id
         )
 
     def list_assigned(

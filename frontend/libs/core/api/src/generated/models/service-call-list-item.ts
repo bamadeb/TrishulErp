@@ -17,6 +17,7 @@ export interface ServiceCallListItem {
   complaintDescription: string;
   coverageType: ('Warranty' | 'Contract' | 'Chargeable' | 'Goodwill' | null);
   currentStatus: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
+  customerId: number;
   customerName: string;
   id: number;
   isAscPriority: boolean;
@@ -25,9 +26,10 @@ export interface ServiceCallListItem {
   /**
    * A trip of this call has been started and not yet stopped.
    */
-  isTripOngoing?: boolean;
+  isTripOngoing: boolean;
   machineModel: (string | null);
   machineSerialNo: (string | null);
+  machineUnitId: (number | null);
   oemCallId: (string | null);
   principalCode: string;
   priority: 'Critical' | 'High' | 'Normal' | 'Low';

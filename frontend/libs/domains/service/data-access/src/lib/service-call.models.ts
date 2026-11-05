@@ -1,6 +1,8 @@
 import {
+  EngineerWorkload,
   ListServiceCalls$Params,
   ServiceCallListItem,
+  UnassignedCallItem,
 } from '@trishul/core-api';
 import { allOf } from '@trishul/shared-util';
 
@@ -14,11 +16,15 @@ export type {
   CallStatusLogItem,
   MachineUnitOption,
   EngineerOption,
+  EngineerWorkload,
+  UnassignedCallItem,
   CustomerListItem,
   LookupValueOut,
 } from '@trishul/core-api';
 export type CallStatus = ServiceCallListItem['currentStatus'];
 export type CallPriority = ServiceCallListItem['priority'];
+export type CallCover = UnassignedCallItem['cover'];
+export type EngineerAvailability = EngineerWorkload['availability'];
 
 /** Log a new call / open the register. The API checks the same code. */
 export const SERVICE_CALL_CREATE_PERMISSION = 'svc.call.create';

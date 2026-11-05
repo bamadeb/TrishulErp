@@ -1,0 +1,224 @@
+<trishul-page-header
+  title="Assign engineers"
+  subtitle="Pick a waiting call, compare the engineers for the day, and assign"
+/>
+
+<div class="board">
+  <section class="panel" aria-label="Unassigned service calls">
+    <header class="panel-head">
+      <h2>Waiting for an engineer</h2>
+      <span class="count">{{ callsPage().total }}</span>
+    </header>
+
+    <div class="filters">
+      <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          type="search"
+          placeholder="Call no, customer, machine, OEM ID"
+          aria-label="Search unassigned calls"
+          (input)="onSearch($any($event.target).value)"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Priority</mat-label>
+        <mat-select
+          multiple
+          [value]="query().priority"
+          (valueChange)="onPriority($event)"
+        >
+          @for (priority of priorities; track priority) {
+          <mat-option [value]="priority">{{ priority }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="progress">
+      @if (loadingCalls()) {
+      <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+
+    <ul class="calls">
+      @for (call of callsPage().items; track call.id) {
+      <li>
+        <button
+          type="button"
+          class="call"
+          [class.selected]="call.id === selectedId()"
+          [attr.aria-pressed]="call.id === selectedId()"
+          (click)="selectedId.set(call.id)"
+        >
+          <span class="call-top">
+            <span class="call-no">{{ call.callNo }}</span>
+            <trishul-status-badge
+              [status]="call.priority"
+              [severities]="prioritySeverity"
+            />
+            <trishul-status-badge
+              [status]="call.cover"
+              [severities]="coverSeverity"
+            />
+            @if (call.isMachineDown) {
+            <span class="down">
+              <mat-icon>warning</mat-icon>
+              Machine down
+            </span>
+            }
+          </span>
+          <span class="customer">{{ call.customerName }}</span>
+          <span class="muted line">
+            <mat-icon>location_on</mat-icon>
+            {{ call.location ?? 'No location recorded' }}
+          </span>
+          <span class="muted line">
+            <mat-icon>precision_manufacturing</mat-icon>
+            @if (call.machineSerialNo) {
+            {{ call.machineModel }} · {{ call.machineSerialNo }}
+            @if (call.machineWarrantyEndDate) {
+            · warranty till {{ call.machineWarrantyEndDate | date: 'dd MMM yyyy' }}
+            }
+            } @else {
+            No machine linked
+            }
+          </span>
+          <span class="complaint">{{ call.complaintDescription }}</span>
+          <span class="muted">
+            Received {{ call.receivedAt | date: 'dd MMM, HH:mm' }}
+            @if (call.branchName) { · {{ call.branchName }} }
+            @if (call.slaDueAt) {
+            · <span [class.breached]="isBreached(call)">
+              SLA {{ call.slaDueAt | date: 'dd MMM, HH:mm' }}
+            </span>
+            }
+          </span>
+        </button>
+      </li>
+      } @empty {
+      @if (!loadingCalls()) {
+      <li class="empty">No calls are waiting for an engineer.</li>
+      }
+      }
+    </ul>
+
+    <mat-paginator
+      [length]="callsPage().total"
+      [pageIndex]="query().page - 1"
+      [pageSize]="query().pageSize"
+      [pageSizeOptions]="[20, 50, 100]"
+      (page)="onPage($event)"
+      aria-label="Unassigned calls pages"
+    />
+  </section>
+
+  <section class="panel engineers-panel" aria-label="Engineers">
+    <header class="panel-head">
+      <h2>Engineers</h2>
+      <mat-form-field class="date" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Visit date</mat-label>
+        <input
+          matInput
+          [matDatepicker]="picker"
+          [min]="today"
+          [value]="date()"
+          (dateChange)="onDate($event.value)"
+        />
+        <mat-datepicker-toggle matSuffix [for]="picker" />
+        <mat-datepicker #picker />
+      </mat-form-field>
+    </header>
+
+    <p class="for-call">
+      @if (selected(); as call) {
+      Assigning <b>{{ call.callNo }}</b> — {{ call.customerName }}.
+      <a [routerLink]="['/service/calls', call.id]" target="_blank">Open call</a>
+      } @else {
+      Select a call on the left to assign it.
+      }
+    </p>
+
+    <div class="progress">
+      @if (loadingEngineers()) {
+      <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+
+    <div class="table-scroll">
+      <table mat-table [dataSource]="engineers()">
+        <ng-container matColumnDef="engineer">
+          <th mat-header-cell *matHeaderCellDef>Engineer</th>
+          <td mat-cell *matCellDef="let e">
+            <div class="strong">{{ e.name }}</div>
+            <div class="muted">
+              {{ e.employeeCode }}
+              @if (e.branchName) { · {{ e.branchName }} }
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="availability">
+          <th mat-header-cell *matHeaderCellDef>Availability</th>
+          <td mat-cell *matCellDef="let e">
+            <trishul-status-badge
+              [status]="e.availability"
+              [severities]="availabilitySeverity"
+            />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="callsOnDate">
+          <th mat-header-cell *matHeaderCellDef class="num">
+            {{ date() | date: 'dd MMM' }}
+          </th>
+          <td mat-cell *matCellDef="let e" class="num">
+            <span class="load">{{ e.callsOnDate }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="openCalls">
+          <th mat-header-cell *matHeaderCellDef class="num">All open</th>
+          <td mat-cell *matCellDef="let e" class="num">{{ e.openCalls }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="distance">
+          <th mat-header-cell *matHeaderCellDef class="num">Distance</th>
+          <td mat-cell *matCellDef="let e" class="num">
+            {{ e.distanceKm !== null ? e.distanceKm + ' km' : '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="action">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let e">
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="!selected() || busyId() !== null || e.availability === 'On leave'"
+              [attr.aria-label]="'Assign to ' + e.name"
+              (click)="assign(e)"
+            >
+              Assign
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="engineerColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: engineerColumns"></tr>
+        <tr *matNoDataRow>
+          <td class="empty" [attr.colspan]="engineerColumns.length">
+            @if (!loadingEngineers()) { No service engineers found for this
+            branch or team. }
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <p class="note">
+      The date column counts visits planned for that day. "All open" is every
+      unfinished call the engineer is on. Distance is measured from where they
+      last started a trip, and appears once the site has GPS coordinates.
+    </p>
+  </section>
+</div>

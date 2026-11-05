@@ -40,6 +40,7 @@ TABLES = [
     "core.app_user",
     "core.audit_log",
     "svc.service_call",
+    "svc.service_visit",
     "svc.call_status_log",
     "svc.call_assignment",
     "svc.contract_plan",
