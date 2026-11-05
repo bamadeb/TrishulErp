@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Query, Response
+from fastapi import APIRouter, Depends, Header, Path, Query, Response
 
 from trishul_api.auth import SIGNED_IN_USERS, CurrentUserDep, DbSession, ScopeDep, require_permission
 from trishul_api.common.concurrency import if_match_row_version
@@ -23,6 +23,9 @@ from trishul_api.modules.trk.schemas import (
     MyTripListQuery,
     StartTripInput,
     StopTripInput,
+    TrackingConfigOut,
+    TrackingConfigParameter,
+    TrackingConfigUpdate,
     TripAdjustmentItem,
     TripListItem,
     TripListQuery,
@@ -36,6 +39,7 @@ from trishul_api.modules.trk.schemas import (
     VehicleTypeItem,
 )
 from trishul_api.modules.trk.service import TripService
+from trishul_api.modules.trk.tracking_config import TrackingConfigService
 
 router = APIRouter(prefix="/trk", tags=["tracking"])
 
@@ -307,3 +311,61 @@ def delete_manual_travel(
 ) -> Response:
     service.delete(user, travel_id, if_match)
     return Response(status_code=204)
+
+
+# ---- tracking configuration the mobile app fetches instead of hard-coding
+
+def get_tracking_config_service(db: DbSession) -> TrackingConfigService:
+    return TrackingConfigService(db)
+
+
+TrackingConfigDep = Annotated[TrackingConfigService, Depends(get_tracking_config_service)]
+ConfigCode = Annotated[str, Path(alias="code", min_length=1, max_length=60)]
+
+
+@router.get(
+    "/tracking-config",
+    summary="Tracking configuration for the mobile app",
+    description="Any signed-in user. Send the last `version` (or the ETag) as If-None-Match to get 304 when "
+    "nothing changed. A null value means the parameter is not calibrated yet.",
+    response_model=TrackingConfigOut,
+    responses={304: {"description": "Configuration unchanged since the version sent in If-None-Match."}},
+    **_MASTER,
+)
+def get_tracking_config(
+    service: TrackingConfigDep,
+    response: Response,
+    if_none_match: Annotated[str | None, Header(include_in_schema=False)] = None,
+) -> TrackingConfigOut | Response:
+    config = service.current()
+    etag = f'"{config.version}"'
+    if if_none_match is not None and if_none_match.strip().removeprefix("W/") in (etag, config.version):
+        return Response(status_code=304, headers={"ETag": etag})
+    response.headers["ETag"] = etag
+    response.headers["Cache-Control"] = "no-cache"
+    return config
+
+
+@router.get(
+    "/tracking-config/parameters",
+    summary="Every tracking parameter with its unit, limits and calibration state",
+    dependencies=[Depends(require_permission("trk.config.manage"))],
+)
+def list_tracking_config_parameters(service: TrackingConfigDep) -> list[TrackingConfigParameter]:
+    return service.parameters()
+
+
+@router.put(
+    "/tracking-config/parameters/{code}",
+    summary="Change one tracking parameter",
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+    dependencies=[Depends(require_permission("trk.config.manage"))],
+)
+def update_tracking_config_parameter(
+    code: ConfigCode,
+    data: TrackingConfigUpdate,
+    user: CurrentUserDep,
+    service: TrackingConfigDep,
+    if_match: Annotated[bytes, Depends(if_match_row_version)],
+) -> TrackingConfigParameter:
+    return service.update(user, code, if_match, data)

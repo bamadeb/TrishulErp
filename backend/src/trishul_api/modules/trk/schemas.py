@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, StrictFloat, StrictInt, StrictStr, model_validator
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
 
@@ -379,3 +379,48 @@ class ManualTravelOut(ApiModel):
     can_edit: bool = Field(description="The signed-in user recorded this entry and may correct or remove it.")
     created_at: UtcDateTime
     row_version: RowVersion
+
+
+class TrackingConfigOut(ApiModel):
+    """What the mobile app applies. A null value is "to be calibrated": keep the app's own behaviour for it.
+    `version` changes whenever any value changes; send it back as If-None-Match to get 304 when nothing did."""
+
+    moving_interval_ms: int = Field(description="Location interval while moving, ms.")
+    moving_priority: str = Field(description="Android fused-location priority while moving.")
+    stationary_candidate_duration_ms: int = Field(description="Time inside the dwell radius before stationary, ms.")
+    stationary_dwell_radius_meters: float = Field(description="Dwell radius, m.")
+    movement_recovery_displacement_meters: float = Field(description="Displacement that ends a stationary period, m.")
+    variance_threshold_moving: float | None = Field(description="Null until calibrated.")
+    variance_threshold_stationary: float | None = Field(description="Null until calibrated.")
+    sampling_period_us: int | None = Field(
+        description="Motion-sensor sampling period, microseconds. Null until calibrated."
+    )
+    calibration_pending: list[str] = Field(
+        description="Keys that are still null because they are not calibrated yet."
+    )
+    version: str
+
+
+class TrackingConfigParameter(ApiModel):
+    """One parameter with the rules its value must follow (for the administration screen)."""
+
+    code: str
+    name: str
+    description: str | None
+    value_type: str = Field(description="int, decimal or string.")
+    value: str | None = Field(description="Current value as text; null = to be calibrated.")
+    default_value: str | None
+    unit: str | None
+    min_value: float | None
+    max_value: float | None
+    allowed_values: list[str] | None
+    is_calibrated: bool
+    updated_at: UtcDateTime | None
+    row_version: RowVersion
+
+
+class TrackingConfigUpdate(InputModel):
+    """Set one parameter. A number for int / decimal parameters, text for string ones. null clears a parameter
+    that is "to be calibrated" (one with no default); parameters with a default cannot be cleared."""
+
+    value: StrictInt | StrictFloat | StrictStr | None

@@ -275,3 +275,34 @@ class TrkManualTravel(Base, Audited):
     )
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
+
+
+class TrkTrackingConfig(Base, Audited):
+    """One tracking parameter the mobile app fetches (interval, radius, thresholds ...). value is text,
+    typed by value_type; NULL means "to be calibrated". Table trk.tracking_config."""
+
+    __tablename__ = "tracking_config"
+    __table_args__ = {"schema": "trk"}
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    code: Mapped[str] = mapped_column(sa.NVARCHAR(60), doc="Key in the API response")
+    name: Mapped[str] = mapped_column(sa.NVARCHAR(100))
+    description: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    value_type: Mapped[str] = mapped_column(sa.NVARCHAR(10), doc="int, decimal or string")
+    value: Mapped[str | None] = mapped_column(sa.NVARCHAR(100), doc="Current value; NULL = to be calibrated")
+    default_value: Mapped[str | None] = mapped_column(sa.NVARCHAR(100))
+    unit: Mapped[str | None] = mapped_column(sa.NVARCHAR(10))
+    min_value: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 4))
+    max_value: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 4))
+    allowed_values: Mapped[str | None] = mapped_column(sa.NVARCHAR(200), doc="Comma-separated choices")
+    sort_order: Mapped[int] = mapped_column(sa.Integer(), server_default=sa.FetchedValue())
+    created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
+    created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    row_version: Mapped[bytes] = mapped_column(
+        mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue()
+    )
+
+    __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
