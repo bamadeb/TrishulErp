@@ -16,6 +16,7 @@ from trishul_api.modules.core.customers.schemas import (
 
 _COMPANY_NAME: ColumnElement[str | None] = func.coalesce(Company.trade_name, Company.legal_name)
 
+
 def _machine_count() -> ColumnElement[int]:
     """Active machines registered to the customer (row-level security limits it to the user's brands)."""
     return (

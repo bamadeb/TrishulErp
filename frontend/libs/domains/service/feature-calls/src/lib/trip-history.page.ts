@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   inject,
+  signal,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -16,13 +17,17 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HasPermission } from '@trishul/core-auth';
 import {
   CallTripHistoryItem,
+  ManualTravelOut,
   TRIP_ADJUST_PERMISSION,
+  TRIP_MANAGE_PERMISSION,
+  TripApi,
   TripHistoryStore,
   TripRoute,
   TripStatus,
 } from '@trishul/service-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { openAdjustDistanceDialog } from './adjust-distance.dialog';
+import { ManualTravelDialog } from './manual-travel.dialog';
 
 const TRIP_STATUS_SEVERITY: Record<TripStatus, StatusSeverity> = {
   'In progress': 'warn',
@@ -90,9 +95,22 @@ const EVENT_LABELS: Record<string, string> = {
 export class TripHistoryPage {
   protected readonly store = inject(TripHistoryStore);
   protected readonly adjustPermission = TRIP_ADJUST_PERMISSION;
+  protected readonly manageTripPermission = TRIP_MANAGE_PERMISSION;
   protected readonly statusSeverity = TRIP_STATUS_SEVERITY;
   protected readonly columns = ['visit', 'trip', 'when', 'distance', 'actions'];
 
+  protected readonly manualColumns = [
+    'date',
+    'engineer',
+    'vehicle',
+    'km',
+    'notes',
+    'docs',
+    'manualActions',
+  ];
+  protected readonly confirmDeleteId = signal<number | null>(null);
+
+  private readonly tripApi = inject(TripApi);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -148,6 +166,49 @@ export class TripHistoryPage {
 
   protected eventLabel(type: string): string {
     return EVENT_LABELS[type] ?? type.replace(/_/g, ' ').toLowerCase();
+  }
+
+  protected addManualTravel(): void {
+    const callId = this.store.callId();
+    if (callId === null) return;
+    this.openManualDialog({ callId, callNo: this.callNo() });
+  }
+
+  protected openManualTravel(entry: ManualTravelOut): void {
+    this.openManualDialog({
+      callId: entry.serviceCallId,
+      callNo: this.callNo(),
+      entry,
+    });
+  }
+
+  protected deleteManualTravel(entry: ManualTravelOut): void {
+    this.tripApi.deleteManualTravel(entry).subscribe(() => {
+      this.confirmDeleteId.set(null);
+      this.store.reloadManualTravel();
+      this.snackBar.open('Travel entry removed', 'OK', { duration: 3000 });
+    });
+  }
+
+  private callNo(): string {
+    return `#${this.store.callId() ?? ''}`;
+  }
+
+  private openManualDialog(data: {
+    callId: number;
+    callNo: string;
+    entry?: ManualTravelOut;
+  }): void {
+    this.dialog
+      .open(ManualTravelDialog, {
+        data,
+        width: '36rem',
+        maxWidth: '95vw',
+        autoFocus: 'dialog',
+      })
+      .afterClosed()
+      // Saved, corrected or documents added: any of them can change the row, so always refresh.
+      .subscribe(() => this.store.reloadManualTravel());
   }
 
   protected fmtKm(value: number | null | undefined): string {

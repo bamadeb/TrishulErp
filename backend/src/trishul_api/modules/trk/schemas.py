@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -260,7 +261,9 @@ class CallTripHistoryItem(ApiModel):
     last_longitude: float | None = None
     last_gps_at: UtcDateTime | None = None
     start_battery_pct: int | None = Field(None, description="Phone battery on the first GPS fix of the trip.")
-    end_battery_pct: int | None = Field(None, description="Phone battery on the latest GPS fix (final one once stopped).")
+    end_battery_pct: int | None = Field(
+        None, description="Phone battery on the latest GPS fix (final one once stopped)."
+    )
     device_manufacturer: str | None = None
     device_model: str | None = None
     device_platform: str | None = None
@@ -318,7 +321,10 @@ class TripTypeItem(MasterItem):
 
 
 class VehicleTypeItem(MasterItem):
-    pass
+    is_gps_tracked: bool = Field(
+        description="True: Start/Stop GPS trip. False (Bus, Train, Other): enter the kilometres by hand "
+        "(POST /trk/manual-travel); there is no Start/Stop trip."
+    )
 
 
 class TripStatusItem(MasterItem):
@@ -335,3 +341,41 @@ class TripMasterData(ApiModel):
     trip_types: list[TripTypeItem]
     vehicle_types: list[VehicleTypeItem]
     trip_statuses: list[TripStatusItem]
+
+
+_MANUAL_KM = Field(
+    gt=0, le=Decimal("5000"), max_digits=8, decimal_places=2, description="Total distance travelled, km."
+)
+
+
+class ManualTravelUpdate(InputModel):
+    """Correct a manual travel entry. The service call and the engineer never change."""
+
+    vehicle_type: VehicleType = Field(description="A vehicle code with isGpsTracked = false (Bus, Train, Other).")
+    travel_date: date
+    distance_km: Decimal = _MANUAL_KM
+    notes: str | None = Field(None, max_length=500, description="Travel notes / description.")
+
+
+class ManualTravelInput(ManualTravelUpdate):
+    """Record travel by a vehicle that has no GPS trip. Attach tickets with POST /documents
+    (entityType 'trk.manual_travel') using the returned id. `clientUuid` makes a retried save return the
+    same entry instead of a second one."""
+
+    client_uuid: UUID | None = None
+    service_call_id: int = Field(gt=0)
+
+
+class ManualTravelOut(ApiModel):
+    id: int
+    service_call_id: int
+    employee_id: int
+    employee_name: str | None
+    vehicle_type: VehicleType
+    travel_date: date
+    distance_km: Decimal
+    notes: str | None
+    document_count: int
+    can_edit: bool = Field(description="The signed-in user recorded this entry and may correct or remove it.")
+    created_at: UtcDateTime
+    row_version: RowVersion

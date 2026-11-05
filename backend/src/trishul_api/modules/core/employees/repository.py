@@ -20,12 +20,12 @@ from trishul_api.modules.core.employees.schemas import (
     CompanyOption,
     DepartmentOption,
     DesignationOption,
-    EmployeeListItem,
-    EmployeeQuery,
-    EmploymentEvent,
     EmployeeCounts,
     EmployeeDirectoryPage,
     EmployeeLifecycle,
+    EmployeeListItem,
+    EmployeeQuery,
+    EmploymentEvent,
 )
 
 _FULL_NAME: ColumnElement[str] = func.concat_ws(" ", Employee.first_name, Employee.last_name)
@@ -197,9 +197,7 @@ class EmployeeRepository:
         return self._session.get(Employee, employee_id)
 
     def profile(self, employee_id: int) -> EmployeeProfile | None:
-        return self._session.scalar(
-            select(EmployeeProfile).where(EmployeeProfile.employee_id == employee_id).limit(1)
-        )
+        return self._session.scalar(select(EmployeeProfile).where(EmployeeProfile.employee_id == employee_id).limit(1))
 
     def latest_photo(self, employee_id: int) -> Attachment | None:
         return self._session.scalar(

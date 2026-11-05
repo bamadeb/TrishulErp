@@ -7,6 +7,7 @@ from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
 from trishul_api.common.schemas import Page, PageQuery
 from trishul_api.modules.trk.constants import IN_PROGRESS
+from trishul_api.modules.trk.manual_travel import ManualTravelService
 from trishul_api.modules.trk.master_service import TripMasterService
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
@@ -15,6 +16,9 @@ from trishul_api.modules.trk.schemas import (
     GpsDiagnosticItem,
     GpsDiagnosticUploadResult,
     GpsUploadResult,
+    ManualTravelInput,
+    ManualTravelOut,
+    ManualTravelUpdate,
     ModuleCodeItem,
     MyTripListQuery,
     StartTripInput,
@@ -24,9 +28,9 @@ from trishul_api.modules.trk.schemas import (
     TripListQuery,
     TripMasterData,
     TripOut,
+    TripRoute,
     TripStatusItem,
     TripSyncQuery,
-    TripRoute,
     TripSyncStatus,
     TripTypeItem,
     VehicleTypeItem,
@@ -238,3 +242,68 @@ def adjust_trip_distance(
 )
 def list_trip_adjustments(trip_id: TripId, user: CurrentUserDep, service: TripServiceDep) -> list[TripAdjustmentItem]:
     return service.adjustments(user, trip_id)
+
+
+# ---- manual travel (Bus / Train / Other): kilometres entered by hand, no Start/Stop trip
+
+
+def get_manual_travel_service(db: DbSession) -> ManualTravelService:
+    return ManualTravelService(db)
+
+
+ManualTravelDep = Annotated[ManualTravelService, Depends(get_manual_travel_service)]
+TravelId = Annotated[int, Path(alias="travelId", gt=0)]
+
+
+@router.post(
+    "/manual-travel",
+    summary="Record travel by a vehicle without GPS tracking (Bus, Train, Other)",
+    description="The engineer must be on the service call. Attach tickets afterwards with POST /documents.",
+    status_code=201,
+    dependencies=[Depends(require_permission("trk.trip.manage"))],
+)
+def create_manual_travel(data: ManualTravelInput, user: CurrentUserDep, service: ManualTravelDep) -> ManualTravelOut:
+    return service.create(user, data)
+
+
+@router.get(
+    "/manual-travel/{travelId}",
+    summary="One manual travel entry",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission("trk.trip.view.team", "trk.trip.adjust", "trk.trip.manage"))],
+)
+def get_manual_travel(travel_id: TravelId, user: CurrentUserDep, service: ManualTravelDep) -> ManualTravelOut:
+    return service.get(user, travel_id)
+
+
+@router.put(
+    "/manual-travel/{travelId}",
+    summary="Correct a manual travel entry (the engineer who recorded it)",
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+    dependencies=[Depends(require_permission("trk.trip.manage"))],
+)
+def update_manual_travel(
+    travel_id: TravelId,
+    data: ManualTravelUpdate,
+    user: CurrentUserDep,
+    service: ManualTravelDep,
+    if_match: Annotated[bytes, Depends(if_match_row_version)],
+) -> ManualTravelOut:
+    return service.update(user, travel_id, if_match, data)
+
+
+@router.delete(
+    "/manual-travel/{travelId}",
+    summary="Remove a manual travel entry and its documents (the engineer who recorded it)",
+    status_code=204,
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+    dependencies=[Depends(require_permission("trk.trip.manage"))],
+)
+def delete_manual_travel(
+    travel_id: TravelId,
+    user: CurrentUserDep,
+    service: ManualTravelDep,
+    if_match: Annotated[bytes, Depends(if_match_row_version)],
+) -> Response:
+    service.delete(user, travel_id, if_match)
+    return Response(status_code=204)

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import CurrentUser
 from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
-from trishul_api.db.models import Branch, Company, Department, Designation, Employee, EmployeeProfile, Attachment
+from trishul_api.db.models import Attachment, Branch, Company, Department, Designation, Employee, EmployeeProfile
 from trishul_api.modules.core.employees.photos import data_url, decode_photo, read_photo, store_photo
 from trishul_api.modules.core.employees.repository import EmployeeRepository
 from trishul_api.modules.core.employees.schemas import (

@@ -117,6 +117,109 @@
     </div>
   </section>
 
+  <!-- manual travel: Bus / Train / Other, kilometres entered by hand -->
+  <section class="list-card manual">
+    <header class="manual-head">
+      <div>
+        <h3>Manual travel</h3>
+        <p class="muted">
+          Bus, Train and Other are not tracked by GPS: the engineer enters the
+          kilometres and attaches the ticket.
+        </p>
+      </div>
+      <button
+        *trishulHasPermission="manageTripPermission"
+        mat-flat-button
+        type="button"
+        (click)="addManualTravel()"
+      >
+        <mat-icon>add</mat-icon>
+        Add manual travel
+      </button>
+    </header>
+    @if (store.manualTravelLoading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <div class="table-scroll">
+      <table mat-table [dataSource]="store.manualTravel()" class="manual-table">
+        <ng-container matColumnDef="date">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let m">
+            {{ m.travelDate | date: 'dd MMM yyyy' }}
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="engineer">
+          <th mat-header-cell *matHeaderCellDef>Engineer</th>
+          <td mat-cell *matCellDef="let m">{{ m.employeeName ?? '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="vehicle">
+          <th mat-header-cell *matHeaderCellDef>Travel type</th>
+          <td mat-cell *matCellDef="let m">{{ m.vehicleType }}</td>
+        </ng-container>
+        <ng-container matColumnDef="km">
+          <th mat-header-cell *matHeaderCellDef>Distance</th>
+          <td mat-cell *matCellDef="let m" class="dist-cell">
+            <span class="eff">{{ fmtKm(+m.distanceKm) }}</span>
+            <span class="unit">km</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="notes">
+          <th mat-header-cell *matHeaderCellDef>Notes</th>
+          <td mat-cell *matCellDef="let m" class="notes">{{ m.notes || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="docs">
+          <th mat-header-cell *matHeaderCellDef>Tickets</th>
+          <td mat-cell *matCellDef="let m">
+            <span class="tag">
+              <mat-icon inline>attach_file</mat-icon> {{ m.documentCount }}
+            </span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="manualActions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let m">
+            <button
+              mat-icon-button
+              type="button"
+              [matTooltip]="m.canEdit ? 'Open, correct or add tickets' : 'View'"
+              [attr.aria-label]="m.canEdit ? 'Open travel entry' : 'View travel entry'"
+              (click)="openManualTravel(m)"
+            >
+              <mat-icon>{{ m.canEdit ? 'edit' : 'visibility' }}</mat-icon>
+            </button>
+            @if (m.canEdit) {
+              @if (confirmDeleteId() === m.id) {
+                <button mat-button type="button" class="danger" (click)="deleteManualTravel(m)">
+                  Remove?
+                </button>
+                <button mat-button type="button" (click)="confirmDeleteId.set(null)">
+                  Keep
+                </button>
+              } @else {
+                <button
+                  mat-icon-button
+                  type="button"
+                  matTooltip="Remove"
+                  aria-label="Remove travel entry"
+                  (click)="confirmDeleteId.set(m.id)"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            }
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="manualColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: manualColumns"></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="empty" [attr.colspan]="manualColumns.length">
+            {{ store.manualTravelLoading() ? 'Loading…' : 'No manual travel recorded for this call.' }}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
   <!-- detail pane -->
   @if (store.selectedTrip(); as trip) {
     <section class="detail-card">

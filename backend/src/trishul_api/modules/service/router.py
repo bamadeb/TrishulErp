@@ -45,7 +45,8 @@ from trishul_api.modules.service.schemas import (
 )
 from trishul_api.modules.service.service import ServiceCallService
 from trishul_api.modules.service.workload import engineer_workload
-from trishul_api.modules.trk.schemas import CallTripHistoryItem
+from trishul_api.modules.trk.manual_travel import ManualTravelService
+from trishul_api.modules.trk.schemas import CallTripHistoryItem, ManualTravelOut
 from trishul_api.modules.trk.service import TripService
 
 router = APIRouter(prefix="/svc", tags=["service"])
@@ -228,6 +229,20 @@ def list_service_call_trips(
     db: DbSession,
 ) -> list[CallTripHistoryItem]:
     return TripService(db).trips_for_service_call(user, call_id)
+
+
+@router.get(
+    "/service-calls/{callId}/manual-travel",
+    summary="Manual travel entries (Bus, Train, Other) of a service call; reviewers see everyone's, others their own",
+    responses=NOT_FOUND_RESPONSE,
+    dependencies=[Depends(require_permission(*CAN_VIEW_CALL_TRIPS))],
+)
+def list_service_call_manual_travel(
+    call_id: CallId,
+    user: CurrentUserDep,
+    db: DbSession,
+) -> list[ManualTravelOut]:
+    return ManualTravelService(db).for_call(user, call_id)
 
 
 @router.post(

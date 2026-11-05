@@ -12,6 +12,7 @@ import { TripApi } from './trip.api';
 import {
   CallTripHistoryItem,
   GpsDiagnosticItem,
+  ManualTravelOut,
   TripAdjustmentItem,
   TripOut,
   TripRoute,
@@ -31,6 +32,9 @@ interface TripHistoryState {
   syncStatus: TripSyncStatus | null;
   evidenceLoading: boolean;
   evidenceFailed: boolean;
+  /** Bus / Train / Other travel entered by hand for this call. */
+  manualTravel: ManualTravelOut[];
+  manualTravelLoading: boolean;
 }
 
 const initialState: TripHistoryState = {
@@ -45,6 +49,8 @@ const initialState: TripHistoryState = {
   syncStatus: null,
   evidenceLoading: false,
   evidenceFailed: false,
+  manualTravel: [],
+  manualTravelLoading: false,
 };
 
 /** State of a service call's trip-history page. Provide it in the page component, not in root. */
@@ -125,9 +131,29 @@ export const TripHistoryStore = signalStore(
       loadEvidence(tripId);
     };
 
+    const loadManualTravel = rxMethod<number>(
+      pipe(
+        tap(() => patchState(store, { manualTravelLoading: true })),
+        switchMap((callId) =>
+          api.manualTravel(callId).pipe(
+            tap((manualTravel) =>
+              patchState(store, { manualTravel, manualTravelLoading: false }),
+            ),
+            catchError(() => {
+              patchState(store, { manualTravelLoading: false });
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    );
+
     const load = rxMethod<number>(
       pipe(
-        tap((callId) => patchState(store, { callId, loading: true })),
+        tap((callId) => {
+          patchState(store, { callId, loading: true });
+          loadManualTravel(callId);
+        }),
         switchMap((callId) =>
           api.callTrips(callId).pipe(
             tap((items) => {
@@ -148,6 +174,10 @@ export const TripHistoryStore = signalStore(
     return {
       load,
       select,
+      reloadManualTravel(): void {
+        const callId = store.callId();
+        if (callId !== null) loadManualTravel(callId);
+      },
       reload(): void {
         const callId = store.callId();
         if (callId !== null) load(callId);

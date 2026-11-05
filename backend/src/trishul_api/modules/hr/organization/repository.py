@@ -58,9 +58,11 @@ class OrganizationRepository:
         return paginate(self._session, statement, query, DepartmentListItem)
 
     def department(self, department_id: int) -> dict[str, Any] | None:
-        row = self._session.execute(
-            self._department_select(detail=True).where(Department.id == department_id)
-        ).mappings().first()
+        row = (
+            self._session.execute(self._department_select(detail=True).where(Department.id == department_id))
+            .mappings()
+            .first()
+        )
         return dict(row) if row else None
 
     def department_code_owner(self, code: str) -> int | None:
@@ -74,9 +76,11 @@ class OrganizationRepository:
         return paginate(self._session, statement, query, DesignationListItem)
 
     def designation(self, designation_id: int) -> dict[str, Any] | None:
-        row = self._session.execute(
-            self._designation_select(detail=True).where(Designation.id == designation_id)
-        ).mappings().first()
+        row = (
+            self._session.execute(self._designation_select(detail=True).where(Designation.id == designation_id))
+            .mappings()
+            .first()
+        )
         return dict(row) if row else None
 
     def designation_code_owner(self, code: str) -> int | None:
@@ -92,9 +96,11 @@ class OrganizationRepository:
         return paginate(self._session, statement, query, GradeListItem)
 
     def grade(self, grade: str) -> GradeDetail | None:
-        summary = self._session.execute(
-            self._grade_select().where(Designation.grade == grade).group_by(Designation.grade)
-        ).mappings().first()
+        summary = (
+            self._session.execute(self._grade_select().where(Designation.grade == grade).group_by(Designation.grade))
+            .mappings()
+            .first()
+        )
         if summary is None:
             return None
         rows = self._session.execute(
@@ -139,9 +145,9 @@ class OrganizationRepository:
         return paginate(self._session, statement, query, CompanyListItem)
 
     def company(self, company_id: int) -> dict[str, Any] | None:
-        row = self._session.execute(
-            self._company_select(detail=True).where(Company.id == company_id)
-        ).mappings().first()
+        row = (
+            self._session.execute(self._company_select(detail=True).where(Company.id == company_id)).mappings().first()
+        )
         return dict(row) if row else None
 
     def company_code_owner(self, code: str) -> int | None:
@@ -155,9 +161,11 @@ class OrganizationRepository:
         return paginate(self._session, statement, query, HierarchyListItem)
 
     def hierarchy_member(self, employee_id: int) -> dict[str, Any] | None:
-        row = self._session.execute(
-            self._hierarchy_select(detail=True).where(Employee.id == employee_id)
-        ).mappings().first()
+        row = (
+            self._session.execute(self._hierarchy_select(detail=True).where(Employee.id == employee_id))
+            .mappings()
+            .first()
+        )
         return dict(row) if row else None
 
     def manager_of(self, employee_id: int) -> int | None:
@@ -262,7 +270,7 @@ class OrganizationRepository:
                 Employee,
                 (Employee.designation_id == Designation.id) & (Employee.is_active == True),  # noqa: E712
             )
-            .where(Designation.grade.is_not(None), Designation.grade != "")
+            .where(Designation.grade.is_not(None), Designation.grade != ""),
         )
 
     def _branch_select(self, *, detail: bool = False) -> Select[Any]:
@@ -280,8 +288,10 @@ class OrganizationRepository:
             Branch.is_active,
             Branch.created_at,
         ]
-        statement = select(*columns).outerjoin(Company, Company.id == Branch.company_id).outerjoin(
-            State, State.id == Branch.state_id
+        statement = (
+            select(*columns)
+            .outerjoin(Company, Company.id == Branch.company_id)
+            .outerjoin(State, State.id == Branch.state_id)
         )
         if detail:
             statement = statement.add_columns(

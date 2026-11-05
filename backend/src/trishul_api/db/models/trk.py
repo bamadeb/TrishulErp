@@ -65,6 +65,12 @@ class TrkTripVehicleTypeMaster(_TrkMaster, Base, Audited):
     __tablename__ = "trip_vehicle_type"
     __table_args__ = {"schema": "trk"}
 
+    is_gps_tracked: Mapped[bool] = mapped_column(
+        sa.Boolean(),
+        server_default=sa.FetchedValue(),
+        doc="True: GPS Start/Stop trip. False: distance is entered by hand (trk.manual_travel)",
+    )
+
 
 class TrkTripStatusMaster(_TrkMaster, Base, Audited):
     """Trip statuses. Set by the application, never by clients. Table trk.trip_status."""
@@ -133,9 +139,7 @@ class TrkTrip(Base, Audited):
         sa.BigInteger(), sa.ForeignKey("core.user_device.id"), doc="Recording device"
     )
     client_uuid: Mapped[uuid.UUID | None] = mapped_column(sa.Uuid(), doc="Device-generated id for idempotency")
-    trip_type: Mapped[str] = mapped_column(
-        sa.NVARCHAR(30), sa.ForeignKey("trk.trip_type.code"), doc="Trip type"
-    )
+    trip_type: Mapped[str] = mapped_column(sa.NVARCHAR(30), sa.ForeignKey("trk.trip_type.code"), doc="Trip type")
     start_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), doc="Start")
     start_latitude: Mapped[Decimal] = mapped_column(sa.Numeric(9, 6), doc="Start point")
     start_longitude: Mapped[Decimal] = mapped_column(sa.Numeric(9, 6), doc="Start point")
@@ -154,9 +158,7 @@ class TrkTrip(Base, Audited):
     vehicle_type: Mapped[str | None] = mapped_column(
         sa.NVARCHAR(30), sa.ForeignKey("trk.trip_vehicle_type.code"), doc="Vehicle"
     )
-    status: Mapped[str] = mapped_column(
-        sa.NVARCHAR(30), sa.ForeignKey("trk.trip_status.code"), doc="Status"
-    )
+    status: Mapped[str] = mapped_column(sa.NVARCHAR(30), sa.ForeignKey("trk.trip_status.code"), doc="Status")
     route_polyline: Mapped[str | None] = mapped_column(sa.UnicodeText(), doc="Encoded route")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
@@ -246,3 +248,30 @@ class TrkTripGpsDiagnostic(Base):
     received_at: Mapped[dt.datetime] = mapped_column(
         mssql.DATETIME2(0), server_default=sa.FetchedValue(), doc="Server receipt time"
     )
+
+
+class TrkManualTravel(Base, Audited):
+    """Travel recorded by hand for a vehicle that has no GPS trip (Bus, Train, Other). Linked to the
+    service call and the engineer; tickets are core.attachment rows. Table trk.manual_travel."""
+
+    __tablename__ = "manual_travel"
+    __table_args__ = {"schema": "trk"}
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    service_call_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("svc.service_call.id"))
+    employee_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.employee.id"))
+    vehicle_type: Mapped[str] = mapped_column(sa.NVARCHAR(30), sa.ForeignKey("trk.trip_vehicle_type.code"))
+    travel_date: Mapped[dt.date] = mapped_column(sa.Date())
+    distance_km: Mapped[Decimal] = mapped_column(sa.Numeric(8, 2))
+    notes: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    client_uuid: Mapped[uuid.UUID | None] = mapped_column(sa.Uuid(), doc="Device-generated id for idempotency")
+    created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
+    created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    row_version: Mapped[bytes] = mapped_column(
+        mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue()
+    )
+
+    __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
