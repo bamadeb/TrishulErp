@@ -132,9 +132,7 @@ class ServiceActivityHandler:
         ).first()
         if visit is None:
             next_no = (
-                session.scalar(
-                    select(func.max(ServiceVisit.visit_no)).where(ServiceVisit.service_call_id == call.id)
-                )
+                session.scalar(select(func.max(ServiceVisit.visit_no)).where(ServiceVisit.service_call_id == call.id))
                 or 0
             ) + 1
             visit = ServiceVisit(

@@ -85,11 +85,27 @@ class TripMasterService:
             vehicles = self._repo.active_codes(TrkTripVehicleTypeMaster)
             if vehicle_type not in vehicles:
                 errors["vehicleType"] = [self._not_active("vehicle type", vehicle_type, vehicles)]
+            else:
+                row = self._repo.vehicle_row(vehicle_type)
+                if row is not None and not row.is_gps_tracked:
+                    errors["vehicleType"] = [
+                        f"'{vehicle_type}' has no GPS trip. Record it as manual travel (POST /trk/manual-travel)."
+                    ]
 
         if errors:
             raise InvalidMasterValue("One or more values are not valid for this trip.", errors)
         assert trip_type is not None
         return trip_type
+
+    def manual_vehicle_problem(self, vehicle_type: str) -> str | None:
+        """Why this vehicle cannot be used for manual travel, or None when it can. Only active vehicle
+        types that are not GPS tracked (Bus, Train, Other) are entered by hand."""
+        if vehicle_type not in self._repo.active_codes(TrkTripVehicleTypeMaster):
+            return f"'{vehicle_type}' is not an active vehicle type."
+        row = self._repo.vehicle_row(vehicle_type)
+        if row is not None and row.is_gps_tracked:
+            return f"'{vehicle_type}' is tracked by GPS: start a trip instead of entering kilometres."
+        return None
 
     def require_known_statuses(self, statuses: list[str]) -> None:
         """A status filter may name any status, including a deactivated one that old trips still use."""

@@ -34,6 +34,9 @@
       "@trishul/core-api": [
         "./libs/core/api/src/index.ts"
       ],
+      "@trishul/core-documents": [
+        "./libs/core/documents/src/index.ts"
+      ],
       "@trishul/core-layout": [
         "./libs/core/layout/src/index.ts"
       ],

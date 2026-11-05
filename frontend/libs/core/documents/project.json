@@ -1,0 +1,9 @@
+{
+  "name": "core-documents",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/core/documents/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:core", "type:core"],
+  "targets": {}
+}

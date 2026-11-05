@@ -5,18 +5,27 @@ import {
   ApiClient,
   CallTripHistoryItem,
   GpsDiagnosticItem,
+  ManualTravelInput,
+  ManualTravelOut,
+  ManualTravelUpdate,
+  VehicleTypeItem,
   TripRoute,
   TripSyncStatus,
   PageTripListItem,
   TripAdjustmentItem,
   TripOut,
   adjustTripDistance,
+  createManualTravel,
+  deleteManualTravel,
   getTripRoute,
   getTripSyncStatus,
   listMyTrips,
+  listServiceCallManualTravel,
+  listTripVehicleTypes,
   listTripGpsDiagnostics,
   listServiceCallTrips,
   listTripAdjustments,
+  updateManualTravel,
   withRowVersion,
 } from '@trishul/core-api';
 import { MyTripsQuery } from './trip.models';
@@ -28,6 +37,41 @@ export class TripApi {
   /** Every trip of a service call, across all its visits, oldest first. */
   callTrips(callId: number): Observable<CallTripHistoryItem[]> {
     return this.api.call(listServiceCallTrips, { callId });
+  }
+
+  /** Vehicle types that have no GPS trip (Bus, Train, Other): their travel is entered by hand. */
+  manualVehicleTypes(): Observable<VehicleTypeItem[]> {
+    return this.api
+      .call(listTripVehicleTypes, {})
+      .pipe(map((types) => types.filter((t) => !t.isGpsTracked)));
+  }
+
+  /** Manual travel of a call; reviewers see everyone's, an engineer only their own. */
+  manualTravel(callId: number): Observable<ManualTravelOut[]> {
+    return this.api.call(listServiceCallManualTravel, { callId });
+  }
+
+  createManualTravel(body: ManualTravelInput): Observable<ManualTravelOut> {
+    return this.api.call(createManualTravel, { body });
+  }
+
+  updateManualTravel(
+    entry: ManualTravelOut,
+    body: ManualTravelUpdate,
+  ): Observable<ManualTravelOut> {
+    return this.api.call(
+      updateManualTravel,
+      { travelId: entry.id, body },
+      withRowVersion(entry.rowVersion),
+    );
+  }
+
+  deleteManualTravel(entry: ManualTravelOut): Observable<void> {
+    return this.api.call(
+      deleteManualTravel,
+      { travelId: entry.id },
+      withRowVersion(entry.rowVersion),
+    );
   }
 
   /** The signed-in engineer's own trips; the API never returns anyone else's. */

@@ -40,6 +40,9 @@ class TripMasterRepository:
         """Every code, active or not: past trips keep using a code that was later deactivated."""
         return set(self._session.scalars(select(model.code)))
 
+    def vehicle_row(self, code: str) -> TrkTripVehicleTypeMaster | None:
+        return self._session.scalar(select(TrkTripVehicleTypeMaster).where(TrkTripVehicleTypeMaster.code == code))
+
     def default_trip_type(self) -> str | None:
         return self._session.scalar(
             select(TrkTripTypeMaster.code).where(TrkTripTypeMaster.is_default, TrkTripTypeMaster.is_active)

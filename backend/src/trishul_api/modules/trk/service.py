@@ -23,7 +23,6 @@ from trishul_api.modules.trk.repository import TripRepository
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
     CallTripHistoryItem,
-    TripRoute,
     GpsBatchInput,
     GpsDiagnosticBatchInput,
     GpsDiagnosticItem,
@@ -37,6 +36,7 @@ from trishul_api.modules.trk.schemas import (
     TripListItem,
     TripListQuery,
     TripOut,
+    TripRoute,
     TripSyncQuery,
     TripSyncStatus,
 )

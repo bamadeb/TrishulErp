@@ -92,21 +92,33 @@ class FakeTripService:
             "tripId": trip_id,
             "points": [],
             "quality": {
-                "pointCount": 0, "avgAccuracyM": None, "maxAccuracyM": None, "poorAccuracyCount": 0,
-                "mockLocationCount": 0, "firstRecordedAt": None, "lastRecordedAt": None,
+                "pointCount": 0,
+                "avgAccuracyM": None,
+                "maxAccuracyM": None,
+                "poorAccuracyCount": 0,
+                "mockLocationCount": 0,
+                "firstRecordedAt": None,
+                "lastRecordedAt": None,
             },
         }
 
     def sync_status(self, user: Any, trip_id: int, query: TripSyncQuery) -> TripSyncStatus:
         self.sync_query = query
         empty = {
-            "storedRecords": 0, "firstRecordedAt": None, "lastRecordedAt": None,
-            "expectedRecords": None, "pendingRecords": None, "syncComplete": None,
+            "storedRecords": 0,
+            "firstRecordedAt": None,
+            "lastRecordedAt": None,
+            "expectedRecords": None,
+            "pendingRecords": None,
+            "syncComplete": None,
         }
         return TripSyncStatus.model_validate(
             {
-                "tripId": trip_id, "tripStatus": "Completed", "gpsSync": empty,
-                "diagnosticsSync": empty, "overallSyncComplete": False,
+                "tripId": trip_id,
+                "tripStatus": "Completed",
+                "gpsSync": empty,
+                "diagnosticsSync": empty,
+                "overallSyncComplete": False,
             }
         )
 
@@ -427,7 +439,15 @@ class _FakeMasterRepo:
     SEED: dict[str, list[str]] = {
         "TrackableActivityModule": ["SVC", "PRE"],
         "TrkTripTypeMaster": ["To site", "Return", "Site to site"],
-        "TrkTripVehicleTypeMaster": ["Own bike", "Own car", "Company vehicle", "Public transport"],
+        "TrkTripVehicleTypeMaster": [
+            "Own bike",
+            "Own car",
+            "Company vehicle",
+            "Public transport",
+            "Bus",
+            "Train",
+            "Other",
+        ],
         "TrkTripStatusMaster": ["In progress", "Completed", "Auto closed"],
         "TrkGpsDiagnosticEventType": ["LOCATION_CALLBACK_SILENCE", "GPS_DISABLED", "GPS_ENABLED"],
     }
@@ -445,6 +465,9 @@ class _FakeMasterRepo:
     def default_trip_type(self) -> str | None:
         return self._default
 
+    def vehicle_row(self, code: str) -> Any:
+        return SimpleNamespace(code=code, is_gps_tracked=code not in ("Public transport", "Bus", "Train", "Other"))
+
 
 def _service_with(repo: _FakeRepo, master: _FakeMasterRepo | None = None) -> TripService:
     service = TripService.__new__(TripService)
@@ -457,18 +480,36 @@ def _service_with(repo: _FakeRepo, master: _FakeMasterRepo | None = None) -> Tri
 
 def _existing_trip() -> Any:
     return SimpleNamespace(
-        id=5501, trackable_activity_id=3301, employee_id=5, trip_type="To site", status="In progress",
-        is_active=True, start_at=datetime(2026, 10, 28, 6, 35), start_latitude=20.2961, start_longitude=85.8245,
-        end_at=None, end_latitude=None, end_longitude=None, gps_distance_km=None, map_distance_km=None,
-        adjusted_distance_km=None, is_distance_adjusted=False, duration_minutes=None,
+        id=5501,
+        trackable_activity_id=3301,
+        employee_id=5,
+        trip_type="To site",
+        status="In progress",
+        is_active=True,
+        start_at=datetime(2026, 10, 28, 6, 35),
+        start_latitude=20.2961,
+        start_longitude=85.8245,
+        end_at=None,
+        end_latitude=None,
+        end_longitude=None,
+        gps_distance_km=None,
+        map_distance_km=None,
+        adjusted_distance_km=None,
+        is_distance_adjusted=False,
+        duration_minutes=None,
         row_version=b"\x00\x00\x00\x00\x00\x00\x07\xd1",
     )
 
 
 def _start_input() -> StartTripInput:
     return StartTripInput.model_validate(
-        {"clientUuid": str(uuid4()), "module": "SVC", "referenceId": 9001,
-         "startLatitude": 20.2961, "startLongitude": 85.8245}
+        {
+            "clientUuid": str(uuid4()),
+            "module": "SVC",
+            "referenceId": 9001,
+            "startLatitude": 20.2961,
+            "startLongitude": 85.8245,
+        }
     )
 
 
@@ -500,8 +541,13 @@ def new_trip_path(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_start_uses_the_default_trip_type_when_none_is_sent(new_trip_path: None) -> None:
     repo = _FakeRepo()
     service = _service_with(repo)
-    body = {"clientUuid": str(uuid4()), "module": "SVC", "referenceId": 9001,
-            "startLatitude": 20.2961, "startLongitude": 85.8245}
+    body = {
+        "clientUuid": str(uuid4()),
+        "module": "SVC",
+        "referenceId": 9001,
+        "startLatitude": 20.2961,
+        "startLongitude": 85.8245,
+    }
     service.start(make_user(employee_id=5), StartTripInput.model_validate(body))
     assert repo.added[0].trip_type == "To site"
     assert repo.added[0].status == "In progress"  # set by the application
@@ -552,8 +598,13 @@ def test_retry_after_a_value_is_deactivated_still_returns_the_trip() -> None:
 
 def test_start_without_a_configured_default_requires_a_trip_type() -> None:
     service = _service_with(_FakeRepo(), _FakeMasterRepo(default_type=None))
-    body = {"clientUuid": str(uuid4()), "module": "SVC", "referenceId": 9001,
-            "startLatitude": 20.2961, "startLongitude": 85.8245}
+    body = {
+        "clientUuid": str(uuid4()),
+        "module": "SVC",
+        "referenceId": 9001,
+        "startLatitude": 20.2961,
+        "startLongitude": 85.8245,
+    }
     with pytest.raises(InvalidMasterValue) as caught:
         service.start(make_user(employee_id=5), StartTripInput.model_validate(body))
     assert "tripType" in (caught.value.errors or {})
@@ -657,8 +708,11 @@ _T0, _T1 = datetime(2026, 10, 28, 6, 36), datetime(2026, 10, 28, 8, 5)
 
 def test_sync_complete_when_the_server_stored_everything_the_device_recorded() -> None:
     status = _sync(
-        _ended_trip(timedelta(hours=1)), gps=(36500, _T0, _T1), diagnostics=(12, _T0, _T1),
-        expectedGpsRecords=36500, expectedDiagnosticRecords=12,
+        _ended_trip(timedelta(hours=1)),
+        gps=(36500, _T0, _T1),
+        diagnostics=(12, _T0, _T1),
+        expectedGpsRecords=36500,
+        expectedDiagnosticRecords=12,
     )
     assert status.gps_sync.sync_complete and status.gps_sync.pending_records == 0
     assert status.gps_sync.first_recorded_at == _T0.replace(tzinfo=UTC)  # served as UTC
@@ -918,7 +972,15 @@ class _MasterRows:
 
     @staticmethod
     def base(code: str, **extra: Any) -> SimpleNamespace:
-        return SimpleNamespace(code=code, name=code, description=None, sort_order=1, is_active=True, **extra)
+        return SimpleNamespace(
+            code=code,
+            name=code,
+            description=None,
+            sort_order=1,
+            is_active=True,
+            **({"is_gps_tracked": True} if code in ("Own bike",) else {}),
+            **extra,
+        )
 
 
 def _master_service(repo_rows: dict[str, list[SimpleNamespace]]) -> TripMasterService:
@@ -951,8 +1013,13 @@ def test_master_data_is_open_to_any_signed_in_user(api: FastAPI, client: TestCli
     assert response.status_code == 200
     body = response.json()
     assert body["moduleCodes"][0] == {
-        "code": "SVC", "name": "SVC", "description": None, "sortOrder": 1, "isActive": True,
-        "sourceSchema": "svc", "sourceTable": "service_visit",
+        "code": "SVC",
+        "name": "SVC",
+        "description": None,
+        "sortOrder": 1,
+        "isActive": True,
+        "sourceSchema": "svc",
+        "sourceTable": "service_visit",
     }
     assert body["tripTypes"][0]["isDefault"] is True
     assert body["tripStatuses"][0]["isInitial"] is True
@@ -961,7 +1028,12 @@ def test_master_data_is_open_to_any_signed_in_user(api: FastAPI, client: TestCli
 
 @pytest.mark.parametrize(
     ("path", "code"),
-    [("module-codes", "SVC"), ("trip-types", "To site"), ("vehicle-types", "Own bike"), ("trip-statuses", "In progress")],
+    [
+        ("module-codes", "SVC"),
+        ("trip-types", "To site"),
+        ("vehicle-types", "Own bike"),
+        ("trip-statuses", "In progress"),
+    ],
 )
 def test_each_master_list_endpoint(api: FastAPI, client: TestClient, path: str, code: str) -> None:
     api.dependency_overrides[get_current_user] = lambda: make_user(permissions=frozenset())
@@ -1019,3 +1091,22 @@ def test_audit_source_is_inferred_for_mobile_clients(header: str | None, agent: 
     from trishul_api.auth.deps import _audit_source
 
     assert _audit_source(header, agent) == expected
+
+
+@pytest.mark.parametrize("vehicle", ["Public transport", "Bus", "Train", "Other"])
+def test_start_rejects_vehicles_without_gps_tracking(vehicle: str) -> None:
+    service = _service_with(_FakeRepo())
+    data = StartTripInput.model_validate({**_start_body(), "vehicleType": vehicle})
+    with pytest.raises(InvalidMasterValue) as error:
+        service.start(make_user(permissions=frozenset({"trk.trip.manage"}), employee_id=5), data)
+    assert "manual travel" in error.value.errors["vehicleType"][0]
+
+
+def test_manual_travel_accepts_only_non_gps_vehicles() -> None:
+    master = TripMasterService.__new__(TripMasterService)
+    master._repo = _FakeMasterRepo()  # type: ignore[assignment]
+    assert master.manual_vehicle_problem("Bus") is None
+    assert master.manual_vehicle_problem("Train") is None
+    assert master.manual_vehicle_problem("Other") is None
+    assert "GPS" in (master.manual_vehicle_problem("Own bike") or "")
+    assert "not an active" in (master.manual_vehicle_problem("Jetpack") or "")

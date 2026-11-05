@@ -34,9 +34,7 @@ from trishul_api.modules.trk.schemas import (
 # The distance used for reporting: the Team Lead's manual value wins, else the Maps value, else GPS.
 POOR_ACCURACY_M = 50
 MAX_ROUTE_POINTS = 1000
-_EFFECTIVE_DISTANCE_KM = func.coalesce(
-    TrkTrip.adjusted_distance_km, TrkTrip.map_distance_km, TrkTrip.gps_distance_km
-)
+_EFFECTIVE_DISTANCE_KM = func.coalesce(TrkTrip.adjusted_distance_km, TrkTrip.map_distance_km, TrkTrip.gps_distance_km)
 
 _SORT_COLUMNS: SortColumns = {
     "startAt": TrkTrip.start_at,
@@ -65,9 +63,7 @@ class TripRepository:
 
     def active_trip_for_employee(self, employee_id: int) -> TrkTrip | None:
         return self._session.scalars(
-            select(TrkTrip).where(
-                TrkTrip.employee_id == employee_id, TrkTrip.status == IN_PROGRESS, TrkTrip.is_active
-            )
+            select(TrkTrip).where(TrkTrip.employee_id == employee_id, TrkTrip.status == IN_PROGRESS, TrkTrip.is_active)
         ).first()
 
     def device_id_for(self, app_user_id: int, device_id: str) -> int | None:
@@ -161,6 +157,7 @@ class TripRepository:
             .where(TrkTripDistanceAdjustment.trip_id == TrkTrip.id)
             .scalar_subquery()
         )
+
         def last_fix(column: Any) -> Any:
             return (
                 select(column)
@@ -229,17 +226,21 @@ class TripRepository:
         return [CallTripHistoryItem.model_validate(row) for row in rows.mappings()]
 
     def route_points(self, trip_id: int) -> tuple[list[RoutePoint], GpsQuality]:
-        rows = self._session.execute(
-            select(
-                TrkTripGpsPoint.recorded_at,
-                TrkTripGpsPoint.latitude,
-                TrkTripGpsPoint.longitude,
-                TrkTripGpsPoint.accuracy_m,
-                TrkTripGpsPoint.is_mock_location,
+        rows = (
+            self._session.execute(
+                select(
+                    TrkTripGpsPoint.recorded_at,
+                    TrkTripGpsPoint.latitude,
+                    TrkTripGpsPoint.longitude,
+                    TrkTripGpsPoint.accuracy_m,
+                    TrkTripGpsPoint.is_mock_location,
+                )
+                .where(TrkTripGpsPoint.trip_id == trip_id)
+                .order_by(TrkTripGpsPoint.recorded_at, TrkTripGpsPoint.id)
             )
-            .where(TrkTripGpsPoint.trip_id == trip_id)
-            .order_by(TrkTripGpsPoint.recorded_at, TrkTripGpsPoint.id)
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
         accuracies = [float(r["accuracy_m"]) for r in rows if r["accuracy_m"] is not None]
         quality = GpsQuality(
             point_count=len(rows),
@@ -322,6 +323,4 @@ class TripRepository:
                     Employee.last_name.contains(term, autoescape=True),
                 )
             )
-        return order_by_sort(
-            statement, query.sort, _SORT_COLUMNS, default="-startAt", tiebreaker=TrkTrip.id.desc()
-        )
+        return order_by_sort(statement, query.sort, _SORT_COLUMNS, default="-startAt", tiebreaker=TrkTrip.id.desc())

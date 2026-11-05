@@ -1033,7 +1033,7 @@ class NumberSeries(Audited, Base):
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
 
-class Attachment(Base):
+class Attachment(Audited, Base):
     """Files stored in Amazon S3, linked to any record."""
 
     __tablename__ = "attachment"

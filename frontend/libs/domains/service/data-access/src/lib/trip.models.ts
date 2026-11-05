@@ -11,11 +11,18 @@ export type {
   RoutePoint,
   GpsQuality,
   GpsDiagnosticItem,
+  ManualTravelInput,
+  ManualTravelOut,
+  ManualTravelUpdate,
+  VehicleTypeItem,
   TripSyncStatus,
 } from '@trishul/core-api';
 
 export type TripStatus = CallTripHistoryItem['status'];
 export type TripType = CallTripHistoryItem['tripType'];
+
+/** Record manual travel (Bus, Train, Other) and start GPS trips. The API checks the same code. */
+export const TRIP_MANAGE_PERMISSION = 'trk.trip.manage';
 
 /** Manually adjust a trip's distance. The API checks the same code. */
 export const TRIP_ADJUST_PERMISSION = 'trk.trip.adjust';
