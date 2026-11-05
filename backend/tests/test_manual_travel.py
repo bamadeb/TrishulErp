@@ -88,6 +88,7 @@ def db() -> Engine:
         ("Own bike", "Own bike", True, 1),
         ("Own car", "Own car", True, 2),
         ("Company vehicle", "Company vehicle", True, 3),
+        ("Public transport", "Public transport", False, 4),
         ("Bus", "Bus", False, 5),
         ("Train", "Train", False, 6),
         ("Other", "Other", False, 7),
@@ -170,7 +171,7 @@ def upload(client: TestClient, travel_id: int, name: str = "ticket.pdf", raw: by
 # ---------------------------------------------------------------- manual travel
 
 
-@pytest.mark.parametrize("vehicle", ["Bus", "Train", "Other"])
+@pytest.mark.parametrize("vehicle", ["Public transport", "Bus", "Train", "Other"])
 def test_engineer_records_manual_travel_against_the_call(engineer: TestClient, vehicle: str) -> None:
     response = engineer.post(TRAVEL, json=entry(vehicleType=vehicle))
     assert response.status_code == 201, response.text

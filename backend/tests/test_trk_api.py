@@ -466,7 +466,7 @@ class _FakeMasterRepo:
         return self._default
 
     def vehicle_row(self, code: str) -> Any:
-        return SimpleNamespace(code=code, is_gps_tracked=code not in ("Bus", "Train", "Other"))
+        return SimpleNamespace(code=code, is_gps_tracked=code not in ("Public transport", "Bus", "Train", "Other"))
 
 
 def _service_with(repo: _FakeRepo, master: _FakeMasterRepo | None = None) -> TripService:
@@ -1093,7 +1093,7 @@ def test_audit_source_is_inferred_for_mobile_clients(header: str | None, agent: 
     assert _audit_source(header, agent) == expected
 
 
-@pytest.mark.parametrize("vehicle", ["Bus", "Train", "Other"])
+@pytest.mark.parametrize("vehicle", ["Public transport", "Bus", "Train", "Other"])
 def test_start_rejects_vehicles_without_gps_tracking(vehicle: str) -> None:
     service = _service_with(_FakeRepo())
     data = StartTripInput.model_validate({**_start_body(), "vehicleType": vehicle})
