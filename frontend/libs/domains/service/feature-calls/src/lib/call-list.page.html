@@ -150,23 +150,17 @@
             [status]="call.currentStatus"
             [severities]="statusSeverity"
           />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="trip">
-        <th mat-header-cell *matHeaderCellDef>Trip</th>
-        <td mat-cell *matCellDef="let call">
           @if (call.isTripOngoing) {
-          <button
-            type="button"
-            class="ongoing-trip"
-            matTooltip="View ongoing trip details"
-            (click)="showOngoingTrip(call)"
-          >
-            <span class="dot" aria-hidden="true"></span> Ongoing Trip
-          </button>
-          } @else {
-          <span class="muted">—</span>
+          <div>
+            <button
+              type="button"
+              class="ongoing-trip"
+              matTooltip="View ongoing trip details"
+              (click)="showOngoingTrip(call)"
+            >
+              <span class="dot" aria-hidden="true"></span> Ongoing Trip
+            </button>
+          </div>
           }
         </td>
       </ng-container>
