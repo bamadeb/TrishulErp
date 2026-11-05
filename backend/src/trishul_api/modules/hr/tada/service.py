@@ -49,7 +49,8 @@ _EMPLOYEE_NOTE = (
     "Additional allowance is the current monthly salary component, not another trip payment."
 )
 _ALLOWANCE_NOTE = (
-    "These amounts are the employee's current monthly salary components. They are not added to the trip TA."
+    "These amounts are the employee's current monthly salary components. "
+    "They are not added to the trip TA."
 )
 
 
@@ -90,7 +91,9 @@ class TadaService:
         _, previous_engineers, previous_trips, previous_bike, previous_car, previous_travel = self._trips.employee_page(
             query, previous_start, previous_end, previous
         )
-        bike_pay, car_pay, ta = money_for_km(bike_km, car_km, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km)
+        bike_pay, car_pay, ta = money_for_km(
+            bike_km, car_km, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km
+        )
         previous_bike_pay, previous_car_pay, previous_ta = money_for_km(
             previous_bike, previous_car, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km
         )

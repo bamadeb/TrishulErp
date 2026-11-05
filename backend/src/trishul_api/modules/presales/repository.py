@@ -22,7 +22,9 @@ class SalesActivityRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def list_assigned(self, employee_id: int, query: AssignedSalesActivityQuery) -> Page[AssignedSalesActivityListItem]:
+    def list_assigned(
+        self, employee_id: int, query: AssignedSalesActivityQuery
+    ) -> Page[AssignedSalesActivityListItem]:
         return paginate(
             self._session, self.assigned_statement(employee_id, query), query, AssignedSalesActivityListItem
         )

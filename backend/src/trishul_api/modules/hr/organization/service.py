@@ -217,16 +217,9 @@ class OrganizationService:
         self._unique(self._repo.company_code_owner(data.code), None, "Company", data.code)
         self._refs({"stateId": (State, data.state_id)}, active=False)
         row = Company(
-            code=data.code,
-            legal_name=data.legal_name,
-            trade_name=data.trade_name,
-            pan=data.pan,
-            cin=data.cin,
-            address=data.address,
-            state_id=data.state_id,
-            logo_url=data.logo_url,
-            fiscal_year_start_month=data.fiscal_year_start_month,
-            created_by_user_id=actor.id,
+            code=data.code, legal_name=data.legal_name, trade_name=data.trade_name, pan=data.pan, cin=data.cin,
+            address=data.address, state_id=data.state_id, logo_url=data.logo_url,
+            fiscal_year_start_month=data.fiscal_year_start_month, created_by_user_id=actor.id,
         )
         return self.get_company(self._save(row, "Company"))
 

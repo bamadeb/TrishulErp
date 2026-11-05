@@ -241,10 +241,8 @@ class ServiceCallService:
             self._actor, detail.current_status, on_call
         )
         if detail.machine_unit_id is not None:
-            detail.asc = (
-                ContractRepository(self._db)
-                .machine_asc([detail.machine_unit_id], date.today())
-                .get(detail.machine_unit_id)
+            detail.asc = ContractRepository(self._db).machine_asc([detail.machine_unit_id], date.today()).get(
+                detail.machine_unit_id
             )
         return detail
 

@@ -22,15 +22,16 @@ from trishul_api.db.models import (
     Principal,
     ServiceCall,
     ServiceVisit,
+    TrackableActivity,
     Team,
     TeamMember,
-    TrackableActivity,
     TrkTrip,
 )
 from trishul_api.modules.core.teams.repository import current_member
 from trishul_api.modules.service.access import FINISHED_STATUSES, CallVisibility
 from trishul_api.modules.service.assignment import support_engineers, supports_call
 from trishul_api.modules.service.contracts.repository import ContractRepository
+from trishul_api.modules.trk.constants import IN_PROGRESS as TRIP_IN_PROGRESS
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
@@ -46,7 +47,6 @@ from trishul_api.modules.service.schemas import (
     UnassignedCallItem,
     UnassignedCallQuery,
 )
-from trishul_api.modules.trk.constants import IN_PROGRESS as TRIP_IN_PROGRESS
 
 # Calls the engineer no longer needs to travel to: hidden unless the client asks for them by status.
 _CLOSED_STATUSES = ("Closed", "Cancelled")

@@ -246,8 +246,12 @@ class TadaRepository:
     def _employee_groups(self, query: TadaReportQuery, start: datetime, end: datetime) -> Select[Any]:
         distance = applicable_distance_sql()
         payable = TrkTrip.status.in_(tuple(PAYABLE_STATUSES))
-        bike = func.coalesce(func.sum(case((and_(payable, TrkTrip.vehicle_type == "Own bike"), distance), else_=0)), 0)
-        car = func.coalesce(func.sum(case((and_(payable, TrkTrip.vehicle_type == "Own car"), distance), else_=0)), 0)
+        bike = func.coalesce(
+            func.sum(case((and_(payable, TrkTrip.vehicle_type == "Own bike"), distance), else_=0)), 0
+        )
+        car = func.coalesce(
+            func.sum(case((and_(payable, TrkTrip.vehicle_type == "Own car"), distance), else_=0)), 0
+        )
         statement = (
             select(
                 Employee.id.label("employee_id"),
@@ -266,7 +270,9 @@ class TadaRepository:
                 )
             )
             .where(*self._filters(query, start, end))
-            .group_by(Employee.id, Employee.employee_code, Employee.first_name, Employee.last_name, Designation.name)
+            .group_by(
+                Employee.id, Employee.employee_code, Employee.first_name, Employee.last_name, Designation.name
+            )
         )
         return cast(Select[Any], statement)
 
