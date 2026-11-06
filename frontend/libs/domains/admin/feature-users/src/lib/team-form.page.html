@@ -38,14 +38,27 @@
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Branch</mat-label>
-          <mat-select formControlName="branchId" (selectionChange)="branchChanged()">
+          <mat-select
+            formControlName="branchId"
+            (selectionChange)="branchChanged()"
+          >
             @if (team(); as current) {
-            <mat-option [value]="current.branchId">{{ current.branchName }}</mat-option>
+            <mat-option [value]="current.branchId"
+              >{{ current.branchName }}</mat-option
+            >
+            } @for (group of branches() | branchGroups; track group.label) {
+            <mat-optgroup>
+              <span class="group-head">
+                @if (group.warehouse) {
+                <mat-icon aria-hidden="true">warehouse</mat-icon>
+                } {{ group.label }}
+              </span>
+              @for (b of group.branches; track b.id) { @if (b.id !==
+              team()?.branchId) {
+              <mat-option [value]="b.id">{{ b.name }}</mat-option>
+              } }
+            </mat-optgroup>
             }
-            @for (b of branches(); track b.id) {
-            @if (b.id !== team()?.branchId) {
-            <mat-option [value]="b.id">{{ b.name }}</mat-option>
-            } }
           </mat-select>
           @if (isNew()) {
           <mat-hint>Can't be changed later.</mat-hint>
@@ -56,11 +69,10 @@
           <mat-label>Team lead</mat-label>
           <mat-select formControlName="teamLeadEmployeeId">
             @if (team(); as current) { @if (!canManage) {
-            <mat-option [value]="current.teamLeadEmployeeId">{{
-              current.teamLeadName
-            }}</mat-option>
-            } }
-            @for (e of employees(); track e.id) {
+            <mat-option [value]="current.teamLeadEmployeeId"
+              >{{ current.teamLeadName }}</mat-option
+            >
+            } } @for (e of employees(); track e.id) {
             <mat-option [value]="e.id"
               >{{ e.name }} · {{ e.designation || e.employeeCode }}</mat-option
             >
@@ -163,10 +175,9 @@
       />
     </div>
     <p class="muted">
-      {{ current.memberCount }}
-      {{ current.memberCount === 1 ? 'member' : 'members' }}. While the team is
-      active, {{ current.teamLeadName }} sees their service calls and calls not
-      yet assigned.
+      {{ current.memberCount }} {{ current.memberCount === 1 ? 'member' :
+      'members' }}. While the team is active, {{ current.teamLeadName }} sees
+      their service calls and calls not yet assigned.
     </p>
     @if (canManage) { @if (current.isActive) {
     <button

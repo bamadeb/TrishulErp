@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -12,7 +13,7 @@ import { MatSort, MatSortHeader, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
-import { AuthStore, HasPermission } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe, HasPermission } from '@trishul/core-auth';
 import {
   ASC_IMPORT_PERMISSION,
   ASC_MANAGE_PERMISSION,
@@ -33,6 +34,8 @@ export const ASC_STATE_SEVERITY: Record<string, StatusSeverity> = {
 @Component({
   selector: 'trishul-asc-list-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     DatePipe,
     DecimalPipe,
     RouterLink,

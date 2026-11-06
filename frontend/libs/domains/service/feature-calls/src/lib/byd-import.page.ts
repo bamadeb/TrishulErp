@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,7 +14,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { EMPTY, catchError, finalize } from 'rxjs';
-import { AuthStore } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe } from '@trishul/core-auth';
 import {
   BydImportApi,
   BydImportPreview,
@@ -26,6 +27,8 @@ import { ImportRowsTable } from './import-rows-table';
 @Component({
   selector: 'trishul-byd-import-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     MatButton,
     MatIcon,
     MatFormField,

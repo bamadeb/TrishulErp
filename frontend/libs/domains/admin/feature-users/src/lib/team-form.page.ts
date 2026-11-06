@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -36,7 +37,7 @@ import {
   TeamEmployeeOption,
   TeamsApi,
 } from '@trishul/admin-data-access';
-import { AuthStore } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe } from '@trishul/core-auth';
 import { PageHeader, StatusBadge } from '@trishul/shared-ui';
 import { ACTIVE_SEVERITY } from './alert-rule-list.page';
 import { TeamActions } from './team-actions';
@@ -48,6 +49,8 @@ const SERVICE_ENGINEER = 'SERVICE_ENG';
 @Component({
   selector: 'trishul-team-form-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     ReactiveFormsModule,
     RouterLink,
     MatFormField,

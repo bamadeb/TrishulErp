@@ -16,3 +16,5 @@ export * from './lib/team-list.store';
 export * from './lib/documents.models';
 export * from './lib/documents.api';
 export * from './lib/document-library.store';
+export * from './lib/warehouses.models';
+export * from './lib/warehouses.api';

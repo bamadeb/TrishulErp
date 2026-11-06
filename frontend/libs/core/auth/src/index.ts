@@ -1,4 +1,6 @@
 export * from './lib/auth.models';
+export * from './lib/branch-options';
+export * from './lib/branch-groups.pipe';
 export * from './lib/auth-session';
 export * from './lib/auth.service';
 export * from './lib/auth.store';

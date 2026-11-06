@@ -1,9 +1,9 @@
 from collections.abc import Set
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import case, select
+from sqlalchemy.orm import Session, aliased
 
-from trishul_api.db.models import Branch, LookupType, LookupValue, Principal, Role
+from trishul_api.db.models import Branch, LookupType, LookupValue, Principal, Region, Role
 from trishul_api.modules.core.schemas import BranchRef, LookupValueOut, PrincipalRef
 
 
@@ -13,7 +13,25 @@ class CoreRepository:
 
     def branches(self, ids: Set[int] | None) -> list[BranchRef]:
         """Active branches; ids None means all."""
-        query = select(Branch.id, Branch.code, Branch.name).where(Branch.is_active).order_by(Branch.name)
+        warehouse = aliased(Branch)
+        query = (
+            select(
+                Branch.id,
+                Branch.code,
+                Branch.name,
+                Branch.branch_type,
+                case((Branch.branch_type == "Warehouse", Branch.id), else_=Branch.parent_warehouse_id).label(
+                    "warehouse_id"
+                ),
+                case((Branch.branch_type == "Warehouse", Branch.name), else_=warehouse.name).label("warehouse_name"),
+                Branch.region_id,
+                Region.name.label("region_name"),
+            )
+            .outerjoin(warehouse, warehouse.id == Branch.parent_warehouse_id)
+            .outerjoin(Region, Region.id == Branch.region_id)
+            .where(Branch.is_active)
+            .order_by(Branch.name)
+        )
         if ids is not None:
             query = query.where(Branch.id.in_(ids))
         return [BranchRef.model_validate(row) for row in self._session.execute(query)]

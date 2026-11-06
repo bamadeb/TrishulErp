@@ -5,4 +5,9 @@ export interface StopTripInput {
   endLatitude: number;
   endLongitude: number;
   endedAt?: (string | null);
+
+  /**
+   * Remarks on the trip, saved when it stops.
+   */
+  remarks?: (string | null);
 }

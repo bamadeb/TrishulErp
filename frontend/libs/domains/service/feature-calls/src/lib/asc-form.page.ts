@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -50,7 +51,7 @@ import {
   startWith,
   switchMap,
 } from 'rxjs';
-import { AuthStore } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe } from '@trishul/core-auth';
 import {
   ASC_MANAGE_PERMISSION,
   AscApi,
@@ -108,6 +109,8 @@ export function amount(value: string | null): number | null {
 @Component({
   selector: 'trishul-asc-form-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,

@@ -189,6 +189,7 @@ class TripRepository:
                 TrkTrip.start_at,
                 TrkTrip.end_at,
                 TrkTrip.duration_minutes,
+                TrkTrip.remarks,
                 TrkTrip.start_latitude,
                 TrkTrip.start_longitude,
                 TrkTrip.end_latitude,
@@ -302,6 +303,7 @@ class TripRepository:
                 TrkTrip.is_distance_adjusted,
                 _EFFECTIVE_DISTANCE_KM.label("effective_distance_km"),
                 TrkTrip.duration_minutes,
+                TrkTrip.remarks,
             )
             .join(TrackableActivity, TrackableActivity.id == TrkTrip.trackable_activity_id)
             .join(Employee, Employee.id == TrkTrip.employee_id)

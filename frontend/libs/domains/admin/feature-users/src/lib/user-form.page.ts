@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -59,7 +60,7 @@ import {
   UsersApi,
   employeeLabel,
 } from '@trishul/admin-data-access';
-import { AuthStore } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe } from '@trishul/core-auth';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { TrishulValidators } from '@trishul/shared-util';
 import { showTemporaryPassword } from './password-dialogs';
@@ -116,6 +117,8 @@ function employeeOf(user: UserDetail): EmployeeChoice | string {
 @Component({
   selector: 'trishul-user-form-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     ReactiveFormsModule,
     RouterLink,
     MatFormField,

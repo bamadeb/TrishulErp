@@ -5,6 +5,12 @@ class BranchRef(ApiModel):
     id: int
     code: str
     name: str
+    branch_type: str
+    warehouse_id: int | None
+    """The warehouse that supplies this branch (a warehouse's own id for a warehouse)."""
+    warehouse_name: str | None
+    region_id: int | None
+    region_name: str | None
 
 
 class PrincipalRef(ApiModel):

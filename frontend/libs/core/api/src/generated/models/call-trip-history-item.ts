@@ -37,6 +37,7 @@ export interface CallTripHistoryItem {
   lastLatitude: (number | null);
   lastLongitude: (number | null);
   mapDistanceKm: (number | null);
+  remarks: (string | null);
   rowVersion: string;
   startAt: string;
 

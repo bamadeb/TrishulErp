@@ -18,7 +18,7 @@ import {
   MatListItemTitle,
   MatNavList,
 } from '@angular/material/list';
-import { MatOption, MatSelect } from '@angular/material/select';
+import { MatOptgroup, MatOption, MatSelect, MatSelectTrigger } from '@angular/material/select';
 import {
   MatSidenav,
   MatSidenavContainer,
@@ -28,7 +28,12 @@ import { MatToolbar } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
-import { AuthService, AuthStore, IdleTimeout } from '@trishul/core-auth';
+import {
+  AuthService,
+  AuthStore,
+  IdleTimeout,
+  branchGroups,
+} from '@trishul/core-auth';
 import { AlertBell } from './alerts/alert-bell';
 import { NAV_ITEMS, NavItem } from './nav';
 
@@ -46,6 +51,8 @@ import { NAV_ITEMS, NavItem } from './nav';
     MatTooltip,
     MatFormField,
     MatSelect,
+    MatSelectTrigger,
+    MatOptgroup,
     MatOption,
     MatSidenavContainer,
     MatSidenav,
@@ -76,6 +83,11 @@ export class Shell {
 
   /** mat-select shows a null value as blank, so "All brands" uses a sentinel id instead. */
   protected readonly ALL_BRANDS = 0;
+
+  /** The user's branches grouped under the warehouse that supplies them, in one dropdown. */
+  protected readonly branchGroups = computed(() =>
+    branchGroups(this.auth.user()?.branches ?? []),
+  );
 
   protected readonly menu = computed(() => this.filter(this.navItems));
 

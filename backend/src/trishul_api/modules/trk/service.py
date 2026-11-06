@@ -215,6 +215,7 @@ class TripService:
         trip.end_longitude = Decimal(str(data.end_longitude))
         trip.duration_minutes = int((now - trip.start_at).total_seconds() // 60)
         trip.gps_distance_km = Decimal(str(distance)) if distance is not None else None
+        trip.remarks = (data.remarks or "").strip() or None
         trip.status = COMPLETED
         trip.updated_at = now
         trip.updated_by_user_id = user.id
@@ -353,6 +354,7 @@ class TripService:
             is_distance_adjusted=trip.is_distance_adjusted,
             effective_distance_km=self._effective_distance(trip),
             duration_minutes=trip.duration_minutes,
+            remarks=trip.remarks,
             row_version=trip.row_version,
         )
 

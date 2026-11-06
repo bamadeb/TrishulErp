@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -55,7 +56,7 @@ import {
   SERVICE_CALL_CREATE_PERMISSION,
   ServiceCallApi,
 } from '@trishul/service-data-access';
-import { AuthStore } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe } from '@trishul/core-auth';
 import { PageHeader } from '@trishul/shared-ui';
 import { AscBadge } from './asc-badge';
 
@@ -81,6 +82,8 @@ function pickedCustomer(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'trishul-call-form-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     ReactiveFormsModule,
     RouterLink,
     MatFormField,

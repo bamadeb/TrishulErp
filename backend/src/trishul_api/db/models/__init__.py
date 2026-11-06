@@ -12,6 +12,7 @@ from trishul_api.db.models.generated import *  # noqa: F403
 from trishul_api.db.models.generated import __all__ as _generated
 
 # Hand-written until the generator is re-run against the migrated DB (see trk.py).
+from trishul_api.db.models.region import Region
 from trishul_api.db.models.trk import (
     TrackableActivity,
     TrackableActivityModule,
@@ -29,6 +30,7 @@ from trishul_api.db.models.trk import (
 
 __all__ = [
     "Audited",
+    "Region",
     "Base",
     "TrackableActivity",
     "TrackableActivityModule",

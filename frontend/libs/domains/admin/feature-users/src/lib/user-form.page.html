@@ -92,8 +92,17 @@
           <mat-label>Default branch</mat-label>
           <mat-select formControlName="defaultBranchId">
             <mat-option [value]="NO_BRANCH">None</mat-option>
-            @for (branch of branches(); track branch.id) {
-            <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+            @for (group of branches() | branchGroups; track group.label) {
+            <mat-optgroup>
+              <span class="group-head">
+                @if (group.warehouse) {
+                <mat-icon aria-hidden="true">warehouse</mat-icon>
+                } {{ group.label }}
+              </span>
+              @for (branch of group.branches; track branch.id) {
+              <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+              }
+            </mat-optgroup>
             }
           </mat-select>
           <mat-hint>Selected when they sign in.</mat-hint>
@@ -122,8 +131,17 @@
           <mat-label>Branch</mat-label>
           <mat-select formControlName="branchId">
             <mat-option [value]="NO_BRANCH">All branches</mat-option>
-            @for (branch of branches(); track branch.id) {
-            <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+            @for (group of branches() | branchGroups; track group.label) {
+            <mat-optgroup>
+              <span class="group-head">
+                @if (group.warehouse) {
+                <mat-icon aria-hidden="true">warehouse</mat-icon>
+                } {{ group.label }}
+              </span>
+              @for (branch of group.branches; track branch.id) {
+              <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+              }
+            </mat-optgroup>
             }
           </mat-select>
         </mat-form-field>

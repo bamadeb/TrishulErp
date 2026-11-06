@@ -160,6 +160,7 @@ class TrkTrip(Base, Audited):
     )
     status: Mapped[str] = mapped_column(sa.NVARCHAR(30), sa.ForeignKey("trk.trip_status.code"), doc="Status")
     route_polyline: Mapped[str | None] = mapped_column(sa.UnicodeText(), doc="Encoded route")
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(500), doc="Engineer's remarks when the trip was stopped")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))

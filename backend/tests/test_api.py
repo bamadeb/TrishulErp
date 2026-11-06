@@ -21,7 +21,10 @@ from .conftest import make_user
 
 class FakeCoreRepository:
     def branches(self, ids: object) -> list[BranchRef]:
-        return [BranchRef(id=1, code="PUN", name="Pune")]
+        return [BranchRef(
+                id=1, code="PUN", name="Pune", branch_type="Branch", warehouse_id=None, warehouse_name=None,
+                region_id=None, region_name=None,
+            )]
 
     def principals(self, ids: object) -> list[PrincipalRef]:
         return [PrincipalRef(id=10, code="ATLAS_COPCO", name="Atlas Copco")]
@@ -127,7 +130,18 @@ def test_me_returns_the_angular_auth_contract(api: FastAPI, client: TestClient, 
         "email": "rahul@example.com",
         "defaultBranchId": 1,
         "permissions": ["svc.call.assign", "svc.call.view.team"],
-        "branches": [{"id": 1, "code": "PUN", "name": "Pune"}],
+        "branches": [
+            {
+                "id": 1,
+                "code": "PUN",
+                "name": "Pune",
+                "branchType": "Branch",
+                "warehouseId": None,
+                "warehouseName": None,
+                "regionId": None,
+                "regionName": None,
+            }
+        ],
         "principals": [{"id": 10, "code": "ATLAS_COPCO", "name": "Atlas Copco"}],
     }
 

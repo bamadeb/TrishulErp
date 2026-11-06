@@ -31,8 +31,17 @@
       (valueChange)="store.updateQuery({ branchId: $event ?? undefined })"
     >
       <mat-option [value]="null">All branches</mat-option>
-      @for (b of branches(); track b.id) {
-      <mat-option [value]="b.id">{{ b.name }}</mat-option>
+      @for (group of branches() | branchGroups; track group.label) {
+      <mat-optgroup>
+        <span class="group-head">
+          @if (group.warehouse) {
+          <mat-icon aria-hidden="true">warehouse</mat-icon>
+          } {{ group.label }}
+        </span>
+        @for (b of group.branches; track b.id) {
+        <mat-option [value]="b.id">{{ b.name }}</mat-option>
+        }
+      </mat-optgroup>
       }
     </mat-select>
   </mat-form-field>

@@ -5,6 +5,7 @@ import {
   ROLE_VIEW_PERMISSIONS,
   TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
+  WAREHOUSE_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
 import { EMPLOYEE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
@@ -114,6 +115,12 @@ export const navItems: NavItem[] = [
         icon: 'folder_open',
         route: '/admin/documents',
         permissions: [...DOCUMENT_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Warehouses',
+        icon: 'warehouse',
+        route: '/admin/warehouses',
+        permissions: [...WAREHOUSE_VIEW_PERMISSIONS],
       },
     ],
   },

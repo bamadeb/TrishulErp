@@ -149,8 +149,24 @@
         [value]="auth.branchId()"
         (valueChange)="auth.selectBranch($event)"
       >
-        @for (branch of auth.user()?.branches ?? []; track branch.id) {
-        <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+        <mat-select-trigger>
+          {{ auth.currentBranch()?.name }}
+          @if (auth.currentBranch()?.warehouseName && auth.currentBranch()?.branchType !== 'Warehouse') {
+          · {{ auth.currentBranch()?.warehouseName }}
+          }
+        </mat-select-trigger>
+        @for (group of branchGroups(); track group.label) {
+        <mat-optgroup>
+          <span class="group-head">
+            @if (group.warehouse) {
+            <mat-icon aria-hidden="true">warehouse</mat-icon>
+            }
+            {{ group.label }}
+          </span>
+          @for (branch of group.branches; track branch.id) {
+          <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+          }
+        </mat-optgroup>
         }
       </mat-select>
     </mat-form-field>

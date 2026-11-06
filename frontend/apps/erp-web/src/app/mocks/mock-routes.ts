@@ -88,9 +88,9 @@ const currentUser: CurrentUser = {
   defaultBranchId: 1,
   permissions: ['*'],
   branches: [
-    { id: 1, code: 'PUN', name: 'Pune' },
-    { id: 2, code: 'MUM', name: 'Mumbai' },
-    { id: 3, code: 'NGP', name: 'Nagpur' },
+    { id: 1, code: 'PUN', name: 'Pune', branchType: 'Branch', warehouseId: null, warehouseName: null, regionId: null, regionName: null },
+    { id: 2, code: 'MUM', name: 'Mumbai', branchType: 'Branch', warehouseId: null, warehouseName: null, regionId: null, regionName: null },
+    { id: 3, code: 'NGP', name: 'Nagpur', branchType: 'Branch', warehouseId: null, warehouseName: null, regionId: null, regionName: null },
   ],
   principals: [
     { id: 1, code: 'ATLAS_COPCO', name: 'Atlas Copco' },

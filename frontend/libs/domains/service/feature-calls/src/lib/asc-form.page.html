@@ -32,13 +32,19 @@
             [matAutocomplete]="machineAuto"
             placeholder="Search by serial number or model"
           />
-          <mat-autocomplete #machineAuto="matAutocomplete" [displayWith]="machineText">
+          <mat-autocomplete
+            #machineAuto="matAutocomplete"
+            [displayWith]="machineText"
+          >
             @for (m of machineOptions(); track m.id) {
             <mat-option [value]="m">{{ machineLabel(m) }}</mat-option>
             }
           </mat-autocomplete>
           @if (isNew()) {
-          <mat-hint>The ASC is for this machine's owner. Not listed? Add the machine first.</mat-hint>
+          <mat-hint
+            >The ASC is for this machine's owner. Not listed? Add the machine
+            first.</mat-hint
+          >
           }
           <mat-error>Pick the machine from the list.</mat-error>
         </mat-form-field>
@@ -61,7 +67,9 @@
             <mat-option [value]="p.id">{{ planLabel(p) }}</mat-option>
             }
           </mat-select>
-          <mat-hint>Picking a plan fills the end date, visits and value.</mat-hint>
+          <mat-hint
+            >Picking a plan fills the end date, visits and value.</mat-hint
+          >
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Start date</mat-label>
@@ -75,7 +83,12 @@
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Visits included</mat-label>
-          <input matInput type="number" min="0" formControlName="visitsIncluded" />
+          <input
+            matInput
+            type="number"
+            min="0"
+            formControlName="visitsIncluded"
+          />
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Visits done</mat-label>
@@ -83,7 +96,12 @@
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Contract value (₹, with GST)</mat-label>
-          <input matInput type="number" min="0" formControlName="contractValue" />
+          <input
+            matInput
+            type="number"
+            min="0"
+            formControlName="contractValue"
+          />
         </mat-form-field>
         <mat-checkbox formControlName="isRenewal">Renewal</mat-checkbox>
       </div>
@@ -95,8 +113,17 @@
         <mat-form-field appearance="outline">
           <mat-label>Branch</mat-label>
           <mat-select formControlName="branchId">
-            @for (b of branches(); track b.id) {
-            <mat-option [value]="b.id">{{ b.name }}</mat-option>
+            @for (group of branches() | branchGroups; track group.label) {
+            <mat-optgroup>
+              <span class="group-head">
+                @if (group.warehouse) {
+                <mat-icon aria-hidden="true">warehouse</mat-icon>
+                } {{ group.label }}
+              </span>
+              @for (b of group.branches; track b.id) {
+              <mat-option [value]="b.id">{{ b.name }}</mat-option>
+              }
+            </mat-optgroup>
             }
           </mat-select>
           <mat-error>Choose a branch.</mat-error>
@@ -106,7 +133,9 @@
           <mat-select formControlName="engineerEmployeeId">
             <mat-option [value]="null">Not set</mat-option>
             @for (e of engineers(); track e.id) {
-            <mat-option [value]="e.id">{{ e.name }} · {{ e.employeeCode }}</mat-option>
+            <mat-option [value]="e.id"
+              >{{ e.name }} · {{ e.employeeCode }}</mat-option
+            >
             }
           </mat-select>
           @if (contract()?.engineerName && !contract()?.engineerEmployeeId) {
@@ -161,34 +190,41 @@
     <h2>Status</h2>
     <div class="status-line">
       <trishul-status-badge [status]="c.state" [severities]="stateSeverity" />
-      <span>{{ c.startDate | date: 'dd MMM yyyy' }} – {{ c.endDate | date: 'dd MMM yyyy' }}</span>
+      <span
+        >{{ c.startDate | date: 'dd MMM yyyy' }} – {{ c.endDate | date: 'dd MMM
+        yyyy' }}</span
+      >
     </div>
     <p class="muted">
-      <b>{{ c.visitsUsed }}</b>{{ c.visitsIncluded !== null ? ' of ' + c.visitsIncluded : '' }} visits used
-      @if (c.visitsRemaining !== null) { · <b>{{ c.visitsRemaining }}</b> left }
-      @if (c.contractValue !== null) { · ₹{{ c.contractValue | number: '1.0-0' }} }
+      <b>{{ c.visitsUsed }}</b>{{ c.visitsIncluded !== null ? ' of ' +
+      c.visitsIncluded : '' }} visits used @if (c.visitsRemaining !== null) { ·
+      <b>{{ c.visitsRemaining }}</b> left } @if (c.contractValue !== null) { ·
+      ₹{{ c.contractValue | number: '1.0-0' }} }
     </p>
     <p class="muted">
       Customer: {{ c.customerName }} ({{ c.customerCode }})<br />
-      Machine:
-      @if (c.machineUnitId) {
-      <a [routerLink]="['/service/machines', c.machineUnitId]">{{ c.machineSerialNo }}</a>
-      } @else { — }
-      · {{ c.machineModel }}
+      Machine: @if (c.machineUnitId) {
+      <a [routerLink]="['/service/machines', c.machineUnitId]"
+        >{{ c.machineSerialNo }}</a
+      >
+      } @else { — } · {{ c.machineModel }}
     </p>
     @if (c.renewedFromContractId) {
     <p class="muted">
       Renewal of
-      <a [routerLink]="['/service/asc', c.renewedFromContractId]">{{ c.renewedFromContractNo }}</a>
+      <a [routerLink]="['/service/asc', c.renewedFromContractId]"
+        >{{ c.renewedFromContractNo }}</a
+      >
     </p>
     } @if (c.renewedByContractId) {
     <p class="muted">
       Renewed:
-      <a [routerLink]="['/service/asc', c.renewedByContractId]">see the new ASC</a>
+      <a [routerLink]="['/service/asc', c.renewedByContractId]"
+        >see the new ASC</a
+      >
     </p>
-    }
-    @if (canManage && c.state !== 'Cancelled') {
-    @if (!c.renewedByContractId) {
+    } @if (canManage && c.state !== 'Cancelled') { @if (!c.renewedByContractId)
+    {
     <button mat-flat-button type="button" (click)="renew()">
       <mat-icon>autorenew</mat-icon>
       Renew
@@ -201,7 +237,10 @@
     }
   </aside>
   <section class="card wide" aria-label="Visits from service calls">
-    <trishul-asc-call-visits [contract]="c" (updated)="onVisitsCounted($event)" />
+    <trishul-asc-call-visits
+      [contract]="c"
+      (updated)="onVisitsCounted($event)"
+    />
   </section>
   }
 </div>

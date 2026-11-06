@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -16,7 +17,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 import { EMPTY, catchError, finalize } from 'rxjs';
-import { AuthStore } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe } from '@trishul/core-auth';
 import {
   AscApi,
   AscImportResult,
@@ -41,6 +42,8 @@ const ACTION_SEVERITY: Record<string, StatusSeverity> = {
 @Component({
   selector: 'trishul-asc-import-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     DatePipe,
     MatButton,
     MatButtonToggleGroup,

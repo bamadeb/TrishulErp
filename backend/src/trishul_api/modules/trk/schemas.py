@@ -155,6 +155,7 @@ class StopTripInput(InputModel):
     end_latitude: float = _LAT
     end_longitude: float = _LON
     ended_at: UtcDateTime | None = None
+    remarks: str | None = Field(None, max_length=500, description="Remarks on the trip, saved when it stops.")
 
 
 class TripOut(ApiModel):
@@ -176,6 +177,7 @@ class TripOut(ApiModel):
     is_distance_adjusted: bool
     effective_distance_km: float | None
     duration_minutes: int | None
+    remarks: str | None
     row_version: RowVersion
 
 
@@ -210,6 +212,7 @@ class TripListItem(ApiModel):
     is_distance_adjusted: bool
     effective_distance_km: float | None
     duration_minutes: int | None
+    remarks: str | None
 
 
 class AdjustDistanceInput(InputModel):
@@ -247,6 +250,7 @@ class CallTripHistoryItem(ApiModel):
     start_at: UtcDateTime
     end_at: UtcDateTime | None
     duration_minutes: int | None
+    remarks: str | None
     start_latitude: float
     start_longitude: float
     end_latitude: float | None
@@ -395,9 +399,7 @@ class TrackingConfigOut(ApiModel):
     sampling_period_us: int | None = Field(
         description="Motion-sensor sampling period, microseconds. Null until calibrated."
     )
-    calibration_pending: list[str] = Field(
-        description="Keys that are still null because they are not calibrated yet."
-    )
+    calibration_pending: list[str] = Field(description="Keys that are still null because they are not calibrated yet.")
     version: str
 
 

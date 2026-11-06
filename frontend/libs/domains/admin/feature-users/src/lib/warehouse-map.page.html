@@ -1,0 +1,125 @@
+<trishul-page-header
+  title="Warehouses"
+  subtitle="Each warehouse with the branches it supplies."
+>
+  <button
+    mat-flat-button
+    type="button"
+    *trishulHasPermission="managePermission"
+    (click)="addWarehouse()"
+  >
+    <mat-icon>warehouse</mat-icon>
+    Add warehouse
+  </button>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+@if (failed()) {
+<p class="note">
+  Could not load the warehouses.
+  <button mat-button type="button" (click)="reload()">Try again</button>
+</p>
+}
+
+@for (node of nodes(); track node.warehouse.id) {
+<section class="warehouse" [class.off]="!node.warehouse.isActive">
+  <header>
+    <mat-icon class="kind" aria-hidden="true">warehouse</mat-icon>
+    <div class="title">
+      <h2>{{ node.warehouse.name }}</h2>
+      <span class="muted"
+        >{{ node.warehouse.code }} · {{ node.warehouse.branchCount }}
+        {{ node.warehouse.branchCount === 1 ? 'branch' : 'branches' }}
+        @if (!node.warehouse.isActive) { · Inactive }</span
+      >
+    </div>
+    @if (canManage) {
+    <button
+      mat-icon-button
+      type="button"
+      matTooltip="Edit"
+      [attr.aria-label]="'Edit ' + node.warehouse.name"
+      (click)="editWarehouse(node.warehouse)"
+    >
+      <mat-icon>edit</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      type="button"
+      [matTooltip]="node.warehouse.isActive ? 'Deactivate' : 'Activate'"
+      [attr.aria-label]="(node.warehouse.isActive ? 'Deactivate ' : 'Activate ') + node.warehouse.name"
+      (click)="toggleWarehouse(node.warehouse)"
+    >
+      <mat-icon>{{ node.warehouse.isActive ? 'block' : 'check_circle' }}</mat-icon>
+    </button>
+    }
+  </header>
+  <ul class="branches">
+    @for (branch of node.branches; track branch.id) {
+    <li>
+      <span class="name">{{ branch.name }}</span>
+      <span class="muted">{{ branch.code }}</span>
+      <span class="spacer"></span>
+      @if (canManage) {
+      <mat-select
+        class="move"
+        [value]="node.warehouse.id"
+        [attr.aria-label]="'Warehouse of ' + branch.name"
+        (valueChange)="assign(branch, $event)"
+      >
+        <mat-option [value]="NO_WAREHOUSE">No warehouse</mat-option>
+        @for (w of activeWarehouses(); track w.id) {
+        <mat-option [value]="w.id">{{ w.name }}</mat-option>
+        }
+      </mat-select>
+      }
+    </li>
+    } @empty {
+    <li class="muted">No branches yet.</li>
+    }
+  </ul>
+</section>
+} @empty { @if (!loading()) {
+<p class="note">No warehouses yet.</p>
+} }
+
+@if (unmapped().length) {
+<section class="warehouse">
+  <header>
+    <mat-icon class="kind" aria-hidden="true">help_outline</mat-icon>
+    <div class="title">
+      <h2>No warehouse yet</h2>
+      <span class="muted"
+        >{{ unmapped().length }} branches are not supplied by a warehouse.</span
+      >
+    </div>
+  </header>
+  <ul class="branches">
+    @for (branch of unmapped(); track branch.id) {
+    <li>
+      <span class="name">{{ branch.name }}</span>
+      <span class="muted">{{ branch.code }}</span>
+      <span class="spacer"></span>
+      @if (canManage) {
+      <mat-select
+        class="move"
+        [value]="NO_WAREHOUSE"
+        [attr.aria-label]="'Warehouse of ' + branch.name"
+        (valueChange)="assign(branch, $event)"
+      >
+        <mat-option [value]="NO_WAREHOUSE">Choose a warehouse…</mat-option>
+        @for (w of activeWarehouses(); track w.id) {
+        <mat-option [value]="w.id">{{ w.name }}</mat-option>
+        }
+      </mat-select>
+      }
+    </li>
+    }
+  </ul>
+</section>
+}

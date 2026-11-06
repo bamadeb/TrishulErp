@@ -17,8 +17,8 @@ const user: CurrentUser = {
   defaultBranchId: 2,
   permissions: ['svc.call.assign', 'svc.call.close'],
   branches: [
-    { id: 1, code: 'PUN', name: 'Pune' },
-    { id: 2, code: 'MUM', name: 'Mumbai' },
+    { id: 1, code: 'PUN', name: 'Pune', branchType: 'Branch', warehouseId: 9, warehouseName: 'West WH', regionId: 3, regionName: 'West' },
+    { id: 2, code: 'MUM', name: 'Mumbai', branchType: 'Branch', warehouseId: null, warehouseName: null, regionId: null, regionName: null },
   ],
   principals: [{ id: 1, code: 'ATLAS_COPCO', name: 'Atlas Copco' }],
 };

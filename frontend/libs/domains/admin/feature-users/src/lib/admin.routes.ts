@@ -11,6 +11,7 @@ import {
   TEAM_VIEW_PERMISSIONS,
   USER_MANAGE_PERMISSION,
   USER_VIEW_PERMISSIONS,
+  WAREHOUSE_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { permissionGuard } from '@trishul/core-auth';
 import { AlertRuleFormPage } from './alert-rule-form.page';
@@ -24,6 +25,7 @@ import { TeamFormPage } from './team-form.page';
 import { TeamListPage } from './team-list.page';
 import { UserFormPage } from './user-form.page';
 import { UserListPage } from './user-list.page';
+import { WarehouseMapPage } from './warehouse-map.page';
 
 /** Lazy-loaded under /admin. */
 export const adminRoutes: Route[] = [
@@ -123,5 +125,11 @@ export const adminRoutes: Route[] = [
     title: 'Alert rule',
     canActivate: [permissionGuard(...ALERT_RULE_VIEW_PERMISSIONS)],
     component: AlertRuleFormPage,
+  },
+  {
+    path: 'warehouses',
+    title: 'Warehouses',
+    canActivate: [permissionGuard(...WAREHOUSE_VIEW_PERMISSIONS)],
+    component: WarehouseMapPage,
   },
 ];

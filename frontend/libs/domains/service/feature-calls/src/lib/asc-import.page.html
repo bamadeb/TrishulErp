@@ -31,8 +31,17 @@
       (valueChange)="branchId.set($event)"
       aria-label="Branch for rows whose branch isn't in Trishul"
     >
-      @for (branch of branches(); track branch.id) {
-      <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+      @for (group of branches() | branchGroups; track group.label) {
+      <mat-optgroup>
+        <span class="group-head">
+          @if (group.warehouse) {
+          <mat-icon aria-hidden="true">warehouse</mat-icon>
+          } {{ group.label }}
+        </span>
+        @for (branch of group.branches; track branch.id) {
+        <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+        }
+      </mat-optgroup>
       }
     </mat-select>
   </mat-form-field>
@@ -49,8 +58,9 @@
 </div>
 
 <p class="muted">
-  Each row's own branch is used; the default branch is only for rows whose branch isn't in
-  Trishul. Machines, customers and models not yet in Trishul are added.
+  Each row's own branch is used; the default branch is only for rows whose
+  branch isn't in Trishul. Machines, customers and models not yet in Trishul are
+  added.
 </p>
 
 @if (busy()) {
@@ -69,18 +79,26 @@
   } @if (r.summary.newModels) {
   <span class="chip warn">{{ r.summary.newModels }} new models</span>
   }
-  <span class="src">Sheet “{{ r.summary.sheetName }}” · {{ r.summary.fileName }}</span>
+  <span class="src"
+    >Sheet “{{ r.summary.sheetName }}” · {{ r.summary.fileName }}</span
+  >
 </div>
 
 @if (r.applied) {
 <div class="banner done">
   <mat-icon>check_circle</mat-icon>
-  <span>Import complete. <a routerLink="/service/asc">Open the ASC contracts</a>.</span>
+  <span
+    >Import complete.
+    <a routerLink="/service/asc">Open the ASC contracts</a>.</span
+  >
 </div>
 } @else {
 <div class="banner note">
   <mat-icon>visibility</mat-icon>
-  <span>Preview only — nothing has been saved. Review the rows, then choose Import.</span>
+  <span
+    >Preview only — nothing has been saved. Review the rows, then choose
+    Import.</span
+  >
 </div>
 }
 
@@ -130,9 +148,8 @@
       <ng-container matColumnDef="period">
         <th mat-header-cell *matHeaderCellDef>Period</th>
         <td mat-cell *matCellDef="let row">
-          @if (row.startDate) {
-          {{ row.startDate | date: 'dd MMM yy' }} – {{ row.endDate | date: 'dd MMM yy' }}
-          } @else { — }
+          @if (row.startDate) { {{ row.startDate | date: 'dd MMM yy' }} – {{
+          row.endDate | date: 'dd MMM yy' }} } @else { — }
         </td>
       </ng-container>
 
@@ -145,7 +162,9 @@
           />
           @if (row.contractId) {
           <div>
-            <a [routerLink]="['/service/asc', row.contractId]">{{ row.contractNo }}</a>
+            <a [routerLink]="['/service/asc', row.contractId]"
+              >{{ row.contractNo }}</a
+            >
           </div>
           } @if (created(row); as what) {
           <div class="muted">Adds {{ what }}</div>
@@ -163,7 +182,9 @@
       <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
       <tr mat-row *matRowDef="let row; columns: columns"></tr>
       <tr class="mat-mdc-row" *matNoDataRow>
-        <td class="muted empty" [attr.colspan]="columns.length">No rows to show.</td>
+        <td class="muted empty" [attr.colspan]="columns.length">
+          No rows to show.
+        </td>
       </tr>
     </table>
   </div>

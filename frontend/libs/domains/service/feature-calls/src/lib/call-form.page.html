@@ -30,8 +30,17 @@
       <mat-form-field appearance="outline">
         <mat-label>Branch</mat-label>
         <mat-select formControlName="branchId">
-          @for (b of branches(); track b.id) {
-          <mat-option [value]="b.id">{{ b.name }}</mat-option>
+          @for (group of branches() | branchGroups; track group.label) {
+          <mat-optgroup>
+            <span class="group-head">
+              @if (group.warehouse) {
+              <mat-icon aria-hidden="true">warehouse</mat-icon>
+              } {{ group.label }}
+            </span>
+            @for (b of group.branches; track b.id) {
+            <mat-option [value]="b.id">{{ b.name }}</mat-option>
+            }
+          </mat-optgroup>
           }
         </mat-select>
         <mat-error>Choose a branch.</mat-error>
@@ -67,25 +76,24 @@
           }
         </mat-select>
         <mat-hint>
-          @if (!hasCustomer()) {
-          Pick the customer first to see their machines.
-          } @else if (machineOptions() === null) {
-          Loading the customer's machines…
-          } @else if (machineOptions()?.length === 0) {
-          This customer has no active registered machines.
-          @if (canAddMachine) {
-          <a routerLink="/service/machines/new" target="_blank">Add a machine</a>
-          }
-          } @else {
-          {{ machineOptions()?.length }} registered machine(s) of this customer.
-          }
+          @if (!hasCustomer()) { Pick the customer first to see their machines.
+          } @else if (machineOptions() === null) { Loading the customer's
+          machines… } @else if (machineOptions()?.length === 0) { This customer
+          has no active registered machines. @if (canAddMachine) {
+          <a routerLink="/service/machines/new" target="_blank"
+            >Add a machine</a
+          >
+          } } @else { {{ machineOptions()?.length }} registered machine(s) of
+          this customer. }
         </mat-hint>
       </mat-form-field>
       @if (selectedMachine(); as m) {
       <div class="wide asc-line">
         <trishul-asc-badge [asc]="m.asc" />
         @if (m.asc?.state === 'Active') {
-        <span class="muted">This call will be marked as an ASC priority call.</span>
+        <span class="muted"
+          >This call will be marked as an ASC priority call.</span
+        >
         }
       </div>
       }

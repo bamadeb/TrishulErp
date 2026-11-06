@@ -14,6 +14,7 @@ export interface TripOut {
   isDistanceAdjusted: boolean;
   module: string;
   referenceId: number;
+  remarks: (string | null);
   rowVersion: string;
   startAt: string;
   startLatitude: number;

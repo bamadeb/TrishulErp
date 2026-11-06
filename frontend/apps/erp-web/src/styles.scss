@@ -50,3 +50,20 @@ body {
   --mat-snack-bar-supporting-text-color: var(--mat-sys-on-error-container);
   --mat-snack-bar-button-color: var(--mat-sys-on-error-container);
 }
+
+// Branch dropdown in the top bar: each group is headed by its warehouse, in bold with an icon.
+.mat-mdc-optgroup-label .group-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: var(--mat-sys-on-surface);
+
+  .mat-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    color: var(--mat-sys-primary);
+  }
+}

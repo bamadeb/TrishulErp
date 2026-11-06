@@ -59,6 +59,7 @@ def _trip_out(status: str = "In progress", end_at: datetime | None = None) -> Tr
         is_distance_adjusted=False,
         effective_distance_km=None,
         duration_minutes=None,
+        remarks=None,
         row_version=b"\x00\x00\x00\x00\x00\x00\x07\xd1",
     )
 
@@ -497,6 +498,7 @@ def _existing_trip() -> Any:
         adjusted_distance_km=None,
         is_distance_adjusted=False,
         duration_minutes=None,
+        remarks=None,
         row_version=b"\x00\x00\x00\x00\x00\x00\x07\xd1",
     )
 
@@ -1110,3 +1112,51 @@ def test_manual_travel_accepts_only_non_gps_vehicles() -> None:
     assert master.manual_vehicle_problem("Other") is None
     assert "GPS" in (master.manual_vehicle_problem("Own bike") or "")
     assert "not an active" in (master.manual_vehicle_problem("Jetpack") or "")
+
+
+# ---------------------------------------------------------------- remarks on stop
+
+
+def _stop_service(monkeypatch: pytest.MonkeyPatch, trip: Any) -> TripService:
+    monkeypatch.setattr(
+        "trishul_api.modules.trk.service.handler_for", lambda module: SimpleNamespace(on_stop=lambda *a: None)
+    )
+    return _service_with(_FakeRepo(trip=trip))
+
+
+def test_stopping_a_trip_saves_the_remarks(monkeypatch: pytest.MonkeyPatch) -> None:
+    trip = _existing_trip()
+    data = StopTripInput(end_latitude=20.3, end_longitude=85.8, remarks="  Reached the site; machine was off.  ")
+    out = _stop_service(monkeypatch, trip).stop(make_user(employee_id=5), 5501, data)
+    assert trip.remarks == "Reached the site; machine was off."
+    assert out.remarks == "Reached the site; machine was off."
+    assert trip.status == "Completed"
+
+
+def test_stopping_without_remarks_leaves_them_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    for remarks in (None, "", "   "):
+        trip = _existing_trip()
+        data = StopTripInput(end_latitude=20.3, end_longitude=85.8, remarks=remarks)
+        _stop_service(monkeypatch, trip).stop(make_user(employee_id=5), 5501, data)
+        assert trip.remarks is None
+
+
+def test_stopping_an_already_stopped_trip_keeps_its_remarks(monkeypatch: pytest.MonkeyPatch) -> None:
+    trip = _ended_trip(timedelta(hours=1))
+    trip.remarks = "First remarks"
+    data = StopTripInput(end_latitude=20.3, end_longitude=85.8, remarks="Changed")
+    _stop_service(monkeypatch, trip).stop(make_user(employee_id=5), 5501, data)
+    assert trip.remarks == "First remarks"
+
+
+def test_remarks_over_500_characters_are_refused(api: FastAPI, client: TestClient) -> None:
+    _field_user(api)
+    use_trip_service(api)
+    ok = client.post(
+        "/api/v1/trk/trips/5501/stop", json={"endLatitude": 22.1, "endLongitude": 85.38, "remarks": "x" * 500}
+    )
+    assert ok.status_code == 200
+    too_long = client.post(
+        "/api/v1/trk/trips/5501/stop", json={"endLatitude": 22.1, "endLongitude": 85.38, "remarks": "x" * 501}
+    )
+    assert too_long.status_code == 422

@@ -13,6 +13,7 @@ export interface TripListItem {
   id: number;
   isDistanceAdjusted: boolean;
   module: string;
+  remarks: (string | null);
   startAt: string;
   status: string;
   tripType: string;

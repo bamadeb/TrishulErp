@@ -1,3 +1,4 @@
+import { MatOptgroup } from '@angular/material/core';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -25,7 +26,7 @@ import {
   TeamListStore,
   TeamRow,
 } from '@trishul/admin-data-access';
-import { AuthStore, HasPermission } from '@trishul/core-auth';
+import { AuthStore, BranchGroupsPipe, HasPermission } from '@trishul/core-auth';
 import { PageHeader, StatusBadge } from '@trishul/shared-ui';
 import { ACTIVE_SEVERITY } from './alert-rule-list.page';
 import { TeamActions } from './team-actions';
@@ -36,6 +37,8 @@ const STATUS_LABELS = { active: 'Active', inactive: 'Inactive', all: 'All' };
 @Component({
   selector: 'trishul-team-list-page',
   imports: [
+    BranchGroupsPipe,
+    MatOptgroup,
     RouterLink,
     MatTableModule,
     MatProgressBar,

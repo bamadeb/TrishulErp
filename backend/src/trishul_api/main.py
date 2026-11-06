@@ -20,6 +20,7 @@ from trishul_api.modules.alerts.router import router as alerts_router
 from trishul_api.modules.core.customers.router import router as customers_router
 from trishul_api.modules.core.devices.router import router as devices_router
 from trishul_api.modules.core.documents.router import router as documents_router
+from trishul_api.modules.core.warehouses.router import router as warehouses_router
 from trishul_api.modules.core.employees.router import router as employees_router
 from trishul_api.modules.core.roles.router import router as roles_router
 from trishul_api.modules.core.router import router as core_router
@@ -45,6 +46,7 @@ V1_ROUTERS: list[APIRouter] = [
     alerts_router,
     devices_router,
     documents_router,
+    warehouses_router,
     service_router,
     machines_router,
     contracts_router,
