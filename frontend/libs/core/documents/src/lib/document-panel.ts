@@ -22,10 +22,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   DOCUMENT_ACCEPT,
   DOCUMENT_CATEGORIES,
+  DOCUMENT_FORMATS_HINT,
   DocumentApi,
   DocumentCategory,
   DocumentOut,
   documentFileProblem,
+  documentIcon,
 } from './document.api';
 
 /**
@@ -71,13 +73,14 @@ import {
       <ul class="list">
         @for (d of docs(); track d.id) {
           <li>
-            <mat-icon class="kind" aria-hidden="true">{{
-              icon(d)
-            }}</mat-icon>
+            <mat-icon class="kind" aria-hidden="true">{{ icon(d) }}</mat-icon>
             <div class="meta">
               @if (renamingId() === d.id) {
                 <form class="rename" (submit)="saveRename(d, $event)">
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                  >
                     <input
                       matInput
                       name="fileName"
@@ -87,7 +90,10 @@ import {
                       (ngModelChange)="draftName.set($event)"
                     />
                   </mat-form-field>
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                  >
                     <mat-select
                       aria-label="Document type"
                       [value]="draftCategory()"
@@ -99,7 +105,11 @@ import {
                     </mat-select>
                   </mat-form-field>
                   <button mat-flat-button type="submit">Save</button>
-                  <button mat-button type="button" (click)="renamingId.set(null)">
+                  <button
+                    mat-button
+                    type="button"
+                    (click)="renamingId.set(null)"
+                  >
                     Cancel
                   </button>
                 </form>
@@ -143,10 +153,19 @@ import {
                     <mat-icon>edit</mat-icon>
                   </button>
                   @if (confirmId() === d.id) {
-                    <button mat-button type="button" class="danger" (click)="remove(d)">
+                    <button
+                      mat-button
+                      type="button"
+                      class="danger"
+                      (click)="remove(d)"
+                    >
                       Remove?
                     </button>
-                    <button mat-button type="button" (click)="confirmId.set(null)">
+                    <button
+                      mat-button
+                      type="button"
+                      (click)="confirmId.set(null)"
+                    >
                       Keep
                     </button>
                   } @else {
@@ -197,7 +216,7 @@ import {
             (change)="pick($event)"
           />
         </div>
-        <p class="hint">PDF, JPG, JPEG or PNG · up to 10 MB each</p>
+        <p class="hint">{{ formatsHint }}</p>
       }
     </section>
   `,
@@ -295,6 +314,7 @@ export class DocumentPanel implements OnInit {
 
   protected readonly categories = DOCUMENT_CATEGORIES;
   protected readonly accept = DOCUMENT_ACCEPT;
+  protected readonly formatsHint = DOCUMENT_FORMATS_HINT;
   protected readonly docs = signal<DocumentOut[]>([]);
   protected readonly loading = signal(false);
   protected readonly failed = signal(false);
@@ -408,44 +428,15 @@ export class DocumentPanel implements OnInit {
   }
 
   protected open(doc: DocumentOut): void {
-    // Open the tab first (a popup blocker only allows it inside the click), then point it at the file.
-    const tab = window.open('', '_blank');
-    this.api
-      .content(doc.id, true)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (blob) => {
-          const url = URL.createObjectURL(blob);
-          if (tab) tab.location.href = url;
-          else this.save(url, doc.fileName);
-          setTimeout(() => URL.revokeObjectURL(url), 60_000);
-        },
-        error: () => tab?.close(),
-      });
+    this.api.view(doc.id, doc.fileName);
   }
 
   protected download(doc: DocumentOut): void {
-    this.api
-      .content(doc.id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((blob) => {
-        const url = URL.createObjectURL(blob);
-        this.save(url, doc.fileName);
-        URL.revokeObjectURL(url);
-      });
-  }
-
-  private save(url: string, fileName: string): void {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.click();
+    this.api.download(doc.id, doc.fileName);
   }
 
   protected icon(doc: DocumentOut): string {
-    return doc.contentType === 'application/pdf'
-      ? 'picture_as_pdf'
-      : 'image';
+    return documentIcon(doc.contentType);
   }
 
   protected size(bytes: number | null): string {

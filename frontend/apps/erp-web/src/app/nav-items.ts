@@ -1,6 +1,7 @@
 import {
   ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_VIEW_PERMISSIONS,
+  DOCUMENT_VIEW_PERMISSIONS,
   ROLE_VIEW_PERMISSIONS,
   TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
@@ -107,6 +108,12 @@ export const navItems: NavItem[] = [
         icon: 'rule',
         route: '/admin/alert-rules',
         permissions: [...ALERT_RULE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Documents',
+        icon: 'folder_open',
+        route: '/admin/documents',
+        permissions: [...DOCUMENT_VIEW_PERMISSIONS],
       },
     ],
   },

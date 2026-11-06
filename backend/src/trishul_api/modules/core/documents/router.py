@@ -4,11 +4,20 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, UploadFile
 
-from trishul_api.auth import SIGNED_IN_USERS, CurrentUserDep, DbSession
+from trishul_api.auth import SIGNED_IN_USERS, CurrentUserDep, DbSession, require_permission
 from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, ApiError
-from trishul_api.modules.core.documents import storage
-from trishul_api.modules.core.documents.schemas import DocumentCategory, DocumentOut, DocumentUpdate
+from trishul_api.common.schemas import Page
+from trishul_api.modules.core.documents import storage, targets  # noqa: F401  (registers the modules)
+from trishul_api.modules.core.documents.schemas import (
+    DocumentCategory,
+    DocumentEntityType,
+    DocumentLibraryItem,
+    DocumentLibraryQuery,
+    DocumentOut,
+    DocumentRecordOption,
+    DocumentUpdate,
+)
 from trishul_api.modules.core.documents.service import DocumentService
 
 router = APIRouter(prefix="/core/documents", tags=["Documents"])
@@ -24,6 +33,37 @@ def get_document_service(db: DbSession) -> DocumentService:
 
 
 DocumentServiceDep = Annotated[DocumentService, Depends(get_document_service)]
+
+
+# Administration: every document across modules. Declared before the {documentId} routes.
+_ADMIN = Depends(require_permission("core.document.view", "core.document.manage"))
+
+
+@router.get("/library", summary="All documents across modules (Administration)", dependencies=[_ADMIN])
+def list_document_library(
+    query: Annotated[DocumentLibraryQuery, Query()], user: CurrentUserDep, service: DocumentServiceDep
+) -> Page[DocumentLibraryItem]:
+    return service.library(user, query)
+
+
+@router.get(
+    "/records",
+    summary="Find the record to attach a document to (Administration)",
+    description="Searches the records of one module the user may attach documents to, by name or number.",
+    dependencies=[Depends(require_permission("core.document.manage"))],
+)
+def list_document_records(
+    entity_type: Annotated[str, Query(alias="entityType", max_length=50)],
+    user: CurrentUserDep,
+    service: DocumentServiceDep,
+    search: Annotated[str, Query(max_length=100)] = "",
+) -> list[DocumentRecordOption]:
+    return service.records(user, entity_type, search)
+
+
+@router.get("/entity-types", summary="Kinds of record that can carry documents", dependencies=[_ADMIN])
+def list_document_entity_types(service: DocumentServiceDep) -> list[DocumentEntityType]:
+    return service.entity_types()
 
 
 @router.get(
@@ -44,7 +84,7 @@ def list_documents(
 
 @router.post(
     "",
-    summary="Upload a document (PDF, JPG, JPEG or PNG, up to 10 MB) to a record",
+    summary="Upload a document (PDF, Word, Excel or image, up to 10 MB) to a record",
     status_code=201,
     responses=NOT_FOUND_RESPONSE,
     **_ANY,

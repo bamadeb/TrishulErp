@@ -13,3 +13,6 @@ export * from './lib/role-list.store';
 export * from './lib/teams.models';
 export * from './lib/teams.api';
 export * from './lib/team-list.store';
+export * from './lib/documents.models';
+export * from './lib/documents.api';
+export * from './lib/document-library.store';

@@ -58,7 +58,31 @@ def _can_edit(db: Session, user: CurrentUser, travel_id: int) -> bool:
     )
 
 
-register_target(DocumentTarget(entity_type=ENTITY_TYPE, can_view=_can_view, can_edit=_can_edit))
+def _describe(db: Session, travel_ids: list[int]) -> dict[int, str]:
+    """ "BHADRAK/SC/00024 · Bus · 04 Nov 2026" for each entry."""
+    rows = db.execute(
+        select(TrkManualTravel.id, TrkManualTravel.vehicle_type, TrkManualTravel.travel_date, ServiceCall.call_no)
+        .join(ServiceCall, ServiceCall.id == TrkManualTravel.service_call_id)
+        .where(TrkManualTravel.id.in_(travel_ids))
+    )
+    return {r.id: f"{r.call_no} · {r.vehicle_type} · {r.travel_date:%d %b %Y}" for r in rows}
+
+
+def _exists(db: Session, _user: CurrentUser, travel_id: int) -> bool:
+    row = db.get(TrkManualTravel, travel_id)
+    return row is not None and row.is_active
+
+
+register_target(
+    DocumentTarget(
+        entity_type=ENTITY_TYPE,
+        can_view=_can_view,
+        can_edit=_can_edit,
+        exists=_exists,
+        label="Manual travel",
+        describe=_describe,
+    )
+)
 
 
 class ManualTravelService:

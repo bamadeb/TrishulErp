@@ -510,3 +510,13 @@ export type { DeleteManualTravel$Params as DeleteManualTravel$Params } from './f
 export { deleteManualTravel as deleteManualTravel } from './fn/tracking/delete-manual-travel';
 export type { ListServiceCallManualTravel$Params as ListServiceCallManualTravel$Params } from './fn/service/list-service-call-manual-travel';
 export { listServiceCallManualTravel as listServiceCallManualTravel } from './fn/service/list-service-call-manual-travel';
+export type { DocumentEntityType } from './models/document-entity-type';
+export type { DocumentLibraryItem } from './models/document-library-item';
+export type { PageDocumentLibraryItem } from './models/page-document-library-item';
+export type { ListDocumentLibrary$Params as ListDocumentLibrary$Params } from './fn/documents/list-document-library';
+export { listDocumentLibrary as listDocumentLibrary } from './fn/documents/list-document-library';
+export type { ListDocumentEntityTypes$Params as ListDocumentEntityTypes$Params } from './fn/documents/list-document-entity-types';
+export { listDocumentEntityTypes as listDocumentEntityTypes } from './fn/documents/list-document-entity-types';
+export type { DocumentRecordOption } from './models/document-record-option';
+export type { ListDocumentRecords$Params as ListDocumentRecords$Params } from './fn/documents/list-document-records';
+export { listDocumentRecords as listDocumentRecords } from './fn/documents/list-document-records';

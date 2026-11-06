@@ -317,7 +317,7 @@ def test_path_tricks_in_the_file_name_are_neutralised(engineer: TestClient, stor
 
 
 def test_unregistered_record_types_cannot_hold_documents(engineer: TestClient) -> None:
-    response = upload(engineer, 1, entityType="core.employee")
+    response = upload(engineer, 1, entityType="sal.sales_invoice")
     assert response.status_code == 400
 
 
@@ -367,3 +367,107 @@ def test_removing_the_entry_removes_its_documents(engineer: TestClient, storage_
     upload(engineer, travel["id"])
     assert engineer.delete(f"{TRAVEL}/{travel['id']}", headers=if_match(travel)).status_code == 204
     assert not any(storage_dir.rglob("*.pdf"))
+
+
+# ---------------------------------------------------------------- Administration > Documents library
+
+LIBRARY = f"{DOCS}/library"
+
+
+@pytest.fixture
+def admin(settings: Settings, db: Engine) -> Iterator[TestClient]:
+    with client_for(settings, db, 4, REVIEWER_EMP, {"core.document.view", "core.document.manage"}) as c:
+        yield c
+
+
+@pytest.fixture
+def viewer(settings: Settings, db: Engine) -> Iterator[TestClient]:
+    with client_for(settings, db, 5, REVIEWER_EMP, {"core.document.view"}) as c:
+        yield c
+
+
+def test_library_lists_every_document_with_its_record(engineer: TestClient, admin: TestClient) -> None:
+    mine = engineer.post(TRAVEL, json=entry()).json()
+    upload(engineer, mine["id"], name="bus.pdf", category="Invoice")
+    upload(engineer, mine["id"], name="photo.png", raw=PNG, category="Photo")
+    page = admin.get(LIBRARY).json()
+    assert page["total"] == 2
+    first = page["items"][0]  # newest first
+    assert first["fileName"] == "photo.png"
+    assert first["entityType"] == "trk.manual_travel"
+    assert first["entityLabel"] == "Manual travel"
+    assert first["recordLabel"].startswith("BHADRAK/SC/00024 · Bus · ")
+    assert first["uploadedByName"] == "Jyoti Das"
+    assert first["canDelete"] is True
+
+
+def test_library_filters_by_type_category_name_and_dates(engineer: TestClient, admin: TestClient) -> None:
+    travel = engineer.post(TRAVEL, json=entry()).json()
+    upload(engineer, travel["id"], name="bus ticket.pdf", category="Invoice")
+    upload(engineer, travel["id"], name="selfie.png", raw=PNG, category="Photo")
+
+    def names(**params: Any) -> list[str]:
+        return sorted(d["fileName"] for d in admin.get(LIBRARY, params=params).json()["items"])
+
+    assert names(category="Photo") == ["selfie.png"]
+    assert names(search="ticket") == ["bus ticket.pdf"]
+    assert names(entityType="trk.manual_travel") == ["bus ticket.pdf", "selfie.png"]
+    assert names(entityType="core.employee") == []
+    assert names(uploadedFrom=TODAY.isoformat(), uploadedTo=TODAY.isoformat()) == ["bus ticket.pdf", "selfie.png"]
+    assert names(uploadedTo=(TODAY - timedelta(days=1)).isoformat()) == []
+
+
+def test_library_pages_and_sorts(engineer: TestClient, admin: TestClient) -> None:
+    travel = engineer.post(TRAVEL, json=entry()).json()
+    for name in ("b.pdf", "a.pdf", "c.pdf"):
+        upload(engineer, travel["id"], name=name)
+    page = admin.get(LIBRARY, params={"page": 2, "pageSize": 2, "sort": "fileName"}).json()
+    assert (page["total"], page["page"], [d["fileName"] for d in page["items"]]) == (3, 2, ["c.pdf"])
+    desc = admin.get(LIBRARY, params={"sort": "-fileName"}).json()["items"]
+    assert [d["fileName"] for d in desc] == ["c.pdf", "b.pdf", "a.pdf"]
+
+
+def test_library_needs_the_document_permission(engineer: TestClient, other: TestClient) -> None:
+    assert engineer.get(LIBRARY).status_code == 403
+    assert other.get(f"{DOCS}/entity-types").status_code == 403
+
+
+def test_entity_types_name_the_modules_that_use_documents(admin: TestClient) -> None:
+    types = {t["entityType"]: t["label"] for t in admin.get(f"{DOCS}/entity-types").json()}
+    assert types == {
+        "core.customer": "Customer",
+        "core.employee": "Employee",
+        "svc.service_call": "Service call",
+        "trk.manual_travel": "Manual travel",
+    }
+
+
+def test_removed_documents_leave_the_library(engineer: TestClient, admin: TestClient) -> None:
+    travel = engineer.post(TRAVEL, json=entry()).json()
+    doc = upload(engineer, travel["id"]).json()
+    engineer.delete(f"{DOCS}/{doc['id']}", headers=if_match(doc))
+    assert admin.get(LIBRARY).json()["total"] == 0
+
+
+def test_administrator_views_adds_and_removes_documents_of_any_record(
+    engineer: TestClient, admin: TestClient, storage_dir: Path
+) -> None:
+    travel = engineer.post(TRAVEL, json=entry()).json()
+    doc = upload(engineer, travel["id"]).json()
+    assert admin.get(f"{DOCS}/{doc['id']}/content").content == PDF  # not their record, still viewable
+    added = upload(admin, travel["id"], name="from-admin.pdf")  # the Documents page uploads to any record
+    assert added.status_code == 201, added.text
+    item = next(d for d in admin.get(LIBRARY).json()["items"] if d["fileName"] != "from-admin.pdf")
+    renamed = admin.patch(f"{DOCS}/{item['id']}", json={"fileName": "checked.pdf"}, headers=if_match(item))
+    assert renamed.status_code == 200, renamed.text
+    assert admin.delete(f"{DOCS}/{item['id']}", headers=if_match(renamed.json())).status_code == 204
+    assert len(list(storage_dir.rglob("*.pdf"))) == 1  # only the one the administrator added is left
+
+
+def test_view_only_administrator_cannot_change_documents(engineer: TestClient, viewer: TestClient) -> None:
+    travel = engineer.post(TRAVEL, json=entry()).json()
+    doc = upload(engineer, travel["id"]).json()
+    item = viewer.get(LIBRARY).json()["items"][0]
+    assert item["canDelete"] is False
+    assert viewer.get(f"{DOCS}/{doc['id']}/content").status_code == 200
+    assert viewer.delete(f"{DOCS}/{doc['id']}", headers=if_match(item)).status_code == 403

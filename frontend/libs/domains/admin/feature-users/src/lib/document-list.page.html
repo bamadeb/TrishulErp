@@ -1,0 +1,184 @@
+<trishul-page-header
+  title="Documents"
+  subtitle="Every document uploaded in the ERP, across all modules."
+>
+  <button
+    mat-flat-button
+    type="button"
+    *trishulHasPermission="managePermission"
+    [disabled]="store.entityTypes().length === 0"
+    (click)="upload()"
+  >
+    <mat-icon>upload_file</mat-icon>
+    Upload documents
+  </button>
+</trishul-page-header>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="File name"
+      aria-label="Search documents by file name"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Module</mat-label>
+    <mat-select
+      [value]="store.query().entityType ?? null"
+      (valueChange)="store.updateQuery({ entityType: $event ?? undefined })"
+    >
+      <mat-option [value]="null">All modules</mat-option>
+      @for (t of store.entityTypes(); track t.entityType) {
+      <mat-option [value]="t.entityType">{{ t.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Document type</mat-label>
+    <mat-select
+      [value]="store.query().category ?? null"
+      (valueChange)="store.updateQuery({ category: $event ?? undefined })"
+    >
+      <mat-option [value]="null">All types</mat-option>
+      @for (c of categories; track c) {
+      <mat-option [value]="c">{{ c }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Uploaded from</mat-label>
+    <input
+      matInput
+      type="date"
+      [max]="store.query().uploadedTo ?? ''"
+      (change)="store.updateQuery({ uploadedFrom: $any($event.target).value || undefined })"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Uploaded to</mat-label>
+    <input
+      matInput
+      type="date"
+      [min]="store.query().uploadedFrom ?? ''"
+      (change)="store.updateQuery({ uploadedTo: $any($event.target).value || undefined })"
+    />
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  <div class="progress">
+    @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  <div class="table-scroll">
+    <table
+      mat-table
+      matSort
+      matSortActive="uploadedAt"
+      matSortDirection="desc"
+      matSortDisableClear
+      [dataSource]="store.items()"
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="fileName">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Document</th>
+        <td mat-cell *matCellDef="let d">
+          <div class="doc-name">
+            <mat-icon class="kind" aria-hidden="true">{{ icon(d) }}</mat-icon>
+            <span class="name">{{ d.fileName }}</span>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="category">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Type</th>
+        <td mat-cell *matCellDef="let d">{{ d.category }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="entityType">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Module / record</th>
+        <td mat-cell *matCellDef="let d">
+          <div>{{ d.entityLabel }}</div>
+          <div class="muted">{{ d.recordLabel ?? '#' + d.entityId }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="fileSizeBytes">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Size</th>
+        <td mat-cell *matCellDef="let d">{{ size(d.fileSizeBytes) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="uploadedBy">
+        <th mat-header-cell *matHeaderCellDef>Uploaded by</th>
+        <td mat-cell *matCellDef="let d">{{ d.uploadedByName ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="uploadedAt">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Uploaded on</th>
+        <td mat-cell *matCellDef="let d">
+          {{ d.uploadedAt | date: 'dd MMM yyyy, hh:mm a' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>
+          <span class="sr-only">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let d" class="actions">
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="View"
+            [attr.aria-label]="'View ' + d.fileName"
+            (click)="view(d)"
+          >
+            <mat-icon>visibility</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="Download"
+            [attr.aria-label]="'Download ' + d.fileName"
+            (click)="download(d)"
+          >
+            <mat-icon>download</mat-icon>
+          </button>
+          @if (d.canDelete) {
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="Remove"
+            [attr.aria-label]="'Remove ' + d.fileName"
+            (click)="remove(d)"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="empty" [attr.colspan]="columns.length">
+          @if (store.loading()) { Loading… } @else if (store.failed()) { Could
+          not load the documents. Try again. } @else { No documents match these
+          filters. }
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator
+    [length]="store.total()"
+    [pageIndex]="store.query().page - 1"
+    [pageSize]="store.query().pageSize"
+    [pageSizeOptions]="[20, 50, 100]"
+    aria-label="Pages of documents"
+    (page)="onPage($event)"
+  />
+</div>

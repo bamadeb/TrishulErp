@@ -193,3 +193,7 @@ export type { BodyUploadDocument } from './models/body-upload-document';
 export type { ManualTravelUpdate } from './models/manual-travel-update';
 export type { ManualTravelInput } from './models/manual-travel-input';
 export type { ManualTravelOut } from './models/manual-travel-out';
+export type { DocumentEntityType } from './models/document-entity-type';
+export type { DocumentLibraryItem } from './models/document-library-item';
+export type { PageDocumentLibraryItem } from './models/page-document-library-item';
+export type { DocumentRecordOption } from './models/document-record-option';

@@ -1,0 +1,21 @@
+.doc-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+
+  .kind {
+    flex: none;
+    color: var(--mat-sys-primary);
+  }
+
+  .name {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+}
+
+td.actions {
+  white-space: nowrap;
+  text-align: right;
+}

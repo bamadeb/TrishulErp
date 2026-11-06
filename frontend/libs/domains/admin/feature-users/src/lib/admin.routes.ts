@@ -4,6 +4,7 @@ import {
   ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_MANAGE_PERMISSION,
   CUSTOMER_VIEW_PERMISSIONS,
+  DOCUMENT_VIEW_PERMISSIONS,
   ROLE_MANAGE_PERMISSION,
   ROLE_VIEW_PERMISSIONS,
   TEAM_MANAGE_PERMISSION,
@@ -16,6 +17,7 @@ import { AlertRuleFormPage } from './alert-rule-form.page';
 import { AlertRuleListPage } from './alert-rule-list.page';
 import { CustomerFormPage } from './customer-form.page';
 import { CustomerListPage } from './customer-list.page';
+import { DocumentListPage } from './document-list.page';
 import { RoleFormPage } from './role-form.page';
 import { RoleListPage } from './role-list.page';
 import { TeamFormPage } from './team-form.page';
@@ -97,6 +99,12 @@ export const adminRoutes: Route[] = [
     title: 'Team',
     canActivate: [permissionGuard(...TEAM_VIEW_PERMISSIONS)],
     component: TeamFormPage,
+  },
+  {
+    path: 'documents',
+    title: 'Documents',
+    canActivate: [permissionGuard(...DOCUMENT_VIEW_PERMISSIONS)],
+    component: DocumentListPage,
   },
   {
     path: 'alert-rules',
