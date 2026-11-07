@@ -20002,6 +20002,24 @@
             ],
             "title": "Remarks"
           },
+          "vehicleType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicletype",
+            "description": "How the trip was made, e.g. Own bike, Public transport."
+          },
+          "isGpsTracked": {
+            "type": "boolean",
+            "title": "Isgpstracked",
+            "description": "False for a vehicle with no GPS trail (Bus, Train, Other).",
+            "default": true
+          },
           "startLatitude": {
             "type": "number",
             "title": "Startlatitude"
@@ -20215,6 +20233,8 @@
           "endAt",
           "durationMinutes",
           "remarks",
+          "vehicleType",
+          "isGpsTracked",
           "startLatitude",
           "startLongitude",
           "endLatitude",
@@ -26644,6 +26664,30 @@
         "title": "MachineUpdate",
         "description": "Only the fields sent are changed. The owner can be changed but not removed."
       },
+      "ManualTravelDocument": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "fileName": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "contentType": {
+            "type": "string",
+            "title": "Contenttype"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "contentType"
+        ],
+        "title": "ManualTravelDocument",
+        "description": "A ticket or other document attached to a manual travel entry."
+      },
       "ManualTravelInput": {
         "properties": {
           "vehicleType": {
@@ -26765,6 +26809,13 @@
             "type": "integer",
             "title": "Documentcount"
           },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/ManualTravelDocument"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
           "canEdit": {
             "type": "boolean",
             "title": "Canedit",
@@ -26791,6 +26842,7 @@
           "distanceKm",
           "notes",
           "documentCount",
+          "documents",
           "canEdit",
           "createdAt",
           "rowVersion"

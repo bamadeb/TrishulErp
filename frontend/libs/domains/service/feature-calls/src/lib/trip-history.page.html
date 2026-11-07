@@ -16,6 +16,41 @@
 </trishul-page-header>
 
 <div class="layout">
+  <section class="summary" aria-label="Summary of this call">
+    <div class="tile">
+      <span class="lab">GPS-measured</span>
+      <strong>{{ fmtKm(summary().gps) }} km</strong>
+      <span class="muted">{{ summary().trips }} {{ summary().trips === 1 ? 'trip' : 'trips' }} in total</span>
+    </div>
+    @if (summary().adjustedTrips) {
+      <div class="tile">
+        <span class="lab">Adjusted by hand</span>
+        <strong>{{ fmtKm(summary().adjusted) }} km</strong>
+        <span class="muted">{{ summary().adjustedTrips }} {{ summary().adjustedTrips === 1 ? 'trip' : 'trips' }} corrected</span>
+      </div>
+    }
+    <div class="tile">
+      <span class="lab">Manual travel (public transport)</span>
+      <strong>{{ fmtKm(summary().manual) }} km</strong>
+      <span class="muted">
+        {{ summary().entries }} {{ summary().entries === 1 ? 'entry' : 'entries' }} ·
+        {{ summary().tickets }} {{ summary().tickets === 1 ? 'ticket' : 'tickets' }}
+      </span>
+    </div>
+    <div class="tile total">
+      <span class="lab">Total for this call</span>
+      <strong>{{ fmtKm(summary().all) }} km</strong>
+      <span class="muted">GPS + adjusted + public transport</span>
+    </div>
+    @if (summary().missing) {
+      <div class="tile alert">
+        <span class="lab"><mat-icon inline>warning</mat-icon> Ticket missing</span>
+        <strong>{{ summary().missing }}</strong>
+        <span class="muted">{{ summary().missing === 1 ? 'entry has' : 'entries have' }} no ticket</span>
+      </div>
+    }
+  </section>
+
   <section class="list-card">
     <div class="progress">
       @if (store.loading()) {
@@ -44,8 +79,26 @@
               @if (trip.isDistanceAdjusted) {
                 <span class="tag adj">Adjusted</span>
               }
+              @if (trip.vehicleType && !trip.isGpsTracked) {
+                <span class="tag veh" [class.hand]="!trip.isGpsTracked">{{ trip.vehicleType }}</span>
+              }
             </div>
             <div class="muted">#{{ trip.id }} · {{ trip.engineerName ?? '—' }}</div>
+            @if (manualFor(trip); as manual) {
+              <button
+                type="button"
+                class="manual-chip"
+                matTooltip="Public transport was entered for this day. It is a separate entry, not this trip's distance."
+                (click)="focusManual(manual.firstId, $event)"
+              >
+                <mat-icon inline>directions_bus</mat-icon> Public transport entered this day
+              </button>
+            }
+            @if (trip.remarks) {
+              <div class="remarks" [matTooltip]="trip.remarks">
+                <mat-icon inline>sticky_note_2</mat-icon> {{ trip.remarks }}
+              </div>
+            }
           </td>
         </ng-container>
 
@@ -75,6 +128,9 @@
                 <div class="was" [matTooltip]="'GPS-calculated distance'">
                   {{ fmtKm(trip.gpsDistanceKm) }} GPS
                 </div>
+              }
+              @if (distanceSource(trip); as source) {
+                <div class="why">{{ source }}</div>
               }
             }
           </td>
@@ -123,7 +179,7 @@
       <div>
         <h3>Manual travel</h3>
         <p class="muted">
-          Bus, Train and Other are not tracked by GPS: the engineer enters the
+          Public transport (bus, train, other) is not tracked by GPS: the engineer enters the
           kilometres and attaches the ticket.
         </p>
       </div>
@@ -150,7 +206,12 @@
         </ng-container>
         <ng-container matColumnDef="engineer">
           <th mat-header-cell *matHeaderCellDef>Engineer</th>
-          <td mat-cell *matCellDef="let m">{{ m.employeeName ?? '—' }}</td>
+          <td mat-cell *matCellDef="let m">
+            <div>{{ m.employeeName ?? '—' }}</div>
+            <div class="muted">
+              Entered {{ m.createdAt | date: 'dd MMM yyyy, hh:mm a' }}
+            </div>
+          </td>
         </ng-container>
         <ng-container matColumnDef="vehicle">
           <th mat-header-cell *matHeaderCellDef>Travel type</th>
@@ -165,14 +226,39 @@
         </ng-container>
         <ng-container matColumnDef="notes">
           <th mat-header-cell *matHeaderCellDef>Notes</th>
-          <td mat-cell *matCellDef="let m" class="notes">{{ m.notes || '—' }}</td>
+          <td mat-cell *matCellDef="let m" class="notes">
+            @if (m.notes) {
+              <div [class.clamped]="longNote(m.notes) && !expandedNotes().has(m.id)">
+                {{ m.notes }}
+              </div>
+              @if (longNote(m.notes)) {
+                <button type="button" class="link" (click)="toggleNotes(m.id)">
+                  {{ expandedNotes().has(m.id) ? 'Less' : 'More' }}
+                </button>
+              }
+            } @else {
+              —
+            }
+          </td>
         </ng-container>
         <ng-container matColumnDef="docs">
           <th mat-header-cell *matHeaderCellDef>Tickets</th>
           <td mat-cell *matCellDef="let m">
-            <span class="tag">
-              <mat-icon inline>attach_file</mat-icon> {{ m.documentCount }}
-            </span>
+            @for (doc of m.documents; track doc.id) {
+              <button
+                type="button"
+                class="ticket"
+                [matTooltip]="'Open ' + doc.fileName"
+                (click)="openDocument(doc)"
+              >
+                <mat-icon inline>{{ docIcon(doc.contentType) }}</mat-icon>
+                <span class="file">{{ doc.fileName }}</span>
+              </button>
+            } @empty {
+              <span class="tag missing">
+                <mat-icon inline>warning</mat-icon> No ticket
+              </span>
+            }
           </td>
         </ng-container>
         <ng-container matColumnDef="manualActions">
@@ -210,7 +296,12 @@
           </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="manualColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: manualColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: manualColumns"
+          [id]="'manual-' + row.id"
+          [class.flash]="row.id === highlightedManualId()"
+        ></tr>
         <tr class="mat-mdc-row" *matNoDataRow>
           <td class="empty" [attr.colspan]="manualColumns.length">
             {{ store.manualTravelLoading() ? 'Loading…' : 'No manual travel recorded for this call.' }}
@@ -251,18 +342,34 @@
           <dt>Engineer</dt>
           <dd>{{ trip.engineerName ?? '—' }}</dd>
         </div>
-        <div>
-          <dt>Battery at start</dt>
-          <dd>{{ battery(trip.startBatteryPct) }}</dd>
-        </div>
-        <div>
-          <dt>{{ trip.endAt ? 'Battery at end' : 'Battery now' }}</dt>
-          <dd>{{ battery(trip.endBatteryPct) }}</dd>
-        </div>
-        <div class="wide">
-          <dt>Device</dt>
-          <dd>{{ device(trip) }}</dd>
-        </div>
+        @if (trip.vehicleType) {
+          <div>
+            <dt>Travel type</dt>
+            <dd>{{ trip.vehicleType }}</dd>
+          </div>
+        }
+        @if (trip.isGpsTracked) {
+          <div>
+            <dt>Battery at start</dt>
+            <dd>{{ battery(trip.startBatteryPct) }}</dd>
+          </div>
+          <div>
+            <dt>{{ trip.endAt ? 'Battery at end' : 'Battery now' }}</dt>
+            <dd>{{ battery(trip.endBatteryPct) }}</dd>
+          </div>
+        }
+        @if (trip.remarks) {
+          <div class="wide">
+            <dt>Remarks</dt>
+            <dd class="remarks-full">{{ trip.remarks }}</dd>
+          </div>
+        }
+        @if (trip.isGpsTracked) {
+          <div class="wide">
+            <dt>Device</dt>
+            <dd>{{ device(trip) }}</dd>
+          </div>
+        }
       </dl>
 
       @if (trip.status !== 'In progress') {
@@ -275,11 +382,18 @@
             </div>
           }
           <p class="note">
-            Effective = manual adjustment, else Maps, else GPS. Reports use this value.
+            Effective = adjusted by hand, else Maps, else GPS. Reports use this value.
           </p>
         </div>
       }
 
+      @if (!trip.isGpsTracked) {
+        <p class="muted pad">
+          {{ trip.vehicleType }} is not tracked by GPS, so there is no trail,
+          battery or device information. The distance comes from the manual travel entry.
+        </p>
+      }
+      @if (trip.isGpsTracked) {
       <div class="evidence">
         <h3>GPS evidence</h3>
         @if (store.evidenceLoading()) {
@@ -396,9 +510,11 @@
         }
       </div>
 
+      }
+
       <div class="audit">
         <div class="audit-head">
-          <h3>Manual adjustment trail</h3>
+          <h3>Distance adjustments</h3>
           <button
             *trishulHasPermission="adjustPermission"
             mat-button
@@ -414,7 +530,7 @@
           <p class="muted">Loading…</p>
         } @else if (store.adjustments().length === 0) {
           <p class="muted empty-trail">
-            No manual adjustments. The GPS-calculated distance stands.
+            No adjustments. The GPS-calculated distance stands.
           </p>
         } @else {
           <ol class="trail">

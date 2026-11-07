@@ -269,7 +269,9 @@ def test_ticket_is_attached_through_the_common_document_module(engineer: TestCli
     assert doc["uploadedByName"] == "Jyoti Das"
     assert doc["canDelete"] is True
     assert any(storage_dir.rglob("*.pdf"))
-    assert engineer.get(f"{TRAVEL}/{travel['id']}").json()["documentCount"] == 1
+    shown = engineer.get(f"{TRAVEL}/{travel['id']}").json()
+    assert shown["documentCount"] == 1
+    assert shown["documents"] == [{"id": doc["id"], "fileName": "Bus ticket.pdf", "contentType": "application/pdf"}]
 
 
 def test_documents_are_listed_viewed_and_downloaded(engineer: TestClient) -> None:

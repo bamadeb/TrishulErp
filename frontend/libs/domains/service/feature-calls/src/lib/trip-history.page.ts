@@ -15,6 +15,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HasPermission } from '@trishul/core-auth';
+import { DocumentApi, documentIcon } from '@trishul/core-documents';
 import {
   CallTripHistoryItem,
   ManualTravelOut,
@@ -90,7 +91,7 @@ const EVENT_LABELS: Record<string, string> = {
   providers: [TripHistoryStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './trip-history.page.html',
-  styleUrl: './trip-history.page.scss',
+  styleUrls: ['./trip-history.page.scss', './trip-history.summary.scss'],
 })
 export class TripHistoryPage {
   protected readonly store = inject(TripHistoryStore);
@@ -110,7 +111,34 @@ export class TripHistoryPage {
   ];
   protected readonly confirmDeleteId = signal<number | null>(null);
 
+  /** Manual travel entries whose long notes are shown in full. */
+  protected readonly highlightedManualId = signal<number | null>(null);
+  protected readonly expandedNotes = signal<ReadonlySet<number>>(new Set());
+
+  /** The strip above the boxes: kilometres of the call, entry counts and tickets still missing. */
+  protected readonly summary = computed(() => {
+    const trips = this.store.items();
+    const manual = this.store.manualTravel();
+    // Kilometres measured by GPS (or Maps) and kilometres someone set by hand are kept apart.
+    const km = (t: CallTripHistoryItem): number => t.effectiveDistanceKm ?? 0;
+    const gps = trips.filter((t) => !t.isDistanceAdjusted).reduce((sum, t) => sum + km(t), 0);
+    const adjusted = trips.filter((t) => t.isDistanceAdjusted).reduce((sum, t) => sum + km(t), 0);
+    const hand = manual.reduce((sum, m) => sum + Number(m.distanceKm), 0);
+    return {
+      trips: trips.length,
+      adjustedTrips: trips.filter((t) => t.isDistanceAdjusted).length,
+      adjusted,
+      entries: manual.length,
+      tickets: manual.reduce((sum, m) => sum + m.documentCount, 0),
+      missing: manual.filter((m) => m.documentCount === 0).length,
+      gps,
+      manual: hand,
+      all: gps + adjusted + hand,
+    };
+  });
+
   private readonly tripApi = inject(TripApi);
+  private readonly documents = inject(DocumentApi);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -211,6 +239,61 @@ export class TripHistoryPage {
       .subscribe(() => this.store.reloadManualTravel());
   }
 
+  /** Public transport the same engineer entered for the day this trip started (matched by date only, not tied to the trip). */
+  protected manualFor(
+    trip: CallTripHistoryItem,
+  ): { km: number; firstId: number } | null {
+    const day = localDay(trip.startAt);
+    const same = this.store
+      .manualTravel()
+      .filter((m) => m.employeeId === trip.engineerEmployeeId && m.travelDate.slice(0, 10) === day);
+    if (!same.length) return null;
+    return {
+      km: same.reduce((sum, m) => sum + Number(m.distanceKm), 0),
+      firstId: same[0].id,
+    };
+  }
+
+  /** Where a finished trip's distance comes from, so a 0 or missing value is not mistaken for an error. */
+  protected distanceSource(trip: CallTripHistoryItem): string | null {
+    if (trip.status === 'In progress') return null;
+    if (trip.isDistanceAdjusted) return 'Adjusted by hand';
+    if (trip.effectiveDistanceKm) return trip.mapDistanceKm ? 'Maps' : 'GPS';
+    if (!trip.isGpsTracked) return 'Not GPS tracked';
+    return trip.gpsDistanceKm === 0 ? 'GPS: no movement' : 'No GPS distance';
+  }
+
+  /** Scrolls to the manual travel entry and highlights it for a moment. */
+  protected focusManual(id: number, event: Event): void {
+    event.stopPropagation();
+    this.highlightedManualId.set(id);
+    document
+      .getElementById('manual-' + id)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => this.highlightedManualId.set(null), 2500);
+  }
+
+  protected toggleNotes(id: number): void {
+    this.expandedNotes.update((open) => {
+      const next = new Set(open);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  /** Notes longer than this get a "more" toggle. */
+  protected longNote(notes: string | null | undefined): boolean {
+    return (notes?.length ?? 0) > 90;
+  }
+
+  protected openDocument(doc: { id: number; fileName: string }): void {
+    this.documents.view(doc.id, doc.fileName);
+  }
+
+  protected docIcon(contentType: string): string {
+    return documentIcon(contentType);
+  }
+
   protected fmtKm(value: number | null | undefined): string {
     return value === null || value === undefined ? '—' : value.toFixed(2);
   }
@@ -246,9 +329,9 @@ export class TripHistoryPage {
   /** GPS / Maps / Effective bars for the detail pane, scaled to the trip's largest value. */
   protected distanceRows(trip: CallTripHistoryItem): DistanceRow[] {
     const rows: Omit<DistanceRow, 'pct'>[] = [];
-    if (trip.gpsDistanceKm !== null)
+    if (trip.isGpsTracked && trip.gpsDistanceKm !== null)
       rows.push({ label: 'GPS', value: trip.gpsDistanceKm, cls: 'gps' });
-    if (trip.mapDistanceKm !== null)
+    if (trip.isGpsTracked && trip.mapDistanceKm !== null)
       rows.push({ label: 'Maps API', value: trip.mapDistanceKm, cls: 'maps' });
     if (trip.effectiveDistanceKm !== null)
       rows.push({
@@ -272,4 +355,11 @@ export class TripHistoryPage {
       );
     });
   }
+}
+
+/** yyyy-mm-dd of an instant in the viewer's own time zone. */
+function localDay(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }

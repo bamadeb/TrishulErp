@@ -29,6 +29,11 @@ export interface CallTripHistoryItem {
   gpsDistanceKm: (number | null);
   id: number;
   isDistanceAdjusted: boolean;
+
+  /**
+   * False for a vehicle with no GPS trail (Bus, Train, Other).
+   */
+  isGpsTracked: boolean;
   lastGpsAt: (string | null);
 
   /**
@@ -49,5 +54,10 @@ export interface CallTripHistoryItem {
   startLongitude: number;
   status: string;
   tripType: string;
+
+  /**
+   * How the trip was made, e.g. Own bike, Public transport.
+   */
+  vehicleType: (string | null);
   visitNo: number;
 }

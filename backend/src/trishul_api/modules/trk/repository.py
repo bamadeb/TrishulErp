@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, true
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import RequestScope
@@ -17,6 +17,7 @@ from trishul_api.db.models import (
     TrkTripDistanceAdjustment,
     TrkTripGpsDiagnostic,
     TrkTripGpsPoint,
+    TrkTripVehicleTypeMaster,
     UserDevice,
 )
 from trishul_api.modules.trk.constants import IN_PROGRESS
@@ -190,6 +191,8 @@ class TripRepository:
                 TrkTrip.end_at,
                 TrkTrip.duration_minutes,
                 TrkTrip.remarks,
+                TrkTrip.vehicle_type,
+                func.coalesce(TrkTripVehicleTypeMaster.is_gps_tracked, true()).label("is_gps_tracked"),
                 TrkTrip.start_latitude,
                 TrkTrip.start_longitude,
                 TrkTrip.end_latitude,
@@ -216,6 +219,7 @@ class TripRepository:
             .join(ServiceVisit, ServiceVisit.id == TrackableActivity.source_id)
             .join(Employee, Employee.id == TrkTrip.employee_id)
             .outerjoin(UserDevice, UserDevice.id == TrkTrip.user_device_id)
+            .outerjoin(TrkTripVehicleTypeMaster, TrkTripVehicleTypeMaster.code == TrkTrip.vehicle_type)
             .where(
                 TrackableActivity.module_code == "SVC",
                 TrackableActivity.source_table == "service_visit",

@@ -107,6 +107,7 @@ export type { MachineListItem } from './models/machine-list-item';
 export type { MachineModelOption } from './models/machine-model-option';
 export type { MachineUnitOption } from './models/machine-unit-option';
 export type { MachineUpdate } from './models/machine-update';
+export type { ManualTravelDocument } from './models/manual-travel-document';
 export type { ManualTravelInput } from './models/manual-travel-input';
 export type { ManualTravelOut } from './models/manual-travel-out';
 export type { ManualTravelUpdate } from './models/manual-travel-update';

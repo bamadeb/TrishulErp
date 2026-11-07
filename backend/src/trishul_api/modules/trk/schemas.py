@@ -251,6 +251,8 @@ class CallTripHistoryItem(ApiModel):
     end_at: UtcDateTime | None
     duration_minutes: int | None
     remarks: str | None
+    vehicle_type: str | None = Field(None, description="How the trip was made, e.g. Own bike, Public transport.")
+    is_gps_tracked: bool = Field(True, description="False for a vehicle with no GPS trail (Bus, Train, Other).")
     start_latitude: float
     start_longitude: float
     end_latitude: float | None
@@ -370,6 +372,14 @@ class ManualTravelInput(ManualTravelUpdate):
     service_call_id: int = Field(gt=0)
 
 
+class ManualTravelDocument(ApiModel):
+    """A ticket or other document attached to a manual travel entry."""
+
+    id: int
+    file_name: str
+    content_type: str
+
+
 class ManualTravelOut(ApiModel):
     id: int
     service_call_id: int
@@ -380,6 +390,7 @@ class ManualTravelOut(ApiModel):
     distance_km: Decimal
     notes: str | None
     document_count: int
+    documents: list[ManualTravelDocument]
     can_edit: bool = Field(description="The signed-in user recorded this entry and may correct or remove it.")
     created_at: UtcDateTime
     row_version: RowVersion

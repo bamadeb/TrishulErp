@@ -7,7 +7,7 @@ registered below as the 'trk.manual_travel' target.
 
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser
@@ -18,7 +18,12 @@ from trishul_api.modules.core.documents import storage
 from trishul_api.modules.core.documents.registry import DocumentTarget, register_target
 from trishul_api.modules.service.assignment import assignees
 from trishul_api.modules.trk.master_service import InvalidMasterValue, TripMasterService
-from trishul_api.modules.trk.schemas import ManualTravelInput, ManualTravelOut, ManualTravelUpdate
+from trishul_api.modules.trk.schemas import (
+    ManualTravelDocument,
+    ManualTravelInput,
+    ManualTravelOut,
+    ManualTravelUpdate,
+)
 
 ENTITY_TYPE = "trk.manual_travel"
 REVIEW_PERMISSIONS = ("trk.trip.view.team", "trk.trip.adjust")
@@ -202,14 +207,15 @@ class ManualTravelService:
         if not rows:
             return []
         ids = [r.id for r in rows]
-        counts = {
-            entity_id: total
-            for entity_id, total in self._db.execute(
-                select(Attachment.entity_id, func.count())
-                .where(Attachment.entity_type == ENTITY_TYPE, Attachment.entity_id.in_(ids), Attachment.is_active)
-                .group_by(Attachment.entity_id)
+        documents: dict[int, list[ManualTravelDocument]] = {}
+        for entity_id, doc_id, file_name, content_type in self._db.execute(
+            select(Attachment.entity_id, Attachment.id, Attachment.file_name, Attachment.content_type)
+            .where(Attachment.entity_type == ENTITY_TYPE, Attachment.entity_id.in_(ids), Attachment.is_active)
+            .order_by(Attachment.id)
+        ).all():
+            documents.setdefault(entity_id, []).append(
+                ManualTravelDocument(id=doc_id, file_name=file_name, content_type=content_type)
             )
-        }
         names = {
             e.id: " ".join(p for p in (e.first_name, e.last_name) if p) or None
             for e in self._db.scalars(select(Employee).where(Employee.id.in_({r.employee_id for r in rows})))
@@ -224,7 +230,8 @@ class ManualTravelService:
                 travel_date=r.travel_date,
                 distance_km=r.distance_km,
                 notes=r.notes,
-                document_count=counts.get(r.id, 0),
+                document_count=len(documents.get(r.id, [])),
+                documents=documents.get(r.id, []),
                 can_edit=r.employee_id == user.employee_id and user.can("trk.trip.manage"),
                 created_at=r.created_at,
                 row_version=r.row_version,

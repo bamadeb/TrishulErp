@@ -1,0 +1,145 @@
+// Left: the trips and the manual travel. Right: the selected trip, which stays in view while you scroll.
+.layout {
+  // The tall detail panel spans the trips and manual rows; spare height goes to the last row, not the gap.
+  grid-template-rows: auto auto 1fr;
+}
+.summary {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.list-card {
+  grid-column: 1;
+  grid-row: 2;
+}
+.manual {
+  grid-column: 1;
+  grid-row: 3;
+}
+.detail-card {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+  .list-card,
+  .manual,
+  .detail-card {
+    grid-column: auto;
+    grid-row: auto;
+    position: static;
+    max-height: none;
+  }
+}
+
+.manual-table {
+  .clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--mat-sys-primary);
+    cursor: pointer;
+  }
+}
+.ticket {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 15rem;
+  margin: 0.1rem 0;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  .file {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+.tag.missing {
+  color: var(--mat-sys-error);
+  background: var(--mat-sys-error-container);
+}
+.tile {
+  display: flex;
+  flex: 1 1 11rem;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface);
+  strong {
+    font: var(--mat-sys-title-large);
+  }
+  .lab {
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+  &.total {
+    background: var(--mat-sys-primary-container);
+  }
+  &.alert {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+.remarks {
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mat-sys-on-surface-variant);
+}
+.remarks-full {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tag.veh {
+  background: var(--mat-sys-surface-container-high);
+  &.hand {
+    background: var(--mat-sys-tertiary-container);
+  }
+}
+.manual-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 999px;
+  background: none;
+  color: var(--mat-sys-primary);
+  cursor: pointer;
+}
+.why {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+tr.flash td {
+  background: var(--mat-sys-primary-container);
+  transition: background 0.4s;
+}
+.pad {
+  padding: 0.75rem 1rem;
+}
