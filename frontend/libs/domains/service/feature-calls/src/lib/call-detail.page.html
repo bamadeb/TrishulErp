@@ -188,6 +188,63 @@
   }
 
   <section class="card wide-card">
+    <h2>Visits and service reports</h2>
+    @if (visits().length === 0) {
+    <p class="muted">
+      No visit yet. A visit is created when the engineer starts a trip; the service report is written once they
+      reach the site.
+    </p>
+    } @else {
+    <table class="visits">
+      <thead>
+        <tr>
+          <th>Visit</th>
+          <th>Engineer</th>
+          <th>On site</th>
+          <th>Status</th>
+          <th>Report</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of visits(); track v.id) {
+        <tr>
+          <td>#{{ v.visitNo }} <span class="muted">{{ v.visitPurpose }}</span></td>
+          <td>{{ v.engineerName ?? '—' }}</td>
+          <td>
+            @if (v.serviceStartedAt) {
+            {{ v.serviceStartedAt | date: 'dd MMM, HH:mm' }}
+            @if (v.serviceEndedAt) { – {{ v.serviceEndedAt | date: 'HH:mm' }} }
+            } @else if (v.plannedDate) {
+            <span class="muted">Planned {{ v.plannedDate | date: 'dd MMM' }}</span>
+            } @else { — }
+          </td>
+          <td>
+            {{ v.status }}
+            @if (v.nextAction && v.nextAction !== 'None') {
+            <span class="flag">{{ v.nextAction }}</span>
+            }
+          </td>
+          <td>
+            @if (v.report) {
+            {{ v.report.reportNo }} · {{ v.report.status }}
+            } @else { <span class="muted">Not started</span> }
+          </td>
+          <td class="end">
+            @if (v.report || v.canStartReport) {
+            <button mat-stroked-button type="button" (click)="openReport(v)">
+              {{ v.report ? (v.report.status === 'Draft' ? 'Continue report' : 'View report') : 'Start report' }}
+            </button>
+            }
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+    }
+  </section>
+
+  <section class="card wide-card">
     <h2>Status history</h2>
     @if (history().length === 0) {
     <p class="muted">No status changes recorded yet.</p>

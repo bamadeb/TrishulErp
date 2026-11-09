@@ -2,6 +2,7 @@ import { Route } from '@angular/router';
 import { permissionGuard } from '@trishul/core-auth';
 import {
   ASC_IMPORT_PERMISSION,
+  CHECKLIST_VIEW_PERMISSIONS,
   ASC_MANAGE_PERMISSION,
   ASC_VIEW_PERMISSIONS,
   MACHINE_MANAGE_PERMISSION,
@@ -24,11 +25,13 @@ import { CallAssignPage } from './call-assign.page';
 import { CallDetailPage } from './call-detail.page';
 import { CallFormPage } from './call-form.page';
 import { CallListPage } from './call-list.page';
+import { ChecklistTemplatesPage } from './checklist-templates.page';
 import { ImportLogDetailPage } from './import-log-detail.page';
 import { ImportLogPage } from './import-log.page';
 import { MachineFormPage } from './machine-form.page';
 import { MachineListPage } from './machine-list.page';
 import { MyTripsPage } from './my-trips.page';
+import { ServiceReportPage } from './service-report.page';
 import { TripHistoryPage } from './trip-history.page';
 
 /** Lazy-loaded under /service. */
@@ -129,6 +132,18 @@ export const serviceRoutes: Route[] = [
     title: 'Trip history',
     canActivate: [permissionGuard(...TRIP_HISTORY_VIEW_PERMISSIONS)],
     component: TripHistoryPage,
+  },
+  {
+    path: 'calls/:callId/visits/:visitId/report',
+    title: 'Service report',
+    canActivate: [permissionGuard(...SERVICE_CALL_OPEN_PERMISSIONS)],
+    component: ServiceReportPage,
+  },
+  {
+    path: 'checklists',
+    title: 'Inspection checklists',
+    canActivate: [permissionGuard(...CHECKLIST_VIEW_PERMISSIONS)],
+    component: ChecklistTemplatesPage,
   },
   {
     path: 'calls/:callId',

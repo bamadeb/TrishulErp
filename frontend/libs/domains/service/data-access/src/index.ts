@@ -13,3 +13,4 @@ export * from './lib/machine-list.store';
 export * from './lib/asc.models';
 export * from './lib/asc.api';
 export * from './lib/asc-list.store';
+export * from './lib/service-report.api';

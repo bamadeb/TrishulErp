@@ -24,6 +24,7 @@ from trishul_api.db.models import (
     MachineUnit,
     Principal,
     ServiceCall,
+    ServiceVisit,
 )
 from trishul_api.modules.alerts.engine import AlertEngine
 from trishul_api.modules.service import sla
@@ -243,8 +244,10 @@ class ServiceCallService:
             self._actor, detail.current_status, on_call
         )
         if detail.machine_unit_id is not None:
-            detail.asc = ContractRepository(self._db).machine_asc([detail.machine_unit_id], date.today()).get(
-                detail.machine_unit_id
+            detail.asc = (
+                ContractRepository(self._db)
+                .machine_asc([detail.machine_unit_id], date.today())
+                .get(detail.machine_unit_id)
             )
         return detail
 
@@ -272,6 +275,9 @@ class ServiceCallService:
         if data.status not in allowed_statuses(self._actor, call.current_status, on_call):
             raise Forbidden(f"You can't change this call to '{data.status}'.")
 
+        if data.status in ("Completed", "Closed"):
+            self._require_reports_submitted(call.id)
+
         previous = call.current_status
         now = _now()
         call.current_status = data.status
@@ -294,6 +300,20 @@ class ServiceCallService:
             self._raise_event_alerts("SVC_CALL_REOPENED", call.id)
         self._db.commit()
         return self.detail(call_id)
+
+    def _require_reports_submitted(self, call_id: int) -> None:
+        """A call cannot be finished while an engineer is still on site: that visit's service report comes first."""
+        open_visits = self._db.scalars(
+            select(ServiceVisit.visit_no)
+            .where(ServiceVisit.service_call_id == call_id, ServiceVisit.is_active, ServiceVisit.status == "On site")
+            .order_by(ServiceVisit.visit_no)
+        ).all()
+        if open_visits:
+            numbers = ", ".join(str(n) for n in open_visits)
+            raise ApiError(
+                f"Submit the service report of visit {numbers} before completing this call.",
+                errors={"status": ["The engineer's visit is still open: submit its service report first."]},
+            )
 
     def _raise_event_alerts(self, alert_type: str, call_id: int) -> None:
         """Raise event alerts in the same transaction; a failure here never blocks the status change."""

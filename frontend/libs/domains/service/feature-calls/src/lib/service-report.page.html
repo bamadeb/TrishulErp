@@ -1,0 +1,235 @@
+<trishul-page-header
+  [title]="report()?.reportNo ? 'Service report ' + report()!.reportNo : 'Service report'"
+  [subtitle]="visit() ? 'Visit ' + visit()!.visitNo + ' · ' + (visit()!.engineerName ?? '') : ''"
+>
+  <a mat-button [routerLink]="['/service/calls', callId()]">
+    <mat-icon>arrow_back</mat-icon>
+    Back to the call
+  </a>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+@if (!loading() && !visit()) {
+<section class="card">
+  <p class="muted">This visit was not found on the call.</p>
+</section>
+} @else if (visit(); as v) { @if (!report()) {
+<section class="card start">
+  <h2>No report yet</h2>
+  <p class="muted">
+    The report is opened when the engineer has reached the site (the trip is stopped). The inspection checklist is
+    copied into it so the engineer can inspect the machine before starting the repair.
+  </p>
+  @if (v.canStartReport) {
+  <button mat-flat-button type="button" [disabled]="saving()" (click)="startReport()">
+    <mat-icon>assignment_add</mat-icon>
+    Start the service report
+  </button>
+  } @else {
+  <p class="muted">
+    Visit status: <trishul-status-badge [status]="v.status" [severities]="visitSeverity" />. A report can be started
+    only for a visit that is on site, by an engineer on the call.
+  </p>
+  }
+</section>
+} @else if (report(); as r) {
+<div class="summary">
+  <trishul-status-badge [status]="r.status" [severities]="reportSeverity" />
+  <span class="muted">Visit {{ v.visitNo }} · {{ r.visitPurpose }}</span>
+  <trishul-status-badge [status]="r.visitStatus" [severities]="visitSeverity" />
+  @if (r.submittedAt) {
+  <span class="muted">Submitted {{ r.submittedAt | date: 'dd MMM yyyy, HH:mm' }}</span>
+  } @if (r.nextAction && r.nextAction !== 'None') {
+  <span class="flag">{{ r.nextAction }}</span>
+  }
+</div>
+
+<form class="cards" [formGroup]="form">
+  <section class="card">
+    <h2>1. Machine on arrival</h2>
+    <div class="grid2">
+      <mat-form-field appearance="outline">
+        <mat-label>HMR reading (hours)</mat-label>
+        <input matInput type="number" min="0" step="0.1" formControlName="hmrReading" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Machine condition</mat-label>
+        <mat-select formControlName="machineConditionLookupId">
+          @for (c of conditions(); track c.id) {
+          <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Complaint as observed</mat-label>
+      <textarea matInput rows="2" maxlength="1000" formControlName="complaintObserved"></textarea>
+    </mat-form-field>
+  </section>
+
+  <section class="card wide-card">
+    <h2>
+      2. Inspection checklist
+      @if (r.checklist.length) {
+      <span class="count muted">{{ progress().done }} of {{ progress().total }} answered</span>
+      }
+    </h2>
+    @if (!r.checklist.length) {
+    <p class="muted">
+      No checklist is set up for this brand, model and call type. Describe the inspection in the findings below.
+    </p>
+    } @else {
+    <ol class="checklist" formArrayName="checklist">
+      @for (row of checklist.controls; track row; let i = $index) {
+      <li [formGroupName]="i">
+        <div class="question">
+          <span>{{ questionOf(i).itemText }}</span>
+          @if (questionOf(i).isMandatory) {
+          <span class="req" title="Required before the report can be submitted">required</span>
+          }
+        </div>
+        <div class="answer">
+          @if (questionOf(i).responseType === 'OK Not OK' || questionOf(i).responseType === 'Photo') {
+          <mat-button-toggle-group formControlName="isOk" aria-label="Result">
+            <mat-button-toggle [value]="true">OK</mat-button-toggle>
+            <mat-button-toggle [value]="false">Not OK</mat-button-toggle>
+          </mat-button-toggle-group>
+          } @else {
+          <mat-form-field appearance="outline" class="value">
+            <mat-label>{{ questionOf(i).responseType === 'Number' ? 'Value' : 'Answer' }}</mat-label>
+            <input
+              matInput
+              maxlength="200"
+              [type]="questionOf(i).responseType === 'Number' ? 'number' : 'text'"
+              formControlName="responseValue"
+            />
+          </mat-form-field>
+          }
+          <mat-form-field appearance="outline" class="remarks">
+            <mat-label>Remarks</mat-label>
+            <input matInput maxlength="300" formControlName="remarks" />
+          </mat-form-field>
+        </div>
+      </li>
+      }
+    </ol>
+    }
+  </section>
+
+  <section class="card wide-card">
+    <h2>3. Findings and work done</h2>
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>What was found</mat-label>
+      <textarea matInput rows="3" maxlength="2000" formControlName="findings"></textarea>
+    </mat-form-field>
+    <div class="grid2">
+      <mat-form-field appearance="outline">
+        <mat-label>Root cause</mat-label>
+        <mat-select formControlName="failureCodeLookupId">
+          <mat-option [value]="null">—</mat-option>
+          @for (c of failureCodes(); track c.id) {
+          <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Labour hours</mat-label>
+        <input matInput type="number" min="0" max="999" step="0.25" formControlName="labourHours" />
+      </mat-form-field>
+    </div>
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Work performed (repairs, parts replaced)</mat-label>
+      <textarea matInput rows="3" maxlength="2000" formControlName="actionTaken"></textarea>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Recommendations</mat-label>
+      <textarea matInput rows="2" maxlength="1000" formControlName="recommendations"></textarea>
+    </mat-form-field>
+  </section>
+
+  <section class="card wide-card">
+    <h2>4. Photos</h2>
+    <trishul-document-panel
+      title="Photos and files of the work"
+      [entityType]="entityType"
+      [entityId]="r.id"
+      [readonly]="!editable()"
+    />
+  </section>
+
+  <section class="card wide-card">
+    <h2>5. Customer sign-off</h2>
+    <div class="grid2">
+      <mat-form-field appearance="outline">
+        <mat-label>Customer name</mat-label>
+        <input matInput maxlength="100" formControlName="customerSignedName" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Customer mobile</mat-label>
+        <input matInput maxlength="13" formControlName="customerSignedMobile" />
+        @if (form.controls.customerSignedMobile.invalid) {
+        <mat-error>Enter a valid Indian mobile number.</mat-error>
+        }
+      </mat-form-field>
+    </div>
+    @if (r.customerSignatureDocumentId) {
+    <p class="signed">
+      <mat-icon>check_circle</mat-icon> Signature captured
+      <button mat-button type="button" (click)="viewSignature()">View</button>
+      @if (editable()) {
+      <span class="muted">Sign again below to replace it.</span>
+      }
+    </p>
+    } @if (editable()) {
+    <trishul-signature-pad />
+    }
+  </section>
+
+  @if (editable()) {
+  <section class="card wide-card finish">
+    <h2>6. Finish the visit</h2>
+    <p class="muted">
+      Submitting closes this visit and locks the report. Choose what happens to the call next.
+    </p>
+    <div [formGroup]="finish" class="finish-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Outcome of this visit</mat-label>
+        <mat-select formControlName="nextAction">
+          @for (a of nextActions; track a.value) {
+          <mat-option [value]="a.value">{{ a.label }} — {{ a.hint }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (finish.controls.nextAction.value === 'Revisit') {
+      <mat-form-field appearance="outline">
+        <mat-label>Next visit date</mat-label>
+        <input matInput type="date" [min]="today" formControlName="nextVisitDate" />
+      </mat-form-field>
+      }
+      <mat-form-field appearance="outline" class="reason">
+        <mat-label>If the customer could not sign, why (optional)</mat-label>
+        <input matInput maxlength="300" formControlName="customerUnavailableReason" />
+      </mat-form-field>
+    </div>
+    <div class="actions">
+      <button mat-stroked-button type="button" [disabled]="form.invalid || saving()" (click)="saveDraft()">
+        <mat-icon>save</mat-icon> Save draft
+      </button>
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="form.invalid || finish.invalid || saving()"
+        (click)="submit()"
+      >
+        <mat-icon>task_alt</mat-icon> Submit report
+      </button>
+    </div>
+  </section>
+  }
+</form>
+} }

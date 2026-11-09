@@ -12,7 +12,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser
-from trishul_api.db.models import Customer, Employee, ServiceCall
+from trishul_api.db.models import Customer, Employee, ServiceCall, ServiceReport, ServiceVisit
 from trishul_api.modules.core.documents.registry import DocumentTarget, register_target
 from trishul_api.modules.service.access import call_visibility
 from trishul_api.modules.service.assignment import assignees
@@ -190,5 +190,60 @@ register_target(
         search=_employee_search,
         # An employee's photo is the same table's Photo row; the employee screen manages it.
         exclude_categories=("Photo",),
+    )
+)
+
+
+# ---------------------------------------------------------------- service reports (photos of the work)
+
+
+def _report_call(db: Session, report_id: int) -> ServiceCall | None:
+    report = db.get(ServiceReport, report_id)
+    visit = db.get(ServiceVisit, report.service_visit_id) if report is not None and report.is_active else None
+    return db.get(ServiceCall, visit.service_call_id) if visit is not None else None
+
+
+def _report_view(db: Session, user: CurrentUser, report_id: int) -> bool:
+    from trishul_api.modules.service.reports.service import can_read
+
+    call = _report_call(db, report_id)
+    return call is not None and can_read(db, user, call)
+
+
+def _report_edit(db: Session, user: CurrentUser, report_id: int) -> bool:
+    from trishul_api.modules.service.reports.service import can_write
+
+    call = _report_call(db, report_id)
+    report = db.get(ServiceReport, report_id)
+    return (
+        call is not None
+        and report is not None
+        and report.submitted_at is None
+        and _report_view(db, user, report_id)
+        and can_write(db, user, call)
+    )
+
+
+def _report_exists(db: Session, _user: CurrentUser, report_id: int) -> bool:
+    return _report_call(db, report_id) is not None
+
+
+def _report_labels(db: Session, ids: list[int]) -> dict[int, str]:
+    return {
+        r.id: f"Service report {r.report_no}"
+        for r in db.execute(select(ServiceReport.id, ServiceReport.report_no).where(ServiceReport.id.in_(ids)))
+    }
+
+
+register_target(
+    DocumentTarget(
+        entity_type="svc.service_report",
+        label="Service report",
+        can_view=_report_view,
+        can_edit=_report_edit,
+        exists=_report_exists,
+        describe=_report_labels,
+        # The customer's signature is part of the report form, not a document to browse.
+        exclude_categories=("Signature",),
     )
 )

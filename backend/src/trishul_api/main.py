@@ -20,17 +20,18 @@ from trishul_api.modules.alerts.router import router as alerts_router
 from trishul_api.modules.core.customers.router import router as customers_router
 from trishul_api.modules.core.devices.router import router as devices_router
 from trishul_api.modules.core.documents.router import router as documents_router
-from trishul_api.modules.core.warehouses.router import router as warehouses_router
 from trishul_api.modules.core.employees.router import router as employees_router
 from trishul_api.modules.core.roles.router import router as roles_router
 from trishul_api.modules.core.router import router as core_router
 from trishul_api.modules.core.teams.router import router as teams_router
 from trishul_api.modules.core.users.router import router as users_router
+from trishul_api.modules.core.warehouses.router import router as warehouses_router
 from trishul_api.modules.hr.organization.router import router as organization_router
 from trishul_api.modules.hr.tada.router import router as tada_router
 from trishul_api.modules.presales.router import router as presales_router
 from trishul_api.modules.service.contracts.router import router as contracts_router
 from trishul_api.modules.service.machines.router import router as machines_router
+from trishul_api.modules.service.reports.router import router as reports_router
 from trishul_api.modules.service.router import router as service_router
 from trishul_api.modules.trk.router import router as trk_router
 from trishul_api.secrets import SecretProvider, create_secret_provider
@@ -48,6 +49,7 @@ V1_ROUTERS: list[APIRouter] = [
     documents_router,
     warehouses_router,
     service_router,
+    reports_router,
     machines_router,
     contracts_router,
     presales_router,

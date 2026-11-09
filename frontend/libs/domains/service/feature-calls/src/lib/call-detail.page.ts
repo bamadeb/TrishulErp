@@ -27,8 +27,10 @@ import {
   CallPriority,
   CallStatus,
   CallStatusLogItem,
+  CallVisit,
   ServiceCallApi,
   ServiceCallDetail,
+  ServiceReportApi,
 } from '@trishul/service-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { AscBadge } from './asc-badge';
@@ -85,6 +87,7 @@ const PRIORITY_SEVERITY: Record<CallPriority, StatusSeverity> = {
 })
 export class CallDetailPage {
   private readonly api = inject(ServiceCallApi);
+  private readonly reports = inject(ServiceReportApi);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -94,6 +97,7 @@ export class CallDetailPage {
   protected readonly saving = signal(false);
   protected readonly call = signal<ServiceCallDetail | null>(null);
   protected readonly history = signal<CallStatusLogItem[]>([]);
+  protected readonly visits = signal<CallVisit[]>([]);
   protected readonly statusSeverity = STATUS_SEVERITY;
   protected readonly prioritySeverity = PRIORITY_SEVERITY;
 
@@ -155,7 +159,29 @@ export class CallDetailPage {
       .subscribe((call) => {
         this.call.set(call);
         this.loadHistory(id);
+        this.loadVisits(id);
       });
+  }
+
+  /** Opens the visit's report; starts it first when the engineer is on site and has not begun one. */
+  protected openReport(visit: CallVisit): void {
+    const call = this.call();
+    if (!call) return;
+    const go = (): void => {
+      void this.router.navigate(['/service/calls', call.id, 'visits', visit.id, 'report']);
+    };
+    if (visit.report || !visit.canStartReport) {
+      go();
+      return;
+    }
+    this.reports.start(visit.id).subscribe(() => go());
+  }
+
+  private loadVisits(id: number): void {
+    this.reports
+      .visits(id)
+      .pipe(catchError(() => EMPTY))
+      .subscribe((rows) => this.visits.set(rows));
   }
 
   private loadHistory(id: number): void {
