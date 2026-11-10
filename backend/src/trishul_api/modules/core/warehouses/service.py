@@ -13,10 +13,12 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import CurrentUser
 from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
-from trishul_api.db.models import Branch
+from trishul_api.db.models import Branch, Company
 from trishul_api.modules.core.warehouses.schemas import (
     BranchWarehouseUpdate,
     WarehouseBranch,
+    WarehouseBranchCreate,
+    WarehouseCompany,
     WarehouseCreate,
     WarehouseMap,
     WarehouseOut,
@@ -48,12 +50,17 @@ class WarehouseService:
                 select(Branch.parent_warehouse_id, func.count(Branch.id))
                 .where(Branch.parent_warehouse_id.is_not(None), Branch.is_active)
                 .group_by(Branch.parent_warehouse_id)
-            )
-            .all()
+            ).all()
         )
+        companies = self._db.scalars(select(Company).where(Company.is_active).order_by(Company.legal_name)).all()
+        names: dict[int, str | None] = {c.id: c.legal_name for c in companies}
+        for company_id in {b.company_id for b in (*warehouses, *branches)} - set(names):
+            other = self._db.get(Company, company_id)  # an inactive company still shows its name
+            names[company_id] = other.legal_name if other else None
         return WarehouseMap(
-            warehouses=[self._out(w, counts.get(w.id, 0)) for w in warehouses],
-            branches=[self._branch(b) for b in branches],
+            warehouses=[self._out(w, counts.get(w.id, 0), names) for w in warehouses],
+            branches=[self._branch(b, names) for b in branches],
+            companies=[WarehouseCompany(id=c.id, code=c.code, name=c.legal_name) for c in companies],
         )
 
     def create(self, data: WarehouseCreate) -> WarehouseOut:
@@ -68,7 +75,7 @@ class WarehouseService:
         if owner is None:
             raise ApiError("There is no head office or branch to take the company and state from.")
         row = Branch(
-            company_id=owner.company_id,
+            company_id=self._company(data.company_id).id if data.company_id is not None else owner.company_id,
             state_id=owner.state_id,
             code=code,
             name=data.name.strip(),
@@ -76,7 +83,32 @@ class WarehouseService:
             created_by_user_id=self._actor.id,
         )
         self._save(row)
-        return self._out(row, self._supplied(row.id))
+        return self._out(row, self._supplied(row.id), self._names())
+
+    def create_branch(self, data: WarehouseBranchCreate) -> WarehouseBranch:
+        """Add a branch or service point. Company and state come from its warehouse, else the head office."""
+        code = data.code.strip()
+        self._check_code(code, None)
+        warehouse = self._active_warehouse(data.warehouse_id) if data.warehouse_id is not None else None
+        owner = warehouse or (
+            self._db.scalars(
+                select(Branch).where(Branch.branch_type == "Head office").order_by(Branch.id).limit(1)
+            ).first()
+            or self._db.scalars(select(Branch).order_by(Branch.id).limit(1)).first()
+        )
+        if owner is None:
+            raise ApiError("There is no head office or warehouse to take the company and state from.")
+        row = Branch(
+            company_id=self._company(data.company_id).id if data.company_id is not None else owner.company_id,
+            state_id=owner.state_id,
+            code=code,
+            name=data.name.strip(),
+            branch_type=data.branch_type,
+            parent_warehouse_id=warehouse.id if warehouse else None,
+            created_by_user_id=self._actor.id,
+        )
+        self._save(row)
+        return self._branch(row, self._names())
 
     def update(self, warehouse_id: int, expected: bytes, data: WarehouseUpdate) -> WarehouseOut:
         row = self._warehouse(warehouse_id)
@@ -86,6 +118,8 @@ class WarehouseService:
             row.code = data.code.strip()
         if data.name is not None:
             row.name = data.name.strip()
+        if data.company_id is not None:
+            row.company_id = self._company(data.company_id).id
         if data.is_active is not None:
             if not data.is_active and self._supplied(row.id):
                 raise ApiError(
@@ -95,7 +129,7 @@ class WarehouseService:
             row.is_active = data.is_active
         self._touch(row)
         self._save(row)
-        return self._out(row, self._supplied(row.id))
+        return self._out(row, self._supplied(row.id), self._names())
 
     def assign_branch(self, branch_id: int, expected: bytes, data: BranchWarehouseUpdate) -> WarehouseBranch:
         row = self._db.get(Branch, branch_id)
@@ -103,17 +137,32 @@ class WarehouseService:
             raise NotFound("Branch not found.")
         check_row_version(row.row_version, expected)
         if data.warehouse_id is not None:
-            target = self._db.get(Branch, data.warehouse_id)
-            if target is None or target.branch_type != "Warehouse" or not target.is_active:
-                raise ApiError(
-                    "Choose an active warehouse.",
-                    errors={"warehouseId": [f"Location {data.warehouse_id} is not an active warehouse."]},
-                )
+            self._active_warehouse(data.warehouse_id)
         row.parent_warehouse_id = data.warehouse_id
         row.region_id = None  # regions are not used: the warehouse is the only grouping
         self._touch(row)
         self._save(row)
-        return self._branch(row)
+        return self._branch(row, self._names())
+
+    def _company(self, company_id: int) -> Company:
+        company = self._db.get(Company, company_id)
+        if company is None or not company.is_active:
+            raise ApiError(
+                "Choose an active company.", errors={"companyId": [f"Unknown or inactive company {company_id}"]}
+            )
+        return company
+
+    def _names(self) -> dict[int, str | None]:
+        return {c.id: c.legal_name for c in self._db.scalars(select(Company)).all()}
+
+    def _active_warehouse(self, warehouse_id: int) -> Branch:
+        target = self._db.get(Branch, warehouse_id)
+        if target is None or target.branch_type != "Warehouse" or not target.is_active:
+            raise ApiError(
+                "Choose an active warehouse.",
+                errors={"warehouseId": [f"Location {warehouse_id} is not an active warehouse."]},
+            )
+        return target
 
     def _warehouse(self, warehouse_id: int) -> Branch:
         row = self._db.get(Branch, warehouse_id)
@@ -151,23 +200,27 @@ class WarehouseService:
         self._db.refresh(row)
 
     @staticmethod
-    def _out(row: Branch, branch_count: int) -> WarehouseOut:
+    def _out(row: Branch, branch_count: int, names: dict[int, str | None]) -> WarehouseOut:
         return WarehouseOut(
             id=row.id,
             code=row.code,
             name=row.name,
+            company_id=row.company_id,
+            company_name=names.get(row.company_id),
             is_active=row.is_active,
             branch_count=branch_count,
             row_version=row.row_version,
         )
 
     @staticmethod
-    def _branch(row: Branch) -> WarehouseBranch:
+    def _branch(row: Branch, names: dict[int, str | None]) -> WarehouseBranch:
         return WarehouseBranch(
             id=row.id,
             code=row.code,
             name=row.name,
             branch_type=row.branch_type,
+            company_id=row.company_id,
+            company_name=names.get(row.company_id),
             warehouse_id=row.parent_warehouse_id,
             is_active=row.is_active,
             row_version=row.row_version,

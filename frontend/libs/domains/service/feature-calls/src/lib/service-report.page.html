@@ -48,6 +48,12 @@
   <span class="flag">{{ r.nextAction }}</span>
   }
 </div>
+<p class="muted meta">
+  Call {{ r.callNo }} · {{ r.customerName }}<br />
+  Engineer {{ r.engineerName ?? '—' }}
+  @if (r.engineerCode) { ({{ r.engineerCode }}) } @if (r.engineerMobile) { · {{ r.engineerMobile }} }
+  @if (r.checklistName) { <br />Checklist: {{ r.checklistName }} }
+</p>
 
 <form class="cards" [formGroup]="form">
   <section class="card">
@@ -74,16 +80,19 @@
 
   <section class="card wide-card">
     <h2>
-      2. Inspection checklist
+      2. Inspection
       @if (r.checklist.length) {
       <span class="count muted">{{ progress().done }} of {{ progress().total }} answered</span>
       }
     </h2>
     @if (!r.checklist.length) {
     <p class="muted">
-      No checklist is set up for this brand, model and call type. Describe the inspection in the findings below.
+      No checklist is set up for this brand, model and call type. Describe the inspection in the note below.
     </p>
     } @else {
+    @if (r.inspectionNote) {
+    <p class="guidance"><mat-icon>info</mat-icon> {{ r.inspectionNote }}</p>
+    }
     <ol class="checklist" formArrayName="checklist">
       @for (row of checklist.controls; track row; let i = $index) {
       <li [formGroupName]="i">
@@ -119,14 +128,31 @@
       }
     </ol>
     }
+
+    <h3>Inspection note</h3>
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Machine condition, defects found</mat-label>
+      <textarea
+        matInput
+        rows="5"
+        maxlength="2000"
+        placeholder="Describe the machine's condition and any defects found..."
+        formControlName="findings"
+      ></textarea>
+      <mat-hint align="end">{{ form.controls.findings.value.length }} / 2000</mat-hint>
+    </mat-form-field>
+
+    <h3>Inspection attachments</h3>
+    <trishul-document-panel
+      title="Photos and documents (PDF, JPG or PNG, up to 10 MB each)"
+      [entityType]="entityType"
+      [entityId]="r.id"
+      [readonly]="!editable()"
+    />
   </section>
 
   <section class="card wide-card">
-    <h2>3. Findings and work done</h2>
-    <mat-form-field appearance="outline" class="full">
-      <mat-label>What was found</mat-label>
-      <textarea matInput rows="3" maxlength="2000" formControlName="findings"></textarea>
-    </mat-form-field>
+    <h2>3. Repair and work done</h2>
     <div class="grid2">
       <mat-form-field appearance="outline">
         <mat-label>Root cause</mat-label>
@@ -153,17 +179,7 @@
   </section>
 
   <section class="card wide-card">
-    <h2>4. Photos</h2>
-    <trishul-document-panel
-      title="Photos and files of the work"
-      [entityType]="entityType"
-      [entityId]="r.id"
-      [readonly]="!editable()"
-    />
-  </section>
-
-  <section class="card wide-card">
-    <h2>5. Customer sign-off</h2>
+    <h2>4. Customer sign-off</h2>
     <div class="grid2">
       <mat-form-field appearance="outline">
         <mat-label>Customer name</mat-label>
@@ -192,7 +208,7 @@
 
   @if (editable()) {
   <section class="card wide-card finish">
-    <h2>6. Finish the visit</h2>
+    <h2>5. Finish the visit</h2>
     <p class="muted">
       Submitting closes this visit and locks the report. Choose what happens to the call next.
     </p>

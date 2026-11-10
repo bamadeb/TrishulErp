@@ -22,6 +22,7 @@ import {
 } from '@trishul/admin-data-access';
 import { AuthStore, HasPermission } from '@trishul/core-auth';
 import { PageHeader, confirmAction } from '@trishul/shared-ui';
+import { BranchAddData, BranchAddDialog } from './branch-add.dialog';
 import {
   WarehouseEditData,
   WarehouseEditDialog,
@@ -71,11 +72,14 @@ export class WarehouseMapPage {
   private readonly map = signal<WarehouseMap>({
     warehouses: [],
     branches: [],
+    companies: [],
   });
 
   protected readonly activeWarehouses = computed(() =>
     this.map().warehouses.filter((w) => w.isActive),
   );
+
+  private readonly companies = computed(() => this.map().companies);
 
   protected readonly nodes = computed((): WarehouseNode[] => {
     const { warehouses, branches } = this.map();
@@ -112,11 +116,26 @@ export class WarehouseMapPage {
   }
 
   protected addWarehouse(): void {
-    this.edit({});
+    this.edit({ companies: this.companies() });
+  }
+
+  /** Add a branch, optionally already under the given warehouse. */
+  protected addBranch(warehouseId?: number): void {
+    const data: BranchAddData = {
+      warehouses: this.activeWarehouses(),
+      companies: this.companies(),
+      warehouseId,
+    };
+    this.dialog
+      .open(BranchAddDialog, { data, width: '28rem', autoFocus: 'dialog' })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) this.reload();
+      });
   }
 
   protected editWarehouse(warehouse: WarehouseOut): void {
-    this.edit({ warehouse });
+    this.edit({ warehouse, companies: this.companies() });
   }
 
   protected assign(branch: WarehouseBranch, warehouseId: number): void {

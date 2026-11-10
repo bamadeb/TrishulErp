@@ -3,6 +3,15 @@
   subtitle="Each warehouse with the branches it supplies."
 >
   <button
+    mat-stroked-button
+    type="button"
+    *trishulHasPermission="managePermission"
+    (click)="addBranch()"
+  >
+    <mat-icon>add_location_alt</mat-icon>
+    Add branch
+  </button>
+  <button
     mat-flat-button
     type="button"
     *trishulHasPermission="managePermission"
@@ -33,12 +42,22 @@
     <div class="title">
       <h2>{{ node.warehouse.name }}</h2>
       <span class="muted"
-        >{{ node.warehouse.code }} · {{ node.warehouse.branchCount }}
+        >{{ node.warehouse.code }} · {{ node.warehouse.companyName }} · {{ node.warehouse.branchCount }}
         {{ node.warehouse.branchCount === 1 ? 'branch' : 'branches' }}
         @if (!node.warehouse.isActive) { · Inactive }</span
       >
     </div>
     @if (canManage) {
+    <button
+      mat-icon-button
+      type="button"
+      matTooltip="Add a branch to this warehouse"
+      [attr.aria-label]="'Add a branch to ' + node.warehouse.name"
+      [disabled]="!node.warehouse.isActive"
+      (click)="addBranch(node.warehouse.id)"
+    >
+      <mat-icon>add_location_alt</mat-icon>
+    </button>
     <button
       mat-icon-button
       type="button"
@@ -64,6 +83,7 @@
     <li>
       <span class="name">{{ branch.name }}</span>
       <span class="muted">{{ branch.code }}</span>
+      <span class="muted">· {{ branch.companyName }}</span>
       <span class="spacer"></span>
       @if (canManage) {
       <mat-select
@@ -104,6 +124,7 @@
     <li>
       <span class="name">{{ branch.name }}</span>
       <span class="muted">{{ branch.code }}</span>
+      <span class="muted">· {{ branch.companyName }}</span>
       <span class="spacer"></span>
       @if (canManage) {
       <mat-select

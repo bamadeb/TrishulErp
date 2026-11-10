@@ -135,6 +135,8 @@ export type { CreateWarehouse$Params as CreateWarehouse$Params } from './fn/ware
 export { createWarehouse as createWarehouse } from './fn/warehouses/create-warehouse';
 export type { UpdateWarehouse$Params as UpdateWarehouse$Params } from './fn/warehouses/update-warehouse';
 export { updateWarehouse as updateWarehouse } from './fn/warehouses/update-warehouse';
+export type { CreateBranch$Params as CreateBranch$Params } from './fn/warehouses/create-branch';
+export { createBranch as createBranch } from './fn/warehouses/create-branch';
 export type { UpdateBranchWarehouse$Params as UpdateBranchWarehouse$Params } from './fn/warehouses/update-branch-warehouse';
 export { updateBranchWarehouse as updateBranchWarehouse } from './fn/warehouses/update-branch-warehouse';
 export type { ListServiceCalls$Params as ListServiceCalls$Params } from './fn/service/list-service-calls';
@@ -173,6 +175,10 @@ export type { ChangeServiceCallStatus$Params as ChangeServiceCallStatus$Params }
 export { changeServiceCallStatus as changeServiceCallStatus } from './fn/service/change-service-call-status';
 export type { ListServiceCallVisits$Params as ListServiceCallVisits$Params } from './fn/service-reports/list-service-call-visits';
 export { listServiceCallVisits as listServiceCallVisits } from './fn/service-reports/list-service-call-visits';
+export type { ListServiceCallReports$Params as ListServiceCallReports$Params } from './fn/service-reports/list-service-call-reports';
+export { listServiceCallReports as listServiceCallReports } from './fn/service-reports/list-service-call-reports';
+export type { ListServiceReports$Params as ListServiceReports$Params } from './fn/service-reports/list-service-reports';
+export { listServiceReports as listServiceReports } from './fn/service-reports/list-service-reports';
 export type { GetServiceVisitReport$Params as GetServiceVisitReport$Params } from './fn/service-reports/get-service-visit-report';
 export { getServiceVisitReport as getServiceVisitReport } from './fn/service-reports/get-service-visit-report';
 export type { StartServiceReport$Params as StartServiceReport$Params } from './fn/service-reports/start-service-report';

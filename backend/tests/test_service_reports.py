@@ -463,3 +463,60 @@ def test_report_row_matches_the_database(engineer: TestClient, db: Engine) -> No
             1234.5,
             "Hose replaced",
         )
+
+
+def test_checklist_keeps_a_note_and_files(lead: TestClient, engineer: TestClient) -> None:
+    created = lead.post(
+        CHECKLIST,
+        json={
+            "name": "With note",
+            "inspectionNote": "  Check the swing bearing first.  ",
+            "items": [{"itemText": "Q"}],
+        },
+    )
+    assert created.status_code == 201, created.text
+    template = created.json()
+    assert template["inspectionNote"] == "Check the swing bearing first."
+
+    updated = lead.patch(
+        f"{CHECKLIST}/{template['id']}",
+        json={
+            "name": "With note",
+            "inspectionNote": None,
+            "items": [{"id": template["items"][0]["id"], "itemText": "Q"}],
+        },
+        headers={"If-Match": f'"{template["rowVersion"]}"'},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["inspectionNote"] is None
+
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\n%%EOF"
+    upload = {
+        "data": {"entityType": "svc.checklist_template", "entityId": str(template["id"]), "category": "Other"},
+        "files": {"file": ("guide.pdf", pdf, "application/octet-stream")},
+    }
+    assert lead.post("/api/v1/core/documents", **upload).status_code == 201
+    assert engineer.post("/api/v1/core/documents", **upload).status_code in (403, 404)
+
+
+def test_reports_of_a_call_and_search(engineer: TestClient) -> None:
+    report = start(engineer).json()
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\n%%EOF"
+    engineer.post(
+        "/api/v1/core/documents",
+        data={"entityType": "svc.service_report", "entityId": str(report["id"]), "category": "Photo"},
+        files={"file": ("work.pdf", pdf, "application/octet-stream")},
+    )
+
+    full = engineer.get(f"/api/v1/svc/service-calls/{CALL}/reports")
+    assert full.status_code == 200, full.text
+    [item] = full.json()
+    assert item["serviceCallId"] == CALL and item["callNo"] == "BHADRAK/SC/00024"
+    assert item["engineerName"] and "engineerCode" in item and item["customerName"]
+    assert [a["fileName"] for a in item["attachments"]] == ["work.pdf"]
+
+    found = engineer.get("/api/v1/svc/service-reports", params={"search": "SC/00024"})
+    assert [r["reportNo"] for r in found.json()] == [report["reportNo"]]
+    assert engineer.get("/api/v1/svc/service-reports", params={"search": "nothing"}).json() == []
+    assert engineer.get("/api/v1/svc/service-reports", params={"status": "Submitted"}).json() == []
+    assert engineer.get("/api/v1/svc/service-calls/99999/reports").status_code == 404

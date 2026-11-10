@@ -19,7 +19,7 @@ import {
 } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
-import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatProgressBar } from '@angular/material/progress-bar';
@@ -73,6 +73,7 @@ const VISIT_SEVERITY: Record<CallVisit['status'], StatusSeverity> = {
     MatButtonToggleGroup,
     MatError,
     MatFormField,
+    MatHint,
     MatLabel,
     MatIcon,
     MatInput,

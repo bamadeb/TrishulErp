@@ -128,3 +128,21 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+
+h3 {
+  margin: 1.25rem 0 0.5rem;
+  font: var(--mat-sys-title-small);
+}
+
+.meta {
+  margin: 0 0 1rem;
+}
+
+.guidance {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-secondary-container);
+}

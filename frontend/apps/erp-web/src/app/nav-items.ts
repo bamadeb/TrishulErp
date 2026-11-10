@@ -16,6 +16,7 @@ import {
   SERVICE_CALL_ASSIGN_PERMISSION,
   SERVICE_CALL_IMPORT_LOG_PERMISSIONS,
   CHECKLIST_VIEW_PERMISSIONS,
+  SERVICE_CALL_OPEN_PERMISSIONS,
   SERVICE_CALL_IMPORT_PERMISSION,
   SERVICE_CALL_VIEW_PERMISSIONS,
 } from '@trishul/service-data-access';
@@ -62,6 +63,12 @@ export const navItems: NavItem[] = [
         icon: 'route',
         route: '/service/my-trips',
         permissions: [MY_TRIPS_PERMISSION],
+      },
+      {
+        label: 'Service reports',
+        icon: 'assignment',
+        route: '/service/reports',
+        permissions: [...SERVICE_CALL_OPEN_PERMISSIONS],
       },
       {
         label: 'Inspection checklists',

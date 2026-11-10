@@ -13,12 +13,15 @@ import {
 } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { WarehouseApi, WarehouseOut } from '@trishul/admin-data-access';
+import { WarehouseApi, WarehouseCompany, WarehouseOut } from '@trishul/admin-data-access';
 
 export interface WarehouseEditData {
   /** The warehouse being changed; none to add one. */
   warehouse?: WarehouseOut;
+  /** The companies a warehouse can belong to. */
+  companies: WarehouseCompany[];
 }
 
 /** Add a warehouse or change its code and name. */
@@ -29,6 +32,7 @@ export interface WarehouseEditData {
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -51,6 +55,14 @@ export interface WarehouseEditData {
           [value]="name()"
           (input)="name.set($any($event.target).value)"
         />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Company</mat-label>
+        <mat-select [value]="companyId()" (valueChange)="companyId.set($event)">
+          @for (c of data.companies; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -87,18 +99,25 @@ export class WarehouseEditDialog {
 
   protected readonly code = signal(this.data.warehouse?.code ?? '');
   protected readonly name = signal(this.data.warehouse?.name ?? '');
+  protected readonly companyId = signal<number | null>(
+    this.data.warehouse?.companyId ?? this.data.companies[0]?.id ?? null,
+  );
   protected readonly saving = signal(false);
   protected readonly valid = computed(
-    () => this.code().trim().length > 0 && this.name().trim().length > 0,
+    () =>
+      this.code().trim().length > 0 &&
+      this.name().trim().length > 0 &&
+      this.companyId() !== null,
   );
 
   protected save(): void {
     const code = this.code().trim();
     const name = this.name().trim();
     const { warehouse } = this.data;
+    const companyId = this.companyId();
     const request = warehouse
-      ? this.api.update(warehouse, { code, name })
-      : this.api.create({ code, name });
+      ? this.api.update(warehouse, { code, name, companyId })
+      : this.api.create({ code, name, companyId });
     this.saving.set(true);
     request.subscribe({
       next: () => {

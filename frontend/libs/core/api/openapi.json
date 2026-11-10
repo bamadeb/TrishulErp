@@ -6514,6 +6514,82 @@
         }
       }
     },
+    "/core/branches": {
+      "post": {
+        "tags": [
+          "warehouses"
+        ],
+        "summary": "Add a branch or service point, optionally under a warehouse",
+        "operationId": "create_branch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WarehouseBranchCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseBranch"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/core/branches/{branchId}/warehouse": {
       "put": {
         "tags": [
@@ -8587,6 +8663,221 @@
           },
           "404": {
             "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-calls/{callId}/reports": {
+      "get": {
+        "tags": [
+          "service-reports"
+        ],
+        "summary": "Every service report of a call in full: inspection checklist, findings, files and the engineer",
+        "operationId": "list_service_call_reports",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceReportOut"
+                  },
+                  "title": "Response List Service Call Reports"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/service-reports": {
+      "get": {
+        "tags": [
+          "service-reports"
+        ],
+        "summary": "Search service reports by report number, call number or customer",
+        "operationId": "list_service_reports",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Report no, call no or customer name.",
+              "title": "Search"
+            },
+            "description": "Report no, call no or customer name."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Draft",
+                    "Submitted"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceReportListItem"
+                  },
+                  "title": "Response List Service Reports"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
             "content": {
               "application/json": {
                 "schema": {
@@ -21767,6 +22058,19 @@
             "title": "Calltypelookupid",
             "description": "Blank = every call type."
           },
+          "inspectionNote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspectionnote",
+            "description": "Guidance for the engineer: what to look for, safety points."
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ChecklistItemInput"
@@ -21866,6 +22170,17 @@
             "type": "boolean",
             "title": "Isactive"
           },
+          "inspectionNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspectionnote"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ChecklistItemOut"
@@ -21889,6 +22204,7 @@
           "callTypeLookupId",
           "callType",
           "isActive",
+          "inspectionNote",
           "items",
           "rowVersion"
         ],
@@ -21940,6 +22256,19 @@
             ],
             "title": "Calltypelookupid",
             "description": "Blank = every call type."
+          },
+          "inspectionNote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspectionnote",
+            "description": "Guidance for the engineer: what to look for, safety points."
           },
           "items": {
             "items": {
@@ -29812,6 +30141,60 @@
         "title": "RegisterDeviceInput",
         "description": "Sent by the Android app on sign-in. The user is the signed-in account, so it is not in the body."
       },
+      "ReportAttachment": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "fileName": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "contentType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contenttype"
+          },
+          "fileSizeBytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filesizebytes"
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploadedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "category",
+          "contentType",
+          "fileSizeBytes",
+          "uploadedAt"
+        ],
+        "title": "ReportAttachment",
+        "description": "A photo or file attached to a report (download with GET /core/documents/{id}/content)."
+      },
       "ReportSummary": {
         "properties": {
           "id": {
@@ -32134,6 +32517,122 @@
         "title": "ServiceContractUpdate",
         "description": "Only the fields sent are changed. The machine can't be changed: cancel and add a new contract."
       },
+      "ServiceReportListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "reportNo": {
+            "type": "string",
+            "title": "Reportno"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Draft",
+              "Submitted"
+            ],
+            "title": "Status"
+          },
+          "serviceCallId": {
+            "type": "integer",
+            "title": "Servicecallid"
+          },
+          "serviceVisitId": {
+            "type": "integer",
+            "title": "Servicevisitid"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "customerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customername"
+          },
+          "visitNo": {
+            "type": "integer",
+            "title": "Visitno"
+          },
+          "engineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineername"
+          },
+          "nextAction": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "None",
+                  "Parts required",
+                  "Revisit",
+                  "Escalate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextaction"
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submittedat"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reportNo",
+          "status",
+          "serviceCallId",
+          "serviceVisitId",
+          "callNo",
+          "customerName",
+          "visitNo",
+          "engineerName",
+          "nextAction",
+          "submittedAt",
+          "updatedAt"
+        ],
+        "title": "ServiceReportListItem",
+        "description": "One row of the service report search."
+      },
       "ServiceReportOut": {
         "properties": {
           "id": {
@@ -32201,6 +32700,70 @@
               }
             ],
             "title": "Engineername"
+          },
+          "engineerCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineercode"
+          },
+          "engineerMobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineermobile"
+          },
+          "customerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customername"
+          },
+          "checklistName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checklistname",
+            "description": "The checklist template the questions were copied from."
+          },
+          "inspectionNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspectionnote",
+            "description": "The checklist's guidance note for the engineer."
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/ReportAttachment"
+            },
+            "type": "array",
+            "title": "Attachments"
           },
           "serviceStartedAt": {
             "anyOf": [
@@ -32431,6 +32994,12 @@
           "visitPurpose",
           "visitStatus",
           "engineerName",
+          "engineerCode",
+          "engineerMobile",
+          "customerName",
+          "checklistName",
+          "inspectionNote",
+          "attachments",
           "serviceStartedAt",
           "serviceEndedAt",
           "hmrReading",
@@ -36134,6 +36703,21 @@
             "type": "string",
             "title": "Branchtype"
           },
+          "companyId": {
+            "type": "integer",
+            "title": "Companyid"
+          },
+          "companyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyname"
+          },
           "warehouseId": {
             "anyOf": [
               {
@@ -36160,12 +36744,97 @@
           "code",
           "name",
           "branchType",
+          "companyId",
+          "companyName",
           "warehouseId",
           "isActive",
           "rowVersion"
         ],
         "title": "WarehouseBranch",
         "description": "A branch or service point, and the warehouse that supplies it (if any)."
+      },
+      "WarehouseBranchCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "branchType": {
+            "type": "string",
+            "enum": [
+              "Branch",
+              "Service point"
+            ],
+            "title": "Branchtype",
+            "default": "Branch"
+          },
+          "warehouseId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouseid",
+            "description": "The supplying warehouse; blank for none yet."
+          },
+          "companyId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyid",
+            "description": "The company it belongs to; blank = the warehouse's company."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "WarehouseBranchCreate",
+        "description": "A new branch (or service point), optionally supplied by a warehouse straight away."
+      },
+      "WarehouseCompany": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "WarehouseCompany",
+        "description": "A company a warehouse or branch can belong to."
       },
       "WarehouseCreate": {
         "properties": {
@@ -36180,6 +36849,19 @@
             "maxLength": 120,
             "minLength": 1,
             "title": "Name"
+          },
+          "companyId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyid",
+            "description": "The company it belongs to; blank = the head office's company."
           }
         },
         "additionalProperties": false,
@@ -36205,12 +36887,20 @@
             },
             "type": "array",
             "title": "Branches"
+          },
+          "companies": {
+            "items": {
+              "$ref": "#/components/schemas/WarehouseCompany"
+            },
+            "type": "array",
+            "title": "Companies"
           }
         },
         "type": "object",
         "required": [
           "warehouses",
-          "branches"
+          "branches",
+          "companies"
         ],
         "title": "WarehouseMap"
       },
@@ -36227,6 +36917,21 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "companyId": {
+            "type": "integer",
+            "title": "Companyid"
+          },
+          "companyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyname"
           },
           "isActive": {
             "type": "boolean",
@@ -36247,6 +36952,8 @@
           "id",
           "code",
           "name",
+          "companyId",
+          "companyName",
           "isActive",
           "branchCount",
           "rowVersion"
@@ -36281,6 +36988,19 @@
               }
             ],
             "title": "Name"
+          },
+          "companyId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyid",
+            "description": "Move the warehouse to another company."
           },
           "isActive": {
             "anyOf": [

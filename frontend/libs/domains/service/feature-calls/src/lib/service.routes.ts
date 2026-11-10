@@ -32,6 +32,7 @@ import { MachineFormPage } from './machine-form.page';
 import { MachineListPage } from './machine-list.page';
 import { MyTripsPage } from './my-trips.page';
 import { ServiceReportPage } from './service-report.page';
+import { ServiceReportsListPage } from './service-reports-list.page';
 import { TripHistoryPage } from './trip-history.page';
 
 /** Lazy-loaded under /service. */
@@ -138,6 +139,12 @@ export const serviceRoutes: Route[] = [
     title: 'Service report',
     canActivate: [permissionGuard(...SERVICE_CALL_OPEN_PERMISSIONS)],
     component: ServiceReportPage,
+  },
+  {
+    path: 'reports',
+    title: 'Service reports',
+    canActivate: [permissionGuard(...SERVICE_CALL_OPEN_PERMISSIONS)],
+    component: ServiceReportsListPage,
   },
   {
     path: 'checklists',

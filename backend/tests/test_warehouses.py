@@ -27,6 +27,7 @@ STALE = {"If-Match": '"AAAAAAAAAAA="'}
 def db() -> Engine:
     engine = sqlite_engine(TABLES)
     insert_row(engine, "core.company", id=1, code="TRISHUL", legal_name="Trishul", trade_name="Trishul")
+    insert_row(engine, "core.company", id=2, code="KASHI", legal_name="Kashi Sales", trade_name="Kashi")
     insert_row(engine, "core.state", id=1, name="Odisha")
     insert_row(engine, "core.app_user", id=1, username="admin@trishul.co")
     rows = (
@@ -146,6 +147,48 @@ def test_add_and_edit_a_warehouse(client: TestClient) -> None:
     assert not_a_warehouse.status_code == 404
 
 
+def test_add_a_branch_under_a_warehouse_or_without_one(client: TestClient) -> None:
+    under = client.post(f"{URL}/branches", json={"code": "PURI", "name": "Puri", "warehouseId": BBSR})
+    assert under.status_code == 201, under.text
+    assert (under.json()["warehouseId"], under.json()["branchType"], under.json()["isActive"]) == (BBSR, "Branch", True)
+    alone = client.post(f"{URL}/branches", json={"code": "KENDU", "name": "Kendujhar", "branchType": "Service point"})
+    assert alone.status_code == 201 and alone.json()["warehouseId"] is None
+    overview = client.get(f"{URL}/warehouses").json()
+    assert {b["code"] for b in overview["branches"]} >= {"PURI", "KENDU"}
+    assert next(w for w in overview["warehouses"] if w["id"] == BBSR)["branchCount"] == 1
+
+
+def test_a_new_branch_needs_a_free_code_a_real_type_and_an_active_warehouse(client: TestClient) -> None:
+    assert client.post(f"{URL}/branches", json={"code": "ANGUL", "name": "Dup"}).status_code in (400, 409)
+    assert (
+        client.post(f"{URL}/branches", json={"code": "X1", "name": "X", "branchType": "Warehouse"}).status_code == 422
+    )
+    not_warehouse = client.post(f"{URL}/branches", json={"code": "X2", "name": "X", "warehouseId": ANGUL})
+    assert not_warehouse.status_code == 400
+    assert "warehouseId" in not_warehouse.json()["errors"]
+
+
+def test_warehouses_and_branches_are_mapped_to_a_company(client: TestClient) -> None:
+    overview = client.get(f"{URL}/warehouses").json()
+    assert [(c["id"], c["name"]) for c in overview["companies"]] == [(2, "Kashi Sales"), (1, "Trishul")]
+    assert {w["companyName"] for w in overview["warehouses"]} == {"Trishul"}
+
+    created = client.post(f"{URL}/warehouses", json={"code": "WH-K", "name": "Kashi store", "companyId": 2})
+    assert created.status_code == 201, created.text
+    assert (created.json()["companyId"], created.json()["companyName"]) == (2, "Kashi Sales")
+
+    moved = client.patch(f"{URL}/warehouses/{BBSR}", json={"companyId": 2}, headers=match(warehouse(client, BBSR)))
+    assert moved.status_code == 200 and moved.json()["companyName"] == "Kashi Sales"
+
+    inherits = client.post(f"{URL}/branches", json={"code": "B1", "name": "One", "warehouseId": JSG})
+    assert inherits.json()["companyId"] == 1  # the warehouse's company when none is chosen
+    own = client.post(f"{URL}/branches", json={"code": "B2", "name": "Two", "companyId": 2})
+    assert (own.json()["companyId"], own.json()["companyName"]) == (2, "Kashi Sales")
+
+    unknown = client.post(f"{URL}/warehouses", json={"code": "WH-X", "name": "X", "companyId": 99})
+    assert unknown.status_code == 400 and "companyId" in unknown.json()["errors"]
+
+
 def test_a_warehouse_that_still_supplies_branches_cannot_be_deactivated(client: TestClient) -> None:
     assign(client, ROURKELA, JSG)
     refused = client.patch(f"{URL}/warehouses/{JSG}", json={"isActive": False}, headers=match(warehouse(client, JSG)))
@@ -158,6 +201,7 @@ def test_a_warehouse_that_still_supplies_branches_cannot_be_deactivated(client: 
 def test_viewing_needs_view_and_changing_needs_manage(viewer: TestClient) -> None:
     assert viewer.get(f"{URL}/warehouses").status_code == 200
     assert viewer.post(f"{URL}/warehouses", json={"code": "X", "name": "X"}).status_code == 403
+    assert viewer.post(f"{URL}/branches", json={"code": "X", "name": "X"}).status_code == 403
     put = viewer.put(f"{URL}/branches/{ROURKELA}/warehouse", json={"warehouseId": BBSR}, headers=STALE)
     assert put.status_code == 403
 

@@ -16,7 +16,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltip } from '@angular/material/tooltip';
 import { LookupValueOut } from '@trishul/core-api';
 import { AuthStore } from '@trishul/core-auth';
-import { ChecklistTemplateOut, ServiceCallApi, ServiceReportApi } from '@trishul/service-data-access';
+import { DocumentPanel } from '@trishul/core-documents';
+import {
+  CHECKLIST_ENTITY,
+  ChecklistTemplateOut,
+  ServiceCallApi,
+  ServiceReportApi,
+} from '@trishul/service-data-access';
 
 export interface ChecklistTemplateDialogData {
   /** The checklist being changed; none to add one. */
@@ -47,6 +53,7 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
     MatInputModule,
     MatSelectModule,
     MatTooltip,
+    DocumentPanel,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -80,6 +87,17 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
         <p class="hint">
           The most specific checklist (brand and call type) is copied into each new service report.
         </p>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Inspection note</mat-label>
+          <textarea
+            matInput
+            rows="3"
+            maxlength="2000"
+            placeholder="What the engineer should look for, safety points..."
+            formControlName="inspectionNote"
+          ></textarea>
+        </mat-form-field>
 
         <h3>Questions</h3>
         <div formArrayName="items" class="items">
@@ -132,8 +150,17 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
         <button mat-button type="button" [disabled]="!!data.readonly" (click)="addItem()">
           <mat-icon>add</mat-icon> Add question
         </button>
-        @if (data.template) {
+        @if (data.template; as t) {
           <mat-checkbox formControlName="isActive">Active (used for new reports)</mat-checkbox>
+          <h3>Attachments</h3>
+          <trishul-document-panel
+            title="Reference files (PDF, Word, Excel, JPG or PNG, up to 10 MB each)"
+            [entityType]="entityType"
+            [entityId]="t.id"
+            [readonly]="!!data.readonly"
+          />
+        } @else {
+          <p class="hint">Save the checklist first, then edit it to attach files.</p>
         }
       </form>
     </mat-dialog-content>
@@ -196,6 +223,7 @@ export class ChecklistTemplateDialog implements OnInit {
   private readonly calls = inject(ServiceCallApi);
   private readonly auth = inject(AuthStore);
 
+  protected readonly entityType = CHECKLIST_ENTITY;
   protected readonly responseTypes = RESPONSE_TYPES;
   protected readonly principals = signal(this.auth.user()?.principals ?? []);
   protected readonly callTypes = signal<LookupValueOut[]>([]);
@@ -205,6 +233,7 @@ export class ChecklistTemplateDialog implements OnInit {
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(120)] }),
     principalId: new FormControl<number | null>(null),
     callTypeLookupId: new FormControl<number | null>(null),
+    inspectionNote: new FormControl('', { nonNullable: true, validators: Validators.maxLength(2000) }),
     isActive: new FormControl(true, { nonNullable: true }),
     items: new FormArray<FormGroup<{
       id: FormControl<number | null>;
@@ -230,6 +259,7 @@ export class ChecklistTemplateDialog implements OnInit {
       name: t.name,
       principalId: t.principalId,
       callTypeLookupId: t.callTypeLookupId,
+      inspectionNote: t.inspectionNote ?? '',
       isActive: t.isActive,
     });
     for (const i of t.items) this.addItem(i);
@@ -268,6 +298,7 @@ export class ChecklistTemplateDialog implements OnInit {
       name: v.name.trim(),
       principalId: v.principalId,
       callTypeLookupId: v.callTypeLookupId,
+      inspectionNote: v.inspectionNote.trim() || null,
       items,
     };
     this.saving.set(true);

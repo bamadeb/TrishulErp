@@ -3,5 +3,10 @@
 
 export interface WarehouseCreate {
   code: string;
+
+  /**
+   * The company it belongs to; blank = the head office's company.
+   */
+  companyId?: (number | null);
   name: string;
 }

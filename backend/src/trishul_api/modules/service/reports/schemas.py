@@ -30,6 +30,34 @@ class ChecklistAnswer(ApiModel):
     photo_document_id: int | None = Field(None, description="Photo of this check point (see /core/documents).")
 
 
+class ReportAttachment(ApiModel):
+    """A photo or file attached to a report (download with GET /core/documents/{id}/content)."""
+
+    id: int
+    file_name: str
+    category: str
+    content_type: str | None
+    file_size_bytes: int | None
+    uploaded_at: UtcDateTime
+
+
+class ServiceReportListItem(ApiModel):
+    """One row of the service report search."""
+
+    id: int
+    report_no: str
+    status: ReportStatus
+    service_call_id: int
+    service_visit_id: int
+    call_no: str
+    customer_name: str | None
+    visit_no: int
+    engineer_name: str | None
+    next_action: NextAction | None
+    submitted_at: UtcDateTime | None
+    updated_at: UtcDateTime | None
+
+
 class ServiceReportOut(ApiModel):
     """The service report of one visit: inspection checklist, findings, work done and customer sign-off."""
 
@@ -43,6 +71,12 @@ class ServiceReportOut(ApiModel):
     visit_purpose: ServiceVisitVisitPurpose
     visit_status: ServiceVisitStatus
     engineer_name: str | None
+    engineer_code: str | None
+    engineer_mobile: str | None
+    customer_name: str | None
+    checklist_name: str | None = Field(None, description="The checklist template the questions were copied from.")
+    inspection_note: str | None = Field(None, description="The checklist's guidance note for the engineer.")
+    attachments: list[ReportAttachment]
     service_started_at: UtcDateTime | None
     service_ended_at: UtcDateTime | None
     hmr_reading: Decimal | None
@@ -148,6 +182,7 @@ class ChecklistTemplateOut(ApiModel):
     call_type_lookup_id: int | None
     call_type: str | None
     is_active: bool
+    inspection_note: str | None
     items: list[ChecklistItemOut]
     row_version: RowVersion
 
@@ -166,6 +201,9 @@ class ChecklistTemplateInput(InputModel):
     principal_id: int | None = Field(None, gt=0, description="Blank = every brand.")
     machine_model_id: int | None = Field(None, gt=0, description="Blank = every model.")
     call_type_lookup_id: int | None = Field(None, gt=0, description="Blank = every call type.")
+    inspection_note: str | None = Field(
+        None, max_length=2000, description="Guidance for the engineer: what to look for, safety points."
+    )
     items: list[ChecklistItemInput] = Field(min_length=1, max_length=60, description="In the order they are asked.")
 
 

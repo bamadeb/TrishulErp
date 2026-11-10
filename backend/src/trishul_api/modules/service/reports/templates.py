@@ -54,6 +54,7 @@ class ChecklistTemplateService:
             principal_id=data.principal_id,
             machine_model_id=data.machine_model_id,
             call_type_lookup_id=data.call_type_lookup_id,
+            inspection_note=(data.inspection_note or "").strip() or None,
             created_by_user_id=self._actor.id,
         )
         self._db.add(template)
@@ -71,6 +72,7 @@ class ChecklistTemplateService:
         template.machine_model_id = data.machine_model_id
         template.call_type_lookup_id = data.call_type_lookup_id
         template.is_active = data.is_active
+        template.inspection_note = (data.inspection_note or "").strip() or None
         template.updated_at, template.updated_by_user_id = _now(), self._actor.id
         existing = {
             i.id: i
@@ -165,6 +167,7 @@ class ChecklistTemplateService:
             call_type_lookup_id=template.call_type_lookup_id,
             call_type=call_type,
             is_active=bool(template.is_active),
+            inspection_note=template.inspection_note,
             items=[
                 ChecklistItemOut(
                     id=i.id,

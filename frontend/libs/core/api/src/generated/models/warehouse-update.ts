@@ -7,6 +7,11 @@
  */
 export interface WarehouseUpdate {
   code?: (string | null);
+
+  /**
+   * Move the warehouse to another company.
+   */
+  companyId?: (number | null);
   isActive?: (boolean | null);
   name?: (string | null);
 }

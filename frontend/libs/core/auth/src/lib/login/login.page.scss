@@ -32,11 +32,11 @@
   padding: 1.75rem 2rem 2rem;
 }
 
-.brand {
-  font: var(--mat-sys-title-large);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--mat-sys-primary);
+.logo {
+  display: block;
+  height: 4rem;
+  width: auto;
+  max-width: 100%;
 }
 
 h1 {
