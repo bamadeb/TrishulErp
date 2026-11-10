@@ -191,6 +191,10 @@ export type { SignServiceReport$Params as SignServiceReport$Params } from './fn/
 export { signServiceReport as signServiceReport } from './fn/service-reports/sign-service-report';
 export type { SubmitServiceReport$Params as SubmitServiceReport$Params } from './fn/service-reports/submit-service-report';
 export { submitServiceReport as submitServiceReport } from './fn/service-reports/submit-service-report';
+export type { ListChecklistBrands$Params as ListChecklistBrands$Params } from './fn/service-reports/list-checklist-brands';
+export { listChecklistBrands as listChecklistBrands } from './fn/service-reports/list-checklist-brands';
+export type { ListChecklistAnswerTypes$Params as ListChecklistAnswerTypes$Params } from './fn/service-reports/list-checklist-answer-types';
+export { listChecklistAnswerTypes as listChecklistAnswerTypes } from './fn/service-reports/list-checklist-answer-types';
 export type { ListChecklistTemplates$Params as ListChecklistTemplates$Params } from './fn/service-reports/list-checklist-templates';
 export { listChecklistTemplates as listChecklistTemplates } from './fn/service-reports/list-checklist-templates';
 export type { CreateChecklistTemplate$Params as CreateChecklistTemplate$Params } from './fn/service-reports/create-checklist-template';

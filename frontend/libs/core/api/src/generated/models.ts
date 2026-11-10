@@ -44,6 +44,8 @@ export type { CallTripHistoryItem } from './models/call-trip-history-item';
 export type { CallVisit } from './models/call-visit';
 export type { ChecklistAnswer } from './models/checklist-answer';
 export type { ChecklistAnswerInput } from './models/checklist-answer-input';
+export type { ChecklistAnswerType } from './models/checklist-answer-type';
+export type { ChecklistBrandOption } from './models/checklist-brand-option';
 export type { ChecklistItemInput } from './models/checklist-item-input';
 export type { ChecklistItemOut } from './models/checklist-item-out';
 export type { ChecklistTemplateInput } from './models/checklist-template-input';

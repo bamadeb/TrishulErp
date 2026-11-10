@@ -3,6 +3,8 @@ import { Observable } from 'rxjs';
 import {
   ApiClient,
   CallVisit,
+  ChecklistAnswerType,
+  ChecklistBrandOption,
   ChecklistTemplateInput,
   ChecklistTemplateOut,
   ChecklistTemplateUpdate,
@@ -14,6 +16,8 @@ import {
   getChecklistTemplate,
   getServiceReportSignature,
   getServiceVisitReport,
+  listChecklistAnswerTypes,
+  listChecklistBrands,
   listChecklistTemplates,
   listServiceCallReports,
   listServiceReports,
@@ -29,6 +33,8 @@ import {
 export type {
   CallVisit,
   ChecklistAnswer,
+  ChecklistAnswerType,
+  ChecklistBrandOption,
   ChecklistItemOut,
   ChecklistTemplateInput,
   ChecklistTemplateOut,
@@ -126,6 +132,16 @@ export class ServiceReportApi {
   /** The customer's signature image. */
   signatureImage(reportId: number): Observable<Blob> {
     return this.api.call(getServiceReportSignature, { reportId }) as Observable<Blob>;
+  }
+
+  /** The Brand dropdown of the checklist form. */
+  brands(): Observable<ChecklistBrandOption[]> {
+    return this.api.call(listChecklistBrands);
+  }
+
+  /** The Answer dropdown of a checklist question. */
+  answerTypes(): Observable<ChecklistAnswerType[]> {
+    return this.api.call(listChecklistAnswerTypes);
   }
 
   templates(includeInactive = false): Observable<ChecklistTemplateOut[]> {
