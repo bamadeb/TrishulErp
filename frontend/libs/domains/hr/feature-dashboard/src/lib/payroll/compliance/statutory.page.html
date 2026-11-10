@@ -1,45 +1,183 @@
-<trishul-page-header title="Statutory Compliance" subtitle="PF, ESI, professional tax and TDS for the current period." />
+<trishul-page-header
+  title="Statutory Compliance"
+  subtitle="PF, ESI, professional tax and TDS. Amounts appear after payroll is calculated for the month."
+>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Financial year</mat-label>
+    <mat-select [value]="year()" (valueChange)="onYear($event)">
+      @for (item of years; track item) {
+        <mat-option [value]="item">{{ item }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Payroll month</mat-label>
+    <mat-select [value]="month()" (valueChange)="onMonth($event)">
+      @for (item of months(); track item.value) {
+        <mat-option [value]="item.value">{{ item.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <trishul-status-badge [status]="summary().configurationStatus" [severities]="tones" />
+</trishul-page-header>
+
+<section class="cards" aria-label="Statutory totals">
+  <article class="stat" data-tone="blue">
+    <span class="stat-icon"><mat-icon>groups</mat-icon></span>
+    <span><span class="stat-label">Eligible employees</span><strong>{{ summary().eligibleEmployees }}</strong></span>
+  </article>
+  <article class="stat" data-tone="green">
+    <span class="stat-icon"><mat-icon>person</mat-icon></span>
+    <span><span class="stat-label">Employee contributions</span><strong>{{ money(summary().employeeContribution) }}</strong></span>
+  </article>
+  <article class="stat" data-tone="orange">
+    <span class="stat-icon"><mat-icon>apartment</mat-icon></span>
+    <span><span class="stat-label">Employer contributions</span><strong>{{ money(summary().employerContribution) }}</strong></span>
+  </article>
+  <article class="stat" data-tone="violet">
+    <span class="stat-icon"><mat-icon>account_balance</mat-icon></span>
+    <span><span class="stat-label">Total statutory liability</span><strong>{{ money(summary().totalLiability) }}</strong></span>
+  </article>
+</section>
 
 <nav class="tabs" aria-label="Statutory schemes">
-  @for (scheme of schemes; track scheme.id) {
-    <button type="button" class="tab" [class.selected]="selected() === scheme.id" (click)="select(scheme.id)">
+  <button type="button" class="tab" [class.selected]="tab() === 'overview'" (click)="selectTab('overview')">Overview</button>
+  @for (scheme of schemeTabs; track scheme.scheme) {
+    <button type="button" class="tab" [class.selected]="tab() === scheme.scheme" (click)="selectTab(scheme.scheme)">
       {{ scheme.name }}
     </button>
   }
 </nav>
 
-<section class="cards four" aria-label="Scheme totals">
-  <article class="stat"><span><span class="stat-label">Employees</span><strong>{{ totals().people }}</strong></span></article>
-  <article class="stat"><span><span class="stat-label">Employee share</span><strong>{{ inr(totals().employee) }}</strong></span></article>
-  <article class="stat"><span><span class="stat-label">Employer share</span><strong>{{ inr(totals().employer) }}</strong></span></article>
-  <article class="stat"><span><span class="stat-label">Total</span><strong>{{ inr(totals().total) }}</strong></span></article>
-</section>
-
-<section class="table-card">
-  <div class="section-head">
-    <div>
-      <h2>{{ current().name }} — {{ current().period }}</h2>
-      <p>Compliance report for this scheme.</p>
-    </div>
-    <trishul-status-badge [status]="current().status" [severities]="status" />
-    <button mat-stroked-button type="button" (click)="viewReport(current())">View report</button>
-  </div>
-  <div class="table-scroll">
-    <table>
-      <thead>
-        <tr><th>Employee code</th><th>Name</th><th>Employee share</th><th>Employer share</th><th>Total</th></tr>
-      </thead>
-      <tbody>
-        @for (row of current().rows; track row.code) {
-          <tr>
-            <td>{{ row.code }}</td>
-            <td>{{ row.name }}</td>
-            <td>{{ inr(row.employeeShare) }}</td>
-            <td>{{ inr(row.employerShare) }}</td>
-            <td>{{ inr(row.employeeShare + row.employerShare) }}</td>
-          </tr>
+@if (tab() === 'overview') {
+  <section class="cards" aria-label="Scheme status">
+    @for (scheme of schemeCards(); track scheme.scheme) {
+      <button type="button" class="scheme" (click)="selectTab(scheme.scheme)">
+        <strong>{{ scheme.name }}</strong>
+        <span>Configuration <trishul-status-badge [status]="scheme.configurationStatus" [severities]="tones" /></span>
+        <span>Calculation <trishul-status-badge [status]="scheme.calculationStatus" [severities]="tones" /></span>
+        <span>Filing <trishul-status-badge [status]="scheme.filingStatus" [severities]="tones" /></span>
+      </button>
+    }
+  </section>
+  <section class="workflow" aria-label="Statutory workflow">
+    @for (step of workflow(); track step.name) {
+      <article>
+        <span>{{ step.name }}</span>
+        <trishul-status-badge [status]="step.status" [severities]="tones" />
+      </article>
+    }
+  </section>
+  <p class="note">Calculation being complete does not file a scheme. Filing stays Not filed until a return is recorded. A challan is not created from this screen.</p>
+} @else {
+  <div class="filters">
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput type="search" placeholder="Search by employee, department or location" aria-label="Search statutory contributions" [value]="query().search" (input)="onSearch($any($event.target).value)" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Department</mat-label>
+      <mat-select [value]="query().departmentId" (valueChange)="onDepartment($event)">
+        <mat-option [value]="null">All departments</mat-option>
+        @for (department of summary().departments; track department.id) {
+          <mat-option [value]="department.id">{{ department.name }}</mat-option>
         }
-      </tbody>
-    </table>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>State</mat-label>
+      <mat-select [value]="query().stateId" (valueChange)="onState($event)">
+        <mat-option [value]="null">All states</mat-option>
+        @for (state of summary().states; track state.id) {
+          <mat-option [value]="state.id">{{ state.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-button type="button" (click)="clearFilters()">
+      <mat-icon>filter_alt_off</mat-icon>
+      Clear
+    </button>
+    <button mat-stroked-button type="button" [matMenuTriggerFor]="columnsMenu">
+      <mat-icon>view_column</mat-icon>
+      Columns
+    </button>
+    <mat-menu #columnsMenu="matMenu">
+      @for (column of columns; track column.key) {
+        <button mat-menu-item type="button" [disabled]="column.locked" (click)="$event.stopPropagation(); toggleColumn(column.key, !shown(column.key))">
+          <mat-checkbox class="column-check" [checked]="shown(column.key)" [disabled]="column.locked">{{ column.label }}</mat-checkbox>
+        </button>
+      }
+    </mat-menu>
+    <button mat-stroked-button type="button" (click)="exportCsv()">
+      <mat-icon>download</mat-icon>
+      Export
+    </button>
+    <button mat-flat-button color="primary" type="button" *trishulHasPermission="manage" (click)="configure(scheme())">
+      Configure
+    </button>
   </div>
-</section>
+
+  <section class="table-card">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            @if (shown('code')) { <th>Employee code</th> }
+            @if (shown('name')) { <th>Employee name</th> }
+            @if (shown('department')) { <th>Department</th> }
+            @if (shown('location')) { <th>State</th> }
+            @if (shown('wages')) { <th>Applicable wages</th> }
+            @if (shown('employee')) { <th>Employee contribution</th> }
+            @if (shown('employer')) { <th>Employer contribution</th> }
+            @if (shown('total')) { <th>Total contribution</th> }
+            @if (shown('status')) { <th>Calculation status</th> }
+            @if (shown('reason')) { <th>Reason</th> }
+            @if (shown('actions')) { <th>Actions</th> }
+          </tr>
+        </thead>
+        <tbody>
+          @if (error()) {
+            <tr><td class="empty" [attr.colspan]="columnCount()">{{ error() }}</td></tr>
+          } @else if (!loading() && rows().length === 0) {
+            <tr><td class="empty" [attr.colspan]="columnCount()">No employees match these filters.</td></tr>
+          }
+          @for (row of rows(); track row.employeeId) {
+            <tr>
+              @if (shown('code')) { <td>{{ row.employeeCode }}</td> }
+              @if (shown('name')) { <td>{{ row.fullName }}</td> }
+              @if (shown('department')) { <td>{{ row.department || '—' }}</td> }
+              @if (shown('location')) { <td>{{ row.location || '—' }}</td> }
+              @if (shown('wages')) { <td>{{ money(row.applicableWages) }}</td> }
+              @if (shown('employee')) { <td>{{ money(row.employeeContribution) }}</td> }
+              @if (shown('employer')) { <td>{{ money(row.employerContribution) }}</td> }
+              @if (shown('total')) { <td>{{ money(row.totalContribution) }}</td> }
+              @if (shown('status')) {
+                <td><trishul-status-badge [status]="row.calculationStatus" [severities]="tones" /></td>
+              }
+              @if (shown('reason')) { <td class="reason">{{ row.reason || '—' }}</td> }
+              @if (shown('actions')) {
+                <td class="actions">
+                  <button mat-icon-button type="button" disabled [attr.aria-label]="'Contributions for ' + row.fullName + ' are not calculated'">
+                    <mat-icon>visibility</mat-icon>
+                  </button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <mat-paginator
+      [length]="total()"
+      [pageIndex]="query().page - 1"
+      [pageSize]="query().pageSize"
+      [pageSizeOptions]="[10, 20, 50]"
+      (page)="onPage($event)"
+    />
+  </section>
+}

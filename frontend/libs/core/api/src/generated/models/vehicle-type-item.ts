@@ -7,7 +7,7 @@ export interface VehicleTypeItem {
   isActive: boolean;
 
   /**
-   * True: Start/Stop GPS trip. False (Bus, Train, Other): enter the kilometres by hand; there is no Start/Stop trip.
+   * True: Start/Stop GPS trip. False (Bus, Train, Other): enter the kilometres by hand (POST /trk/manual-travel); there is no Start/Stop trip.
    */
   isGpsTracked: boolean;
   name: string;

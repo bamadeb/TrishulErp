@@ -1,0 +1,100 @@
+<trishul-page-header
+  title="Salary Templates"
+  subtitle="The company template is the salary components already saved, in display order. Rates stay in statutory configuration."
+/>
+
+<section class="cards" aria-label="Template component totals">
+  <button type="button" class="stat" data-tone="blue" [class.selected]="componentType() === null && !activeOnly() && !search()" (click)="selectCard('total')">
+    <span class="stat-icon"><mat-icon>layers</mat-icon></span>
+    <span><span class="stat-label">Components in template</span><strong>{{ summary().total }}</strong></span>
+  </button>
+  <button type="button" class="stat" data-tone="green" [class.selected]="componentType() === 'Earning'" (click)="selectCard('earning')">
+    <span class="stat-icon"><mat-icon>add_card</mat-icon></span>
+    <span><span class="stat-label">Earnings</span><strong>{{ summary().earning }}</strong></span>
+  </button>
+  <button type="button" class="stat" data-tone="orange" [class.selected]="componentType() === 'Employee Deduction'" (click)="selectCard('deduction')">
+    <span class="stat-icon"><mat-icon>remove_circle</mat-icon></span>
+    <span><span class="stat-label">Employee deductions</span><strong>{{ summary().deduction }}</strong></span>
+  </button>
+  <button type="button" class="stat" data-tone="violet" [class.selected]="activeOnly()" (click)="selectCard('active')">
+    <span class="stat-icon"><mat-icon>check_circle</mat-icon></span>
+    <span><span class="stat-label">Active components</span><strong>{{ summary().active }}</strong></span>
+  </button>
+</section>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input matInput type="search" placeholder="Search by component name or code" aria-label="Search template components" [value]="search()" (input)="search.set($any($event.target).value)" />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Component type</mat-label>
+    <mat-select [value]="componentType()" (valueChange)="componentType.set($event)">
+      <mat-option [value]="null">All types</mat-option>
+      @for (type of types; track type) {
+        <mat-option [value]="type">{{ type }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <button mat-button type="button" (click)="clearFilters()">
+    <mat-icon>filter_alt_off</mat-icon>
+    Clear
+  </button>
+</div>
+
+<section class="table-card">
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
+  @if (error()) {
+    <p class="empty">{{ error() }}</p>
+  } @else if (!loading() && groups().every((group) => group.rows.length === 0)) {
+    <p class="empty">No saved components match these filters.</p>
+  } @else {
+    @for (group of groups(); track group.type) {
+      <h2>{{ group.type }} <span>{{ group.rows.length }}</span></h2>
+      @if (group.rows.length === 0) {
+        <p class="section-empty">No {{ group.type.toLowerCase() }} components are saved.</p>
+      } @else {
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Method</th>
+                <th>Basis</th>
+                <th>Effective from</th>
+                <th>Effective to</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of group.rows; track row.id) {
+                <tr>
+                  <td>{{ row.code }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.calculationMethod }}</td>
+                  <td class="basis">{{ row.calculationBasis || '—' }}</td>
+                  <td>{{ row.effectiveFrom | date: 'dd MMM yyyy' }}</td>
+                  <td>{{ row.effectiveTo ? (row.effectiveTo | date: 'dd MMM yyyy') : '—' }}</td>
+                  <td>
+                    <trishul-status-badge [status]="row.isActive ? 'Active' : 'Inactive'" [severities]="statusTones" />
+                  </td>
+                  <td class="actions">
+                    <button mat-icon-button type="button" aria-label="View {{ row.name }}" (click)="view(row)">
+                      <mat-icon>visibility</mat-icon>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  }
+</section>

@@ -3,5 +3,9 @@
 
 export interface TadaSettlementCreate {
   employeeIds: Array<number>;
+  paymentDate?: (string | null);
+  paymentMode?: ('Payroll' | 'Bank transfer' | 'Cash' | null);
+  paymentReference?: (string | null);
   payrollMonth: string;
+  remarks?: (string | null);
 }

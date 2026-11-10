@@ -74,6 +74,8 @@ def apply_decision(current: str, action: str) -> str | None:
         return "Rejected"
     if action == "Sent" and current == "Approved":
         return "Sent"
+    if action == "Paid" and current in {"Approved", "Sent"}:
+        return "Paid"
     return None
 
 
@@ -85,6 +87,8 @@ def approval_and_settlement(decision: str | None) -> tuple[str, str]:
         return "Rejected", "Open"
     if decision == "Sent":
         return "Approved", "Sent"
+    if decision == "Paid":
+        return "Approved", "Paid"
     return "Pending", "Open"
 
 

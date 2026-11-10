@@ -1,0 +1,51 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+h2,
+h3 {
+  margin: 0 0 0.6rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: center;
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.slabs {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.note {
+  margin: 0 0 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+}
+
+th,
+td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}

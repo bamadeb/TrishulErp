@@ -84,6 +84,7 @@ def test_approval_and_settlement_stay_separate() -> None:
     assert approval_and_settlement("Approved") == ("Approved", "Open")
     assert approval_and_settlement("Rejected") == ("Rejected", "Open")
     assert approval_and_settlement("Sent") == ("Approved", "Sent")
+    assert approval_and_settlement("Paid") == ("Approved", "Paid")
 
 
 def test_only_pending_rows_can_be_approved_and_only_approved_rows_can_be_sent() -> None:
@@ -94,3 +95,7 @@ def test_only_pending_rows_can_be_approved_and_only_approved_rows_can_be_sent() 
     assert apply_decision("Rejected", "Approved") is None
     assert apply_decision("Sent", "Rejected") is None
     assert apply_decision("Pending", "Sent") is None
+    assert apply_decision("Approved", "Paid") == "Paid"
+    assert apply_decision("Sent", "Paid") == "Paid"
+    assert apply_decision("Pending", "Paid") is None
+    assert apply_decision("Paid", "Sent") is None

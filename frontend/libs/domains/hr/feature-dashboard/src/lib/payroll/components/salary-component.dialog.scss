@@ -1,0 +1,104 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+}
+
+h2 {
+  margin: 0;
+}
+
+h3 {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+section + section {
+  margin-top: 1.15rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.flags {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.note,
+.error {
+  margin: 0 0 0.75rem;
+  font: var(--mat-sys-body-small);
+}
+
+.note {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+.history {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.tokens,
+.samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
+}
+
+.tokens button,
+.samples input {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 999px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-small);
+}
+
+.tokens button {
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+}
+
+.tokens button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.samples label {
+  display: grid;
+  gap: 0.15rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-small);
+}
+
+.samples input {
+  width: 6.5rem;
+  border-radius: 0.4rem;
+  padding: 0.25rem 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .grid,
+  .flags {
+    grid-template-columns: 1fr;
+  }
+}

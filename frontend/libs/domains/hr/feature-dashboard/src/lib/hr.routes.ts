@@ -17,6 +17,7 @@ export const hrRoutes: Route[] = [
   {
     path: 'dashboard',
     title: 'HR Dashboard',
+    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
     component: HrDashboardPage,
   },
   {
@@ -48,12 +49,14 @@ export const hrRoutes: Route[] = [
     path: 'attendance',
     title: 'Attendance',
     data: { screenTitle: 'Attendance' },
+    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
     component: HrPlaceholderPage,
   },
   {
     path: 'leave',
     title: 'Leave requests',
     data: { screenTitle: 'Leave requests' },
+    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
     component: HrPlaceholderPage,
   },
   {

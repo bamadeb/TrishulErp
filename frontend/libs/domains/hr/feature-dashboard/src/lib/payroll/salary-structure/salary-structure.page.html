@@ -1,80 +1,105 @@
 <trishul-page-header
   title="Employee Salary Structure"
-  subtitle="CTC, earnings and deductions for each employee."
+  subtitle="Each employee’s amount, percentage or formula for the salary components already saved. Rates stay in statutory configuration."
 />
 
+<section class="cards" aria-label="Salary structure totals">
+  <button type="button" class="stat" data-tone="blue" [class.selected]="query().assignment === 'all' && !query().search" (click)="selectCard('all')">
+    <span class="stat-icon"><mat-icon>groups</mat-icon></span>
+    <span><span class="stat-label">Employees</span><strong>{{ summary().employees }}</strong></span>
+  </button>
+  <button type="button" class="stat" data-tone="green" [class.selected]="query().assignment === 'assigned'" (click)="selectCard('assigned')">
+    <span class="stat-icon"><mat-icon>account_balance</mat-icon></span>
+    <span><span class="stat-label">With a structure</span><strong>{{ summary().assigned }}</strong></span>
+  </button>
+  <button type="button" class="stat" data-tone="orange" [class.selected]="query().assignment === 'unassigned'" (click)="selectCard('unassigned')">
+    <span class="stat-icon"><mat-icon>person_off</mat-icon></span>
+    <span><span class="stat-label">Without a structure</span><strong>{{ summary().unassigned }}</strong></span>
+  </button>
+  <article class="stat" data-tone="violet">
+    <span class="stat-icon"><mat-icon>check_circle</mat-icon></span>
+    <span><span class="stat-label">Active employees</span><strong>{{ summary().active }}</strong></span>
+  </article>
+</section>
+
+<div class="filters">
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input matInput type="search" placeholder="Search by employee, department or designation" aria-label="Search salary structures" [value]="query().search" (input)="onSearch($any($event.target).value)" />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Structure</mat-label>
+    <mat-select [value]="query().assignment" (valueChange)="onAssignment($event)">
+      <mat-option value="all">All employees</mat-option>
+      <mat-option value="assigned">With a structure</mat-option>
+      <mat-option value="unassigned">Without a structure</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <button mat-button type="button" (click)="clearFilters()">
+    <mat-icon>filter_alt_off</mat-icon>
+    Clear
+  </button>
+</div>
+
 <section class="table-card">
-  <div class="section-head">
-    <div>
-      <h2>Salary structures ({{ list.filtered().length }})</h2>
-      <p>List of salary structures in the current prototype.</p>
-    </div>
-    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
-      <mat-icon matPrefix>search</mat-icon>
-      <input matInput placeholder="Search by employee, department or designation" [value]="list.search()" (input)="list.onSearch($any($event.target).value)" />
-    </mat-form-field>
-    <button mat-flat-button color="primary" type="button" (click)="add()">
-      <mat-icon>add</mat-icon>
-      Add structure
-    </button>
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
   </div>
   <div class="table-scroll">
     <table>
       <thead>
         <tr>
-          <th>#</th>
-          <th>Employee ID</th>
+          <th>Code</th>
           <th>Name</th>
           <th>Department</th>
           <th>Designation</th>
-          <th>CTC</th>
-          <th>Gross</th>
-          <th>Basic</th>
-          <th>HRA</th>
-          <th>Allowances</th>
-          <th>Deductions</th>
-          <th>Net salary</th>
-          <th class="actions"><span class="sr-only">Actions</span></th>
+          <th>Effective from</th>
+          <th>Effective to</th>
+          <th>Annual CTC</th>
+          <th>Monthly gross</th>
+          <th>Structure</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        @for (row of list.pageRows(); track row.id; let i = $index) {
+        @if (error()) {
+          <tr><td class="empty" colspan="10">{{ error() }}</td></tr>
+        } @else if (!loading() && rows().length === 0) {
+          <tr><td class="empty" colspan="10">No employees match these filters.</td></tr>
+        }
+        @for (row of rows(); track row.employeeId) {
           <tr>
-            <td>{{ list.rowNumber(i) }}</td>
             <td>{{ row.employeeCode }}</td>
-            <td>{{ row.name }}</td>
-            <td>{{ row.department }}</td>
-            <td>{{ row.designation }}</td>
-            <td>{{ inr(row.ctc) }}</td>
-            <td>{{ inr(row.gross) }}</td>
-            <td>{{ inr(row.basic) }}</td>
-            <td>{{ inr(row.hra) }}</td>
-            <td>{{ inr(row.allowances) }}</td>
-            <td>{{ inr(row.deductions) }}</td>
-            <td>{{ inr(netOf(row.gross, row.deductions)) }}</td>
+            <td>{{ row.fullName }}</td>
+            <td>{{ row.department || '—' }}</td>
+            <td>{{ row.designation || '—' }}</td>
+            <td>{{ row.effectiveFrom ? (row.effectiveFrom | date: 'dd-MM-yyyy' : 'UTC') : '—' }}</td>
+            <td>{{ row.effectiveTo ? (row.effectiveTo | date: 'dd-MM-yyyy' : 'UTC') : '—' }}</td>
+            <td>{{ money(row.annualCtc) }}</td>
+            <td>{{ money(row.monthlyGross) }}</td>
+            <td>
+              <trishul-status-badge [status]="row.structureId ? 'Assigned' : 'Not assigned'" [severities]="statusTones" />
+            </td>
             <td class="actions">
-              <button mat-icon-button type="button" [matMenuTriggerFor]="menu" [attr.aria-label]="'Actions for ' + row.employeeCode">
-                <mat-icon>more_vert</mat-icon>
+              <button mat-icon-button type="button" aria-label="View {{ row.fullName }}" (click)="open('view', row)">
+                <mat-icon>visibility</mat-icon>
               </button>
-              <mat-menu #menu="matMenu">
-                <button mat-menu-item type="button" (click)="view(row)"><mat-icon>visibility</mat-icon> View</button>
-                <button mat-menu-item type="button" (click)="edit(row)"><mat-icon>edit</mat-icon> Edit</button>
-              </mat-menu>
+              <button mat-icon-button type="button" aria-label="Edit {{ row.fullName }}" *trishulHasPermission="manage" (click)="open('edit', row)">
+                <mat-icon>edit</mat-icon>
+              </button>
             </td>
           </tr>
-        } @empty {
-          <tr><td class="empty" colspan="13">No matching records.</td></tr>
         }
       </tbody>
     </table>
   </div>
-  <trishul-payroll-pager
-    [pageIndex]="list.pageIndex()"
-    [pageSize]="list.pageSize()"
-    [pageCount]="list.pageCount()"
-    [pages]="list.pages()"
-    [rangeLabel]="list.rangeLabel()"
-    (pageChange)="list.goTo($event)"
-    (sizeChange)="list.onPageSize($event)"
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="query().page - 1"
+    [pageSize]="query().pageSize"
+    [pageSizeOptions]="[10, 20, 50]"
+    (page)="onPage($event)"
   />
 </section>
