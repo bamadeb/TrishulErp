@@ -2,16 +2,24 @@ import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import {
+  MatDatepicker,
+  MatDatepickerInput,
+  MatDatepickerToggle,
+} from '@angular/material/datepicker';
 import {
   MatFormField,
   MatLabel,
   MatPrefix,
+  MatSuffix,
 } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -111,6 +119,7 @@ const FINISHED: ReadonlySet<CallStatus> = new Set([
     MatFormField,
     MatLabel,
     MatPrefix,
+    MatSuffix,
     MatInput,
     MatSelect,
     MatOption,
@@ -122,11 +131,14 @@ const FINISHED: ReadonlySet<CallStatus> = new Set([
     MatMenuContent,
     MatMenuItem,
     MatMenuTrigger,
+    MatDatepicker,
+    MatDatepickerInput,
+    MatDatepickerToggle,
     HasPermission,
     PageHeader,
     StatusBadge,
   ],
-  providers: [ServiceCallListStore],
+  providers: [ServiceCallListStore, provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './call-list.page.html',
   styleUrl: './call-list.page.scss',
@@ -195,6 +207,33 @@ export class CallListPage {
     });
   }
 
+  /** yyyy-mm-dd of today in the user's time zone, to compare with the planned visit day. */
+  private readonly today = new Date().toLocaleDateString('en-CA');
+
+  /** The visit-date filter as the picker's Date (local midnight), or null when not filtering. */
+  protected readonly visitDateFilter = computed(() => {
+    const day = this.store.query().visitDate;
+    if (!day) return null;
+    const [year, month, date] = day.split('-').map(Number);
+    return new Date(year, month - 1, date);
+  });
+
+  /** Only calls with a visit planned on that day; null clears the filter. */
+  protected onVisitDate(day: Date | null): void {
+    this.store.updateQuery({
+      visitDate: day ? day.toLocaleDateString('en-CA') : null,
+    });
+  }
+
+  /** The planned day has gone by and the visit still hasn't started. */
+  protected isVisitOverdue(call: ServiceCallListItem): boolean {
+    return (
+      !!call.plannedVisitDate &&
+      !FINISHED.has(call.currentStatus) &&
+      call.plannedVisitDate < this.today
+    );
+  }
+
   protected isSlaBreached(call: ServiceCallListItem): boolean {
     return (
       !!call.slaDueAt &&
@@ -237,6 +276,8 @@ export class CallListPage {
       engineers: [...offered, ...missing],
       leadId: call.assignedEngineerId,
       supportIds: support.map((e) => e.id),
+      plannedVisitDate: call.plannedVisitDate ?? null,
+      planVisit: !FINISHED.has(call.currentStatus),
     };
     this.dialog
       .open(CallEngineersDialog, { data })

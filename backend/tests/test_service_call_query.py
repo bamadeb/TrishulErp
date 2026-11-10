@@ -98,10 +98,19 @@ def test_assigned_list_honours_an_explicit_status_filter() -> None:
     assert "NOT IN" not in text
 
 
-def test_assigned_list_defaults_to_priority_then_id() -> None:
+def test_assigned_list_defaults_to_my_visit_day_then_priority_then_id() -> None:
     text = assigned_sql(55, RequestScope(1, None))
+    order = text[text.index("ORDER BY") :]
+    # The engineer's own planned visit day (undated last), then the most urgent, then newest.
+    assert order.startswith("ORDER BY coalesce((SELECT min(svc.service_visit.planned_date)")
+    assert "svc.service_visit.engineer_employee_id = 55" in order
+    assert order.index("'9999-12-31'") < order.index("CASE svc.service_call.priority WHEN 'Critical' THEN 1")
+    assert "svc.service_call.id DESC" in order
+
+
+def test_assigned_list_can_still_sort_by_priority() -> None:
+    text = assigned_sql(55, RequestScope(1, None), sort="priority")
     assert "ORDER BY CASE svc.service_call.priority WHEN 'Critical' THEN 1" in text
-    assert "svc.service_call.id DESC" in text
 
 
 def test_assigned_list_rejects_arbitrary_sort() -> None:

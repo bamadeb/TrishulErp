@@ -652,6 +652,45 @@ def test_visit_date_rules(client: TestClient, db: Engine) -> None:
     assert client.get(url).json()["assignedEngineerName"] is None  # nothing half-saved
 
 
+def test_engineer_sees_their_visit_days_in_order(client: TestClient, settings: Settings, db: Engine) -> None:
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    next_week = (date.today() + timedelta(days=7)).isoformat()
+    later, soon, undated = (create(client).json() for _ in range(3))
+    for call, day in ((later, next_week), (soon, tomorrow), (undated, None)):
+        body = {"engineerId": ENGINEER_ID} | ({"visitDate": day} if day else {})
+        assert client.patch(f"{URL}/{call['id']}", json=body, headers=if_match(call)).status_code == 200
+
+    register = {row["id"]: row["plannedVisitDate"] for row in client.get(URL).json()["items"]}
+    assert register == {later["id"]: next_week, soon["id"]: tomorrow, undated["id"]: None}
+    by_day = client.get(URL, params={"sort": "plannedVisitDate"}).json()["items"]
+    assert [row["id"] for row in by_day] == [soon["id"], later["id"], undated["id"]]
+    on_the_day = client.get(URL, params={"visitDate": next_week}).json()
+    assert [row["id"] for row in on_the_day["items"]] == [later["id"]] and on_the_day["total"] == 1
+    assert client.get(URL, params={"visitDate": TODAY}).json()["items"] == []
+
+    # The office client is done before the engineer's: closing a second client ends the test database.
+    with make_client(settings, db, {"svc.call.view.assigned"}, employee_id=ENGINEER_ID) as engineer:
+        mine = engineer.get(f"{URL}/assigned-to-me").json()["items"]
+        assert [(row["id"], row["plannedVisitDate"]) for row in mine] == [
+            (soon["id"], tomorrow), (later["id"], next_week), (undated["id"], None),
+        ]  # fmt: skip
+        on_the_day = engineer.get(f"{URL}/assigned-to-me", params={"visitDate": tomorrow}).json()["items"]
+        assert [row["id"] for row in on_the_day] == [soon["id"]]
+        by_call_no = engineer.get(f"{URL}/assigned-to-me", params={"sort": "-callNo"}).json()["items"]
+        assert [row["id"] for row in by_call_no] == sorted((c["id"] for c in (later, soon, undated)), reverse=True)
+
+
+def test_a_started_visit_is_no_longer_planned(
+    client: TestClient, db: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    call = create(client).json()
+    planned = client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID, "visitDate": TODAY},
+                           headers=if_match(call)).json()
+    assert planned["plannedVisitDate"] == TODAY
+    start_trip(db, call["id"], ENGINEER_ID, monkeypatch)
+    assert client.get(URL).json()["items"][0]["plannedVisitDate"] is None
+
+
 def add_leave(db: Engine, *, half_day: bool = False, status: str = "Approved") -> None:
     if not half_day and status == "Approved":
         insert_row(db, "hr.leave_type", id=1, code="CL", name="Casual leave")

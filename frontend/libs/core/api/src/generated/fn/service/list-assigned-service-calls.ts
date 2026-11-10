@@ -14,11 +14,16 @@ export interface ListAssignedServiceCalls$Params {
   pageSize?: number;
 
 /**
- * Field name; prefix with '-' for descending.
+ * Default: my planned visit date (earliest first, calls with no date last), then priority. Also visitDate, priority, receivedAt, slaDueAt, callNo; prefix with '-' for descending.
  */
   sort?: (string | null);
   search?: (string | null);
   status?: Array<'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled'>;
+
+/**
+ * Only calls with my visit planned for this day.
+ */
+  visitDate?: (string | null);
 }
 
 export function listAssignedServiceCalls(http: HttpClient, rootUrl: string, params?: ListAssignedServiceCalls$Params, context?: HttpContext): Observable<StrictHttpResponse<PageAssignedServiceCallListItem>> {
@@ -29,6 +34,7 @@ export function listAssignedServiceCalls(http: HttpClient, rootUrl: string, para
     rb.query('sort', params.sort, {});
     rb.query('search', params.search, {});
     rb.query('status', params.status, {});
+    rb.query('visitDate', params.visitDate, {});
   }
 
   return http.request(

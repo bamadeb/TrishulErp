@@ -171,6 +171,7 @@ const calls: (ServiceCallListItem & {
     oemCallId: i % 3 === 0 ? `BYD-${700100 + i}` : null,
     slaDueAt: new Date(receivedAt.getTime() + 24 * 3600_000).toISOString(),
     isTripOngoing: false,
+    plannedVisitDate: null,
     rowVersion: btoa(`rv-${i}`),
   };
 });
@@ -528,6 +529,7 @@ export const mockRoutes: MockRoute[] = [
         oemCallId: null,
         slaDueAt: null,
         isTripOngoing: false,
+        plannedVisitDate: null,
         rowVersion: btoa(`new-${Date.now()}`),
       };
     },
