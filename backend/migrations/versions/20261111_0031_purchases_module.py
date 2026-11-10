@@ -218,8 +218,6 @@ def upgrade() -> None:
         BEGIN
             ALTER TABLE [pur].[debit_note] ADD [note_type] NVARCHAR(30) NOT NULL
                 CONSTRAINT [DF_pur_debit_note_note_type] DEFAULT (N'Other');
-            ALTER TABLE [pur].[debit_note] ADD CONSTRAINT [CK_pur_debit_note_note_type]
-                CHECK ([note_type] IN (N'Purchase return', N'Damaged goods', N'Price difference', N'Other'));
             ALTER TABLE [pur].[debit_note] ADD [supplier_note_no] NVARCHAR(40) NULL;
             ALTER TABLE [pur].[debit_note] ADD [supplier_note_date] DATE NULL;
             ALTER TABLE [pur].[debit_note] ADD [branch_id] BIGINT NULL;
@@ -240,16 +238,33 @@ def upgrade() -> None:
                 FOREIGN KEY ([posted_by_user_id]) REFERENCES [core].[app_user]([id]);
         END
     """)
+    # A CHECK on a column added in the same batch fails to compile (SQL Server resolves the whole batch first),
+    # so it is added in a batch of its own.
+    op.execute("""
+        IF OBJECT_ID(N'[pur].[CK_pur_debit_note_note_type]', N'C') IS NULL
+            ALTER TABLE [pur].[debit_note] ADD CONSTRAINT [CK_pur_debit_note_note_type]
+                CHECK ([note_type] IN (N'Purchase return', N'Damaged goods', N'Price difference', N'Other'));
+    """)
     op.execute("""
         IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE [name] = N'UX_pur_debit_note_supplier_note'
                        AND [object_id] = OBJECT_ID(N'[pur].[debit_note]'))
             CREATE UNIQUE NONCLUSTERED INDEX [UX_pur_debit_note_supplier_note]
                 ON [pur].[debit_note] ([supplier_id], [supplier_note_no]) WHERE [supplier_note_no] IS NOT NULL;
     """)
+    # A price-difference credit note has no item. The column's index has to come off while it changes.
+    op.execute("""
+        IF COLUMNPROPERTY(OBJECT_ID(N'pur.debit_note_line'), N'item_id', 'AllowsNull') = 0
+        BEGIN
+            IF EXISTS (SELECT 1 FROM sys.indexes WHERE [name] = N'IX_pur_debit_note_line_item_id'
+                       AND [object_id] = OBJECT_ID(N'[pur].[debit_note_line]'))
+                DROP INDEX [IX_pur_debit_note_line_item_id] ON [pur].[debit_note_line];
+            ALTER TABLE [pur].[debit_note_line] ALTER COLUMN [item_id] BIGINT NULL;
+            CREATE NONCLUSTERED INDEX [IX_pur_debit_note_line_item_id] ON [pur].[debit_note_line] ([item_id]);
+        END
+    """)
     op.execute("""
         IF COL_LENGTH(N'pur.debit_note_line', N'gst_pct') IS NULL
         BEGIN
-            ALTER TABLE [pur].[debit_note_line] ALTER COLUMN [item_id] BIGINT NULL;
             ALTER TABLE [pur].[debit_note_line] ADD [description] NVARCHAR(200) NULL;
             ALTER TABLE [pur].[debit_note_line] ADD [gst_pct] DECIMAL(5,2) NOT NULL
                 CONSTRAINT [DF_pur_debit_note_line_gst_pct] DEFAULT (0);
