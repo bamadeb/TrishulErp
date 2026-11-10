@@ -12,11 +12,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from trishul_api.auth import CurrentUser, RequestScope
+from trishul_api.auth import CurrentUser
 from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
-from trishul_api.common.paging import order_by_sort
-from trishul_api.common.schemas import Page
 from trishul_api.db.models import (
     Bin,
     Branch,
@@ -29,11 +27,10 @@ from trishul_api.db.models import (
     PriceList,
     PriceListItem,
     Principal,
-    Supplier,
     Uom,
     UomConversion,
 )
-from trishul_api.modules.inv.common import check_branch, default_company, now, visible_branch, visible_location
+from trishul_api.modules.inv.common import check_branch, now, visible_branch, visible_location
 from trishul_api.modules.inv.masters_schemas import (
     BranchOption,
     CategoryCreate,
@@ -55,10 +52,6 @@ from trishul_api.modules.inv.masters_schemas import (
     RackOut,
     RackUpdate,
     StatusFilter,
-    SupplierCreate,
-    SupplierOut,
-    SupplierQuery,
-    SupplierUpdate,
     UomCreate,
     UomOut,
     UomUpdate,
@@ -407,57 +400,6 @@ class MastersService:
             is_active=row.is_active,
             row_version=row.row_version,
         )
-
-    # ================================================================ suppliers
-
-    def suppliers(self, query: SupplierQuery) -> Page[SupplierOut]:
-        statement = _status(select(Supplier), Supplier.is_active, query.status)
-        if query.search:
-            term = query.search.strip()
-            statement = statement.where(
-                or_(
-                    Supplier.code.contains(term, autoescape=True),
-                    Supplier.name.contains(term, autoescape=True),
-                    Supplier.gstin.contains(term, autoescape=True),
-                )
-            )
-        statement = order_by_sort(
-            statement,
-            query.sort,
-            {"code": Supplier.code, "name": Supplier.name, "supplierType": Supplier.supplier_type},
-            default="name",
-            tiebreaker=Supplier.id.asc(),
-        )
-        total = self._db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
-        rows = self._db.scalars(statement.offset((query.page - 1) * query.page_size).limit(query.page_size)).all()
-        return Page(
-            items=[SupplierOut.model_validate(r) for r in rows], total=total, page=query.page, page_size=query.page_size
-        )
-
-    def create_supplier(self, data: SupplierCreate, scope: RequestScope) -> SupplierOut:
-        code = data.code.upper()
-        self._unique(Supplier, Supplier.code, code, None, f"Supplier code '{code}' is already used.")
-        row = Supplier(
-            company_id=default_company(self._db, self._actor, scope),
-            code=code,
-            name=data.name,
-            supplier_type=data.supplier_type,
-            gstin=data.gstin,
-            pan=data.pan,
-            phone=data.phone,
-            email=data.email,
-            address=data.address,
-            created_by_user_id=self._actor.id,
-        )
-        self._save(row, f"Supplier code '{code}' is already used.")
-        return SupplierOut.model_validate(row)
-
-    def update_supplier(self, supplier_id: int, expected: bytes, data: SupplierUpdate) -> SupplierOut:
-        row = self._get(Supplier, supplier_id, "Supplier not found.")
-        check_row_version(row.row_version, expected)
-        self._apply(row, data, ("name", "supplier_type", "gstin", "pan", "phone", "email", "address", "is_active"))
-        self._save(row, "The supplier could not be saved.")
-        return SupplierOut.model_validate(row)
 
     # ================================================================ price lists
 

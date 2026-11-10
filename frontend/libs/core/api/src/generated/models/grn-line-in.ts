@@ -10,6 +10,11 @@ export interface GrnLineIn {
   itemId: number;
 
   /**
+   * The order line this receives against.
+   */
+  purchaseOrderLineId?: (number | null);
+
+  /**
    * Accepted, in the unit received.
    */
   quantity: (number | string);

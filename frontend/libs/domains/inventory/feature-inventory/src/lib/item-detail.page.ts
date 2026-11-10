@@ -57,14 +57,19 @@ import {
   of,
   switchMap,
 } from 'rxjs';
-import { openFieldsDialog } from './fields.dialog';
+import { openFieldsDialog } from '@trishul/inventory-data-access';
 import {
   INV_ITEM_MANAGE,
   INV_ITEM_VIEW_PERMISSIONS,
   INV_STOCK_USER_PERMISSIONS,
   INV_STOCK_VIEW,
 } from '@trishul/inventory-data-access';
-import { InventoryLookups, ageClass, n0, num } from './inventory.shared';
+import {
+  InventoryLookups,
+  ageClass,
+  n0,
+  num,
+} from '@trishul/inventory-data-access';
 
 /** One item: stock by GRN batch, movements, sales / purchase prices and unit conversions. */
 @Component({
@@ -85,7 +90,7 @@ import { InventoryLookups, ageClass, n0, num } from './inventory.shared';
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     @if (item(); as i) {
       <trishul-page-header

@@ -11,10 +11,15 @@ export interface GrnCreate {
   lines: Array<GrnLineIn>;
 
   /**
-   * Where the goods are received.
+   * Where the goods are received (branch / warehouse location).
    */
   locationId: number;
   lrNo?: (string | null);
+
+  /**
+   * Leave out for a direct GRN.
+   */
+  purchaseOrderId?: (number | null);
   remarks?: (string | null);
   supplierId: number;
   supplierInvoiceDate?: (string | null);

@@ -15,6 +15,8 @@ export interface GrnDetail {
   locationId: number;
   locationName: string;
   lrNo: (string | null);
+  poNo: (string | null);
+  purchaseOrderId: (number | null);
   remarks: (string | null);
   status: string;
   supplierId: number;

@@ -21,7 +21,7 @@ Columns added:
     pur.grn.remarks
     inv.bin: rack codes are unique across all locations (UX_inv_bin_code).
 
-Number series (per active branch, plus a company-wide fallback for branches added later):
+Number series, one per active branch (as for service calls and ASCs; a branch added later needs its own):
     GRN               <BRANCH>/GRN/00001
     STOCK_TRANSFER    <BRANCH>/ST/00001
     STOCK_ADJUSTMENT  <BRANCH>/ADJ/00001
@@ -99,18 +99,6 @@ _BRANCH_SERIES = sa.text("""
       AND NOT EXISTS (SELECT 1 FROM [core].[number_series] ns
                       WHERE ns.[document_type] = :document_type AND ns.[branch_id] = b.[id]
                         AND ns.[principal_id] IS NULL AND ns.[fiscal_year_id] IS NULL);
-""")
-
-_COMPANY_SERIES = sa.text("""
-    INSERT INTO [core].[number_series]
-        ([company_id], [document_type], [branch_id], [principal_id], [fiscal_year_id],
-         [prefix], [next_number], [padding], [suffix])
-    SELECT c.[id], :document_type, NULL, NULL, NULL, c.[code] + :infix, 1, 5, NULL
-    FROM [core].[company] c
-    WHERE NOT EXISTS (SELECT 1 FROM [core].[number_series] ns
-                      WHERE ns.[document_type] = :document_type AND ns.[company_id] = c.[id]
-                        AND ns.[branch_id] IS NULL AND ns.[principal_id] IS NULL
-                        AND ns.[fiscal_year_id] IS NULL);
 """)
 
 
@@ -278,7 +266,6 @@ def upgrade() -> None:
     bind = op.get_bind()
     for document_type, infix in _SERIES:
         bind.execute(_BRANCH_SERIES, {"document_type": document_type, "infix": infix})
-        bind.execute(_COMPANY_SERIES, {"document_type": document_type, "infix": infix})
     for code, description in _PERMISSIONS:
         bind.execute(_PERMISSION, {"code": code, "description": description})
     for role, permissions in _GRANTS.items():

@@ -16,14 +16,15 @@ from trishul_api.db.models.base import Audited, Base
 
 PurchaseRequestStatus = Literal["Draft", "Pending approval", "Approved", "Ordered", "Rejected"]
 PurchaseRequestSourceType = Literal["Reorder", "Service call", "Sales order", "Manual"]
-PurchaseOrderStatus = Literal["Draft", "Pending approval", "Approved", "Sent", "Part received", "Closed", "Cancelled"]
 PurchaseOrderPoType = Literal["OEM", "Local", "Import"]
+PurchaseOrderStatus = Literal["Draft", "Pending approval", "Approved", "Sent", "Part received", "Received", "Closed", "Cancelled"]
 GrnStatus = Literal["Draft", "In transit", "Posted", "Cancelled"]
 GrnGrnType = Literal["Regular", "Transit"]
 SupplierInvoiceStatus = Literal["Draft", "Posted", "Part paid", "Paid", "Cancelled"]
 SupplierPaymentPaymentMode = Literal["NEFT", "RTGS", "Cheque", "Cash", "UPI"]
 SupplierPaymentStatus = Literal["Draft", "Posted", "Cancelled"]
 DebitNoteStatus = Literal["Draft", "Posted", "Cancelled"]
+DebitNoteNoteType = Literal["Purchase return", "Damaged goods", "Price difference", "Other"]
 
 
 class SupplierItemPrice(Base):
@@ -132,6 +133,18 @@ class PurchaseOrder(Audited, Base):
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
     po_type: Mapped[PurchaseOrderPoType] = mapped_column(sa.NVARCHAR(30), server_default=sa.FetchedValue())
+    other_charges: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    cgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    sgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    igst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    submitted_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    submitted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    approved_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    approved_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    approval_note: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    closed_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    closed_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    close_reason: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -165,6 +178,7 @@ class PurchaseOrderLine(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    gst_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -225,6 +239,7 @@ class GrnLine(Base):
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
     entry_uom_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.uom.id"))
     entry_qty: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 3))
+    qty_invoiced: Mapped[Decimal] = mapped_column(sa.Numeric(18, 3), server_default=sa.FetchedValue())
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -265,6 +280,10 @@ class SupplierInvoice(Audited, Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    other_charges: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    is_direct: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    posted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -295,6 +314,8 @@ class SupplierInvoiceLine(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    gst_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    discount_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -324,6 +345,10 @@ class SupplierPayment(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    bank_name: Mapped[str | None] = mapped_column(sa.NVARCHAR(100))
+    cheque_date: Mapped[dt.date | None] = mapped_column(sa.Date())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    posted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -352,6 +377,16 @@ class DebitNote(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    note_type: Mapped[DebitNoteNoteType] = mapped_column(sa.NVARCHAR(30), server_default=sa.FetchedValue())
+    supplier_note_no: Mapped[str | None] = mapped_column(sa.NVARCHAR(40))
+    supplier_note_date: Mapped[dt.date | None] = mapped_column(sa.Date())
+    branch_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.branch.id"))
+    location_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.location.id"))
+    cgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    sgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    igst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    posted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -364,7 +399,7 @@ class DebitNoteLine(Base):
 
     id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
     debit_note_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("pur.debit_note.id"), doc="Debit note")
-    item_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.item.id"), doc="Item")
+    item_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.item.id"), doc="Item")
     serial_batch_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.serial_batch.id"), doc="Serial")
     quantity: Mapped[Decimal] = mapped_column(sa.Numeric(18, 3), doc="Qty")
     unit_price: Mapped[Decimal] = mapped_column(sa.Numeric(18, 4), doc="Price")
@@ -377,6 +412,12 @@ class DebitNoteLine(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    description: Mapped[str | None] = mapped_column(sa.NVARCHAR(200))
+    gst_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    taxable_value: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    grn_line_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("pur.grn_line.id"))
+    stock_lot_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.stock_lot.id"))
+    bin_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.bin.id"))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -400,5 +441,9 @@ class SupplierAllocation(Base):
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
     opening_balance_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("acc.opening_balance.id"))
+    allocated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    reversed_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    reversed_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    reversal_reason: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}

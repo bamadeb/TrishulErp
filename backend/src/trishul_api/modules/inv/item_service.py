@@ -257,45 +257,54 @@ class ItemService:
 
     def prices(self, item_id: int) -> ItemPrices:
         item = self._visible(item_id)
-        sales = self._db.execute(
-            select(
-                PriceListItem.id,
-                PriceListItem.price_list_id,
-                PriceList.code.label("price_list_code"),
-                PriceList.name.label("price_list_name"),
-                PriceList.price_list_type,
-                PriceList.includes_tax,
-                PriceList.valid_from,
-                PriceList.valid_to,
-                PriceListItem.min_qty,
-                PriceListItem.unit_price,
-                PriceListItem.is_active,
-                PriceListItem.row_version,
+        sales = (
+            self._db.execute(
+                select(
+                    PriceListItem.id,
+                    PriceListItem.price_list_id,
+                    PriceList.code.label("price_list_code"),
+                    PriceList.name.label("price_list_name"),
+                    PriceList.price_list_type,
+                    PriceList.includes_tax,
+                    PriceList.valid_from,
+                    PriceList.valid_to,
+                    PriceListItem.min_qty,
+                    PriceListItem.unit_price,
+                    PriceListItem.is_active,
+                    PriceListItem.row_version,
+                )
+                .join(PriceList, PriceList.id == PriceListItem.price_list_id)
+                .where(PriceListItem.item_id == item.id)
+                .order_by(PriceList.code, PriceListItem.min_qty)
+                # .all(): SQL Server allows one open result per connection, so read it before the next query.
             )
-            .join(PriceList, PriceList.id == PriceListItem.price_list_id)
-            .where(PriceListItem.item_id == item.id)
-            .order_by(PriceList.code, PriceListItem.min_qty)
-        ).mappings()
-        purchase = self._db.execute(
-            select(
-                SupplierItemPrice.id,
-                SupplierItemPrice.supplier_id,
-                Supplier.code.label("supplier_code"),
-                Supplier.name.label("supplier_name"),
-                SupplierItemPrice.supplier_part_no,
-                SupplierItemPrice.supplier_uom,
-                SupplierItemPrice.conversion_factor,
-                SupplierItemPrice.price,
-                SupplierItemPrice.valid_from,
-                SupplierItemPrice.valid_to,
-                SupplierItemPrice.lead_time_days,
-                SupplierItemPrice.is_active,
-                SupplierItemPrice.row_version,
+            .mappings()
+            .all()
+        )
+        purchase = (
+            self._db.execute(
+                select(
+                    SupplierItemPrice.id,
+                    SupplierItemPrice.supplier_id,
+                    Supplier.code.label("supplier_code"),
+                    Supplier.name.label("supplier_name"),
+                    SupplierItemPrice.supplier_part_no,
+                    SupplierItemPrice.supplier_uom,
+                    SupplierItemPrice.conversion_factor,
+                    SupplierItemPrice.price,
+                    SupplierItemPrice.valid_from,
+                    SupplierItemPrice.valid_to,
+                    SupplierItemPrice.lead_time_days,
+                    SupplierItemPrice.is_active,
+                    SupplierItemPrice.row_version,
+                )
+                .join(Supplier, Supplier.id == SupplierItemPrice.supplier_id)
+                .where(SupplierItemPrice.item_id == item.id)
+                .order_by(Supplier.name, SupplierItemPrice.valid_from.desc())
             )
-            .join(Supplier, Supplier.id == SupplierItemPrice.supplier_id)
-            .where(SupplierItemPrice.item_id == item.id)
-            .order_by(Supplier.name, SupplierItemPrice.valid_from.desc())
-        ).mappings()
+            .mappings()
+            .all()
+        )
         sales_prices = [SalesPriceOut.model_validate(row) for row in sales]
         purchase_prices = [PurchasePriceOut.model_validate(row) for row in purchase]
         qty, value = self._db.execute(

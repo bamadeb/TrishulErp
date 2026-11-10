@@ -52,6 +52,8 @@ TABLES = [
     "inv.stock_adjustment_line",
     "pur.grn",
     "pur.grn_line",
+    "pur.purchase_order",
+    "pur.purchase_order_line",
     "pur.supplier_item_price",
     "sal.price_list",
     "sal.price_list_item",
@@ -74,8 +76,10 @@ ALL_PERMISSIONS = {
     "inv.grn.manage",
     "inv.transfer.manage",
     "inv.stock.adjust",
+    "pur.grn.manage",
 }
 API = "/api/v1/inv"
+PUR = "/api/v1/pur"
 
 
 def days_ago(days: int) -> date:
@@ -163,7 +167,7 @@ def ok(response: Any, status: int = 200) -> Any:
 
 def grn(client: TestClient, *lines: dict[str, Any], grn_date: date, location: int = WH_MAIN) -> dict[str, Any]:
     body = {"locationId": location, "supplierId": SUPPLIER, "grnDate": grn_date.isoformat(), "lines": list(lines)}
-    result: dict[str, Any] = ok(client.post(f"{API}/grns", json=body), 201)
+    result: dict[str, Any] = ok(client.post(f"{PUR}/grns", json=body), 201)
     return result
 
 
@@ -397,7 +401,7 @@ def test_ageing_by_item_and_branch_follows_the_users_branches(client: TestClient
         "grnDate": days_ago(1).isoformat(),
         "lines": [line()],
     }
-    assert client.post(f"{API}/grns", json=elsewhere).status_code == 400
+    assert client.post(f"{PUR}/grns", json=elsewhere).status_code == 400
 
 
 def test_movements_record_every_change_with_its_batch(client: TestClient) -> None:
@@ -438,7 +442,7 @@ def test_view_only_users_cannot_post_stock(settings: Settings, db: Engine) -> No
         assert client.get(f"{API}/reports/ageing").status_code == 200
         assert client.get(f"{API}/items").status_code == 200
         body = {"locationId": WH_MAIN, "supplierId": SUPPLIER, "grnDate": days_ago(1).isoformat(), "lines": [line()]}
-        assert client.post(f"{API}/grns", json=body).status_code == 403
+        assert client.post(f"{PUR}/grns", json=body).status_code == 403
         assert client.post(f"{API}/adjustments", json={}).status_code == 403
         assert client.post(f"{API}/items", json={}).status_code == 403
 

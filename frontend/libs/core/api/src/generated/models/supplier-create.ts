@@ -3,11 +3,25 @@
 
 export interface SupplierCreate {
   address?: (string | null);
+  bankAccountNo?: (string | null);
+  bankName?: (string | null);
   code: string;
+  contactPerson?: (string | null);
+  creditLimit?: (number | string | null);
   email?: (string | null);
+  gstRegistrationType?: ('Regular' | 'Composition' | 'Unregistered' | 'SEZ' | 'Overseas' | null);
   gstin?: (string | null);
+  ifsc?: (string | null);
   name: string;
+
+  /**
+   * Owed at go-live (+) or advance paid (-).
+   */
+  openingBalance?: (number | string | null);
+  openingBalanceDate?: (string | null);
   pan?: (string | null);
+  paymentTermsId?: (number | null);
   phone?: (string | null);
-  supplierType?: 'OEM' | 'Parts' | 'Lubricants' | 'Services' | 'Transporter' | 'Other';
+  stateId?: (number | null);
+  supplierType?: ('OEM' | 'Parts' | 'Lubricants' | 'Services' | 'Transporter' | 'Other' | null);
 }

@@ -1,7 +1,6 @@
 """Stock documents, each posted to the stock ledger when saved.
 
-  GRN            goods received from a supplier: one new batch per line, age starting on the GRN date.
-                 Quantities may be entered in another unit (Box of 10) and are converted to the stock unit.
+  (GRN, goods received from a supplier, is in modules/pur/grn_service.py.)
   Opening stock  stock already on hand at go-live, entered with its original GRN number and date, so the
                  ageing is right from day one.
   Transfer       between branches, warehouses or racks (same location, different rack). Moves the same
@@ -16,7 +15,7 @@ history stays complete.
 
 from collections.abc import Iterable
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Select, case, func, or_, select
@@ -32,8 +31,6 @@ from trishul_api.db.models import (
     AppUser,
     Bin,
     Branch,
-    Grn,
-    GrnLine,
     Item,
     Location,
     LookupType,
@@ -66,10 +63,6 @@ from trishul_api.modules.inv.doc_schemas import (
     AdjustmentListItem,
     BatchMoved,
     DocumentQuery,
-    GrnCreate,
-    GrnDetail,
-    GrnLineOut,
-    GrnListItem,
     LotListItem,
     LotQuery,
     OpeningStockCreate,
@@ -94,200 +87,6 @@ class DocumentService:
     def __init__(self, db: Session, actor: CurrentUser) -> None:
         self._db = db
         self._actor = actor
-
-    # ================================================================ GRN
-
-    def create_grn(self, data: GrnCreate) -> GrnDetail:
-        location = stock_location(self._db, self._actor, data.location_id)
-        supplier = self._db.get(Supplier, data.supplier_id)
-        if supplier is None or not supplier.is_active:
-            raise _err("supplierId", "Choose an active supplier.")
-        self._not_future(data.grn_date, "grnDate")
-        lines = []
-        for index, line in enumerate(data.lines):
-            item = stock_item(self._db, self._actor, line.item_id, f"lines[{index}].itemId")
-            factor = self._factor(item, line.uom_id, f"lines[{index}].uomId")
-            bin_id = rack_of(self._db, location, line.bin_id, f"lines[{index}].binId")
-            lines.append((line, item, factor, bin_id))
-
-        company_id = company_of_branch(self._db, location.branch_id)
-        at = now()
-        grn = Grn(
-            grn_no=next_document_no(self._db, company_id=company_id, document_type="GRN", branch_id=location.branch_id),
-            branch_id=location.branch_id,
-            supplier_id=supplier.id,
-            grn_date=data.grn_date,
-            location_id=location.id,
-            supplier_invoice_no=data.supplier_invoice_no,
-            supplier_invoice_date=data.supplier_invoice_date,
-            vehicle_no=data.vehicle_no,
-            lr_no=data.lr_no,
-            remarks=data.remarks,
-            status="Posted",
-            grn_type="Regular",
-            created_by_user_id=self._actor.id,
-        )
-        self._db.add(grn)
-        self._db.flush()
-        ledger = StockLedger(self._db, company_id=company_id, user_id=self._actor.id, at=at)
-        for line, item, factor, bin_id in lines:
-            accepted = (line.quantity * factor).quantize(_QTY)
-            rejected = (line.rejected_qty * factor).quantize(_QTY)
-            unit_cost = (line.unit_cost / factor).quantize(_COST, ROUND_HALF_UP)
-            row = GrnLine(
-                grn_id=grn.id,
-                item_id=item.id,
-                qty_received=accepted + rejected,
-                qty_accepted=accepted,
-                qty_rejected=rejected,
-                bin_id=bin_id,
-                unit_cost=unit_cost,
-                rejection_reason=line.rejection_reason,
-                entry_uom_id=line.uom_id if line.uom_id and line.uom_id != item.uom_id else None,
-                entry_qty=(line.quantity + line.rejected_qty) if line.uom_id and line.uom_id != item.uom_id else None,
-                created_by_user_id=self._actor.id,
-            )
-            self._db.add(row)
-            self._db.flush()
-            ledger.receive(
-                item=item,
-                location_id=location.id,
-                bin_id=bin_id,
-                quantity=accepted,
-                unit_cost=unit_cost,
-                source_type="GRN",
-                grn_no=grn.grn_no,
-                grn_date=grn.grn_date,
-                movement="GRN",
-                source=Source("GRN", grn.id, grn.grn_no, row.id),
-                supplier_id=supplier.id,
-                grn_id=grn.id,
-                grn_line_id=row.id,
-            )
-            item.last_purchase_cost = unit_cost
-            item.updated_at = at
-            item.updated_by_user_id = self._actor.id
-        self._commit()
-        return self.grn(grn.id)
-
-    def grns(self, query: DocumentQuery) -> Page[GrnListItem]:
-        statement = self._grn_select().where(visible_location(self._actor))
-        if query.branch_id is not None:
-            statement = statement.where(Grn.branch_id == query.branch_id)
-        if query.location_id is not None:
-            statement = statement.where(Grn.location_id == query.location_id)
-        if query.from_date is not None:
-            statement = statement.where(Grn.grn_date >= query.from_date)
-        if query.to_date is not None:
-            statement = statement.where(Grn.grn_date <= query.to_date)
-        if query.search:
-            term = query.search.strip()
-            statement = statement.where(
-                or_(
-                    Grn.grn_no.contains(term, autoescape=True),
-                    Supplier.name.contains(term, autoescape=True),
-                    Grn.supplier_invoice_no.contains(term, autoescape=True),
-                )
-            )
-        statement = order_by_sort(
-            statement,
-            query.sort,
-            {"grnDate": Grn.grn_date, "grnNo": Grn.grn_no, "supplierName": Supplier.name},
-            default="-grnDate",
-            tiebreaker=Grn.id.desc(),
-        )
-        return paginate(self._db, statement, query, GrnListItem)
-
-    def grn(self, grn_id: int) -> GrnDetail:
-        header = (
-            self._db.execute(
-                self._grn_select()
-                .add_columns(
-                    Grn.supplier_invoice_date,
-                    Grn.vehicle_no,
-                    Grn.lr_no,
-                    Grn.remarks,
-                    AppUser.username.label("created_by"),
-                )
-                .outerjoin(AppUser, AppUser.id == Grn.created_by_user_id)
-                .where(Grn.id == grn_id, visible_location(self._actor))
-            )
-            .mappings()
-            .first()
-        )
-        if header is None:
-            raise NotFound("GRN not found.")
-        remaining = (
-            select(LotBalance.stock_lot_id, func.sum(LotBalance.qty_on_hand).label("qty"))
-            .group_by(LotBalance.stock_lot_id)
-            .subquery()
-        )
-        entry_uom = aliased(Uom)
-        lines = self._db.execute(
-            select(
-                GrnLine.id,
-                GrnLine.item_id,
-                Item.item_code,
-                Item.description.label("item_description"),
-                Uom.code.label("uom_code"),
-                GrnLine.entry_qty,
-                entry_uom.code.label("entry_uom_code"),
-                GrnLine.qty_received,
-                GrnLine.qty_accepted,
-                GrnLine.qty_rejected,
-                GrnLine.unit_cost,
-                (GrnLine.qty_accepted * GrnLine.unit_cost).label("value"),
-                Bin.code.label("bin_code"),
-                GrnLine.rejection_reason,
-                StockLot.id.label("stock_lot_id"),
-                StockLot.lot_no,
-                func.coalesce(remaining.c.qty, 0).label("qty_remaining"),
-            )
-            .join(Item, Item.id == GrnLine.item_id)
-            .join(Uom, Uom.id == Item.uom_id)
-            .outerjoin(entry_uom, entry_uom.id == GrnLine.entry_uom_id)
-            .outerjoin(Bin, Bin.id == GrnLine.bin_id)
-            .outerjoin(StockLot, StockLot.grn_line_id == GrnLine.id)
-            .outerjoin(remaining, remaining.c.stock_lot_id == StockLot.id)
-            .where(GrnLine.grn_id == grn_id)
-            .order_by(GrnLine.id)
-        ).mappings()
-        return GrnDetail.model_validate({**header, "lines": [GrnLineOut.model_validate(line) for line in lines]})
-
-    def _grn_select(self) -> Select[*tuple[Any, ...]]:
-        totals = (
-            select(
-                GrnLine.grn_id,
-                func.count(GrnLine.id).label("line_count"),
-                func.sum(GrnLine.qty_accepted).label("total_qty"),
-                func.sum(GrnLine.qty_accepted * GrnLine.unit_cost).label("total_value"),
-            )
-            .group_by(GrnLine.grn_id)
-            .subquery()
-        )
-        return (
-            select(
-                Grn.id,
-                Grn.grn_no,
-                Grn.grn_date,
-                Grn.branch_id,
-                Branch.name.label("branch_name"),
-                Grn.location_id,
-                Location.name.label("location_name"),
-                Grn.supplier_id,
-                Supplier.name.label("supplier_name"),
-                Grn.supplier_invoice_no,
-                func.coalesce(totals.c.line_count, 0).label("line_count"),
-                func.coalesce(totals.c.total_qty, 0).label("total_qty"),
-                func.coalesce(totals.c.total_value, 0).label("total_value"),
-                Grn.status,
-                Grn.created_at,
-            )
-            .join(Branch, Branch.id == Grn.branch_id)
-            .join(Location, Location.id == Grn.location_id)
-            .join(Supplier, Supplier.id == Grn.supplier_id)
-            .outerjoin(totals, totals.c.grn_id == Grn.id)
-        )
 
     # ================================================================ opening stock
 
@@ -825,7 +624,7 @@ class DocumentService:
             for row in self._db.execute(statement).mappings()
         ]
 
-    def _factor(self, item: Item, uom_id: int | None, field: str) -> Decimal:
+    def unit_factor(self, item: Item, uom_id: int | None, field: str) -> Decimal:
         """Stock units in one received unit."""
         if uom_id is None or uom_id == item.uom_id:
             return Decimal(1)

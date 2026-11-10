@@ -41,8 +41,12 @@ import {
 } from '@trishul/core-api';
 import { PageHeader, confirmAction } from '@trishul/shared-ui';
 import { EMPTY, catchError, filter, finalize, switchMap } from 'rxjs';
-import { ItemPicker } from './item-picker';
-import { InventoryLookups, isoDate, locationLabel } from './inventory.shared';
+import { ItemPicker } from '@trishul/inventory-data-access';
+import {
+  InventoryLookups,
+  isoDate,
+  locationLabel,
+} from '@trishul/inventory-data-access';
 import { StockLine, batchLabel } from './stock-line';
 
 /** Move stock between branches, warehouses or racks. Each GRN batch keeps its original GRN date. */
@@ -72,7 +76,7 @@ import { StockLine, batchLabel } from './stock-line';
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     <trishul-page-header
       title="New stock transfer"

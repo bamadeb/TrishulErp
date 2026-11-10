@@ -44,7 +44,11 @@ import {
   of,
   switchMap,
 } from 'rxjs';
-import { InventoryLookups, downloadCsv, n0 } from './inventory.shared';
+import {
+  InventoryLookups,
+  downloadCsv,
+  n0,
+} from '@trishul/inventory-data-access';
 
 type AgeingGroup = NonNullable<GetAgeingReport$Params['groupBy']>;
 
@@ -83,7 +87,7 @@ const GROUPS: { value: AgeingGroup; label: string; column: string }[] = [
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   styles: `
     .buckets {
       display: grid;

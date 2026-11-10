@@ -48,7 +48,7 @@ import {
   downloadCsv,
   n0,
   pagedList,
-} from './inventory.shared';
+} from '@trishul/inventory-data-access';
 
 /** Stock on hand per GRN batch and place: what is where, since when, at what cost. */
 @Component({
@@ -74,7 +74,7 @@ import {
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     <trishul-page-header
       title="Stock by batch"

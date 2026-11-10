@@ -38,7 +38,7 @@ import {
   of,
 } from 'rxjs';
 import { INV_ITEM_MANAGE } from '@trishul/inventory-data-access';
-import { n0, pagedList } from './inventory.shared';
+import { n0, pagedList } from '@trishul/inventory-data-access';
 
 const ACTIVE: Record<string, StatusSeverity> = {
   Active: 'success',
@@ -70,7 +70,7 @@ const ACTIVE: Record<string, StatusSeverity> = {
     StatusBadge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     <trishul-page-header
       title="Items"

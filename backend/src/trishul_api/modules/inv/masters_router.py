@@ -2,11 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from trishul_api.auth import CurrentUserDep, DbSession, ScopeDep, require_permission
+from trishul_api.auth import CurrentUserDep, DbSession, require_permission
 from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
-from trishul_api.common.schemas import Page
-from trishul_api.modules.inv.common import ANY_INVENTORY, GRN_MANAGE, ITEM_MANAGE, LOCATION_MANAGE, STOCK_ADJUST
+from trishul_api.modules.inv.common import ANY_INVENTORY, ITEM_MANAGE, LOCATION_MANAGE, STOCK_ADJUST
 from trishul_api.modules.inv.masters_schemas import (
     BranchOption,
     CategoryCreate,
@@ -28,10 +27,6 @@ from trishul_api.modules.inv.masters_schemas import (
     RackOut,
     RackUpdate,
     StatusQuery,
-    SupplierCreate,
-    SupplierOut,
-    SupplierQuery,
-    SupplierUpdate,
     UomCreate,
     UomOut,
     UomUpdate,
@@ -43,7 +38,6 @@ router = APIRouter(prefix="/inv", tags=["inventory masters"])
 CAN_READ = Depends(require_permission(*ANY_INVENTORY))
 CAN_MANAGE_ITEMS = Depends(require_permission(ITEM_MANAGE))
 CAN_MANAGE_LOCATIONS = Depends(require_permission(LOCATION_MANAGE))
-CAN_MANAGE_SUPPLIERS = Depends(require_permission(GRN_MANAGE))
 CAN_ADJUST = Depends(require_permission(STOCK_ADJUST))
 
 RowVersionDep = Annotated[bytes, Depends(if_match_row_version)]
@@ -203,34 +197,6 @@ def update_rack(
     rack_id: Annotated[int, Path(alias="rackId", gt=0)], data: RackUpdate, row_version: RowVersionDep, masters: Masters
 ) -> RackOut:
     return masters.update_rack(rack_id, row_version, data)
-
-
-# ---------------------------------------------------------------- suppliers
-
-
-@router.get("/suppliers", summary="Suppliers, searched and paged", dependencies=[CAN_READ])
-def list_suppliers(query: Annotated[SupplierQuery, Query()], masters: Masters) -> Page[SupplierOut]:
-    return masters.suppliers(query)
-
-
-@router.post("/suppliers", summary="Add a supplier", status_code=201, dependencies=[CAN_MANAGE_SUPPLIERS])
-def create_supplier(data: SupplierCreate, scope: ScopeDep, masters: Masters) -> SupplierOut:
-    return masters.create_supplier(data, scope)
-
-
-@router.patch(
-    "/suppliers/{supplierId}",
-    summary="Change or deactivate a supplier",
-    dependencies=[CAN_MANAGE_SUPPLIERS],
-    responses=UPDATE_RESPONSES,
-)
-def update_supplier(
-    supplier_id: Annotated[int, Path(alias="supplierId", gt=0)],
-    data: SupplierUpdate,
-    row_version: RowVersionDep,
-    masters: Masters,
-) -> SupplierOut:
-    return masters.update_supplier(supplier_id, row_version, data)
 
 
 # ---------------------------------------------------------------- sales price lists

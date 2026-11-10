@@ -10,7 +10,9 @@ export interface GrnLineOut {
   itemDescription: string;
   itemId: number;
   lotNo: (string | null);
+  purchaseOrderLineId: (number | null);
   qtyAccepted: string;
+  qtyInvoiced: string;
   qtyReceived: string;
   qtyRejected: string;
 

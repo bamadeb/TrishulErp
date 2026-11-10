@@ -4,11 +4,9 @@ import { AdjustmentFormPage } from './adjustment-form.page';
 import { AgeingPage } from './ageing.page';
 import { DocumentDetailPage } from './document-detail.page';
 import { DocumentListPage } from './document-list.page';
-import { GrnFormPage } from './grn-form.page';
 import {
   INV_ADJUSTMENT_VIEW_PERMISSIONS,
   INV_ANY_PERMISSIONS,
-  INV_GRN_MANAGE,
   INV_GRN_VIEW_PERMISSIONS,
   INV_ITEM_MANAGE,
   INV_ITEM_VIEW_PERMISSIONS,
@@ -25,7 +23,6 @@ import { LocationsPage } from './locations.page';
 import { OpeningStockPage } from './opening-stock.page';
 import { SetupPage } from './setup.page';
 import { StockPage } from './stock.page';
-import { SuppliersPage } from './suppliers.page';
 import { TransferFormPage } from './transfer-form.page';
 
 /** Lazy-loaded under /inventory. */
@@ -68,12 +65,6 @@ export const inventoryRoutes: Route[] = [
     component: LocationsPage,
   },
   {
-    path: 'suppliers',
-    title: 'Suppliers',
-    canActivate: [permissionGuard(...INV_ANY_PERMISSIONS)],
-    component: SuppliersPage,
-  },
-  {
     path: 'stock',
     title: 'Stock by batch',
     canActivate: [permissionGuard(...INV_STOCK_USER_PERMISSIONS)],
@@ -84,26 +75,6 @@ export const inventoryRoutes: Route[] = [
     title: 'Inventory ageing',
     canActivate: [permissionGuard(INV_STOCK_VIEW)],
     component: AgeingPage,
-  },
-  {
-    path: 'grns',
-    title: 'Goods receipts',
-    canActivate: [permissionGuard(...INV_GRN_VIEW_PERMISSIONS)],
-    component: DocumentListPage,
-    data: { kind: 'grn' },
-  },
-  {
-    path: 'grns/new',
-    title: 'Receive goods',
-    canActivate: [permissionGuard(INV_GRN_MANAGE)],
-    component: GrnFormPage,
-  },
-  {
-    path: 'grns/:documentId',
-    title: 'GRN',
-    canActivate: [permissionGuard(...INV_GRN_VIEW_PERMISSIONS)],
-    component: DocumentDetailPage,
-    data: { kind: 'grn' },
   },
   {
     path: 'opening-stock',

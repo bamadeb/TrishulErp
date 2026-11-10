@@ -542,6 +542,9 @@ class Supplier(Audited, Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    contact_person: Mapped[str | None] = mapped_column(sa.NVARCHAR(100))
+    opening_balance: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    opening_balance_date: Mapped[dt.date | None] = mapped_column(sa.Date())
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 

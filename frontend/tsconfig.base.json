@@ -70,6 +70,12 @@
       "@trishul/inventory-data-access": [
         "./libs/domains/inventory/data-access/src/index.ts"
       ],
+      "@trishul/purchases-data-access": [
+        "./libs/domains/purchases/data-access/src/index.ts"
+      ],
+      "@trishul/purchases-feature": [
+        "./libs/domains/purchases/feature-purchases/src/index.ts"
+      ],
       "@trishul/inventory-feature": [
         "./libs/domains/inventory/feature-inventory/src/index.ts"
       ]

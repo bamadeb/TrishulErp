@@ -30,25 +30,22 @@ import { Router, RouterLink } from '@angular/router';
 import {
   AdjustmentListItem,
   ApiClient,
-  GrnListItem,
-  ListGrns$Params,
+  ListTransfers$Params,
   TransferListItem,
   listAdjustments,
-  listGrns,
   listTransfers,
 } from '@trishul/core-api';
 import { AuthStore } from '@trishul/core-auth';
 import { PageHeader } from '@trishul/shared-ui';
 import { Observable, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import {
-  INV_GRN_MANAGE,
   INV_STOCK_ADJUST,
   INV_TRANSFER_MANAGE,
 } from '@trishul/inventory-data-access';
-import { InventoryLookups, isoDate } from './inventory.shared';
+import { InventoryLookups, isoDate } from '@trishul/inventory-data-access';
 
-export type DocumentKind = 'grn' | 'transfer' | 'adjustment';
-type Row = GrnListItem | TransferListItem | AdjustmentListItem;
+export type DocumentKind = 'transfer' | 'adjustment';
+type Row = TransferListItem | AdjustmentListItem;
 
 const TEXT: Record<
   DocumentKind,
@@ -60,14 +57,6 @@ const TEXT: Record<
     permission: string;
   }
 > = {
-  grn: {
-    title: 'Goods receipts (GRN)',
-    subtitle:
-      'Goods received from suppliers; each line is a stock batch aged from its GRN date',
-    add: 'Receive goods',
-    search: 'GRN no, supplier or invoice no',
-    permission: INV_GRN_MANAGE,
-  },
   transfer: {
     title: 'Stock transfers',
     subtitle:
@@ -85,7 +74,7 @@ const TEXT: Record<
   },
 };
 
-/** GRN, transfer or adjustment history (the route's data.kind), newest first. */
+/** Transfer or adjustment history (the route's data.kind), newest first. */
 @Component({
   selector: 'trishul-document-list-page',
   imports: [
@@ -110,7 +99,7 @@ const TEXT: Record<
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     <trishul-page-header [title]="text().title" [subtitle]="text().subtitle">
       @if (canAdd()) {
@@ -182,47 +171,6 @@ const TEXT: Record<
       <div class="table-scroll">
         <table class="plain wide">
           @switch (kind()) {
-            @case ('grn') {
-              <thead>
-                <tr>
-                  <th>GRN no</th>
-                  <th>GRN date</th>
-                  <th>Received at</th>
-                  <th>Supplier</th>
-                  <th>Invoice</th>
-                  <th class="num">Lines</th>
-                  <th class="num">Qty</th>
-                  <th class="num">Value (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (g of grns(); track g.id) {
-                  <tr>
-                    <td>
-                      <a class="name" [routerLink]="[g.id]">{{ g.grnNo }}</a>
-                    </td>
-                    <td class="nowrap">
-                      {{ g.grnDate | date: 'dd MMM yyyy' }}
-                    </td>
-                    <td>
-                      {{ g.branchName }}
-                      <div class="muted">{{ g.locationName }}</div>
-                    </td>
-                    <td>{{ g.supplierName }}</td>
-                    <td>{{ g.supplierInvoiceNo ?? '—' }}</td>
-                    <td class="num">{{ g.lineCount }}</td>
-                    <td class="num">{{ g.totalQty | number: '1.0-3' }}</td>
-                    <td class="num">{{ g.totalValue | number: '1.2-2' }}</td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="8" class="empty">
-                      {{ loading() ? 'Loading…' : 'No GRNs match.' }}
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            }
             @case ('transfer') {
               <thead>
                 <tr>
@@ -345,14 +293,16 @@ export class DocumentListPage {
   protected readonly branches = toSignal(this.lookups.branches(), {
     initialValue: [],
   });
-  protected readonly query = signal<ListGrns$Params>({ page: 1, pageSize: 20 });
+  protected readonly query = signal<ListTransfers$Params>({
+    page: 1,
+    pageSize: 20,
+  });
   protected readonly search$ = new Subject<string>();
   protected readonly iso = isoDate;
 
   private readonly rows = signal<Row[]>([]);
   protected readonly total = signal(0);
   protected readonly loading = signal(false);
-  protected readonly grns = computed(() => this.rows() as GrnListItem[]);
   protected readonly transfers = computed(
     () => this.rows() as TransferListItem[],
   );
@@ -367,7 +317,7 @@ export class DocumentListPage {
     queueMicrotask(() => this.load());
   }
 
-  protected update(change: Partial<ListGrns$Params>): void {
+  protected update(change: Partial<ListTransfers$Params>): void {
     this.query.update((q) => ({ ...q, ...change, page: change.page ?? 1 }));
     this.load();
   }
@@ -379,11 +329,9 @@ export class DocumentListPage {
   private load(): void {
     const q = this.query();
     const request: Observable<{ items: Row[]; total: number }> =
-      this.kind() === 'grn'
-        ? this.api.call(listGrns, q)
-        : this.kind() === 'transfer'
-          ? this.api.call(listTransfers, q)
-          : this.api.call(listAdjustments, q);
+      this.kind() === 'transfer'
+        ? this.api.call(listTransfers, q)
+        : this.api.call(listAdjustments, q);
     this.loading.set(true);
     request.subscribe({
       next: (page) => {

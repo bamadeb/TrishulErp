@@ -33,6 +33,7 @@ from trishul_api.modules.inv.item_router import router as inv_items_router
 from trishul_api.modules.inv.masters_router import router as inv_masters_router
 from trishul_api.modules.inv.stock_router import router as inv_stock_router
 from trishul_api.modules.presales.router import router as presales_router
+from trishul_api.modules.pur.router import router as purchases_router
 from trishul_api.modules.rpt.router import router as rpt_router
 from trishul_api.modules.service.contracts.router import router as contracts_router
 from trishul_api.modules.service.machines.router import router as machines_router
@@ -65,6 +66,7 @@ V1_ROUTERS: list[APIRouter] = [
     inv_masters_router,
     inv_items_router,
     inv_stock_router,
+    purchases_router,
     rpt_router,
 ]
 

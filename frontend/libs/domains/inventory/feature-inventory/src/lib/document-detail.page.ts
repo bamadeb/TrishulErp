@@ -17,20 +17,18 @@ import {
   AdjustmentDetail,
   ApiClient,
   BatchMoved,
-  GrnDetail,
   TransferDetail,
   getAdjustment,
-  getGrn,
   getTransfer,
 } from '@trishul/core-api';
 import { PageHeader } from '@trishul/shared-ui';
 import { EMPTY, Observable, catchError } from 'rxjs';
 import { DocumentKind } from './document-list.page';
-import { ageClass, n0 } from './inventory.shared';
+import { ageClass, n0 } from '@trishul/inventory-data-access';
 
-type Detail = GrnDetail | TransferDetail | AdjustmentDetail;
+type Detail = TransferDetail | AdjustmentDetail;
 
-/** One posted GRN, transfer or adjustment, with the GRN batches it created or moved. */
+/** One posted transfer or adjustment, with the GRN batches it created or moved. */
 @Component({
   selector: 'trishul-document-detail-page',
   imports: [
@@ -44,135 +42,9 @@ type Detail = GrnDetail | TransferDetail | AdjustmentDetail;
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     @switch (kind()) {
-      @case ('grn') {
-        @if (grn(); as g) {
-          <trishul-page-header
-            [title]="'GRN ' + g.grnNo"
-            [subtitle]="
-              g.supplierName + ' · ' + (g.grnDate | date: 'dd MMM yyyy')
-            "
-          >
-            <a mat-stroked-button routerLink=".."
-              ><mat-icon>arrow_back</mat-icon>All GRNs</a
-            >
-          </trishul-page-header>
-          <section class="card">
-            <dl class="facts">
-              <div>
-                <dt>GRN date (age starts)</dt>
-                <dd>{{ g.grnDate | date: 'dd MMM yyyy' }}</dd>
-              </div>
-              <div>
-                <dt>Received at</dt>
-                <dd>{{ g.branchName }} · {{ g.locationName }}</dd>
-              </div>
-              <div>
-                <dt>Supplier</dt>
-                <dd>{{ g.supplierName }}</dd>
-              </div>
-              <div>
-                <dt>Supplier invoice</dt>
-                <dd>
-                  {{ g.supplierInvoiceNo ?? '—' }}
-                  {{
-                    g.supplierInvoiceDate
-                      ? '· ' + (g.supplierInvoiceDate | date: 'dd MMM yyyy')
-                      : ''
-                  }}
-                </dd>
-              </div>
-              <div>
-                <dt>Vehicle / LR</dt>
-                <dd>{{ g.vehicleNo ?? '—' }} / {{ g.lrNo ?? '—' }}</dd>
-              </div>
-              <div>
-                <dt>Value</dt>
-                <dd>₹{{ g.totalValue | number: '1.2-2' }}</dd>
-              </div>
-              <div>
-                <dt>Posted by</dt>
-                <dd>
-                  {{ g.createdBy ?? '—' }} ·
-                  {{ g.createdAt | date: 'dd MMM yyyy, HH:mm' }}
-                </dd>
-              </div>
-              @if (g.remarks) {
-                <div>
-                  <dt>Remarks</dt>
-                  <dd>{{ g.remarks }}</dd>
-                </div>
-              }
-            </dl>
-          </section>
-          <div class="table-card">
-            <div class="table-scroll">
-              <table class="plain wide">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Received as</th>
-                    <th class="num">Accepted</th>
-                    <th class="num">Rejected</th>
-                    <th class="num">Cost / unit</th>
-                    <th class="num">Value</th>
-                    <th>Rack</th>
-                    <th>Batch</th>
-                    <th class="num">Still in stock</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (l of g.lines; track l.id) {
-                    <tr>
-                      <td>
-                        <a
-                          class="name"
-                          [routerLink]="['/inventory/items', l.itemId]"
-                          >{{ l.itemCode }}</a
-                        >
-                        <div class="muted">{{ l.itemDescription }}</div>
-                      </td>
-                      <td>
-                        {{
-                          l.entryUomCode
-                            ? (l.entryQty | number: '1.0-3') +
-                              ' ' +
-                              l.entryUomCode
-                            : '—'
-                        }}
-                      </td>
-                      <td class="num">
-                        {{ l.qtyAccepted | number: '1.0-3' }} {{ l.uomCode }}
-                      </td>
-                      <td class="num">
-                        {{
-                          n0(l.qtyRejected)
-                            ? (l.qtyRejected | number: '1.0-3')
-                            : '—'
-                        }}
-                        @if (l.rejectionReason) {
-                          <div class="muted">{{ l.rejectionReason }}</div>
-                        }
-                      </td>
-                      <td class="num">{{ l.unitCost | number: '1.2-4' }}</td>
-                      <td class="num">{{ l.value | number: '1.2-2' }}</td>
-                      <td>{{ l.binCode ?? '—' }}</td>
-                      <td>{{ l.lotNo ?? '—' }}</td>
-                      <td class="num">
-                        {{ l.qtyRemaining | number: '1.0-3' }}
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        } @else {
-          <mat-progress-bar mode="indeterminate" />
-        }
-      }
       @case ('transfer') {
         @if (transfer(); as t) {
           <trishul-page-header
@@ -412,9 +284,6 @@ export class DocumentDetailPage {
   protected readonly n0 = n0;
   protected readonly ageClass = ageClass;
   private readonly detail = signal<Detail | null>(null);
-  protected readonly grn = computed(() =>
-    this.kind() === 'grn' ? (this.detail() as GrnDetail | null) : null,
-  );
   protected readonly transfer = computed(() =>
     this.kind() === 'transfer'
       ? (this.detail() as TransferDetail | null)
@@ -432,11 +301,9 @@ export class DocumentDetailPage {
       const kind = this.kind();
       untracked(() => {
         const request: Observable<Detail> =
-          kind === 'grn'
-            ? this.api.call(getGrn, { grnId: id })
-            : kind === 'transfer'
-              ? this.api.call(getTransfer, { transferId: id })
-              : this.api.call(getAdjustment, { adjustmentId: id });
+          kind === 'transfer'
+            ? this.api.call(getTransfer, { transferId: id })
+            : this.api.call(getAdjustment, { adjustmentId: id });
         request
           .pipe(catchError(() => EMPTY))
           .subscribe((d) => this.detail.set(d));

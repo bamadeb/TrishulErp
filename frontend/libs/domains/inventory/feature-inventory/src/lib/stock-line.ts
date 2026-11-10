@@ -7,7 +7,7 @@ import {
   listStock,
 } from '@trishul/core-api';
 import { catchError, of } from 'rxjs';
-import { n0 } from './inventory.shared';
+import { n0 } from '@trishul/inventory-data-access';
 
 /**
  * One line of a transfer or adjustment: the item, the quantity, racks and (optionally) the GRN batch,

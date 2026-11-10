@@ -42,9 +42,9 @@ import {
 import { AuthStore } from '@trishul/core-auth';
 import { PageHeader } from '@trishul/shared-ui';
 import { EMPTY, catchError, filter } from 'rxjs';
-import { FieldOption, openFieldsDialog } from './fields.dialog';
+import { FieldOption, openFieldsDialog } from '@trishul/inventory-data-access';
 import { INV_ITEM_MANAGE } from '@trishul/inventory-data-access';
-import { InventoryLookups, num } from './inventory.shared';
+import { InventoryLookups, num } from '@trishul/inventory-data-access';
 
 type ItemCategoryItemNature = NonNullable<CategoryCreate['itemNature']>;
 type PriceListPriceListType = NonNullable<PriceListCreate['priceListType']>;
@@ -81,7 +81,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   styles: `
     .indent {
       display: inline-block;

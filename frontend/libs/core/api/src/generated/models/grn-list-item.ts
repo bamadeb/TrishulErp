@@ -11,6 +11,8 @@ export interface GrnListItem {
   lineCount: number;
   locationId: number;
   locationName: string;
+  poNo: (string | null);
+  purchaseOrderId: (number | null);
   status: string;
   supplierId: number;
   supplierInvoiceNo: (string | null);

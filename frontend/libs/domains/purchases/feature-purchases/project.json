@@ -1,0 +1,10 @@
+{
+  "name": "purchases-feature-purchases",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/purchases/feature-purchases/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:purchases", "type:feature"],
+  "// targets": "to see all targets run: nx show project purchases-feature-purchases --web",
+  "targets": {}
+}

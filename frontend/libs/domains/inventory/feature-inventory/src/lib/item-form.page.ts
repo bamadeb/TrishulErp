@@ -39,7 +39,7 @@ import {
 } from '@trishul/core-api';
 import { PageHeader } from '@trishul/shared-ui';
 import { EMPTY, catchError, finalize, of } from 'rxjs';
-import { num } from './inventory.shared';
+import { num } from '@trishul/inventory-data-access';
 
 type ItemItemType = NonNullable<ItemCreate['itemType']>;
 
@@ -69,7 +69,7 @@ const EMPTY_OPTIONS: ItemFormOptions = {
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     <trishul-page-header
       [title]="item() ? 'Edit ' + item()!.itemCode : 'Add item'"

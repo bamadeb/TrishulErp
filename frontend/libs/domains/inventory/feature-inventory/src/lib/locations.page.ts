@@ -32,9 +32,9 @@ import {
 import { AuthStore } from '@trishul/core-auth';
 import { PageHeader } from '@trishul/shared-ui';
 import { EMPTY, catchError, filter } from 'rxjs';
-import { openFieldsDialog } from './fields.dialog';
+import { openFieldsDialog } from '@trishul/inventory-data-access';
 import { INV_LOCATION_MANAGE } from '@trishul/inventory-data-access';
-import { InventoryLookups } from './inventory.shared';
+import { InventoryLookups } from '@trishul/inventory-data-access';
 
 type LocationLocationType = NonNullable<LocationCreate['locationType']>;
 
@@ -62,7 +62,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   styles: `
     .panes {
       display: grid;

@@ -3,14 +3,24 @@
 
 export interface SupplierOut {
   address: (string | null);
+
+  /**
+   * What we owe the supplier (negative: advance paid).
+   */
+  balance: string;
   code: string;
+  contactPerson: (string | null);
   email: (string | null);
   gstin: (string | null);
   id: number;
   isActive: boolean;
   name: string;
   pan: (string | null);
+  paymentTerms: (string | null);
+  paymentTermsId: (number | null);
   phone: (string | null);
   rowVersion: string;
+  stateId: (number | null);
+  stateName: (string | null);
   supplierType: 'OEM' | 'Parts' | 'Lubricants' | 'Services' | 'Transporter' | 'Other';
 }

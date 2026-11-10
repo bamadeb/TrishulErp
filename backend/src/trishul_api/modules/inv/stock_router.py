@@ -11,9 +11,6 @@ from trishul_api.modules.inv.doc_schemas import (
     AdjustmentDetail,
     AdjustmentListItem,
     DocumentQuery,
-    GrnCreate,
-    GrnDetail,
-    GrnListItem,
     LotListItem,
     LotQuery,
     OpeningStockCreate,
@@ -38,7 +35,6 @@ router = APIRouter(prefix="/inv", tags=["stock"])
 CAN_VIEW_STOCK = Depends(require_permission(*STOCK_USERS))
 CAN_REPORT = Depends(require_permission(STOCK_VIEW))
 CAN_RECEIVE = Depends(require_permission(GRN_MANAGE))
-CAN_SEE_GRNS = Depends(require_permission(GRN_MANAGE, STOCK_VIEW))
 CAN_TRANSFER = Depends(require_permission(TRANSFER_MANAGE))
 CAN_SEE_TRANSFERS = Depends(require_permission(TRANSFER_MANAGE, STOCK_VIEW))
 CAN_ADJUST = Depends(require_permission(STOCK_ADJUST))
@@ -88,32 +84,7 @@ def list_lots(query: Annotated[LotQuery, Query()], documents: Documents) -> Page
     return documents.lots(query)
 
 
-# ---------------------------------------------------------------- GRN and opening stock
-
-
-@router.get("/grns", summary="Goods receipts (GRN), newest first", dependencies=[CAN_SEE_GRNS])
-def list_grns(query: Annotated[DocumentQuery, Query()], documents: Documents) -> Page[GrnListItem]:
-    return documents.grns(query)
-
-
-@router.get(
-    "/grns/{grnId}", summary="One GRN with its batches", dependencies=[CAN_SEE_GRNS], responses=NOT_FOUND_RESPONSE
-)
-def get_grn(grn_id: Annotated[int, Path(alias="grnId", gt=0)], documents: Documents) -> GrnDetail:
-    return documents.grn(grn_id)
-
-
-@router.post(
-    "/grns",
-    summary="Receive goods: posts one stock batch per line, aged from the GRN date",
-    status_code=201,
-    dependencies=[CAN_RECEIVE],
-    responses=POSTING_RESPONSES,
-)
-def create_grn(data: GrnCreate, documents: Documents, response: Response) -> GrnDetail:
-    created = documents.create_grn(data)
-    response.headers["Location"] = f"grns/{created.id}"
-    return created
+# ---------------------------------------------------------------- opening stock
 
 
 @router.post(

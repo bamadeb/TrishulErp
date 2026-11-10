@@ -32,7 +32,8 @@ router = APIRouter(prefix="/svc", tags=["service-reports"])
 
 CAN_VIEW = Depends(require_permission(*CAN_VIEW_CALLS))
 CAN_WRITE = Depends(require_permission(*SIGN_PERMISSIONS))
-CAN_VIEW_CHECKLISTS = Depends(require_permission("svc.checklist.manage", "svc.call.assign"))
+# Read-only: service engineers (svc.report.submit) need the checklists to fill in their reports.
+CAN_VIEW_CHECKLISTS = Depends(require_permission("svc.checklist.manage", "svc.call.assign", "svc.report.submit"))
 CAN_MANAGE_CHECKLISTS = Depends(require_permission("svc.checklist.manage"))
 
 CallId = Annotated[int, Path(alias="callId", gt=0)]

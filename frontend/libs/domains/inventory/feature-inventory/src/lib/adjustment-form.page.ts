@@ -42,8 +42,12 @@ import {
 } from '@trishul/core-api';
 import { PageHeader, confirmAction } from '@trishul/shared-ui';
 import { EMPTY, catchError, filter, finalize, of, switchMap } from 'rxjs';
-import { ItemPicker } from './item-picker';
-import { InventoryLookups, isoDate, locationLabel } from './inventory.shared';
+import { ItemPicker } from '@trishul/inventory-data-access';
+import {
+  InventoryLookups,
+  isoDate,
+  locationLabel,
+} from '@trishul/inventory-data-access';
 import { StockLine, batchLabel } from './stock-line';
 
 /** Increase or decrease stock with a reason. Posted under the signed-in user's name. */
@@ -73,7 +77,7 @@ import { StockLine, batchLabel } from './stock-line';
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     <trishul-page-header
       title="New stock adjustment"

@@ -44,7 +44,7 @@ import {
 import { AuthStore } from '@trishul/core-auth';
 import { PageHeader, confirmAction } from '@trishul/shared-ui';
 import { EMPTY, catchError, filter, finalize, switchMap } from 'rxjs';
-import { ItemPicker } from './item-picker';
+import { ItemPicker } from '@trishul/inventory-data-access';
 import { INV_GRN_MANAGE } from '@trishul/inventory-data-access';
 import {
   InventoryLookups,
@@ -52,7 +52,7 @@ import {
   isoDate,
   locationLabel,
   pagedList,
-} from './inventory.shared';
+} from '@trishul/inventory-data-access';
 
 function openingLine() {
   return new FormGroup({
@@ -106,7 +106,7 @@ function openingLine() {
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './inventory.scss',
+  styleUrl: '../../../data-access/src/lib/inventory.scss',
   template: `
     <trishul-page-header
       title="Opening stock"

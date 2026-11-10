@@ -7,13 +7,12 @@ from typing import Literal
 
 from pydantic import Field
 
-from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion
+from trishul_api.common.schemas import ApiModel, InputModel, RowVersion
 from trishul_api.db.models import (
     BranchBranchType,
     ItemCategoryItemNature,
     LocationLocationType,
     PriceListPriceListType,
-    SupplierSupplierType,
 )
 
 StatusFilter = Literal["active", "inactive", "all"]
@@ -182,49 +181,6 @@ class RackUpdate(InputModel):
     rack: str | None = Field(None, max_length=10)
     shelf: str | None = Field(None, max_length=10)
     description: str | None = Field(None, max_length=100)
-    is_active: bool | None = None
-
-
-# ---------------------------------------------------------------- suppliers
-
-
-class SupplierQuery(PageQuery):
-    status: StatusFilter = "active"
-
-
-class SupplierOut(ApiModel):
-    id: int
-    code: str
-    name: str
-    supplier_type: SupplierSupplierType
-    gstin: str | None
-    pan: str | None
-    phone: str | None
-    email: str | None
-    address: str | None
-    is_active: bool
-    row_version: RowVersion
-
-
-class SupplierCreate(InputModel):
-    code: str = _CODE
-    name: str = Field(min_length=1, max_length=200)
-    supplier_type: SupplierSupplierType = "Parts"
-    gstin: str | None = Field(None, pattern=r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$")
-    pan: str | None = Field(None, pattern=r"^[A-Z]{5}\d{4}[A-Z]$")
-    phone: str | None = Field(None, max_length=15)
-    email: str | None = Field(None, max_length=120)
-    address: str | None = Field(None, max_length=500)
-
-
-class SupplierUpdate(InputModel):
-    name: str | None = Field(None, min_length=1, max_length=200)
-    supplier_type: SupplierSupplierType | None = None
-    gstin: str | None = Field(None, pattern=r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$")
-    pan: str | None = Field(None, pattern=r"^[A-Z]{5}\d{4}[A-Z]$")
-    phone: str | None = Field(None, max_length=15)
-    email: str | None = Field(None, max_length=120)
-    address: str | None = Field(None, max_length=500)
     is_active: bool | None = None
 
 
