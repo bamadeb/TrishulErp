@@ -1,0 +1,10 @@
+{
+  "name": "inventory-data-access",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/inventory/data-access/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:inventory", "type:data-access"],
+  "// targets": "to see all targets run: nx show project inventory-data-access --web",
+  "targets": {}
+}

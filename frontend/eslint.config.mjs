@@ -96,6 +96,14 @@ export default [
                 'scope:core',
               ],
             },
+            {
+              sourceTag: 'scope:inventory',
+              onlyDependOnLibsWithTags: [
+                'scope:inventory',
+                'scope:shared',
+                'scope:core',
+              ],
+            },
           ],
         },
       ],

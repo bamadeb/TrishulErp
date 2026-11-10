@@ -36,7 +36,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSort, MatSortHeader, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltip } from '@angular/material/tooltip';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   EMPTY,
   Subject,
@@ -186,6 +186,23 @@ export class CallListPage {
     this.search$
       .pipe(debounceTime(350), distinctUntilChanged(), takeUntilDestroyed())
       .subscribe((search) => this.store.updateQuery({ search }));
+    this.applyLinkFilters();
+  }
+
+  /** Filters a link can open the list with (the dashboard's figures): ?status=…&visitDate=…&sort=… */
+  private applyLinkFilters(): void {
+    const params = inject(ActivatedRoute).snapshot.queryParamMap;
+    const status = params
+      .getAll('status')
+      .filter((s): s is CallStatus => (CALL_STATUSES as readonly string[]).includes(s));
+    const visitDate = params.get('visitDate');
+    const sort = params.get('sort');
+    if (!status.length && !visitDate && !sort) return;
+    this.store.updateQuery({
+      ...(status.length ? { status } : {}),
+      ...(visitDate && /^\d{4}-\d{2}-\d{2}$/.test(visitDate) ? { visitDate } : {}),
+      ...(sort ? { sort } : {}),
+    });
   }
 
   protected onSearch(value: string): void {

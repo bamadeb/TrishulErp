@@ -29,8 +29,9 @@ def test_every_table_is_mapped() -> None:
     # v3 (219) + core.locality (0002) + svc.byd_call_import (0005) + 3 hand-written trk tables (0006)
     # + trk.trip_distance_adjustment (0008) + 4 core alert tables (0010)
     # + 4 trk master tables (0012) + 2 trk GPS diagnostic tables (0016) + svc.contract_visit (0017)
-    # + trk.manual_travel (0018) + trk.tracking_config (0021).
-    assert len(Base.metadata.tables) == 239
+    # + trk.manual_travel (0018) + trk.tracking_config (0021) + core.region (0023, hand-written)
+    # + inv.uom_conversion, inv.stock_lot, inv.lot_balance (0028).
+    assert len(Base.metadata.tables) == 243
     assert {table.schema for table in Base.metadata.tables.values()} == {
         "core", "svc", "inv", "pur", "sal", "pre", "hr", "acc", "int", "rpt", "trk",
     }  # fmt: skip

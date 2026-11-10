@@ -66,6 +66,12 @@
       ],
       "@trishul/hr-feature-dashboard": [
         "./libs/domains/hr/feature-dashboard/src/index.ts"
+      ],
+      "@trishul/inventory-data-access": [
+        "./libs/domains/inventory/data-access/src/index.ts"
+      ],
+      "@trishul/inventory-feature": [
+        "./libs/domains/inventory/feature-inventory/src/index.ts"
       ]
     }
   },

@@ -2,7 +2,7 @@ import builtins
 from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, case, exists, false, func, or_, select
+from sqlalchemy import ColumnElement, Select, case, exists, false, func, or_, select, true
 from sqlalchemy.orm import InstrumentedAttribute, Session, aliased
 
 from trishul_api.auth import RequestScope
@@ -67,6 +67,11 @@ def _visible(visibility: CallVisibility) -> ColumnElement[bool]:
     if visibility.engineer_ids:
         conditions.append(supports_call(visibility.engineer_ids))
     return or_(*conditions) if conditions else false()
+
+
+def visible_calls(visibility: CallVisibility) -> ColumnElement[bool]:
+    """Which calls the user sees, as a WHERE condition (the register's rule, for other screens)."""
+    return true() if visibility.everything else _visible(visibility)
 
 
 def _trip_ongoing() -> ColumnElement[bool]:

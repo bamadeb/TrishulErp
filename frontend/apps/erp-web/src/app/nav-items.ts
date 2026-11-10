@@ -10,6 +10,15 @@ import {
 import { NavItem } from '@trishul/core-layout';
 import { EMPLOYEE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
 import {
+  INV_ADJUSTMENT_VIEW_PERMISSIONS,
+  INV_ANY_PERMISSIONS,
+  INV_GRN_VIEW_PERMISSIONS,
+  INV_ITEM_VIEW_PERMISSIONS,
+  INV_STOCK_USER_PERMISSIONS,
+  INV_STOCK_VIEW,
+  INV_TRANSFER_VIEW_PERMISSIONS,
+} from '@trishul/inventory-data-access';
+import {
   ASC_VIEW_PERMISSIONS,
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
@@ -80,6 +89,72 @@ export const navItems: NavItem[] = [
         icon: 'history',
         route: '/service/imports',
         permissions: [...SERVICE_CALL_IMPORT_LOG_PERMISSIONS],
+      },
+    ],
+  },
+  {
+    label: 'Inventory',
+    icon: 'inventory_2',
+    children: [
+      {
+        label: 'Items',
+        icon: 'category',
+        route: '/inventory/items',
+        permissions: [...INV_ANY_PERMISSIONS],
+      },
+      {
+        label: 'Stock by batch',
+        icon: 'inventory',
+        route: '/inventory/stock',
+        permissions: [...INV_STOCK_USER_PERMISSIONS],
+      },
+      {
+        label: 'Ageing report',
+        icon: 'hourglass_bottom',
+        route: '/inventory/ageing',
+        permissions: [INV_STOCK_VIEW],
+      },
+      {
+        label: 'Goods receipts (GRN)',
+        icon: 'move_to_inbox',
+        route: '/inventory/grns',
+        permissions: [...INV_GRN_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Opening stock',
+        icon: 'playlist_add',
+        route: '/inventory/opening-stock',
+        permissions: [...INV_GRN_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Transfers',
+        icon: 'swap_horiz',
+        route: '/inventory/transfers',
+        permissions: [...INV_TRANSFER_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Adjustments',
+        icon: 'tune',
+        route: '/inventory/adjustments',
+        permissions: [...INV_ADJUSTMENT_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Locations & racks',
+        icon: 'shelves',
+        route: '/inventory/locations',
+        permissions: [...INV_ANY_PERMISSIONS],
+      },
+      {
+        label: 'Suppliers',
+        icon: 'local_shipping',
+        route: '/inventory/suppliers',
+        permissions: [...INV_ANY_PERMISSIONS],
+      },
+      {
+        label: 'Item setup',
+        icon: 'settings',
+        route: '/inventory/setup',
+        permissions: [...INV_ITEM_VIEW_PERMISSIONS],
       },
     ],
   },

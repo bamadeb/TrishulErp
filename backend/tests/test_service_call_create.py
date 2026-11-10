@@ -53,6 +53,7 @@ TABLES = [
     "svc.contract_plan",
     "svc.service_contract",
     "svc.contract_coverage",
+    "svc.contract_visit",
     "svc.sla_rule",
     "svc.sla_event",
     "core.alert_rule",
@@ -678,6 +679,81 @@ def test_engineer_sees_their_visit_days_in_order(client: TestClient, settings: S
         assert [row["id"] for row in on_the_day] == [soon["id"]]
         by_call_no = engineer.get(f"{URL}/assigned-to-me", params={"sort": "-callNo"}).json()["items"]
         assert [row["id"] for row in by_call_no] == sorted((c["id"] for c in (later, soon, undated)), reverse=True)
+
+
+DASHBOARD_URL = "/api/v1/rpt/dashboard"
+ENGINEER_PERMISSIONS = {"svc.call.view", "svc.call.view.assigned", "svc.call.status.update"}
+
+
+def test_dashboard_for_the_call_desk(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 310, "Second")
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    planned, _waiting = create(client, isMachineDown=False).json(), create(client, isMachineDown=False).json()
+    down = create(client).json()  # the helper's calls have the machine down
+    body = {"engineerId": ENGINEER_ID, "supportEngineerIds": [310], "visitDate": tomorrow}
+    assert client.patch(f"{URL}/{planned['id']}", json=body, headers=if_match(planned)).status_code == 200
+    client.patch(f"{URL}/{down['id']}", json={"engineerId": 310}, headers=if_match(down))
+
+    board = client.get(DASHBOARD_URL).json()
+    assert board["myWork"] is None and board["asc"] is None  # no field work, no ASC permission
+    calls = board["calls"]
+    assert calls["scope"] == "all"
+    assert (calls["openCalls"], calls["unassigned"], calls["machineDown"]) == (3, 1, 1)
+    # One call planned for two engineers counts once.
+    assert (calls["visitsToday"], calls["visitsTomorrow"], calls["overdueVisits"]) == (0, 1, 0)
+    assert calls["byStatus"] == [{"status": "Logged", "count": 1}, {"status": "Assigned", "count": 2}]
+    loads = {e["name"]: (e["openCalls"], e["visitsToday"]) for e in calls["engineers"]}
+    assert loads == {"Second": (2, 0), "Satyajit Tung": (1, 0)}  # support counts too
+
+
+def test_dashboard_for_an_engineer_shows_only_their_work(
+    client: TestClient, settings: Settings, db: Engine
+) -> None:
+    add_engineer(db, 310, "Second")
+    mine, theirs = create(client).json(), create(client).json()
+    client.patch(f"{URL}/{mine['id']}", json={"engineerId": ENGINEER_ID, "visitDate": TODAY}, headers=if_match(mine))
+    client.patch(f"{URL}/{theirs['id']}", json={"engineerId": 310, "visitDate": TODAY}, headers=if_match(theirs))
+
+    # svc.call.view lets the engineer see every call, but the overview is for the call desk.
+    with make_client(settings, db, ENGINEER_PERMISSIONS, employee_id=ENGINEER_ID) as engineer:
+        board = engineer.get(DASHBOARD_URL).json()
+    assert board["calls"] is None and board["asc"] is None
+    work = board["myWork"]
+    assert (work["openCalls"], work["visitsToday"], work["visitsTomorrow"], work["overdueVisits"]) == (1, 1, 0, 0)
+    assert [(v["callNo"], v["plannedDate"], v["engineerName"]) for v in work["upcoming"]] == [
+        (mine["callNo"], TODAY, "Satyajit Tung")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("permissions", "sections"),
+    [
+        (set(), set()),  # every signed-in user gets a dashboard, even an empty one
+        ({"svc.call.view"}, set()),  # seeing calls alone (ASC Manager) is not running the call desk
+        ({"svc.contract.visit", "svc.call.view"}, {"asc"}),
+        ({"svc.call.view.team", "svc.call.assign"}, {"calls"}),
+        (ENGINEER_PERMISSIONS, {"myWork"}),
+    ],
+)
+def test_dashboard_sections_follow_permissions(
+    settings: Settings, db: Engine, permissions: set[str], sections: set[str]
+) -> None:
+    with make_client(settings, db, permissions, employee_id=ENGINEER_ID) as user:
+        response = user.get(DASHBOARD_URL)
+    assert response.status_code == 200, response.text
+    assert {name for name, section in response.json().items() if section} == sections
+
+
+def test_dashboard_asc_overview(client: TestClient, settings: Settings, db: Engine) -> None:
+    soon = date.today() + timedelta(days=10)
+    insert_row(db, "svc.service_contract", id=1, company_id=COMPANY, contract_no="ASC-1", customer_id=CUSTOMER_ID,
+               principal_id=PRINCIPAL, contract_type="ASC", start_date=date(2020, 1, 1), end_date=soon,
+               status="Active", visits_included=6, visits_used=2, branch_id=BRANCH)  # fmt: skip
+    insert_row(db, "svc.contract_coverage", id=1, service_contract_id=1, machine_unit_id=MACHINE_ID)
+    with make_client(settings, db, {"svc.contract.view"}, employee_id=None) as manager:
+        asc = manager.get(DASHBOARD_URL).json()["asc"]
+    assert (asc["active"], asc["expiringSoon"], asc["visitsUsed"], asc["visitsRemaining"]) == (1, 1, 2, 4)
+    assert [(e["contractNo"], e["visitsRemaining"]) for e in asc["expiring"]] == [("ASC-1", 4)]
 
 
 def test_a_started_visit_is_no_longer_planned(

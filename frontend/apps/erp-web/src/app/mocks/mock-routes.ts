@@ -219,6 +219,37 @@ export const mockRoutes: MockRoute[] = [
   { method: 'GET', path: '/me', handle: () => currentUser },
   {
     method: 'GET',
+    path: '/rpt/dashboard',
+    handle: () => ({
+      myWork: null,
+      calls: {
+        scope: 'all',
+        openCalls: 42,
+        unassigned: 6,
+        machineDown: 4,
+        slaBreached: 3,
+        slaDueSoon: 5,
+        visitsToday: 7,
+        visitsTomorrow: 9,
+        overdueVisits: 2,
+        completedThisMonth: 31,
+        byStatus: [
+          { status: 'Logged', count: 6 },
+          { status: 'Assigned', count: 14 },
+          { status: 'Reached site', count: 12 },
+          { status: 'Awaiting parts', count: 10 },
+        ],
+        engineers: [
+          { engineerId: 1, name: 'Satyajit Tung', openCalls: 9, visitsToday: 2 },
+          { engineerId: 2, name: 'Parsuram Samal', openCalls: 7, visitsToday: 3 },
+        ],
+        overdue: [],
+      },
+      asc: null,
+    }),
+  },
+  {
+    method: 'GET',
     path: '/svc/service-calls',
     handle: (req) =>
       listCalls(

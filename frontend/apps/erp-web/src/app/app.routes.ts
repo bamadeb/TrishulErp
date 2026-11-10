@@ -48,7 +48,12 @@ export const appRoutes: Route[] = [
         loadChildren: () =>
           import('@trishul/hr-feature-dashboard').then((m) => m.hrRoutes),
       },
-      // Phase 1+: masters, inventory, purchase, sales, presales, accounts, integration, reports.
+      {
+        path: 'inventory',
+        loadChildren: () =>
+          import('@trishul/inventory-feature').then((m) => m.inventoryRoutes),
+      },
+      // Phase 1+: purchase, sales, presales, accounts, integration, reports.
       { path: 'forbidden', title: 'Access denied', component: ForbiddenPage },
       { path: '**', title: 'Not found', component: NotFoundPage },
     ],

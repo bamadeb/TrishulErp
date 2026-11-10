@@ -1,0 +1,263 @@
+:host {
+  display: block;
+}
+
+// Reserve the bar's height so the page doesn't jump while loading.
+.progress {
+  height: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.message {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.card {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem 1.25rem;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 1rem;
+    font: var(--mat-sys-title-large);
+
+    mat-icon {
+      color: var(--mat-sys-primary);
+    }
+  }
+
+  h3 {
+    margin: 1.25rem 0 0.5rem;
+    font: var(--mat-sys-title-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+// Figures: a responsive grid of compact tiles.
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.tile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.6rem;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container-low);
+  color: inherit;
+  text-decoration: none;
+
+  mat-icon {
+    grid-row: span 2;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .value {
+    font: var(--mat-sys-headline-small);
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .label {
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &.link {
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--mat-sys-surface-container-high);
+      border-color: var(--mat-sys-primary);
+    }
+  }
+
+  &.danger {
+    border-color: color-mix(in srgb, var(--mat-sys-error) 45%, transparent);
+
+    mat-icon,
+    .value {
+      color: var(--mat-sys-error);
+    }
+  }
+
+  &.warn {
+    border-color: color-mix(in srgb, #d97706 45%, transparent);
+
+    mat-icon,
+    .value {
+      color: #b45309;
+    }
+  }
+
+  &.good mat-icon {
+    color: #15803d;
+  }
+}
+
+// Open calls per status: chips that open the filtered call list.
+.statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  color: inherit;
+  text-decoration: none;
+  font: var(--mat-sys-body-medium);
+
+  .count {
+    font-weight: 600;
+    color: var(--mat-sys-primary);
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--mat-sys-surface-container-high);
+  }
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 0 1.5rem;
+}
+
+.engineers {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    text-align: left;
+  }
+
+  th {
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .num {
+    text-align: right;
+    width: 7rem;
+  }
+}
+
+// Planned visits / expiring ASCs: the day on the left, the call in the middle, badges on the right.
+.visits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+.day {
+  font-weight: 600;
+
+  &.overdue {
+    color: var(--mat-sys-error);
+  }
+}
+
+.what {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.call {
+  font-weight: 600;
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.complaint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--mat-sys-body-small);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.down {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-error);
+}
+
+.engineer {
+  max-width: 14rem;
+  text-align: right;
+}
+
+.muted {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.none {
+  margin: 0.25rem 0;
+}
+
+@media (max-width: 600px) {
+  .card {
+    padding: 0.75rem;
+  }
+
+  .visits li {
+    grid-template-columns: 4.5rem 1fr;
+
+    .side {
+      grid-column: 2;
+      flex-direction: row;
+      align-items: center;
+    }
+  }
+}

@@ -27,8 +27,12 @@ from trishul_api.modules.core.teams.router import router as teams_router
 from trishul_api.modules.core.users.router import router as users_router
 from trishul_api.modules.core.warehouses.router import router as warehouses_router
 from trishul_api.modules.hr.organization.router import router as organization_router
+from trishul_api.modules.inv.item_router import router as inv_items_router
+from trishul_api.modules.inv.masters_router import router as inv_masters_router
+from trishul_api.modules.inv.stock_router import router as inv_stock_router
 from trishul_api.modules.hr.tada.router import router as tada_router
 from trishul_api.modules.presales.router import router as presales_router
+from trishul_api.modules.rpt.router import router as rpt_router
 from trishul_api.modules.service.contracts.router import router as contracts_router
 from trishul_api.modules.service.machines.router import router as machines_router
 from trishul_api.modules.service.reports.router import router as reports_router
@@ -56,6 +60,10 @@ V1_ROUTERS: list[APIRouter] = [
     organization_router,
     tada_router,
     trk_router,
+    inv_masters_router,
+    inv_items_router,
+    inv_stock_router,
+    rpt_router,
 ]
 
 

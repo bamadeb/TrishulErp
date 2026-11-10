@@ -196,6 +196,7 @@ class Grn(Base):
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
     grn_type: Mapped[GrnGrnType] = mapped_column(sa.NVARCHAR(30), server_default=sa.FetchedValue())
     expected_arrival_date: Mapped[dt.date | None] = mapped_column(sa.Date())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -222,6 +223,8 @@ class GrnLine(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    entry_uom_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.uom.id"))
+    entry_qty: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 3))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
