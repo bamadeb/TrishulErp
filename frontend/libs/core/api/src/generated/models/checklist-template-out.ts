@@ -6,6 +6,7 @@ export interface ChecklistTemplateOut {
   callType: (string | null);
   callTypeLookupId: (number | null);
   id: number;
+  inspectionNote: (string | null);
   isActive: boolean;
   items: Array<ChecklistItemOut>;
   machineModelId: (number | null);

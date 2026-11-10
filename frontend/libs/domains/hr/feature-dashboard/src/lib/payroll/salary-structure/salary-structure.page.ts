@@ -1,113 +1,151 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatFormField, MatPrefix } from '@angular/material/form-field';
+import { MatFormField, MatLabel, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
-import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { PageHeader } from '@trishul/shared-ui';
-import { openPayrollRecord } from '../payroll.dialog';
-import { inr, netOf } from '../payroll.format';
-import { payrollPager } from '../payroll.pager';
-import { PayrollPagerBar } from '../payroll-pager.bar';
-import { SalaryRow } from '../payroll.mock';
-import { PayrollPrototype } from '../payroll.prototype';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatProgressBar } from '@angular/material/progress-bar';
+import { MatOption, MatSelect } from '@angular/material/select';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { SalaryStructureListItem, SalaryStructureSummary } from '@trishul/core-api';
+import { HasPermission } from '@trishul/core-auth';
+import {
+  SALARY_STRUCTURE_MANAGE,
+  SalaryStructureQuery,
+  SalaryStructuresApi,
+  StructureAssignment,
+} from '@trishul/hr-data-access';
+import { PageHeader, StatusBadge } from '@trishul/shared-ui';
+import { SalaryStructureDialog } from './salary-structure.dialog';
 
-/** Employee salary structures. Values stay in the local prototype. */
+const EMPTY_SUMMARY: SalaryStructureSummary = { employees: 0, assigned: 0, unassigned: 0, active: 0 };
+
 @Component({
   selector: 'trishul-salary-structure-page',
   imports: [
+    DatePipe,
+    HasPermission,
     MatButton,
-    MatIconButton,
     MatFormField,
-    MatPrefix,
     MatIcon,
+    MatIconButton,
     MatInput,
-    MatMenu,
-    MatMenuItem,
-    MatMenuTrigger,
+    MatLabel,
+    MatOption,
+    MatPaginator,
+    MatPrefix,
+    MatProgressBar,
+    MatSelect,
     PageHeader,
-    PayrollPagerBar,
+    StatusBadge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './salary-structure.page.html',
-  styleUrl: '../payroll.shared.scss',
+  styleUrl: './salary-structure.page.scss',
 })
 export class SalaryStructurePage {
-  private readonly payroll = inject(PayrollPrototype);
+  private readonly api = inject(SalaryStructuresApi);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
-  protected readonly inr = inr;
-  protected readonly netOf = netOf;
-  protected readonly list = payrollPager(
-    this.payroll.salaries,
-    (row) => `${row.employeeCode} ${row.name} ${row.department} ${row.designation}`,
-  );
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly searchInput = new Subject<string>();
 
-  protected add(): void {
-    this.edit({
-      id: this.payroll.nextSalaryId(),
-      employeeCode: '',
-      name: '',
-      department: '',
-      designation: '',
-      ctc: 0,
-      gross: 0,
-      basic: 0,
-      hra: 0,
-      allowances: 0,
-      deductions: 0,
-    }, 'create');
+  protected readonly manage = SALARY_STRUCTURE_MANAGE;
+  protected readonly statusTones = { Assigned: 'success', 'Not assigned': 'neutral' } as const;
+  protected readonly summary = signal<SalaryStructureSummary>(EMPTY_SUMMARY);
+  protected readonly rows = signal<SalaryStructureListItem[]>([]);
+  protected readonly total = signal(0);
+  protected readonly loading = signal(true);
+  protected readonly error = signal('');
+  protected readonly query = signal<SalaryStructureQuery>({
+    search: '',
+    assignment: 'all',
+    page: 1,
+    pageSize: 20,
+  });
+
+  constructor() {
+    this.searchInput
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((search) => this.update({ search, page: 1 }));
+    this.load(true);
   }
 
-  protected view(row: SalaryRow): void {
-    openPayrollRecord(this.dialog, {
-      title: row.name,
-      mode: 'view',
-      fields: this.fields(row),
-    }).subscribe();
+  protected onSearch(value: string): void {
+    this.searchInput.next(value);
   }
 
-  protected edit(row: SalaryRow, mode: 'edit' | 'create' = 'edit'): void {
-    openPayrollRecord(this.dialog, {
-      title: mode === 'create' ? 'Add salary structure' : `Edit ${row.name}`,
-      mode,
-      fields: this.fields(row),
-    }).subscribe((values) => {
-      if (!values) return;
-      const gross = Number(values['gross'] ?? 0);
-      const deductions = Number(values['deductions'] ?? 0);
-      this.payroll.saveSalary({
-        id: row.id,
-        employeeCode: values['employeeCode']?.trim() ?? '',
-        name: values['name']?.trim() ?? '',
-        department: values['department']?.trim() ?? '',
-        designation: values['designation']?.trim() ?? '',
-        ctc: Number(values['ctc'] ?? 0),
-        gross,
-        basic: Number(values['basic'] ?? 0),
-        hra: Number(values['hra'] ?? 0),
-        allowances: Number(values['allowances'] ?? 0),
-        deductions,
-      });
-      this.snackBar.open('Salary structure saved', 'OK', { duration: 4000 });
+  protected onAssignment(assignment: StructureAssignment): void {
+    this.update({ assignment, page: 1 });
+  }
+
+  protected selectCard(card: 'all' | 'assigned' | 'unassigned'): void {
+    this.update({
+      assignment: card === 'all' ? 'all' : card,
+      search: card === 'all' ? '' : this.query().search,
+      page: 1,
     });
   }
 
-  private fields(row: SalaryRow) {
-    return [
-      { key: 'employeeCode', label: 'Employee ID', value: row.employeeCode, required: true },
-      { key: 'name', label: 'Name', value: row.name, required: true },
-      { key: 'department', label: 'Department', value: row.department, required: true },
-      { key: 'designation', label: 'Designation', value: row.designation, required: true },
-      { key: 'ctc', label: 'CTC', value: String(row.ctc), kind: 'number' as const },
-      { key: 'gross', label: 'Gross salary', value: String(row.gross), kind: 'number' as const },
-      { key: 'basic', label: 'Basic', value: String(row.basic), kind: 'number' as const },
-      { key: 'hra', label: 'HRA', value: String(row.hra), kind: 'number' as const },
-      { key: 'allowances', label: 'Allowances', value: String(row.allowances), kind: 'number' as const },
-      { key: 'deductions', label: 'Deductions', value: String(row.deductions), kind: 'number' as const },
-      { key: 'net', label: 'Net salary', value: inr(netOf(row.gross, row.deductions)) },
-    ];
+  protected clearFilters(): void {
+    this.update({ search: '', assignment: 'all', page: 1 });
+  }
+
+  protected onPage(event: PageEvent): void {
+    this.update({ page: event.pageIndex + 1, pageSize: event.pageSize });
+  }
+
+  protected money(value: string | null): string {
+    if (value == null || value === '') return '—';
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return value;
+    return amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
+  }
+
+  protected open(mode: 'view' | 'edit', row: SalaryStructureListItem): void {
+    this.dialog
+      .open(SalaryStructureDialog, {
+        data: { mode, employeeId: row.employeeId },
+        width: '42rem',
+        maxWidth: '100vw',
+        height: '100vh',
+        maxHeight: '100vh',
+        position: { right: '0', top: '0' },
+        panelClass: 'salary-component-drawer',
+        autoFocus: 'dialog',
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) this.load(true);
+      });
+  }
+
+  private update(change: Partial<SalaryStructureQuery>): void {
+    this.query.update((current) => ({ ...current, ...change }));
+    this.load(false);
+  }
+
+  private load(includeSummary: boolean): void {
+    this.loading.set(true);
+    this.error.set('');
+    this.api.list(this.query()).subscribe({
+      next: (page) => {
+        this.rows.set(page.items);
+        this.total.set(page.total);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Salary structures could not be loaded.');
+        this.loading.set(false);
+      },
+    });
+    if (includeSummary) {
+      this.api.summary().subscribe({
+        next: (summary) => this.summary.set(summary),
+        error: () => undefined,
+      });
+    }
   }
 }

@@ -5,4 +5,9 @@ export interface TadaDecisionCreate {
   decision: 'Approved' | 'Rejected';
   employeeIds: Array<number>;
   payrollMonth: string;
+
+  /**
+   * Optional approval comment, or the required rejection reason. Stored on core.status_history.remarks.
+   */
+  remarks?: (string | null);
 }

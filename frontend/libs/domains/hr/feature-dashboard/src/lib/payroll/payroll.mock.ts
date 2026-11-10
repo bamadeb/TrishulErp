@@ -28,15 +28,8 @@ export interface SalaryRow {
   deductions: number;
 }
 
-export interface SalaryComponentRow {
-  id: number;
-  name: string;
-  type: 'Earning' | 'Deduction';
-  calculation: 'Fixed' | 'Percentage';
-  value: number;
-  applicability: string;
-  active: boolean;
-}
+export type { SalaryComponentRow } from './components/salary-component.model';
+export { SALARY_COMPONENTS } from './components/salary-component.model';
 
 export interface PayrollRun {
   id: number;
@@ -150,17 +143,6 @@ export const SALARIES: SalaryRow[] = [
   { id: 4, employeeCode: 'EMP-0331', name: 'Rohan Deshmukh', department: 'Information Technology', designation: 'Team Lead', ctc: 840000, gross: 64000, basic: 32000, hra: 12800, allowances: 19200, deductions: 7200 },
   { id: 5, employeeCode: 'EMP-0274', name: 'Priya Nair', department: 'Operations', designation: 'Manager', ctc: 780000, gross: 60000, basic: 30000, hra: 12000, allowances: 18000, deductions: 6100 },
   { id: 6, employeeCode: 'EMP-0419', name: 'Neha Sharma', department: 'Service', designation: 'Service Engineer', ctc: 420000, gross: 32000, basic: 16000, hra: 6400, allowances: 9600, deductions: 2400 },
-];
-
-export const SALARY_COMPONENTS: SalaryComponentRow[] = [
-  { id: 1, name: 'Basic', type: 'Earning', calculation: 'Percentage', value: 50, applicability: 'All employees', active: true },
-  { id: 2, name: 'HRA', type: 'Earning', calculation: 'Percentage', value: 40, applicability: 'All employees', active: true },
-  { id: 3, name: 'Special allowance', type: 'Earning', calculation: 'Fixed', value: 5000, applicability: 'Grade L2 and above', active: true },
-  { id: 4, name: 'Conveyance', type: 'Earning', calculation: 'Fixed', value: 1600, applicability: 'Field staff', active: true },
-  { id: 5, name: 'Provident fund', type: 'Deduction', calculation: 'Percentage', value: 12, applicability: 'Basic, eligible staff', active: true },
-  { id: 6, name: 'ESI', type: 'Deduction', calculation: 'Percentage', value: 0.75, applicability: 'Gross up to 21,000', active: true },
-  { id: 7, name: 'Professional tax', type: 'Deduction', calculation: 'Fixed', value: 200, applicability: 'Karnataka payroll', active: true },
-  { id: 8, name: 'Meal coupon', type: 'Earning', calculation: 'Fixed', value: 2200, applicability: 'Head office', active: false },
 ];
 
 export const PAYROLL_RUNS: PayrollRun[] = [

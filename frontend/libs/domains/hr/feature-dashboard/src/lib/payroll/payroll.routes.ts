@@ -4,6 +4,7 @@ import { EMPLOYEE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
 import { PayrollApprovalsPage } from './approvals/payroll-approvals.page';
 import { ClaimsPage } from './claims/claims.page';
 import { SalaryComponentsPage } from './components/salary-components.page';
+import { SalaryTemplatesPage } from './salary-templates.page';
 import { StatutoryPage } from './compliance/statutory.page';
 import { PayrollDashboardPage } from './dashboard/payroll-dashboard.page';
 import { PayslipsPage } from './payslips/payslips.page';
@@ -36,6 +37,12 @@ export const payrollRoutes: Route[] = [
     component: SalaryComponentsPage,
   },
   {
+    path: 'templates',
+    title: 'Salary Templates',
+    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+    component: SalaryTemplatesPage,
+  },
+  {
     path: 'processing',
     title: 'Payroll Processing',
     canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
@@ -61,7 +68,7 @@ export const payrollRoutes: Route[] = [
   },
   {
     path: 'tada',
-    title: 'Service Engineer TA/DA Report',
+    title: 'Service Engineer TA/DA Management',
     canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
     component: TadaReportPage,
   },

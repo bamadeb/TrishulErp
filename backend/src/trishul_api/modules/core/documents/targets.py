@@ -12,7 +12,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser
-from trishul_api.db.models import Customer, Employee, ServiceCall, ServiceReport, ServiceVisit
+from trishul_api.db.models import ChecklistTemplate, Customer, Employee, ServiceCall, ServiceReport, ServiceVisit
 from trishul_api.modules.core.documents.registry import DocumentTarget, register_target
 from trishul_api.modules.service.access import call_visibility
 from trishul_api.modules.service.assignment import assignees
@@ -245,5 +245,40 @@ register_target(
         describe=_report_labels,
         # The customer's signature is part of the report form, not a document to browse.
         exclude_categories=("Signature",),
+    )
+)
+
+
+# ---------------------------------------------------------------- inspection checklists (reference files)
+
+
+def _checklist_view(db: Session, user: CurrentUser, template_id: int) -> bool:
+    return _checklist_exists(db, user, template_id) and user.can("svc.checklist.manage", "svc.call.assign")
+
+
+def _checklist_edit(db: Session, user: CurrentUser, template_id: int) -> bool:
+    return _checklist_exists(db, user, template_id) and user.can("svc.checklist.manage")
+
+
+def _checklist_exists(db: Session, _user: CurrentUser, template_id: int) -> bool:
+    template = db.get(ChecklistTemplate, template_id)
+    return template is not None
+
+
+def _checklist_labels(db: Session, ids: list[int]) -> dict[int, str]:
+    return {
+        r.id: f"Inspection checklist {r.name}"
+        for r in db.execute(select(ChecklistTemplate.id, ChecklistTemplate.name).where(ChecklistTemplate.id.in_(ids)))
+    }
+
+
+register_target(
+    DocumentTarget(
+        entity_type="svc.checklist_template",
+        label="Inspection checklist",
+        can_view=_checklist_view,
+        can_edit=_checklist_edit,
+        exists=_checklist_exists,
+        describe=_checklist_labels,
     )
 )

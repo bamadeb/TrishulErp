@@ -8,7 +8,9 @@
     <mat-icon>menu</mat-icon>
   </button>
   }
-  <a class="brand" routerLink="/">TRISHUL</a>
+  <a class="brand" routerLink="/" aria-label="Trishul – home">
+    <img class="logo" src="logo.png" alt="Trishul · Tata Hitachi" />
+  </a>
 
   @if (!isCompact()) {
   <ng-container [ngTemplateOutlet]="contextSelects" />

@@ -10,6 +10,7 @@ from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
 from trishul_api.modules.core.warehouses.schemas import (
     BranchWarehouseUpdate,
     WarehouseBranch,
+    WarehouseBranchCreate,
     WarehouseCreate,
     WarehouseMap,
     WarehouseOut,
@@ -56,6 +57,18 @@ def update_warehouse(
     warehouse_id: WarehouseId, data: WarehouseUpdate, service: Warehouses, row_version: Match
 ) -> WarehouseOut:
     return service.update(warehouse_id, row_version, data)
+
+
+@router.post(
+    "/branches",
+    summary="Add a branch or service point, optionally under a warehouse",
+    status_code=201,
+    dependencies=[CAN_MANAGE],
+)
+def create_branch(data: WarehouseBranchCreate, service: Warehouses, response: Response) -> WarehouseBranch:
+    created = service.create_branch(data)
+    response.headers["Location"] = f"branches/{created.id}"
+    return created
 
 
 @router.put(

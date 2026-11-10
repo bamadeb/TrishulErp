@@ -1,169 +1,173 @@
 <trishul-page-header
-  title="Service Engineer TA/DA Report"
-  subtitle="Manage travel allowance (TA) and related allowances for service engineers based on trip records."
+  title="Service Engineer TA/DA Management"
+  subtitle="Monthly travel allowance review and payroll handoff."
 >
-  <button mat-stroked-button type="button" (click)="downloadTemplate()">
-    <mat-icon>download</mat-icon>
-    Download Template
-  </button>
-  <button mat-flat-button color="primary" type="button" [disabled]="exporting()" (click)="exportReport()">
-    <mat-icon>ios_share</mat-icon>
-    Export Report
-  </button>
+  <mat-form-field class="month" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Payroll month</mat-label>
+    <input matInput type="month" [value]="draft().month" (change)="onMonth($any($event.target).value)" />
+  </mat-form-field>
 </trishul-page-header>
 
-<mat-button-toggle-group class="tabs" [value]="tab()" (change)="onTab($event)" hideSingleSelectionIndicator>
-  <mat-button-toggle value="summary">Employee Summary</mat-button-toggle>
-  <mat-button-toggle value="trips">Trip Details</mat-button-toggle>
-  <mat-button-toggle value="rates">Rate Configuration</mat-button-toggle>
-  <mat-button-toggle value="queue">Approval Queue</mat-button-toggle>
-  <mat-button-toggle value="settlement">Payroll Settlement</mat-button-toggle>
-</mat-button-toggle-group>
-
-@if (tab() !== 'rates') {
-  <form class="filters" (submit)="$event.preventDefault(); applyFilters()">
+<form class="filters" (submit)="$event.preventDefault(); applyFilters()">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Company</mat-label>
+    <mat-select [value]="draft().companyId" (selectionChange)="patch({ companyId: $event.value, branchId: null })">
+      <mat-option [value]="null">All companies</mat-option>
+      @for (company of companies(); track company.id) {
+        <mat-option [value]="company.id">{{ company.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Branch</mat-label>
+    <mat-select [value]="draft().branchId" (selectionChange)="patch({ branchId: $event.value })">
+      <mat-option [value]="null">All branches</mat-option>
+      @for (branch of branchChoices(); track branch.id) {
+        <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Department</mat-label>
+    <mat-select [value]="draft().departmentId" (selectionChange)="patch({ departmentId: $event.value })">
+      <mat-option [value]="null">All departments</mat-option>
+      @for (department of departments(); track department.id) {
+        <mat-option [value]="department.id">{{ department.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Vehicle type</mat-label>
+    <mat-select [value]="draft().vehicleType" (selectionChange)="patch({ vehicleType: $event.value })">
+      <mat-option [value]="null">All</mat-option>
+      @for (vehicle of vehicles; track vehicle) {
+        <mat-option [value]="vehicle">{{ vehicle }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Approval status</mat-label>
+    <mat-select [value]="draft().approval" (selectionChange)="patch({ approval: $event.value })">
+      <mat-option [value]="null">All</mat-option>
+      @for (item of approvals; track item) {
+        <mat-option [value]="item">{{ item }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  @if (tab() === 'trips') {
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Payroll month</mat-label>
-      <input matInput type="month" [value]="draft().month" (change)="patch({ month: $any($event.target).value })" />
-    </mat-form-field>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Company</mat-label>
-      <mat-select [value]="draft().companyId" (selectionChange)="patch({ companyId: $event.value, branchId: null, employeeId: null })">
-        <mat-option [value]="null">All companies</mat-option>
-        @for (company of companies(); track company.id) {
-          <mat-option [value]="company.id">{{ company.name }}</mat-option>
+      <mat-label>Trip status</mat-label>
+      <mat-select [value]="draft().tripStatus" (selectionChange)="patch({ tripStatus: $event.value })">
+        <mat-option [value]="null">All statuses</mat-option>
+        @for (item of tripStatuses; track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
         }
       </mat-select>
     </mat-form-field>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Branch / location</mat-label>
-      <mat-select [value]="draft().branchId" (selectionChange)="patch({ branchId: $event.value, employeeId: null })">
-        <mat-option [value]="null">All locations</mat-option>
-        @for (branch of branchChoices(); track branch.id) {
-          <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Department</mat-label>
-      <mat-select [value]="draft().departmentId" (selectionChange)="patch({ departmentId: $event.value })">
-        <mat-option [value]="null">All departments</mat-option>
-        @for (department of departments(); track department.id) {
-          <mat-option [value]="department.id">{{ department.name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Employee</mat-label>
-      <mat-select [value]="draft().employeeId" (selectionChange)="patch({ employeeId: $event.value })">
-        <mat-option [value]="null">All employees</mat-option>
-        @for (employee of employeeChoices(); track employee.id) {
-          <mat-option [value]="employee.id">{{ employee.employeeCode }} — {{ employee.fullName }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Vehicle type</mat-label>
-      <mat-select [value]="draft().vehicleType" (selectionChange)="patch({ vehicleType: $event.value })">
-        <mat-option [value]="null">All vehicles</mat-option>
-        @for (vehicle of vehicles; track vehicle) {
-          <mat-option [value]="vehicle">{{ vehicle }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-    @if (tab() === 'trips') {
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Trip status</mat-label>
-        <mat-select [value]="draft().tripStatus" (selectionChange)="patch({ tripStatus: $event.value })">
-          <mat-option [value]="null">All statuses</mat-option>
-          @for (item of tripStatuses; track item) {
-            <mat-option [value]="item">{{ item }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-    } @else {
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Approval status</mat-label>
-        <mat-select [value]="tab() === 'queue' ? 'Pending' : tab() === 'settlement' ? 'Approved' : draft().approval" [disabled]="tab() === 'queue' || tab() === 'settlement'" (selectionChange)="patch({ approval: $event.value })">
-          <mat-option [value]="null">All statuses</mat-option>
-          @for (item of approvals; track item) {
-            <mat-option [value]="item">{{ item }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-    }
+  }
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Search employee</mat-label>
+    <mat-icon matPrefix>search</mat-icon>
+    <input matInput placeholder="Search by employee code or name" [value]="draft().search" (input)="patch({ search: $any($event.target).value })" />
+  </mat-form-field>
+  <div class="filter-actions">
     <button mat-flat-button color="primary" type="submit">Apply</button>
-    <button mat-button type="button" (click)="resetFilters()">Reset</button>
-  </form>
-}
+    <button mat-stroked-button type="button" (click)="resetFilters()">Reset</button>
+  </div>
+</form>
 
-@if (tab() !== 'rates' && tab() !== 'trips') {
-  <section class="cards six" aria-label="TA/DA totals">
-    @for (card of cards(); track card.label) {
-      <article class="stat">
-        <span class="stat-icon"><mat-icon>{{ card.icon }}</mat-icon></span>
-        <span>
-          <span class="stat-label">{{ card.label }}</span>
-          <strong>{{ card.value }}</strong>
-          @if (card.delta) {
-            <span class="delta" [class.down]="card.delta.startsWith('-')">{{ card.delta }}</span>
-          }
-        </span>
-      </article>
-    }
-  </section>
-}
+<section class="cards six" aria-label="TA/DA totals">
+  @for (card of cards(); track card.label) {
+    <article class="stat">
+      <span class="stat-icon"><mat-icon>{{ card.icon }}</mat-icon></span>
+      <span>
+        <span class="stat-label">{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+        @if (card.delta) {
+          <span class="delta" [class.down]="card.tone === 'down'" [class.muted]="card.tone === 'muted'">{{ card.delta }}</span>
+        }
+      </span>
+    </article>
+  }
+</section>
 
-@if (tab() === 'rates') {
-  <section class="table-card rates-panel">
-    <h2>Vehicle rates</h2>
-    <p class="note">Own bike and own car use these rates. Company vehicles and public transport are not paid per kilometre. The car rate must be between ₹5.00 and ₹6.00.</p>
-    @if (canManage) {
-      <form class="rates" (submit)="$event.preventDefault(); saveRates(bike.value, car.value)">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Bike ₹ / KM</mat-label>
-          <input #bike matInput type="number" min="0" step="0.01" [value]="rates()?.bikePerKm ?? '2.50'" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Car ₹ / KM</mat-label>
-          <input #car matInput type="number" min="5" max="6" step="0.01" [value]="rates()?.carPerKm ?? ''" />
-        </mat-form-field>
-        <button mat-flat-button color="primary" type="submit">Save rates</button>
-      </form>
-    } @else if (rates(); as current) {
-      <p>Bike ₹{{ current.bikePerKm }} / KM. Car {{ current.carPerKm ? '₹' + current.carPerKm + ' / KM' : 'rate is not configured' }}.</p>
-    }
-  </section>
-} @else {
-  <section class="table-card">
-    @if (loading()) {
-      <mat-progress-bar mode="indeterminate" />
-    }
-    <div class="section-head">
-      <div>
-        <h2>{{ tab() === 'trips' ? 'Trip details' : 'Employee TA/DA summary' }} ({{ total() }})</h2>
-        <p>{{ tab() === 'trips' ? tripSummary()?.note : employeeSummary()?.note }}</p>
-      </div>
-      <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
-        <mat-icon matPrefix>search</mat-icon>
-        <input matInput placeholder="Search by employee code or name" (input)="onSearch($any($event.target).value)" />
-      </mat-form-field>
+<section class="table-card">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <div class="section-head">
+    <div>
+      <h2>
+        @switch (tab()) {
+          @case ('trips') { Trip Details ({{ total() }} trips) }
+          @case ('queue') { Approval Queue ({{ total() }} employees) }
+          @case ('rates') { Rate Settings }
+          @default { Employee Summary ({{ total() }} employees) }
+        }
+      </h2>
+      @if (tab() === 'trips' && tripSummary()?.note) {
+        <p>{{ tripSummary()?.note }}</p>
+      } @else if (tab() !== 'rates' && employeeSummary()?.note) {
+        <p>{{ employeeSummary()?.note }}</p>
+      }
     </div>
-    @if (error()) {
-      <p class="validation">{{ error() }}</p>
-    }
-    @if (tab() !== 'trips' && canManage) {
+    <div class="tabs" role="tablist" aria-label="TA/DA sections">
+      <button type="button" class="tab" role="tab" [class.selected]="tab() === 'summary'" [attr.aria-selected]="tab() === 'summary'" (click)="onTab('summary')">Summary</button>
+      <button type="button" class="tab" role="tab" [class.selected]="tab() === 'trips'" [attr.aria-selected]="tab() === 'trips'" (click)="onTab('trips')">Trip Details</button>
+      <button type="button" class="tab" role="tab" [class.selected]="tab() === 'queue'" [attr.aria-selected]="tab() === 'queue'" (click)="onTab('queue')">Approval Queue</button>
+      <button type="button" class="tab" role="tab" [class.selected]="tab() === 'rates'" [attr.aria-selected]="tab() === 'rates'" (click)="onTab('rates')">Rate Settings</button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="validation">{{ error() }}</p>
+  }
+
+  @if (tab() === 'rates') {
+    <div class="rates-panel">
+      <p class="note">Own bike and own car use these rates. Company vehicles and public transport are not paid per kilometre. The car rate must be between ₹5.00 and ₹6.00.</p>
+      @if (canManage) {
+        <form class="rates" (submit)="$event.preventDefault(); saveRates(bike.value, car.value)">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Bike ₹ / KM</mat-label>
+            <input #bike matInput type="number" min="0" step="0.01" [value]="rates()?.bikePerKm ?? '2.50'" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Car ₹ / KM</mat-label>
+            <input #car matInput type="number" min="5" max="6" step="0.01" [value]="rates()?.carPerKm ?? ''" />
+          </mat-form-field>
+          <button mat-flat-button color="primary" type="submit">Save rates</button>
+        </form>
+      } @else if (rates(); as current) {
+        <p>Bike ₹{{ current.bikePerKm }} / KM. Car {{ current.carPerKm ? '₹' + current.carPerKm + ' / KM' : 'rate is not configured' }}.</p>
+      }
+    </div>
+  } @else {
+    @if (tab() !== 'trips') {
       <div class="bulk">
-        <span>{{ selected().length }} selected</span>
-        @if (tab() !== 'settlement') {
-          <button mat-stroked-button type="button" [disabled]="!selected().length" (click)="approve()">Bulk Approve</button>
-          <button mat-stroked-button type="button" [disabled]="!selected().length" (click)="reject()">Bulk Reject</button>
-        }
-        @if (tab() !== 'queue') {
-          <button mat-flat-button color="primary" type="button" [disabled]="!selected().length" (click)="sendToPayroll()">Send to Payroll</button>
-        }
+        <button mat-icon-button type="button" class="export" [matMenuTriggerFor]="exportMenu" aria-label="Export" [disabled]="exporting()">
+          <mat-icon>ios_share</mat-icon>
+        </button>
+      </div>
+    } @else {
+      <div class="bulk trips-tools">
+        <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu" [disabled]="exporting()">
+          <mat-icon>ios_share</mat-icon>
+          Export
+        </button>
       </div>
     }
+    <mat-menu #exportMenu="matMenu">
+      <button mat-menu-item type="button" (click)="exportReport()">
+        <mat-icon>table_view</mat-icon>
+        <span>{{ tab() === 'trips' ? 'Export trips' : 'Export employees' }}</span>
+      </button>
+      <button mat-menu-item type="button" (click)="downloadTemplate()">
+        <mat-icon>download</mat-icon>
+        <span>Download template</span>
+      </button>
+    </mat-menu>
+
     <div class="table-scroll">
       @if (tab() === 'trips') {
         <table>
@@ -219,93 +223,88 @@
           </tbody>
         </table>
       } @else {
-        <table>
+        <table class="summary-table">
           <thead>
             <tr>
               <th>
                 <mat-checkbox [checked]="allSelected()" [indeterminate]="someSelected()" (change)="togglePage($event.checked)" aria-label="Select all on this page" />
               </th>
-              <th>#</th>
-              <th><button type="button" class="sort" (click)="sortBy('employeeCode')">Employee code</button></th>
-              <th>Employee name</th>
-              <th>Designation</th>
-              <th><button type="button" class="sort" (click)="sortBy('totalTrips')">Total trips</button></th>
-              <th><button type="button" class="sort" (click)="sortBy('bikeKm')">Bike KM</button></th>
-              <th><button type="button" class="sort" (click)="sortBy('carKm')">Car KM</button></th>
-              <th><button type="button" class="sort" (click)="sortBy('totalKm')">Total KM</button></th>
-              <th>TA amount</th>
-              <th>Additional allowance</th>
-              <th>Total payable</th>
-              <th>Approval status</th>
-              <th>Actions</th>
+              <th class="col-employee" [attr.aria-sort]="ariaSort('employeeName')"><button type="button" class="sort" (click)="toggleEmployeeSort('employeeName', $event)">Employee @if (ariaSort('employeeName') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('employeeName') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('totalTrips')"><button type="button" class="sort" (click)="toggleEmployeeSort('totalTrips', $event)">Trips @if (ariaSort('totalTrips') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('totalTrips') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('payableKm')"><button type="button" class="sort" (click)="toggleEmployeeSort('payableKm', $event)">Payable KM @if (ariaSort('payableKm') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('payableKm') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('bikeTa')"><button type="button" class="sort" (click)="toggleEmployeeSort('bikeTa', $event)">Bike TA @if (ariaSort('bikeTa') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('bikeTa') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('carTa')"><button type="button" class="sort" (click)="toggleEmployeeSort('carTa', $event)">Car TA @if (ariaSort('carTa') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('carTa') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('additionalAllowance')"><button type="button" class="sort" (click)="toggleEmployeeSort('additionalAllowance', $event)">Additional Allowance @if (ariaSort('additionalAllowance') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('additionalAllowance') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('totalPayable')"><button type="button" class="sort" (click)="toggleEmployeeSort('totalPayable', $event)">Total Payable @if (ariaSort('totalPayable') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('totalPayable') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('approvalStatus')"><button type="button" class="sort" (click)="toggleEmployeeSort('approvalStatus', $event)">Approval @if (ariaSort('approvalStatus') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('approvalStatus') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th [attr.aria-sort]="ariaSort('settlementStatus')"><button type="button" class="sort" (click)="toggleEmployeeSort('settlementStatus', $event)">Settlement @if (ariaSort('settlementStatus') !== 'none') { <mat-icon aria-hidden="true">{{ ariaSort('settlementStatus') === 'ascending' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon> }</button></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            @for (row of employees(); track row.employeeId; let i = $index) {
-              <tr>
-                <td><mat-checkbox [checked]="isSelected(row.employeeId)" (change)="toggleRow(row.employeeId, $event.checked)" [aria-label]="'Select ' + row.employeeName" /></td>
-                <td>{{ rowNumber(i) }}</td>
-                <td>{{ row.employeeCode }}</td>
-                <td>{{ row.employeeName }}</td>
-                <td>{{ row.designation || '—' }}</td>
-                <td>{{ row.totalTrips }}</td>
-                <td>{{ km(row.bikeKm) }}</td>
-                <td>{{ km(row.carKm) }}</td>
-                <td>{{ km(row.totalKm) }}</td>
-                <td>{{ money(row.taAmount) }}</td>
-                <td>{{ money(row.additionalAllowance) }}</td>
-                <td>{{ money(row.totalPayable) }}</td>
-                <td>
-                  <trishul-status-badge [status]="row.approvalStatus" [severities]="approvalSeverity" />
-                  @if (row.settlementStatus === 'Sent') {
-                    <trishul-status-badge status="Sent" [severities]="approvalSeverity" />
-                  }
+            @for (row of sortedEmployees(); track row.employeeId) {
+              <tr [class.selected]="drawerEmployee()?.employeeId === row.employeeId" (click)="openDrawer(row)">
+                <td (click)="$event.stopPropagation()">
+                  <mat-checkbox [checked]="isSelected(row.employeeId)" (change)="toggleRow(row.employeeId, $event.checked)" [aria-label]="'Select ' + row.employeeName" />
                 </td>
-                <td class="actions">
-                  <button mat-icon-button type="button" aria-label="Show trips" (click)="expand(row)">
-                    <mat-icon>{{ expandedId() === row.employeeId ? 'expand_less' : 'expand_more' }}</mat-icon>
+                <td class="employee">
+                  <span class="who">
+                    <span class="avatar" aria-hidden="true">{{ initial(row.employeeName) }}</span>
+                    <span class="identity">
+                      <strong>{{ row.employeeName }}</strong>
+                      <span class="code">{{ row.employeeCode }}</span>
+                      <span class="role">{{ row.designation || '—' }}</span>
+                    </span>
+                  </span>
+                </td>
+                <td>{{ row.totalTrips }}</td>
+                <td>{{ payableKm(row) }}</td>
+                <td>{{ bikeTa(row) }}</td>
+                <td>{{ carTa(row) }}</td>
+                <td>{{ money(row.additionalAllowance) }}</td>
+                <td class="payable">{{ money(row.totalPayable) }}</td>
+                <td><trishul-status-badge [status]="row.approvalStatus" [severities]="approvalSeverity" /></td>
+                <td><trishul-status-badge [status]="row.settlementStatus" [severities]="approvalSeverity" /></td>
+                <td class="actions" (click)="$event.stopPropagation()">
+                  <button mat-icon-button type="button" [matMenuTriggerFor]="rowMenu" [attr.aria-label]="'Actions for ' + row.employeeName">
+                    <mat-icon>more_vert</mat-icon>
                   </button>
+                  <mat-menu #rowMenu="matMenu">
+                    <button mat-menu-item type="button" (click)="openDrawer(row, 'overview')">
+                      <mat-icon>person</mat-icon>
+                      <span>View details</span>
+                    </button>
+                    <button mat-menu-item type="button" (click)="openDrawer(row, 'trips')">
+                      <mat-icon>route</mat-icon>
+                      <span>View trips</span>
+                    </button>
+                    @if (canManage && row.approvalStatus === 'Pending' && row.settlementStatus === 'Open') {
+                      <button mat-menu-item type="button" [disabled]="acting()" (click)="decideOne(row, 'Approved')">
+                        <mat-icon>check</mat-icon>
+                        <span>Approve</span>
+                      </button>
+                      <button mat-menu-item type="button" [disabled]="acting()" (click)="decideOne(row, 'Rejected')">
+                        <mat-icon>close</mat-icon>
+                        <span>Reject</span>
+                      </button>
+                    }
+                    @if (canManage && row.approvalStatus === 'Approved' && row.settlementStatus === 'Open') {
+                      <button mat-menu-item type="button" [disabled]="acting()" (click)="settleOne(row)">
+                        <mat-icon>payments</mat-icon>
+                        <span>Send to payroll</span>
+                      </button>
+                    }
+                    @if (canSettlePayment(row)) {
+                      <button mat-menu-item type="button" [disabled]="acting()" (click)="settlePayment(row)">
+                        <mat-icon>account_balance_wallet</mat-icon>
+                        <span>Settle payment</span>
+                      </button>
+                    }
+                  </mat-menu>
                 </td>
               </tr>
-              @if (expandedId() === row.employeeId) {
-                <tr class="detail-row">
-                  <td colspan="14">
-                    <h3>Trip details — {{ row.employeeCode }} ({{ row.employeeName }})</h3>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Trip date</th><th>Trip type</th><th>Start</th><th>End</th><th>Travel from</th><th>Travel to</th>
-                          <th>Vehicle</th><th>GPS</th><th>Map</th><th>Adjusted</th><th>Applicable</th><th>Rate</th><th>TA</th><th>Trip status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (trip of expandedTrips(); track trip.id) {
-                          <tr>
-                            <td>{{ trip.tripDate | date: 'dd MMM yyyy' }}</td>
-                            <td>{{ trip.tripType }}</td>
-                            <td>{{ clock(trip.startAt) }}</td>
-                            <td>{{ clock(trip.endAt) }}</td>
-                            <td>{{ trip.travelFrom }}</td>
-                            <td>{{ trip.travelTo }}</td>
-                            <td>{{ trip.vehicleType || '—' }}</td>
-                            <td>{{ km(trip.gpsDistanceKm) }}</td>
-                            <td>{{ km(trip.mapDistanceKm) }}</td>
-                            <td>{{ km(trip.adjustedDistanceKm) }}</td>
-                            <td>{{ km(trip.applicableDistanceKm) }}</td>
-                            <td>{{ money(trip.ratePerKm) }}</td>
-                            <td>{{ money(trip.taAmount) }}</td>
-                            <td><trishul-status-badge [status]="trip.status" [severities]="tripSeverity" /></td>
-                          </tr>
-                        } @empty {
-                          <tr><td class="empty" colspan="14">Loading trips…</td></tr>
-                        }
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              }
             } @empty {
-              <tr><td class="empty" colspan="14">{{ loading() ? 'Loading employees…' : 'No employees with trips for this payroll month.' }}</td></tr>
+              <tr><td class="empty" colspan="11">{{ loading() ? 'Loading employees…' : 'No employees with trips for this payroll month.' }}</td></tr>
             }
           </tbody>
         </table>
@@ -316,9 +315,505 @@
       [pageSize]="pageSize()"
       [pageCount]="pageCount()"
       [pages]="pages()"
+      [pageSizes]="pageSizes"
+      pageSizeLabel="Rows per page"
       [rangeLabel]="rangeLabel()"
       (pageChange)="goTo($event)"
       (sizeChange)="onPageSize($event)"
     />
-  </section>
+  }
+</section>
+
+@if (drawerEmployee(); as employee) {
+  <div class="drawer-backdrop"></div>
+  <aside #drawer class="drawer" role="dialog" aria-label="Employee TA/DA details">
+    <header class="drawer-head">
+      <span class="avatar large" aria-hidden="true">{{ initial(employee.employeeName) }}</span>
+      <span class="who-name">
+        <strong>{{ employee.employeeName }}</strong>
+        <small>{{ employee.employeeCode }} · {{ employee.designation || 'No designation' }}</small>
+      </span>
+      <label class="month-box">
+        <small>Payroll Month</small>
+        <strong>{{ monthLabel(applied().month) }}</strong>
+        <input type="month" [value]="applied().month" (change)="onDrawerMonth($any($event.target).value)" aria-label="Payroll month" />
+      </label>
+      <span class="head-stat">
+        <small>Total Trips</small>
+        <strong>{{ employee.totalTrips }}</strong>
+      </span>
+      <span class="head-stat payable">
+        <small>Total Payable</small>
+        <strong>{{ money(expandedId() === employee.employeeId && expandedTrips().length ? drawerFigures().ta : employee.totalPayable) }}</strong>
+      </span>
+      <button mat-icon-button type="button" aria-label="Close details" (click)="closeDrawer()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </header>
+    <div class="drawer-tabs" role="tablist" aria-label="Employee details">
+      <button type="button" class="pill" role="tab" [class.selected]="drawerTab() === 'overview'" (click)="drawerTab.set('overview')">
+        <mat-icon>travel_explore</mat-icon> Overview
+      </button>
+      <button type="button" class="pill" role="tab" [class.selected]="drawerTab() === 'trips'" (click)="drawerTab.set('trips')">
+        <mat-icon>directions_car</mat-icon> Trips ({{ expandedTrips().length || employee.totalTrips }})
+      </button>
+      <button type="button" class="pill" role="tab" [class.selected]="drawerTab() === 'history'" (click)="drawerTab.set('history')">
+        <mat-icon>schedule</mat-icon> History
+      </button>
+    </div>
+    @if (drawerLoading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <div class="drawer-body">
+    @switch (drawerTab()) {
+      @case ('overview') {
+        <div class="month-board">
+          <div class="month-main">
+            <section class="panel">
+              <h3><mat-icon>insights</mat-icon> Trip &amp; TA/DA Summary</h3>
+              <div class="summary-kpis">
+                <article><span class="kpi-icon blue"><mat-icon>route</mat-icon></span><span>Total Trips<strong>{{ drawerFigures().total }}</strong></span></article>
+                <article><span class="kpi-icon blue"><mat-icon>straighten</mat-icon></span><span>Payable KM<strong>{{ km(drawerFigures().payableKm) }}</strong></span></article>
+                <article><span class="kpi-icon blue"><mat-icon>payments</mat-icon></span><span>Total TA<strong>{{ money(drawerFigures().ta) }}</strong></span></article>
+                <article><span class="kpi-icon green"><mat-icon>check</mat-icon></span><span>Approved<strong>{{ drawerFigures().approved }}</strong></span></article>
+                <article><span class="kpi-icon amber"><mat-icon>hourglass_empty</mat-icon></span><span>Pending<strong>{{ drawerFigures().pending }}</strong></span></article>
+                <article><span class="kpi-icon red"><mat-icon>close</mat-icon></span><span>Rejected<strong>{{ drawerFigures().rejected }}</strong></span></article>
+              </div>
+            </section>
+            <section class="panel">
+              <h3><mat-icon>alt_route</mat-icon> Trip Breakdown by Mode</h3>
+              <ul class="mode-rows">
+                @for (mode of modeBreakdown(); track mode.mode) {
+                  <li>
+                    <span class="mode-badge" [attr.data-mode]="mode.mode"><mat-icon>{{ modeIcon(mode.mode) }}</mat-icon></span>
+                    <span class="mode-name">{{ modeLabel(mode.mode) }}</span>
+                    <span>{{ mode.count }} {{ mode.count === 1 ? 'trip' : 'trips' }}</span>
+                    <span>{{ mode.distanceBased ? mode.km + ' km' : '—' }}</span>
+                    <strong>{{ mode.amount == null ? '—' : money(mode.amount) }}</strong>
+                  </li>
+                }
+              </ul>
+            </section>
+          </div>
+          <div class="month-side">
+            <section class="panel">
+              <div class="panel-head">
+                <h3><mat-icon>account_balance_wallet</mat-icon> Payment settlement</h3>
+                <trishul-status-badge [status]="employee.settlementStatus" [severities]="approvalSeverity" />
+              </div>
+              @if (paymentRecords().length) {
+                <dl class="profile-list">
+                  <div><dt>Total settled amount</dt><dd>{{ money(drawerFigures().ta) }}</dd></div>
+                  @for (payment of paymentRecords(); track payment.id) {
+                    @if (paymentRecords().length > 1) {
+                      <div><dt>Payment amount</dt><dd>{{ payment.amount || '—' }}</dd></div>
+                    }
+                    <div><dt>Payment date</dt><dd>{{ payment.date || '—' }}</dd></div>
+                    <div><dt>Payment mode</dt><dd>{{ payment.mode || '—' }}</dd></div>
+                    @if (payment.mode === 'Payroll') {
+                      <div><dt>Payroll cycle</dt><dd>{{ monthLabel(applied().month) }}</dd></div>
+                    }
+                    <div><dt>Payment batch</dt><dd>{{ payment.id }}</dd></div>
+                    <div><dt>Transaction reference</dt><dd>{{ payment.reference || '—' }}</dd></div>
+                    @if (payment.note) { <div><dt>Remarks</dt><dd>{{ payment.note }}</dd></div> }
+                  }
+                </dl>
+              } @else {
+                <p class="overview-note">
+                  <mat-icon>info</mat-icon>
+                  @if ((employee.pendingTrips ?? 0) > 0) {
+                    Approve or reject the pending trips before settling payment.
+                  } @else if ((employee.approvedTrips ?? 0) === 0) {
+                    There are no approved trips to settle.
+                  } @else {
+                    Settle the TA of the approved trips. Pending and rejected trips stay unpaid.
+                  }
+                </p>
+                @if (canSettlePayment(employee)) {
+                  <button mat-flat-button color="primary" type="button" [disabled]="acting()" (click)="settlePayment(employee)">Settle payment</button>
+                }
+              }
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3><mat-icon>badge</mat-icon> Employee Monthly Overview</h3>
+                <span class="month-chip"><mat-icon>calendar_month</mat-icon> {{ monthLabel(applied().month) }}</span>
+              </div>
+              <dl class="profile-list">
+                <div><dt><mat-icon>person</mat-icon> Employee</dt><dd>{{ employee.employeeName }} ({{ employee.employeeCode }})</dd></div>
+                <div><dt><mat-icon>work</mat-icon> Designation</dt><dd>{{ employee.designation || 'Unavailable' }}</dd></div>
+                <div><dt><mat-icon>apartment</mat-icon> Department</dt><dd>{{ drawerProfile()?.department || (drawerProfile() ? 'Unavailable' : '…') }}</dd></div>
+                <div><dt><mat-icon>location_on</mat-icon> Location</dt><dd>{{ drawerProfile()?.location || (drawerProfile() ? 'Unavailable' : '…') }}</dd></div>
+              </dl>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3><mat-icon>headset_mic</mat-icon> Service Call Summary</h3>
+                <button type="button" class="view-all" (click)="drawerTab.set('trips')">View All <mat-icon>arrow_forward</mat-icon></button>
+              </div>
+              @if (overviewCalls().length) {
+                <ul class="call-summary">
+                  @for (group of overviewCalls(); track group.key) {
+                    <li>
+                      <button type="button" class="call-summary-row" (click)="openCallTrips(group.key)">
+                        <span class="call-mark"><mat-icon>{{ group.unlinked ? 'link_off' : 'headset_mic' }}</mat-icon></span>
+                        <span class="call-copy">
+                          <strong>{{ group.unlinked ? 'Unlinked / Other Trips' : (group.callNo || 'Service call') }}</strong>
+                          <small>{{ group.unlinked ? 'Trips not linked to any service call' : (group.complaint || 'Unavailable') }}</small>
+                        </span>
+                        <span class="call-count">
+                          {{ group.count }} {{ group.count === 1 ? 'Trip' : 'Trips' }}
+                          @if (group.claimed) { <small>Claimed {{ money(group.claimed) }}</small> }
+                          @if (group.approved) { <small>Approved {{ money(group.approved) }}</small> }
+                        </span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="history-empty">{{ drawerLoading() ? 'Loading trips…' : 'No trips for this month.' }}</p>
+              }
+              <p class="overview-note"><mat-icon>info</mat-icon> Select the Trips tab to view and approve individual trips.</p>
+            </section>
+          </div>
+        </div>
+      }
+      @case ('trips') {
+        <div class="call-board">
+          <div class="call-list">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Trips by Service Call ({{ linkedCallCount() }})</h3>
+              </div>
+              <div class="trip-filters">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Search</mat-label>
+                  <input matInput [value]="tripQuery()" (input)="tripQuery.set($any($event.target).value)" placeholder="Call, route or date" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Travel mode</mat-label>
+                  <mat-select [value]="tripMode()" (selectionChange)="tripMode.set($event.value)">
+                    <mat-option value="All">All modes</mat-option>
+                    @for (mode of vehicles; track mode) { <mat-option [value]="mode">{{ modeLabel(mode) }}</mat-option> }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Approval</mat-label>
+                  <mat-select [value]="tripReview()" (selectionChange)="tripReview.set($event.value)">
+                    <mat-option value="All">All statuses</mat-option>
+                    <mat-option value="Pending">Pending</mat-option>
+                    <mat-option value="Approved">Approved</mat-option>
+                    <mat-option value="Rejected">Rejected</mat-option>
+                    <mat-option value="Sent">Sent</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              @if (callGroups().length) {
+                <div class="call-groups">
+                  @for (group of callGroups(); track group.key) {
+                    <article class="call-group" [id]="'call-group-' + group.key">
+                      <div class="call-head" [class.active]="callDocumentActive(group.key)">
+                        <button type="button" class="call-select" (click)="selectServiceCall(group)" [attr.aria-pressed]="callPressed(group.key)">
+                          <span class="call-mark"><mat-icon>{{ group.unlinked ? 'link_off' : 'headset_mic' }}</mat-icon></span>
+                          <span class="call-copy">
+                            <strong>{{ group.unlinked ? 'Unlinked / Other Trips' : (group.callNo || 'Service call') }}</strong>
+                            <small>{{ group.unlinked ? 'Trips not linked to any service call' : ('Complaint: ' + (group.complaint || 'Unavailable')) }}</small>
+                          </span>
+                          <span class="call-count">{{ group.trips.length }} {{ group.trips.length === 1 ? 'Trip' : 'Trips' }}</span>
+                        </button>
+                        <button type="button" class="chevron-btn" (click)="toggleCallGroup(group.key)" [attr.aria-expanded]="callExpanded(group.key)" [attr.aria-label]="callExpanded(group.key) ? 'Collapse trips' : 'Expand trips'">
+                          <mat-icon class="chevron">{{ callExpanded(group.key) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                        </button>
+                      </div>
+                      @if (callExpanded(group.key) && group.trips.length) {
+                        <ul class="call-trips">
+                          @for (trip of group.trips; track trip.id; let index = $index) {
+                            <li>
+                              <button type="button" class="call-trip" [class.selected]="tripDocumentActive(trip.id)" (click)="openReview(trip)" [attr.aria-pressed]="tripDocumentActive(trip.id)">
+                                <span class="radio" [class.on]="tripDocumentActive(trip.id)"></span>
+                                <span class="mode-badge" [attr.data-mode]="trip.vehicleType"><mat-icon>{{ modeIcon(trip.vehicleType) }}</mat-icon></span>
+                                <span class="call-trip-copy">
+                                  <strong>Trip {{ index + 1 }} · {{ modeLabel(trip.vehicleType) }}</strong>
+                                  <small>
+                                    {{ trip.tripDate | date: 'dd MMM yyyy' }}
+                                    @if (tripDistanceLabel(trip); as distance) { · {{ distance }} }
+                                    @else { · {{ trip.travelFrom }} → {{ trip.travelTo }} }
+                                  </small>
+                                </span>
+                                <span class="call-trip-end">
+                                  <strong>{{ trip.taAmount ? money(trip.taAmount) : '—' }}</strong>
+                                  <span class="status-pill" [attr.data-status]="trip.reviewStatus || 'Pending'">{{ trip.reviewStatus || 'Pending' }}</span>
+                                </span>
+                              </button>
+                            </li>
+                          }
+                        </ul>
+                      }
+                    </article>
+                  }
+                </div>
+              } @else {
+                <p class="history-empty">{{ drawerLoading() ? 'Loading trips…' : 'No trips for this month.' }}</p>
+              }
+            </section>
+          </div>
+          <div class="review-side">
+            @if (selectedListTrip(); as trip) {
+              <section class="panel">
+                <div class="panel-head">
+                  <h3>Trip Details</h3>
+                  <span class="status-pill" [attr.data-status]="trip.reviewStatus || 'Pending'">@if ((trip.reviewStatus || 'Pending') === 'Pending') { <mat-icon>schedule</mat-icon> }{{ reviewLabel(trip.reviewStatus) }}</span>
+                </div>
+                <div class="trip-title">
+                  <span class="mode-badge lg" [attr.data-mode]="trip.vehicleType"><mat-icon>{{ modeIcon(trip.vehicleType) }}</mat-icon></span>
+                  <span>
+                    <strong>{{ modeLabel(trip.vehicleType) }} Trip</strong>
+                    <small>{{ trip.tripDate | date: 'dd MMM yyyy' }}</small>
+                  </span>
+                </div>
+                <dl class="fact-grid">
+                  <div><dt><mat-icon>call</mat-icon> Call Number</dt><dd>{{ trip.callNo || 'Unavailable' }}</dd></div>
+                  <div><dt><mat-icon>place</mat-icon> Route</dt><dd>{{ trip.travelFrom }} → {{ trip.travelTo }}</dd></div>
+                  <div><dt><mat-icon>report</mat-icon> Complaint Description</dt><dd>{{ trip.complaintDescription || 'Unavailable' }}</dd></div>
+                  <div>
+                    <dt><mat-icon>payments</mat-icon> Claimed Fare</dt>
+                    <dd class="money fare-line">
+                      {{ trip.taAmount ? money(trip.taAmount) : '—' }}
+                      @if (fareDelta(trip); as delta) { <span class="delta-pill">+{{ money(delta) }}</span> }
+                    </dd>
+                  </div>
+                  <div><dt><mat-icon>confirmation_number</mat-icon> OEM Ticket ID</dt><dd>{{ trip.oemCallId || 'Unavailable' }}</dd></div>
+                  <div>
+                    <dt><mat-icon>account_balance</mat-icon> Standard Fare (Company)</dt>
+                    <dd>{{ companyFare(trip) == null ? '—' : money(companyFare(trip)) }}</dd>
+                  </div>
+                  @if (trip.vehicleType === 'Own bike' || trip.vehicleType === 'Own car') {
+                    <div class="gps">
+                      <dt><mat-icon>straighten</mat-icon> GPS Distance</dt>
+                      <dd>{{ km(trip.applicableDistanceKm) }} km</dd>
+                    </div>
+                  }
+                </dl>
+              </section>
+              <div class="side-split">
+                <section class="panel">
+                  <h3>Supporting Documents ({{ tripDocumentsLoading() ? '…' : supportingDocuments().length }})</h3>
+                  @if (documentScopeLabel()) { <p class="doc-scope">{{ documentScopeLabel() }}</p> }
+                  @if (tripDocumentsLoading()) {
+                    <mat-progress-bar class="doc-loading" mode="indeterminate" />
+                    <p class="doc-empty">Loading documents…</p>
+                  } @else if (tripDocumentsError() && !supportingDocuments().length) {
+                    <p class="doc-empty doc-error" role="alert"><mat-icon>error_outline</mat-icon><span>{{ tripDocumentsError() }}</span></p>
+                  } @else if (!supportingDocuments().length) {
+                    <p class="doc-empty"><mat-icon>description</mat-icon><span>No supporting documents available.</span></p>
+                  } @else {
+                    @if (tripDocumentsError()) {
+                      <p class="doc-empty doc-error" role="alert"><mat-icon>error_outline</mat-icon><span>{{ tripDocumentsError() }}</span></p>
+                    }
+                    <ul class="documents">
+                      @for (file of supportingDocuments(); track file.id) {
+                        <li>
+                          <span class="file-icon" [class.image]="documentIcon(file.contentType) === 'image'"><mat-icon>{{ documentIcon(file.contentType) }}</mat-icon></span>
+                          <span>
+                            <strong>{{ file.fileName }}</strong>
+                            <small>{{ file.category || 'Document' }} · {{ file.uploadedAt ? (file.uploadedAt | date: 'dd MMM yyyy') : '—' }}</small>
+                          </span>
+                          <span class="doc-actions">
+                            <button mat-icon-button type="button" aria-label="View attachment" (click)="openSupportingDocument(file, false)"><mat-icon>visibility</mat-icon></button>
+                            <button mat-icon-button type="button" aria-label="Download attachment" (click)="openSupportingDocument(file, true)"><mat-icon>download</mat-icon></button>
+                            @if (file.status === 'Verified') {
+                              <span class="verified"><mat-icon>check_circle</mat-icon> Verified</span>
+                            } @else if (file.status) {
+                              <span class="verified muted">{{ file.status }}</span>
+                            }
+                          </span>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </section>
+                <section class="panel">
+                  <h3><mat-icon>description</mat-icon> Document Exception</h3>
+                  <div class="choices">
+                    <label><input type="radio" name="trip-doc-check" [checked]="documentChoice() === 'verified'" (change)="setDocumentChoice('verified')" /> Documents available and verified</label>
+                    <label><input type="radio" name="trip-doc-check" [checked]="documentChoice() === 'missing'" (change)="setDocumentChoice('missing')" /> Documents not available</label>
+                    <label><input type="radio" name="trip-doc-check" [checked]="documentChoice() === 'not-applicable'" (change)="setDocumentChoice('not-applicable')" /> Not applicable (e.g., own bike/car)</label>
+                  </div>
+                  @if (trip.vehicleType === 'Public transport' && documentChoice() === 'missing') {
+                    <p class="overview-note"><mat-icon>info</mat-icon> Select a reason and enter the fare. Approve Trip is available after both are filled.</p>
+                  }
+                  @if (documentChoice() === 'missing') {
+                    <label class="choice-reason">
+                      <span>Reason <em>*</em></span>
+                      <select [value]="documentReason()" (change)="documentReason.set($any($event.target).value)">
+                        <option value="">Select a reason</option>
+                        @for (reason of documentReasons; track reason) { <option [value]="reason">{{ reason }}</option> }
+                      </select>
+                    </label>
+                  }
+                </section>
+              </div>
+              @if (canManage && (trip.reviewStatus || 'Pending') === 'Pending') {
+                <section class="panel">
+                  <h3><mat-icon>fact_check</mat-icon> Amount &amp; Approval</h3>
+                  @if (fareDelta(trip); as delta) {
+                    <p class="fare-note"><mat-icon>info</mat-icon> Claimed fare ({{ money(trip.taAmount) }}) is higher than the standard fare ({{ money(companyFare(trip)) }}). You can approve with the standard amount.</p>
+                  }
+                  <div class="approval-grid">
+                    <div class="amount-field">
+                      <span>Claimed Amount</span>
+                      <strong class="claimed">{{ trip.taAmount ? money(trip.taAmount) : '—' }}</strong>
+                    </div>
+                    <label class="amount-field">
+                      <span>Approved Amount <em>*</em></span>
+                      <span class="rupee"><span>₹</span><input inputmode="decimal" [value]="approveAmount()" (input)="approveAmount.set($any($event.target).value)" /></span>
+                    </label>
+                    <div class="adjustment" [class.down]="(adjustmentValue() ?? 0) > 0">
+                      <span>Adjustment</span>
+                      <strong>@if ((adjustmentValue() ?? 0) > 0) { <mat-icon>check</mat-icon> } {{ adjustmentText() }}</strong>
+                    </div>
+                    @if ((adjustmentValue() ?? 0) !== 0) {
+                      <label class="choice-reason span">
+                        <span>Adjustment Reason <em>*</em></span>
+                        <select [value]="adjustmentReason()" (change)="adjustmentReason.set($any($event.target).value)">
+                          <option value="">Select a reason</option>
+                          @for (reason of adjustmentReasons; track reason) { <option [value]="reason">{{ reason }}</option> }
+                        </select>
+                      </label>
+                    }
+                    <label class="comment-field span">
+                      <span>Remarks (optional)</span>
+                      <textarea rows="2" maxlength="500" placeholder="Add a comment. A reason is required to reject this trip." [value]="reviewNote()" (input)="reviewNote.set($any($event.target).value); reviewNoteError.set('')"></textarea>
+                    </label>
+                  </div>
+                  @if (reviewNoteError()) { <small class="field-error">{{ reviewNoteError() }}</small> }
+                  <div class="review-actions">
+                    <button type="button" class="approve" [disabled]="acting() || !canApproveTrip()" (click)="submitTripReview('Approved')"><mat-icon>check</mat-icon> Approve Trip</button>
+                    <button type="button" class="reject" [disabled]="acting() || !trip.payable" (click)="submitTripReview('Rejected')"><mat-icon>close</mat-icon> Reject Trip</button>
+                  </div>
+                </section>
+              }
+            } @else {
+              <section class="panel"><h3>Trip Details</h3><p class="history-empty">{{ drawerLoading() ? 'Loading trips…' : 'Select a trip.' }}</p></section>
+            }
+          </div>
+        </div>
+      }
+      @case ('history') {
+        <section class="panel history-panel">
+          <div class="panel-head history-head">
+            <h3><mat-icon>history</mat-icon> Trip Approval History</h3>
+            <div class="history-tools">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Search</mat-label>
+                <input matInput [value]="historyQuery()" (input)="setHistoryQuery($any($event.target).value)" placeholder="Call, mode or route" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Status</mat-label>
+                <mat-select [value]="historyStatus()" (selectionChange)="setHistoryStatus($event.value)">
+                  <mat-option value="All">All</mat-option>
+                  <mat-option value="Pending">Pending</mat-option>
+                  <mat-option value="Approved">Approved</mat-option>
+                  <mat-option value="Rejected">Rejected</mat-option>
+                  <mat-option value="Sent">Sent</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <label class="month-chip history-month">
+                <mat-icon>calendar_month</mat-icon>
+                <strong>{{ monthLabel(applied().month) }}</strong>
+                <input type="month" [value]="applied().month" (change)="onDrawerMonth($any($event.target).value)" aria-label="Payroll month" />
+              </label>
+            </div>
+          </div>
+          @if (decisionHistory() === null || drawerLoading()) {
+            <p class="history-empty">Loading history…</p>
+          } @else if (!filteredHistory().length) {
+            <p class="history-empty">No trips match this month and filter.</p>
+          } @else {
+            <div class="history-scroll">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Trip Date</th>
+                    <th>Service Call</th>
+                    <th>Trip / Mode</th>
+                    <th>Claimed Fare</th>
+                    <th>Approved Fare</th>
+                    <th>Adjustment</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (group of historyGroupSlice(); track group.key) {
+                    <tr class="history-call">
+                      <td colspan="8">
+                        <button type="button" class="history-call-toggle" (click)="toggleHistoryCall(group.key)" [attr.aria-expanded]="historyCallExpanded(group.key)">
+                          <mat-icon>{{ historyCallExpanded(group.key) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                          <strong>{{ group.unlinked ? 'Unlinked / Other Trips' : (group.callNo || 'Service call') }}</strong>
+                          <span>{{ group.trips.length }} {{ group.trips.length === 1 ? 'trip' : 'trips' }}</span>
+                        </button>
+                      </td>
+                    </tr>
+                    @if (historyCallExpanded(group.key)) {
+                      @for (row of group.trips; track row.trip.id) {
+                        <tr class="history-trip" [class.selected]="historyTripId() === row.trip.id" (click)="openCallTrips(group.key, row.trip.id)">
+                          <td>{{ row.trip.tripDate | date: 'dd MMM yyyy' }}</td>
+                          <td>{{ row.trip.callNo || 'Unlinked' }}</td>
+                          <td>
+                            <strong>Trip {{ row.number }} · {{ modeLabel(row.trip.vehicleType) }}</strong>
+                            <small>
+                              @if (tripDistanceLabel(row.trip); as distance) { {{ distance }} }
+                              @else { {{ row.trip.travelFrom }} → {{ row.trip.travelTo }} }
+                            </small>
+                          </td>
+                          <td>{{ row.trip.taAmount ? money(row.trip.taAmount) : '—' }}</td>
+                          <td>{{ row.approvedAmount ? money(row.approvedAmount) : '—' }}</td>
+                          <td>{{ row.adjustmentAmount == null ? '—' : money(row.adjustmentAmount) }}</td>
+                          <td><span class="status-pill" [attr.data-status]="row.trip.reviewStatus || 'Pending'">{{ row.trip.reviewStatus || 'Pending' }}</span></td>
+                          <td><button mat-icon-button type="button" aria-label="View audit details" (click)="$event.stopPropagation(); showHistory(row.trip.id)"><mat-icon>visibility</mat-icon></button></td>
+                        </tr>
+                      }
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="history-pager">
+              <span>{{ historyRange() }}</span>
+              <span>
+                @for (page of historyPages(); track page) {
+                  <button type="button" [class.selected]="historyPageIndex() === page" (click)="historyPage.set(page)">{{ page + 1 }}</button>
+                }
+              </span>
+            </div>
+          }
+          @if (selectedHistory(); as row) {
+            <section class="audit-card">
+              <h3>Audit details · Trip {{ row.number }} · {{ modeLabel(row.trip.vehicleType) }}</h3>
+              @if (row.audits.length) {
+                @for (audit of row.audits; track audit.item.id) {
+                  <dl class="audit-grid">
+                    <div><dt>Previous status</dt><dd>{{ audit.item.fromStatus || '—' }}</dd></div>
+                    <div><dt>New status</dt><dd>{{ audit.item.toStatus }}</dd></div>
+                    <div><dt>Action performed</dt><dd>{{ audit.item.action }}</dd></div>
+                    <div><dt>Performed by</dt><dd>{{ audit.item.changedByName || '—' }}</dd></div>
+                    <div><dt>Date and time</dt><dd>{{ audit.item.changedAt | date: 'dd MMM yyyy, HH:mm' }}</dd></div>
+                    <div><dt>Approved amount</dt><dd>{{ audit.parts.approvedAmount ? money(audit.parts.approvedAmount) : '—' }}</dd></div>
+                    <div><dt>Adjustment reason</dt><dd>{{ audit.parts.adjustmentReason || '—' }}</dd></div>
+                    <div><dt>Document verification</dt><dd>{{ audit.parts.documentDecision || '—' }}</dd></div>
+                    <div><dt>Comments</dt><dd>{{ audit.item.toStatus === 'Rejected' ? '—' : (audit.parts.comment || '—') }}</dd></div>
+                    <div><dt>Rejection reason</dt><dd>{{ rejectionReason(audit) || '—' }}</dd></div>
+                  </dl>
+                }
+              } @else {
+                <p class="history-empty">No approval action has been recorded for this trip.</p>
+              }
+            </section>
+          }
+        </section>
+      }
+    }
+    </div>
+  </aside>
 }

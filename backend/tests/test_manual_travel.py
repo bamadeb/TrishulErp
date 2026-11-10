@@ -439,6 +439,7 @@ def test_entity_types_name_the_modules_that_use_documents(admin: TestClient) -> 
     assert types == {
         "core.customer": "Customer",
         "core.employee": "Employee",
+        "svc.checklist_template": "Inspection checklist",
         "svc.service_call": "Service call",
         "svc.service_report": "Service report",
         "trk.manual_travel": "Manual travel",

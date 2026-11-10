@@ -7,12 +7,13 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
+
 export interface GetDocumentContent$Params {
   documentId: number;
   inline?: boolean;
 }
 
-export function getDocumentContent(http: HttpClient, rootUrl: string, params: GetDocumentContent$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
+export function getDocumentContent(http: HttpClient, rootUrl: string, params: GetDocumentContent$Params, context?: HttpContext): Observable<StrictHttpResponse<any>> {
   const rb = new RequestBuilder(rootUrl, getDocumentContent.PATH, 'get');
   if (params) {
     rb.path('documentId', params.documentId, {});
@@ -24,7 +25,7 @@ export function getDocumentContent(http: HttpClient, rootUrl: string, params: Ge
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<Blob>;
+      return r as StrictHttpResponse<any>;
     })
   );
 }

@@ -6,6 +6,7 @@ import {
   ChecklistTemplateInput,
   ChecklistTemplateOut,
   ChecklistTemplateUpdate,
+  ServiceReportListItem,
   ServiceReportOut,
   ServiceReportSubmit,
   ServiceReportUpdate,
@@ -14,6 +15,8 @@ import {
   getServiceReportSignature,
   getServiceVisitReport,
   listChecklistTemplates,
+  listServiceCallReports,
+  listServiceReports,
   listServiceCallVisits,
   signServiceReport,
   startServiceReport,
@@ -30,6 +33,8 @@ export type {
   ChecklistTemplateInput,
   ChecklistTemplateOut,
   ChecklistTemplateUpdate,
+  ReportAttachment,
+  ServiceReportListItem,
   ServiceReportOut,
   ServiceReportSubmit,
   ServiceReportUpdate,
@@ -48,6 +53,9 @@ export const CHECKLIST_VIEW_PERMISSIONS = [
 ] as const;
 export const CHECKLIST_MANAGE_PERMISSION = 'svc.checklist.manage';
 
+/** The documents module's key for an inspection checklist (reference files). */
+export const CHECKLIST_ENTITY = 'svc.checklist_template';
+
 /** The documents module's key for a service report (backend: svc.service_report), used for photos. */
 export const SERVICE_REPORT_ENTITY = 'svc.service_report';
 
@@ -59,6 +67,16 @@ export class ServiceReportApi {
   /** The visits of a call, each with the state of its report. */
   visits(callId: number): Observable<CallVisit[]> {
     return this.api.call(listServiceCallVisits, { callId });
+  }
+
+  /** Every report of a call, in full. */
+  reportsOfCall(callId: number): Observable<ServiceReportOut[]> {
+    return this.api.call(listServiceCallReports, { callId });
+  }
+
+  /** Search the reports by report no, call no or customer. */
+  searchReports(search?: string, status?: 'Draft' | 'Submitted'): Observable<ServiceReportListItem[]> {
+    return this.api.call(listServiceReports, { search: search?.trim() || undefined, status });
   }
 
   report(visitId: number): Observable<ServiceReportOut> {

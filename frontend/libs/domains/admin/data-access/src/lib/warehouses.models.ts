@@ -1,5 +1,7 @@
 export type {
   WarehouseBranch,
+  WarehouseBranchCreate,
+  WarehouseCompany,
   WarehouseMap,
   WarehouseOut,
 } from '@trishul/core-api';

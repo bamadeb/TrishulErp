@@ -8,6 +8,8 @@
 export interface WarehouseBranch {
   branchType: string;
   code: string;
+  companyId: number;
+  companyName: (string | null);
   id: number;
   isActive: boolean;
   name: string;

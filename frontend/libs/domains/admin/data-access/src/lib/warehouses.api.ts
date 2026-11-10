@@ -3,10 +3,12 @@ import { Observable } from 'rxjs';
 import {
   ApiClient,
   WarehouseBranch,
+  WarehouseBranchCreate,
   WarehouseCreate,
   WarehouseMap,
   WarehouseOut,
   WarehouseUpdate,
+  createBranch,
   createWarehouse,
   getWarehouseMap,
   updateBranchWarehouse,
@@ -28,6 +30,11 @@ export class WarehouseApi {
 
   create(body: WarehouseCreate): Observable<WarehouseOut> {
     return this.api.call(createWarehouse, { body });
+  }
+
+  /** A new branch or service point, optionally under a warehouse straight away. */
+  createBranch(body: WarehouseBranchCreate): Observable<WarehouseBranch> {
+    return this.api.call(createBranch, { body });
   }
 
   /** rowVersion comes with the warehouse; a newer change by someone else gives 409. */

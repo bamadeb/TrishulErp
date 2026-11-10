@@ -10,10 +10,11 @@ import { MatIcon } from '@angular/material/icon';
   template: `
     <footer class="pager">
       <label>
-        Items per page:
-        <select [value]="pageSize()" (change)="sizeChange.emit($any($event.target).value)">
-          <option value="10">10</option>
-          <option value="20">20</option>
+        {{ pageSizeLabel() }}:
+        <select [value]="'' + pageSize()" (change)="sizeChange.emit($any($event.target).value)">
+          @for (size of pageSizes(); track size) {
+            <option [value]="'' + size">{{ size }}</option>
+          }
         </select>
       </label>
       <span>{{ rangeLabel() }}</span>
@@ -38,6 +39,8 @@ export class PayrollPagerBar {
   readonly pageCount = input.required<number>();
   readonly pages = input.required<readonly number[]>();
   readonly rangeLabel = input.required<string>();
+  readonly pageSizes = input<readonly number[]>([10, 20]);
+  readonly pageSizeLabel = input('Items per page');
   readonly pageChange = output<number>();
   readonly sizeChange = output<string>();
 }

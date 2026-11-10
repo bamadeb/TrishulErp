@@ -10,6 +10,11 @@ export interface ChecklistTemplateInput {
   callTypeLookupId?: (number | null);
 
   /**
+   * Guidance for the engineer: what to look for, safety points.
+   */
+  inspectionNote?: (string | null);
+
+  /**
    * In the order they are asked.
    */
   items: Array<ChecklistItemInput>;

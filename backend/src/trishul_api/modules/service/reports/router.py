@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Path, Query, Response, UploadFile
 
@@ -11,6 +11,7 @@ from trishul_api.modules.service.reports.schemas import (
     ChecklistTemplateInput,
     ChecklistTemplateOut,
     ChecklistTemplateUpdate,
+    ServiceReportListItem,
     ServiceReportOut,
     ServiceReportSubmit,
     ServiceReportUpdate,
@@ -41,6 +42,31 @@ _MAX_SIGNATURE_UPLOAD = 1024 * 1024 + 1
 )
 def list_service_call_visits(call_id: CallId, actor: CurrentUserDep, db: DbSession) -> list[CallVisit]:
     return ServiceReportService(db, actor).visits_of_call(call_id)
+
+
+@router.get(
+    "/service-calls/{callId}/reports",
+    summary="Every service report of a call in full: inspection checklist, findings, files and the engineer",
+    dependencies=[CAN_VIEW],
+    responses=NOT_FOUND_RESPONSE,
+)
+def list_service_call_reports(call_id: CallId, actor: CurrentUserDep, db: DbSession) -> list[ServiceReportOut]:
+    return ServiceReportService(db, actor).reports_of_call(call_id)
+
+
+@router.get(
+    "/service-reports",
+    summary="Search service reports by report number, call number or customer",
+    dependencies=[CAN_VIEW],
+)
+def list_service_reports(
+    actor: CurrentUserDep,
+    db: DbSession,
+    search: Annotated[str | None, Query(max_length=100, description="Report no, call no or customer name.")] = None,
+    status: Annotated[Literal["Draft", "Submitted"] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[ServiceReportListItem]:
+    return ServiceReportService(db, actor).search(search, status, limit)
 
 
 @router.get(

@@ -14,7 +14,7 @@ One visit has at most one report; a call with three visits has three reports.
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser
@@ -24,6 +24,7 @@ from trishul_api.db.models import (
     Attachment,
     ChecklistTemplate,
     ChecklistTemplateItem,
+    Customer,
     Employee,
     LookupType,
     LookupValue,
@@ -40,7 +41,9 @@ from trishul_api.modules.service.assignment import assignees, plan_visit
 from trishul_api.modules.service.reports.schemas import (
     CallVisit,
     ChecklistAnswer,
+    ReportAttachment,
     ReportSummary,
+    ServiceReportListItem,
     ServiceReportOut,
     ServiceReportSubmit,
     ServiceReportUpdate,
@@ -135,6 +138,72 @@ class ServiceReportService:
         if report is None:
             raise NotFound("This visit has no service report yet.")
         return self._out(report, visit, call)
+
+    def reports_of_call(self, call_id: int) -> list[ServiceReportOut]:
+        """Every report of a call, in full (one per visit that has one)."""
+        call = self._call(call_id)
+        visits = self._db.scalars(
+            select(ServiceVisit)
+            .where(ServiceVisit.service_call_id == call_id, ServiceVisit.is_active)
+            .order_by(ServiceVisit.visit_no)
+        ).all()
+        out = []
+        for visit in visits:
+            report = self._report_of(visit.id)
+            if report is not None:
+                out.append(self._out(report, visit, call))
+        return out
+
+    def search(self, text: str | None, status: str | None, limit: int) -> list[ServiceReportListItem]:
+        """Find reports by report number, call number or customer; only calls the user may open."""
+        statement = (
+            select(ServiceReport, ServiceVisit, ServiceCall, Customer.name.label("customer"))
+            .join(ServiceVisit, ServiceVisit.id == ServiceReport.service_visit_id)
+            .join(ServiceCall, ServiceCall.id == ServiceVisit.service_call_id)
+            .join(Customer, Customer.id == ServiceCall.customer_id)
+            .where(ServiceReport.is_active)
+            .order_by(ServiceReport.id.desc())
+        )
+        if text and text.strip():
+            escaped = text.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped}%"
+            statement = statement.where(
+                or_(
+                    ServiceReport.report_no.like(pattern, escape="\\"),
+                    ServiceCall.call_no.like(pattern, escape="\\"),
+                    Customer.name.like(pattern, escape="\\"),
+                )
+            )
+        if status == "Submitted":
+            statement = statement.where(ServiceReport.submitted_at.is_not(None))
+        elif status == "Draft":
+            statement = statement.where(ServiceReport.submitted_at.is_(None))
+        out: list[ServiceReportListItem] = []
+        for row in self._db.execute(statement.limit(limit * 4)):
+            report, visit, call = row.ServiceReport, row.ServiceVisit, row.ServiceCall
+            if not can_read(self._db, self._actor, call):
+                continue
+            engineer = self._db.get(Employee, visit.engineer_employee_id)
+            name = " ".join(p for p in (engineer.first_name, engineer.last_name) if p) if engineer else None
+            out.append(
+                ServiceReportListItem(
+                    id=report.id,
+                    report_no=report.report_no,
+                    status="Submitted" if report.submitted_at else "Draft",
+                    service_call_id=call.id,
+                    service_visit_id=visit.id,
+                    call_no=call.call_no,
+                    customer_name=row.customer,
+                    visit_no=visit.visit_no,
+                    engineer_name=name or None,
+                    next_action=visit.next_action if report.submitted_at else None,
+                    submitted_at=report.submitted_at,
+                    updated_at=report.updated_at,
+                )
+            )
+            if len(out) >= limit:
+                break
+        return out
 
     def signature(self, report_id: int) -> bytes:
         """The customer's signature image of a report."""
@@ -431,6 +500,19 @@ class ServiceReportService:
     def _out(self, report: ServiceReport, visit: ServiceVisit, call: ServiceCall) -> ServiceReportOut:
         engineer = self._db.get(Employee, visit.engineer_employee_id)
         name = " ".join(p for p in (engineer.first_name, engineer.last_name) if p) if engineer else None
+        rows = self._checklist(report.id)
+        first = next((r.item for r in rows if r.item is not None), None)
+        template = self._db.get(ChecklistTemplate, first.checklist_template_id) if first else None
+        attachments = self._db.scalars(
+            select(Attachment)
+            .where(
+                Attachment.entity_type == ENTITY_TYPE,
+                Attachment.entity_id == report.id,
+                Attachment.is_active,
+                Attachment.category != "Signature",
+            )
+            .order_by(Attachment.id)
+        ).all()
         return ServiceReportOut(
             id=report.id,
             report_no=report.report_no,
@@ -442,6 +524,22 @@ class ServiceReportService:
             visit_purpose=visit.visit_purpose,
             visit_status=visit.status,
             engineer_name=name or None,
+            engineer_code=engineer.employee_code if engineer else None,
+            engineer_mobile=engineer.mobile if engineer else None,
+            customer_name=self._db.scalar(select(Customer.name).where(Customer.id == call.customer_id)),
+            checklist_name=template.name if template else None,
+            inspection_note=template.inspection_note if template else None,
+            attachments=[
+                ReportAttachment(
+                    id=a.id,
+                    file_name=a.file_name,
+                    category=a.category,
+                    content_type=a.content_type,
+                    file_size_bytes=a.file_size_bytes,
+                    uploaded_at=a.created_at,
+                )
+                for a in attachments
+            ],
             service_started_at=visit.service_started_at,
             service_ended_at=visit.service_ended_at,
             hmr_reading=report.hmr_reading,
@@ -473,7 +571,7 @@ class ServiceReportService:
                     remarks=row.answer.remarks,
                     photo_document_id=row.answer.photo_attachment_id,
                 )
-                for row in self._checklist(report.id)
+                for row in rows
             ],
             row_version=report.row_version,
         )

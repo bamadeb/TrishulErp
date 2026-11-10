@@ -12,6 +12,8 @@ export interface WarehouseOut {
    */
   branchCount: number;
   code: string;
+  companyId: number;
+  companyName: (string | null);
   id: number;
   isActive: boolean;
   name: string;

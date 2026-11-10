@@ -23,6 +23,7 @@ import {
   TadaRow,
   VehicleType,
 } from './payroll.mock';
+import { cloneComponent } from './components/salary-component.model';
 
 function nextId(rows: readonly { id: number }[]): number {
   return rows.reduce((max, row) => Math.max(max, row.id), 0) + 1;
@@ -32,7 +33,7 @@ function nextId(rows: readonly { id: number }[]): number {
 @Injectable({ providedIn: 'root' })
 export class PayrollPrototype {
   readonly salaries = signal<SalaryRow[]>(SALARIES.map((row) => ({ ...row })));
-  readonly components = signal<SalaryComponentRow[]>(SALARY_COMPONENTS.map((row) => ({ ...row })));
+  readonly components = signal<SalaryComponentRow[]>(SALARY_COMPONENTS.map((row) => cloneComponent(row)));
   readonly runs = signal<PayrollRun[]>(PAYROLL_RUNS.map((row) => ({ ...row })));
   readonly approvals = signal<PayrollApproval[]>(PAYROLL_APPROVALS.map((row) => ({ ...row })));
   readonly payslips = signal<PayslipRow[]>(PAYSLIPS.map((row) => ({ ...row })));

@@ -40,16 +40,16 @@ MANAGEMENT (view).
 Idempotent: every statement checks first. All the tables touched are empty on RDS (2026-11-10).
 The DDL is written out in full (no f-strings): scripts/generate_models.py reads op.execute literals.
 
-Revision ID: 0029_inventory_module
-Revises: 0028_merge_service_report_salary
+Revision ID: 0030_inventory_module
+Revises: 0029_checklist_template_note
 Created: 2026-11-10
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0029_inventory_module"
-down_revision = "0028_merge_service_report_salary"
+revision = "0030_inventory_module"
+down_revision = "0029_checklist_template_note"
 branch_labels = None
 depends_on = None
 

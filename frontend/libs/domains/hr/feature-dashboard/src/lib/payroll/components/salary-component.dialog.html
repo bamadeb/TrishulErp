@@ -1,0 +1,216 @@
+<h2 mat-dialog-title>{{ data.mode === 'create' ? 'Add salary component' : data.mode === 'edit' ? 'Edit salary component' : 'Salary component' }}</h2>
+
+@if (loading() || saving()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<mat-dialog-content>
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+  @if (rulesLocked()) {
+    <p class="note">This component is used in processed payroll. Calculation rules stay as they were. Name, description, display and status can still change.</p>
+  }
+
+  <section>
+    <h3>Basic information</h3>
+    <div class="grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Component code</mat-label>
+        <input matInput [value]="form().code" [disabled]="readOnly() || inUse()" (input)="patch({ code: $any($event.target).value })" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Component name</mat-label>
+        <input matInput [value]="form().name" [disabled]="readOnly()" (input)="patch({ name: $any($event.target).value })" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Component type</mat-label>
+        <mat-select [value]="form().componentType" [disabled]="readOnly() || inUse()" (valueChange)="onType($event)">
+          @for (type of types; track type) {
+            <mat-option [value]="type">{{ type }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Display order</mat-label>
+        <input matInput type="number" min="0" [value]="form().displayOrder" [disabled]="readOnly()" (input)="patch({ displayOrder: +$any($event.target).value })" />
+      </mat-form-field>
+      <mat-form-field class="wide" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Description</mat-label>
+        <textarea matInput rows="2" [value]="form().description" [disabled]="readOnly()" (input)="patch({ description: $any($event.target).value })"></textarea>
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section>
+    <h3>Calculation</h3>
+    <div class="grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Calculation method</mat-label>
+        <mat-select [value]="form().calculationMethod" [disabled]="readOnly() || rulesLocked()" (valueChange)="onMethod($event)">
+          @for (method of methods; track method) {
+            <mat-option [value]="method">{{ method }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (bases().length) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Calculation basis</mat-label>
+          <mat-select [value]="form().calculationBasis" [disabled]="readOnly() || rulesLocked()" (valueChange)="patch({ calculationBasis: $event })">
+            @for (basis of bases(); track basis) {
+              <mat-option [value]="basis">{{ basis }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+      @if (form().calculationMethod === 'Fixed Amount') {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Fixed amount</mat-label>
+          <input matInput inputmode="decimal" [value]="form().fixedAmount" [disabled]="readOnly() || rulesLocked()" (input)="patch({ fixedAmount: $any($event.target).value })" />
+        </mat-form-field>
+      }
+      @if (form().calculationMethod === 'Percentage') {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Percentage</mat-label>
+          <input matInput inputmode="decimal" [value]="form().percentage" [disabled]="readOnly() || rulesLocked()" (input)="patch({ percentage: $any($event.target).value })" />
+        </mat-form-field>
+      }
+      @if (form().calculationMethod === 'Formula') {
+        <mat-form-field class="wide" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Formula</mat-label>
+          <textarea matInput rows="2" [value]="form().formula" [disabled]="readOnly() || rulesLocked()" (input)="patch({ formula: $any($event.target).value })"></textarea>
+        </mat-form-field>
+        <div class="tokens">
+          @for (token of formulaTokens; track token) {
+            <button type="button" [disabled]="readOnly() || rulesLocked()" (click)="insertToken(token)">{{ token }}</button>
+          }
+        </div>
+        <p class="note">Use numbers, names, + − * /, parentheses, and MIN, MAX or ROUND. Sample values are only for this preview.</p>
+        <div class="samples">
+          @for (name of sampleNames; track name) {
+            <label>
+              {{ name }}
+              <input [value]="samples()[name]" [disabled]="readOnly()" (input)="setSample(name, $any($event.target).value)" />
+            </label>
+          }
+        </div>
+        @if (formulaPreview()) {
+          <p class="note">Preview: {{ formulaPreview() }}</p>
+        }
+      }
+    </div>
+    @if (form().calculationMethod === 'Manual Entry') {
+      <p class="note">The amount is entered for the payroll month, or taken from the loan and advance record.</p>
+    }
+    @if (form().calculationBasis === 'Eligible PF Wages' || form().calculationBasis === 'Eligible ESI Wages') {
+      <p class="note">No rate is stored on this component. Statutory configuration supplies the PF and ESI rules.</p>
+    }
+    <div class="flags">
+      <mat-checkbox [checked]="form().isProrated" [disabled]="readOnly() || rulesLocked()" (change)="patch({ isProrated: $event.checked })">Prorate based on attendance</mat-checkbox>
+      <mat-checkbox [checked]="form().allowManualOverride" [disabled]="readOnly() || rulesLocked() || form().calculationMethod === 'Manual Entry'" (change)="patch({ allowManualOverride: $event.checked })">Allow manual override</mat-checkbox>
+    </div>
+  </section>
+
+  <section>
+    <h3>Payroll applicability</h3>
+    <div class="flags">
+      <mat-checkbox [checked]="form().includeInGross" [disabled]="readOnly() || rulesLocked() || form().componentType === 'Informational'" (change)="patch({ includeInGross: $event.checked })">Include in gross salary</mat-checkbox>
+      <mat-checkbox [checked]="form().isTaxable" [disabled]="readOnly() || rulesLocked()" (change)="patch({ isTaxable: $event.checked })">Taxable</mat-checkbox>
+      <mat-checkbox [checked]="form().isPfApplicable" [disabled]="readOnly() || rulesLocked()" (change)="patch({ isPfApplicable: $event.checked })">PF applicable</mat-checkbox>
+      <mat-checkbox [checked]="form().isEsiApplicable" [disabled]="readOnly() || rulesLocked()" (change)="patch({ isEsiApplicable: $event.checked })">ESI applicable</mat-checkbox>
+      <mat-checkbox [checked]="form().includeInNetPay" [disabled]="readOnly() || rulesLocked() || form().componentType === 'Employer Contribution' || form().componentType === 'Informational'" (change)="patch({ includeInNetPay: $event.checked })">Include in net pay</mat-checkbox>
+      @if (form().componentType === 'Earning') {
+        <mat-checkbox [checked]="form().allowReversal" [disabled]="readOnly() || rulesLocked()" (change)="patch({ allowReversal: $event.checked })">Allow reversal</mat-checkbox>
+      }
+      <mat-checkbox [checked]="form().displayInStatement" [disabled]="readOnly()" (change)="patch({ displayInStatement: $event.checked })">Display in salary statement</mat-checkbox>
+      <mat-checkbox [checked]="form().displayInPayslip" [disabled]="readOnly()" (change)="patch({ displayInPayslip: $event.checked })">Display in payslip</mat-checkbox>
+    </div>
+    @if (form().componentType === 'Employer Contribution') {
+      <p class="note">An employer contribution is a company cost. It is not deducted from the employee net salary.</p>
+    }
+    @if (form().componentType === 'Informational') {
+      <p class="note">An informational component is shown for reference. It is not part of gross salary or net pay.</p>
+    }
+    @if (form().code.trim().toUpperCase() === 'IT') {
+      <p class="note">Income tax uses the method and formula saved here. Tax rates and slabs stay in statutory configuration.</p>
+    }
+  </section>
+
+  <section>
+    <h3>Effective dates</h3>
+    <div class="grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Effective from</mat-label>
+        <input matInput type="date" [value]="form().effectiveFrom" [disabled]="readOnly() || rulesLocked()" (input)="patch({ effectiveFrom: $any($event.target).value })" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Effective to</mat-label>
+        <input matInput type="date" [value]="form().effectiveTo" [disabled]="readOnly() || rulesLocked()" (input)="patch({ effectiveTo: $any($event.target).value })" />
+      </mat-form-field>
+    </div>
+    <mat-checkbox [checked]="form().isActive" [disabled]="readOnly()" (change)="patch({ isActive: $event.checked })">Active</mat-checkbox>
+  </section>
+
+  @if (detail(); as current) {
+    <section>
+      <h3>Earlier configurations</h3>
+      @if (current.revisions.length === 0) {
+        <p class="note">No earlier configuration. A later change is kept here and does not rewrite processed payroll.</p>
+      } @else {
+        <ul class="history">
+          @for (revision of current.revisions; track revision.revisionNo) {
+            <li>
+              <strong>#{{ revision.revisionNo }}</strong>
+              {{ revision.calculationMethod }}
+              @if (revision.calculationBasis) {
+                · {{ revision.calculationBasis }}
+              }
+              · {{ revision.effectiveFrom }}
+              @if (revision.effectiveTo) {
+                to {{ revision.effectiveTo }}
+              }
+              · replaced {{ revision.supersededAt | date: 'dd MMM yyyy' }}
+            </li>
+          }
+        </ul>
+      }
+    </section>
+    <section>
+      <h3>Audit</h3>
+      <p class="note">
+        Created {{ current.createdAt | date: 'dd MMM yyyy, HH:mm' }}
+        @if (current.createdBy) {
+          by {{ current.createdBy }}
+        }
+        @if (current.updatedAt) {
+          · Updated {{ current.updatedAt | date: 'dd MMM yyyy, HH:mm' }}
+          @if (current.updatedBy) {
+            by {{ current.updatedBy }}
+          }
+        }
+      </p>
+      @if (current.audit.length === 0) {
+        <p class="note">No later audit entries.</p>
+      } @else {
+        <ul class="history">
+          @for (entry of current.audit; track entry.changedAt + entry.action) {
+            <li>
+              {{ entry.action }}
+              · {{ entry.changedAt | date: 'dd MMM yyyy, HH:mm' }}
+              @if (entry.changedBy) {
+                · {{ entry.changedBy }}
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="false">{{ readOnly() ? 'Close' : 'Cancel' }}</button>
+  @if (!readOnly()) {
+    <button mat-flat-button color="primary" type="button" [disabled]="saving() || loading()" (click)="save()">Save</button>
+  }
+</mat-dialog-actions>

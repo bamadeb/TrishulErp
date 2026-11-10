@@ -138,6 +138,7 @@ class ChecklistTemplate(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    inspection_note: Mapped[str | None] = mapped_column(sa.NVARCHAR(2000))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 

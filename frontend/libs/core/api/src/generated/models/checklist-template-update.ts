@@ -8,6 +8,11 @@ export interface ChecklistTemplateUpdate {
    * Blank = every call type.
    */
   callTypeLookupId?: (number | null);
+
+  /**
+   * Guidance for the engineer: what to look for, safety points.
+   */
+  inspectionNote?: (string | null);
   isActive?: boolean;
 
   /**
