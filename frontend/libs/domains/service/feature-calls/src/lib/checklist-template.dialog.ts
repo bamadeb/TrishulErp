@@ -15,10 +15,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltip } from '@angular/material/tooltip';
 import { LookupValueOut } from '@trishul/core-api';
-import { AuthStore } from '@trishul/core-auth';
 import { DocumentPanel } from '@trishul/core-documents';
 import {
   CHECKLIST_ENTITY,
+  ChecklistAnswerType,
+  ChecklistBrandOption,
   ChecklistTemplateOut,
   ServiceCallApi,
   ServiceReportApi,
@@ -32,13 +33,6 @@ export interface ChecklistTemplateDialogData {
 }
 
 type ResponseType = ChecklistTemplateOut['items'][number]['responseType'];
-
-const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
-  { value: 'OK Not OK', label: 'OK / Not OK' },
-  { value: 'Number', label: 'Number' },
-  { value: 'Text', label: 'Text' },
-  { value: 'Photo', label: 'Photo' },
-];
 
 /** Add or change an inspection checklist. Questions removed here are hidden from new reports only. */
 @Component({
@@ -111,7 +105,7 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
               <mat-form-field appearance="outline" class="type">
                 <mat-label>Answer</mat-label>
                 <mat-select formControlName="responseType">
-                  @for (t of responseTypes; track t.value) {
+                  @for (t of responseTypes(); track t.value) {
                     <mat-option [value]="t.value">{{ t.label }}</mat-option>
                   }
                 </mat-select>
@@ -221,11 +215,10 @@ export class ChecklistTemplateDialog implements OnInit {
   protected readonly ref = inject(MatDialogRef<ChecklistTemplateDialog, ChecklistTemplateOut>);
   private readonly api = inject(ServiceReportApi);
   private readonly calls = inject(ServiceCallApi);
-  private readonly auth = inject(AuthStore);
 
   protected readonly entityType = CHECKLIST_ENTITY;
-  protected readonly responseTypes = RESPONSE_TYPES;
-  protected readonly principals = signal(this.auth.user()?.principals ?? []);
+  protected readonly responseTypes = signal<ChecklistAnswerType[]>([]);
+  protected readonly principals = signal<ChecklistBrandOption[]>([]);
   protected readonly callTypes = signal<LookupValueOut[]>([]);
   protected readonly saving = signal(false);
 
@@ -249,6 +242,8 @@ export class ChecklistTemplateDialog implements OnInit {
 
   ngOnInit(): void {
     if (this.data.readonly) this.form.disable();
+    this.api.brands().subscribe((v) => this.principals.set(v));
+    this.api.answerTypes().subscribe((v) => this.responseTypes.set(v));
     this.calls.lookups('CALL_TYPE').subscribe((v) => this.callTypes.set(v));
     const t = this.data.template;
     if (!t) {

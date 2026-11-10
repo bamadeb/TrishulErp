@@ -22,6 +22,7 @@ from trishul_api.db.models import (
     Principal,
 )
 from trishul_api.modules.service.reports.schemas import (
+    ChecklistBrandOption,
     ChecklistItemOut,
     ChecklistTemplateInput,
     ChecklistTemplateOut,
@@ -43,6 +44,12 @@ class ChecklistTemplateService:
         if not include_inactive:
             statement = statement.where(ChecklistTemplate.is_active)
         return [self._out(t) for t in self._db.scalars(statement).all()]
+
+    def brands(self) -> "list[ChecklistBrandOption]":
+        rows = self._db.execute(
+            select(Principal.id, Principal.name).where(Principal.is_active).order_by(Principal.name)
+        )
+        return [ChecklistBrandOption(id=r.id, name=r.name) for r in rows]
 
     def get(self, template_id: int) -> ChecklistTemplateOut:
         return self._out(self._template(template_id))

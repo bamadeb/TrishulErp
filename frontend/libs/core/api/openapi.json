@@ -9547,6 +9547,146 @@
         }
       }
     },
+    "/svc/checklist-brands": {
+      "get": {
+        "tags": [
+          "service-reports"
+        ],
+        "summary": "Brands for the Brand dropdown of an inspection checklist",
+        "operationId": "list_checklist_brands",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChecklistBrandOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Checklist Brands"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/svc/checklist-answer-types": {
+      "get": {
+        "tags": [
+          "service-reports"
+        ],
+        "summary": "Answer types for the Answer dropdown of an inspection checklist question",
+        "operationId": "list_checklist_answer_types",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChecklistAnswerType"
+                  },
+                  "type": "array",
+                  "title": "Response List Checklist Answer Types"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/svc/checklist-templates": {
       "get": {
         "tags": [
@@ -30601,6 +30741,55 @@
           "id"
         ],
         "title": "ChecklistAnswerInput"
+      },
+      "ChecklistAnswerType": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": [
+              "OK Not OK",
+              "Number",
+              "Text",
+              "Photo"
+            ],
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label",
+          "description"
+        ],
+        "title": "ChecklistAnswerType",
+        "description": "A way a question can be answered (the Answer dropdown)."
+      },
+      "ChecklistBrandOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ChecklistBrandOption",
+        "description": "A brand a checklist can be made for (the Brand dropdown)."
       },
       "ChecklistItemInput": {
         "properties": {

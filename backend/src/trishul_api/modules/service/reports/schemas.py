@@ -187,6 +187,21 @@ class ChecklistTemplateOut(ApiModel):
     row_version: RowVersion
 
 
+class ChecklistBrandOption(ApiModel):
+    """A brand a checklist can be made for (the Brand dropdown)."""
+
+    id: int
+    name: str
+
+
+class ChecklistAnswerType(ApiModel):
+    """A way a question can be answered (the Answer dropdown)."""
+
+    value: ResponseType
+    label: str
+    description: str
+
+
 class ChecklistItemInput(InputModel):
     id: int | None = Field(
         None, gt=0, description="Send the id to keep (and edit) an existing question; omit for a new one."

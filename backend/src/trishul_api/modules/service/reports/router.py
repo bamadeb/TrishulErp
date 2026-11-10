@@ -8,6 +8,8 @@ from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE,
 from trishul_api.modules.service.access import CAN_VIEW_CALLS
 from trishul_api.modules.service.reports.schemas import (
     CallVisit,
+    ChecklistAnswerType,
+    ChecklistBrandOption,
     ChecklistTemplateInput,
     ChecklistTemplateOut,
     ChecklistTemplateUpdate,
@@ -18,6 +20,13 @@ from trishul_api.modules.service.reports.schemas import (
 )
 from trishul_api.modules.service.reports.service import SIGN_PERMISSIONS, ServiceReportService
 from trishul_api.modules.service.reports.templates import ChecklistTemplateService
+
+ANSWER_TYPES = [
+    ChecklistAnswerType(value="OK Not OK", label="OK / Not OK", description="A pass or fail tick."),
+    ChecklistAnswerType(value="Number", label="Number", description="A reading, e.g. pressure or hours."),
+    ChecklistAnswerType(value="Text", label="Text", description="A short written answer."),
+    ChecklistAnswerType(value="Photo", label="Photo", description="A photo of the check point."),
+]
 
 router = APIRouter(prefix="/svc", tags=["service-reports"])
 
@@ -160,6 +169,24 @@ def submit_service_report(
 
 
 # ---------------------------------------------------------------- checklist templates
+
+
+@router.get(
+    "/checklist-brands",
+    summary="Brands for the Brand dropdown of an inspection checklist",
+    dependencies=[CAN_VIEW_CHECKLISTS],
+)
+def list_checklist_brands(db: DbSession, actor: CurrentUserDep) -> list[ChecklistBrandOption]:
+    return ChecklistTemplateService(db, actor).brands()
+
+
+@router.get(
+    "/checklist-answer-types",
+    summary="Answer types for the Answer dropdown of an inspection checklist question",
+    dependencies=[CAN_VIEW_CHECKLISTS],
+)
+def list_checklist_answer_types() -> list[ChecklistAnswerType]:
+    return ANSWER_TYPES
 
 
 @router.get(

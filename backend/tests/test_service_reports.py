@@ -520,3 +520,14 @@ def test_reports_of_a_call_and_search(engineer: TestClient) -> None:
     assert engineer.get("/api/v1/svc/service-reports", params={"search": "nothing"}).json() == []
     assert engineer.get("/api/v1/svc/service-reports", params={"status": "Submitted"}).json() == []
     assert engineer.get("/api/v1/svc/service-calls/99999/reports").status_code == 404
+
+
+def test_checklist_dropdown_options(lead: TestClient, engineer: TestClient) -> None:
+    brands = lead.get("/api/v1/svc/checklist-brands")
+    assert brands.status_code == 200, brands.text
+    assert {"id": PRINCIPAL, "name": "Tata Hitachi"} in brands.json()
+    types = lead.get("/api/v1/svc/checklist-answer-types").json()
+    assert [t["value"] for t in types] == ["OK Not OK", "Number", "Text", "Photo"]
+    assert types[0]["label"] == "OK / Not OK"
+    assert engineer.get("/api/v1/svc/checklist-brands").status_code == 403
+    assert engineer.get("/api/v1/svc/checklist-answer-types").status_code == 403
