@@ -20,6 +20,11 @@ export interface ListServiceCalls$Params {
   search?: (string | null);
   status?: Array<'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled'>;
   priority?: Array<'Critical' | 'High' | 'Normal' | 'Low'>;
+
+/**
+ * Only calls with a visit planned (not started) that day.
+ */
+  visitDate?: (string | null);
 }
 
 export function listServiceCalls(http: HttpClient, rootUrl: string, params?: ListServiceCalls$Params, context?: HttpContext): Observable<StrictHttpResponse<PageServiceCallListItem>> {
@@ -31,6 +36,7 @@ export function listServiceCalls(http: HttpClient, rootUrl: string, params?: Lis
     rb.query('search', params.search, {});
     rb.query('status', params.status, {});
     rb.query('priority', params.priority, {});
+    rb.query('visitDate', params.visitDate, {});
   }
 
   return http.request(

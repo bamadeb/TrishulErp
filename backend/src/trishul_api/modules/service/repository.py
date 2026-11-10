@@ -90,6 +90,35 @@ def _trip_ongoing() -> ColumnElement[bool]:
     return case((ongoing, True), else_=False)
 
 
+def _planned_visit_date(engineer_id: int | None = None) -> ColumnElement[date | None]:
+    """Earliest day a visit of the call is planned for and not yet started (a started visit leaves
+    'Planned'). With an engineer, only that engineer's own visit."""
+    statement = select(func.min(ServiceVisit.planned_date)).where(
+        ServiceVisit.service_call_id == ServiceCall.id,
+        ServiceVisit.status == "Planned",
+        ServiceVisit.is_active,
+    )
+    if engineer_id is not None:
+        statement = statement.where(ServiceVisit.engineer_employee_id == engineer_id)
+    return statement.correlate(ServiceCall).scalar_subquery()
+
+
+def _visit_planned_on(day: date, engineer_id: int | None = None) -> ColumnElement[bool]:
+    """The call has a visit planned (not yet started) on that day; with an engineer, their own visit."""
+    condition = exists().where(
+        ServiceVisit.service_call_id == ServiceCall.id,
+        ServiceVisit.status == "Planned",
+        ServiceVisit.is_active,
+        ServiceVisit.planned_date == day,
+    )
+    if engineer_id is not None:
+        condition = condition.where(ServiceVisit.engineer_employee_id == engineer_id)
+    return condition
+
+
+# Ascending puts calls with no planned day after every dated one (SQL Server sorts NULL first).
+_NO_DAY = date(9999, 12, 31)
+
 _PRIORITY_RANK = case(
     {"Critical": 1, "High": 2, "Normal": 3, "Low": 4},
     value=ServiceCall.priority,
@@ -100,6 +129,15 @@ _SORT_COLUMNS: SortColumns = {
     "callNo": ServiceCall.call_no,
     "receivedAt": ServiceCall.received_at,
     "customerName": Customer.name,
+    "priority": _PRIORITY_RANK,
+    "slaDueAt": ServiceCall.sla_due_at,
+    "plannedVisitDate": func.coalesce(_planned_visit_date(), _NO_DAY),
+}
+
+# The engineer's own list. "visitDate" (their own visit) depends on the engineer, so it is added there.
+_ASSIGNED_SORT_COLUMNS: SortColumns = {
+    "callNo": ServiceCall.call_no,
+    "receivedAt": ServiceCall.received_at,
     "priority": _PRIORITY_RANK,
     "slaDueAt": ServiceCall.sla_due_at,
 }
@@ -342,6 +380,7 @@ class ServiceCallRepository:
                 ServiceCall.sla_due_at,
                 ServiceCall.row_version,
                 _trip_ongoing().label("is_trip_ongoing"),
+                _planned_visit_date().label("planned_visit_date"),
             )
             .join(Customer, Customer.id == ServiceCall.customer_id)
             .join(Principal, Principal.id == ServiceCall.principal_id)
@@ -367,6 +406,8 @@ class ServiceCallRepository:
             statement = statement.where(ServiceCall.current_status.in_(query.status))
         if query.priority:
             statement = statement.where(ServiceCall.priority.in_(query.priority))
+        if query.visit_date is not None:
+            statement = statement.where(_visit_planned_on(query.visit_date))
         if query.search:
             term = query.search.strip()
             statement = statement.where(
@@ -466,6 +507,7 @@ class ServiceCallRepository:
     def assigned_statement(
         engineer_id: int, scope: RequestScope, query: AssignedServiceCallQuery
     ) -> Select[*tuple[Any, ...]]:
+        my_visit = _planned_visit_date(engineer_id)
         statement = (
             select(
                 ServiceCall.id,
@@ -488,6 +530,7 @@ class ServiceCallRepository:
                 ServiceCall.caller_name,
                 ServiceCall.caller_phone,
                 ServiceCall.sla_due_at,
+                my_visit.label("planned_visit_date"),
                 ServiceCall.row_version,
             )
             .join(Customer, Customer.id == ServiceCall.customer_id)
@@ -522,5 +565,11 @@ class ServiceCallRepository:
                     MachineUnit.serial_number.contains(term, autoescape=True),
                 )
             )
-        # Most urgent first (Critical → Low), stable by id for consistent paging.
-        return order_by_sort(statement, query.sort, _SORT_COLUMNS, default="priority", tiebreaker=ServiceCall.id.desc())
+        if query.visit_date is not None:
+            statement = statement.where(_visit_planned_on(query.visit_date, engineer_id))
+        my_day = func.coalesce(my_visit, _NO_DAY)
+        columns = {**_ASSIGNED_SORT_COLUMNS, "visitDate": my_day}
+        if query.sort and query.sort != "visitDate" and query.sort.removeprefix("-") in columns:
+            return order_by_sort(statement, query.sort, columns, default="visitDate", tiebreaker=ServiceCall.id.desc())
+        # Default: the engineer's days in order, undated calls last, and the most urgent first within a day.
+        return statement.order_by(my_day, _PRIORITY_RANK, ServiceCall.id.desc())

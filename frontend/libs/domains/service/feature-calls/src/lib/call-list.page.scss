@@ -12,6 +12,12 @@
     flex: 1 1 10rem;
     max-width: 14rem;
   }
+
+  // Room for the date plus its clear and calendar buttons.
+  .visit-filter {
+    flex-basis: 13rem;
+    max-width: 16rem;
+  }
 }
 
 .table-card {
@@ -33,7 +39,7 @@
 
 table {
   width: 100%;
-  min-width: 960px;
+  min-width: 900px;
   background: transparent;
 }
 
@@ -64,7 +70,7 @@ tr.mat-mdc-row {
 
 th,
 td {
-  padding: 0 0.75rem;
+  padding: 0 0.5rem;
 }
 
 td {
@@ -73,41 +79,47 @@ td {
   padding-bottom: 0.5rem;
 }
 
-// Deliberate widths: the customer and complaint columns absorb the slack,
-// the rest stay compact so identifiers and dates don't wrap.
+// Compact widths so the whole register fits beside the menu on a laptop screen (about 69rem);
+// the customer and complaint columns absorb any extra space. Narrower than that, it scrolls.
 .mat-column-callNo {
-  width: 11rem;
-  white-space: nowrap;
+  width: 9.5rem;
+
+  .call-link {
+    white-space: nowrap;
+  }
 }
 
 .mat-column-customerName {
-  min-width: 11rem;
+  min-width: 8rem;
 }
 
 .mat-column-machine {
-  width: 11rem;
-  white-space: nowrap;
+  width: 8rem;
 }
 
 .mat-column-complaint {
-  width: 15rem;
+  min-width: 9rem;
 }
 
 .mat-column-priority {
-  width: 8rem;
+  width: 7rem;
 }
 
 .mat-column-status {
-  width: 8.5rem;
+  width: 7.5rem;
 }
 
 .mat-column-engineer {
-  width: 11.5rem;
+  width: 10rem;
 }
 
 .mat-column-slaDueAt {
-  width: 8rem;
-  white-space: nowrap;
+  width: 6.5rem;
+}
+
+.mat-column-actions {
+  width: 3rem;
+  padding: 0;
 }
 
 .strong {
@@ -239,11 +251,26 @@ td {
 
   .eng-name {
     display: inline-block;
-    max-width: 6rem;
+    max-width: 5.5rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: middle;
+  }
+}
+
+// Planned visit day under the engineer; red once the day has passed without the visit starting.
+.visit {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+
+  &.overdue {
+    font-weight: 600;
+    color: var(--mat-sys-error);
   }
 }
 

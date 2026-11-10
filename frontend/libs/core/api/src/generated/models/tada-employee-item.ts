@@ -4,13 +4,16 @@
 export interface TadaEmployeeItem {
   additionalAllowance: string;
   approvalStatus: 'Pending' | 'Approved' | 'Rejected';
+  approvedTrips: number;
   bikeKm: string;
   carKm: string;
   designation: (string | null);
   employeeCode: string;
   employeeId: number;
   employeeName: string;
-  settlementStatus: 'Open' | 'Sent';
+  pendingTrips: number;
+  rejectedTrips: number;
+  settlementStatus: 'Open' | 'Sent' | 'Paid';
   taAmount: string;
   totalKm: string;
   totalPayable: string;

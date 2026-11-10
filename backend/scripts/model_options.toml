@@ -14,6 +14,7 @@ audited = [
     # Masters
     "core.principal",
     "core.branch",
+    "core.region",
     "core.customer",
     "core.supplier",
     "core.item",
@@ -34,6 +35,8 @@ audited = [
     "acc.cash_reconciliation",
     # Employees
     "hr.employee_profile",
+    "hr.salary_component",
+    "hr.salary_component_revision",
 ]
 
 # Columns recorded as *** in the audit trail.

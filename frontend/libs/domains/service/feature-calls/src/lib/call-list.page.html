@@ -47,6 +47,31 @@
       }
     </mat-select>
   </mat-form-field>
+  <mat-form-field class="visit-filter" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Visit date</mat-label>
+    <input
+      matInput
+      [matDatepicker]="visitPicker"
+      [value]="visitDateFilter()"
+      (dateChange)="onVisitDate($event.value)"
+      (click)="visitPicker.open()"
+      aria-label="Calls with a visit planned on this day"
+    />
+    @if (visitDateFilter()) {
+    <button
+      mat-icon-button
+      matSuffix
+      type="button"
+      (click)="onVisitDate(null)"
+      matTooltip="Clear visit date"
+      aria-label="Clear visit date"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+    }
+    <mat-datepicker-toggle matSuffix [for]="visitPicker" />
+    <mat-datepicker #visitPicker />
+  </mat-form-field>
 </div>
 
 <div class="table-card">
@@ -194,6 +219,16 @@
             <span class="eng-more">+{{ call.supportEngineers.length }}</span>
             }
           </span>
+          }
+          @if (call.plannedVisitDate) {
+          <div
+            class="visit"
+            [class.overdue]="isVisitOverdue(call)"
+            [matTooltip]="isVisitOverdue(call) ? 'Planned visit date has passed and the visit has not started' : 'Planned visit date'"
+          >
+            <mat-icon inline>event</mat-icon>
+            Visit {{ call.plannedVisitDate | date: 'dd MMM' }}
+          </div>
           }
         </td>
       </ng-container>

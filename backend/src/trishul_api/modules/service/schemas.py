@@ -21,6 +21,7 @@ _PHONE_PATTERN = r"^[0-9+\-() ]{6,15}$"
 class ServiceCallQuery(PageQuery):
     status: list[CallStatus] = Field(default_factory=list)
     priority: list[CallPriority] = Field(default_factory=list)
+    visit_date: dt.date | None = Field(None, description="Only calls with a visit planned (not started) that day.")
 
 
 class CallEngineer(ApiModel):
@@ -55,6 +56,9 @@ class ServiceCallListItem(ApiModel):
     sla_due_at: UtcDateTime | None
     row_version: RowVersion
     is_trip_ongoing: bool = Field(False, description="A trip of this call has been started and not yet stopped.")
+    planned_visit_date: dt.date | None = Field(
+        None, description="Earliest day a visit of the call is planned for and not yet started."
+    )
 
 
 class ServiceCallCreate(InputModel):
@@ -240,6 +244,13 @@ class AssignedServiceCallQuery(PageQuery):
     the result to other people's calls."""
 
     status: list[CallStatus] = Field(default_factory=list)
+    visit_date: dt.date | None = Field(None, description="Only calls with my visit planned for this day.")
+    sort: str | None = Field(
+        None,
+        max_length=40,
+        description="Default: my planned visit date (earliest first, calls with no date last), then priority. "
+        "Also visitDate, priority, receivedAt, slaDueAt, callNo; prefix with '-' for descending.",
+    )
 
 
 class AssignedServiceCallListItem(ApiModel):
@@ -265,4 +276,7 @@ class AssignedServiceCallListItem(ApiModel):
     caller_name: str | None
     caller_phone: str
     sla_due_at: UtcDateTime | None
+    planned_visit_date: dt.date | None = Field(
+        None, description="The day my visit is planned for (earliest, not yet started); None = not planned yet."
+    )
     row_version: RowVersion

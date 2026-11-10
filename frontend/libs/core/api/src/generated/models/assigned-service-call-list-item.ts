@@ -18,6 +18,11 @@ export interface AssignedServiceCallListItem {
   isMachineDown: boolean;
   machineModel: (string | null);
   machineSerialNo: (string | null);
+
+  /**
+   * The day my visit is planned for (earliest, not yet started); None = not planned yet.
+   */
+  plannedVisitDate: (string | null);
   principalCode: string;
   priority: 'Critical' | 'High' | 'Normal' | 'Low';
   receivedAt: string;

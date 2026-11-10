@@ -1,0 +1,76 @@
+<h2 mat-dialog-title>{{ data.schemeName }} rule</h2>
+<mat-dialog-content>
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+  <p class="note">
+    Rates are saved only when you enter them. This rule applies to every employee{{ stateId() ? ' in the selected state' : '' }}.
+    A new effective date keeps the earlier rule.
+  </p>
+  <div class="grid">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Effective from</mat-label>
+      <input matInput [matDatepicker]="fromPicker" [formControl]="effectiveFrom" required />
+      <mat-datepicker-toggle matIconSuffix [for]="fromPicker" aria-label="Choose effective from" />
+      <mat-datepicker #fromPicker />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>State</mat-label>
+      <mat-select [value]="stateId()" (valueChange)="stateId.set($event)">
+        <mat-option [value]="null">All states</mat-option>
+        @for (state of data.states; track state.id) {
+          <mat-option [value]="state.id">{{ state.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Employee rate %</mat-label>
+      <input matInput inputmode="decimal" [value]="employeeRate()" (input)="employeeRate.set($any($event.target).value)" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Employer rate %</mat-label>
+      <input matInput inputmode="decimal" [value]="employerRate()" (input)="employerRate.set($any($event.target).value)" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Wage ceiling</mat-label>
+      <input matInput inputmode="decimal" [value]="wageCeiling()" (input)="wageCeiling.set($any($event.target).value)" />
+    </mat-form-field>
+    <mat-checkbox [checked]="active()" (change)="active.set($event.checked)">Active</mat-checkbox>
+  </div>
+  <mat-form-field class="slabs" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Slabs</mat-label>
+    <textarea matInput rows="3" [value]="slabs()" (input)="slabs.set($any($event.target).value)"></textarea>
+  </mat-form-field>
+  @if (data.rules.length) {
+    <h3>Saved versions</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>From</th>
+          <th>To</th>
+          <th>Employee %</th>
+          <th>Employer %</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (rule of data.rules; track rule.id) {
+          <tr>
+            <td>{{ rule.effectiveFrom | date: 'dd-MM-yyyy' : 'UTC' }}</td>
+            <td>{{ rule.effectiveTo ? (rule.effectiveTo | date: 'dd-MM-yyyy' : 'UTC') : '—' }}</td>
+            <td>{{ rule.employeeRate || '—' }}</td>
+            <td>{{ rule.employerRate || '—' }}</td>
+            <td>{{ rule.isActive ? 'Active' : 'Inactive' }}</td>
+            <td><button mat-button type="button" (click)="edit(rule)">Edit</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <p class="note">Saved by {{ data.rules[0].createdBy || 'the payroll user' }}.</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="false">Cancel</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="saving()" (click)="save()">Save</button>
+</mat-dialog-actions>

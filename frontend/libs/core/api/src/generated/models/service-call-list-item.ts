@@ -31,6 +31,11 @@ export interface ServiceCallListItem {
   machineSerialNo: (string | null);
   machineUnitId: (number | null);
   oemCallId: (string | null);
+
+  /**
+   * Earliest day a visit of the call is planned for and not yet started.
+   */
+  plannedVisitDate: (string | null);
   principalCode: string;
   priority: 'Critical' | 'High' | 'Normal' | 'Low';
   receivedAt: string;

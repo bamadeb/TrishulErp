@@ -1,11 +1,14 @@
-<trishul-page-header title="Payroll Processing" subtitle="Run the monthly payroll and review the result." />
+<trishul-page-header title="Payroll Processing" subtitle="Run the monthly payroll from each employee's saved salary structure. Employees without a structure are left out. Settled service-engineer TA/DA stays listed below." />
 
 <section class="table-card">
   <div class="section-head">
     <div>
       <h2>Payroll months ({{ list.filtered().length }})</h2>
-      <p>Draft months can be processed in this prototype.</p>
+      <p>Process uses the payroll cycle selected below and the salary structures that cover that month.</p>
     </div>
+    <button mat-flat-button color="primary" type="button" (click)="processMonth()" [disabled]="processing()">
+      Process {{ monthText() }}
+    </button>
     <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
       <mat-icon matPrefix>search</mat-icon>
       <input matInput placeholder="Search by month or status" [value]="list.search()" (input)="list.onSearch($any($event.target).value)" />
@@ -22,20 +25,120 @@
         @for (row of list.pageRows(); track row.id; let i = $index) {
           <tr>
             <td>{{ list.rowNumber(i) }}</td>
-            <td>{{ row.month }}</td>
+            <td>{{ monthText(row.periodMonth.slice(0, 7)) }}</td>
             <td>{{ row.employees }}</td>
-            <td>{{ inr(row.gross) }}</td>
-            <td>{{ inr(row.deductions) }}</td>
-            <td>{{ inr(row.net) }}</td>
+            <td>{{ inr(+row.gross, 2) }}</td>
+            <td>{{ inr(+row.deductions, 2) }}</td>
+            <td>{{ inr(+row.netPay, 2) }}</td>
             <td><trishul-status-badge [status]="row.status" [severities]="status" /></td>
             <td>
               <button mat-button type="button" (click)="view(row)">View details</button>
-              <button mat-button type="button" color="primary" (click)="process(row)">Process payroll</button>
             </td>
           </tr>
-        } @empty { <tr><td class="empty" colspan="8">No matching records.</td></tr> }
+        } @empty { <tr><td class="empty" colspan="8">No payroll has been processed.</td></tr> }
       </tbody>
     </table>
   </div>
   <trishul-payroll-pager [pageIndex]="list.pageIndex()" [pageSize]="list.pageSize()" [pageCount]="list.pageCount()" [pages]="list.pages()" [rangeLabel]="list.rangeLabel()" (pageChange)="list.goTo($event)" (sizeChange)="list.onPageSize($event)" />
 </section>
+
+<section class="cards four">
+  <article class="stat">
+    <span class="stat-icon"><mat-icon>calendar_month</mat-icon></span>
+    <span><span class="stat-label">Payroll cycle</span><strong>{{ monthText() }}</strong></span>
+  </article>
+  <article class="stat">
+    <span class="stat-icon"><mat-icon>groups</mat-icon></span>
+    <span><span class="stat-label">Payroll TA/DA</span><strong>{{ payrollRows().length }}</strong></span>
+  </article>
+  <article class="stat">
+    <span class="stat-icon"><mat-icon>payments</mat-icon></span>
+    <span><span class="stat-label">Amount for payroll</span><strong>{{ inr(payrollTotal(), 2) }}</strong></span>
+  </article>
+  <article class="stat">
+    <span class="stat-icon"><mat-icon>account_balance</mat-icon></span>
+    <span><span class="stat-label">Outside payroll</span><strong>{{ inr(outsideTotal(), 2) }}</strong></span>
+  </article>
+</section>
+
+<section class="table-card">
+  <div class="section-head">
+    <div>
+      <h2>Service engineer TA/DA</h2>
+      <p>Amounts already settled as Payroll are added to this cycle. They are not paid again. Bank transfer and cash stay outside payroll.</p>
+    </div>
+    <label class="month-box">
+      <input type="month" [value]="month()" (change)="onMonth($any($event.target).value)" aria-label="Payroll cycle" />
+    </label>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Trips</th>
+          <th>Settled amount</th>
+          <th>Payment date</th>
+          <th>Mode</th>
+          <th>Payroll cycle</th>
+          <th>Batch</th>
+          <th>Reference</th>
+          <th>Remarks</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of payrollRows(); track row.batchId) {
+          <tr>
+            <td><strong>{{ row.employeeName }}</strong><br /><span class="stat-label">{{ row.employeeCode }} · {{ row.designation || 'Service Engineer' }}</span></td>
+            <td>{{ row.trips }}</td>
+            <td>{{ inr(row.amount, 2) }}</td>
+            <td>{{ row.date || '—' }}</td>
+            <td>{{ row.mode }}</td>
+            <td>{{ monthText() }}</td>
+            <td>{{ row.batchId }}</td>
+            <td>{{ row.reference || '—' }}</td>
+            <td>{{ row.remarks || '—' }}</td>
+            <td><trishul-status-badge status="Paid" [severities]="status" /></td>
+          </tr>
+        } @empty {
+          <tr><td class="empty" colspan="10">{{ loading() ? 'Loading settled TA/DA…' : 'No Payroll TA/DA settlement for this month.' }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+@if (outsideRows().length) {
+  <section class="table-card">
+    <div class="section-head">
+      <div>
+        <h2>Outside payroll</h2>
+        <p>Bank transfer and cash settlements are recorded separately and are not added to the salary run.</p>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th><th>Settled amount</th><th>Payment date</th><th>Mode</th><th>Batch</th><th>Reference</th><th>Remarks</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of outsideRows(); track row.batchId) {
+            <tr>
+              <td><strong>{{ row.employeeName }}</strong><br /><span class="stat-label">{{ row.employeeCode }}</span></td>
+              <td>{{ inr(row.amount, 2) }}</td>
+              <td>{{ row.date || '—' }}</td>
+              <td>{{ row.mode }}</td>
+              <td>{{ row.batchId }}</td>
+              <td>{{ row.reference || '—' }}</td>
+              <td>{{ row.remarks || '—' }}</td>
+              <td><trishul-status-badge status="Paid" [severities]="status" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}

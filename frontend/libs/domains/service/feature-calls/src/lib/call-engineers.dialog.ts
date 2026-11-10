@@ -7,6 +7,8 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import {
   MAT_DIALOG_DATA,
   MatDialogModule,
@@ -24,10 +26,35 @@ export interface CallEngineersData {
   engineers: EngineerOption[];
   leadId: number | null;
   supportIds: number[];
+  /** yyyy-mm-dd the call's visit is already planned for, if any. */
+  plannedVisitDate: string | null;
+  /** False for a finished call: changing who was on it plans no visit. */
+  planVisit: boolean;
 }
 export interface CallEngineersResult {
   engineerId: number | null;
   supportEngineerIds: number[];
+  /** yyyy-mm-dd of the visit for everyone on the call; null when nobody is on it or no visit is planned. */
+  visitDate: string | null;
+}
+
+/** yyyy-mm-dd in the user's own time zone (toISOString would give yesterday before 05:30 in India). */
+function isoDate(day: Date): string {
+  const month = String(day.getMonth() + 1).padStart(2, '0');
+  const date = String(day.getDate()).padStart(2, '0');
+  return `${day.getFullYear()}-${month}-${date}`;
+}
+
+/** yyyy-mm-dd as a local midnight Date (new Date('yyyy-mm-dd') would be UTC). */
+function fromIso(day: string): Date {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(year, month - 1, date);
+}
+
+function addDays(days: number): string {
+  const day = new Date();
+  day.setDate(day.getDate() + days);
+  return isoDate(day);
 }
 
 /** Choose everyone on a call. The first one ticked leads; the star moves the lead to someone else. */
@@ -41,7 +68,9 @@ export interface CallEngineersResult {
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
+    MatDatepickerModule,
   ],
+  providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>Assign engineers</h2>
@@ -90,11 +119,36 @@ export interface CallEngineersResult {
         <p class="sub">No engineers found</p>
         }
       </div>
+      @if (data.planVisit) {
+      <mat-form-field class="full visit" appearance="outline">
+        <mat-label>Visit date</mat-label>
+        <input
+          matInput
+          required
+          [matDatepicker]="picker"
+          [min]="minDate"
+          [value]="visitDay()"
+          (dateChange)="onDate($event.value)"
+          (click)="picker.open()"
+        />
+        <mat-datepicker-toggle matSuffix [for]="picker" />
+        <mat-datepicker #picker />
+        @if (dateProblem(); as problem) {
+        <mat-hint class="problem">{{ problem }}</mat-hint>
+        } @else if (selected().length) {
+        <mat-hint>Everyone ticked gets a visit on this day.</mat-hint>
+        } @else {
+        <mat-hint>Tick at least one engineer to plan the visit.</mat-hint>
+        }
+      </mat-form-field>
+      }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <span class="count">{{ summary() }}</span>
       <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button (click)="save()">Save</button>
+      <button mat-flat-button (click)="save()" [disabled]="!!dateProblem()">
+        Save
+      </button>
     </mat-dialog-actions>
   `,
   styles: `
@@ -132,6 +186,12 @@ export interface CallEngineersResult {
     .make-lead {
       color: var(--mat-sys-on-surface-variant);
     }
+    .visit {
+      margin-top: 1rem;
+    }
+    .problem {
+      color: var(--mat-sys-error);
+    }
     .count {
       margin-right: auto;
       padding-left: 0.5rem;
@@ -146,6 +206,30 @@ export class CallEngineersDialog {
       MatDialogRef,
     );
   protected readonly data = inject<CallEngineersData>(MAT_DIALOG_DATA);
+
+  protected readonly today = addDays(0);
+  /** The day already planned (if still ahead), otherwise tomorrow. */
+  protected readonly visitDate = signal(
+    this.data.plannedVisitDate && this.data.plannedVisitDate >= this.today
+      ? this.data.plannedVisitDate
+      : addDays(1),
+  );
+  /** The picker works with Date objects; the API takes yyyy-mm-dd. */
+  protected readonly minDate = fromIso(this.today);
+  protected readonly visitDay = computed(() =>
+    this.visitDate() ? fromIso(this.visitDate()) : null,
+  );
+
+  protected onDate(day: Date | null): void {
+    this.visitDate.set(day ? isoDate(day) : ''); // null: cleared or half-typed date
+  }
+
+  protected readonly dateProblem = computed(() => {
+    if (!this.data.planVisit || this.selected().length === 0) return null;
+    const day = this.visitDate();
+    if (!day) return 'Choose the visit date.';
+    return day < this.today ? 'The visit date cannot be in the past.' : null;
+  });
 
   protected readonly search = signal('');
   /** Everyone ticked; the first is the lead. */
@@ -182,7 +266,13 @@ export class CallEngineersDialog {
   }
 
   protected save(): void {
+    if (this.dateProblem()) return;
     const [lead, ...support] = this.selected();
-    this.ref.close({ engineerId: lead ?? null, supportEngineerIds: support });
+    this.ref.close({
+      engineerId: lead ?? null,
+      supportEngineerIds: support,
+      visitDate:
+        lead !== undefined && this.data.planVisit ? this.visitDate() : null,
+    });
   }
 }

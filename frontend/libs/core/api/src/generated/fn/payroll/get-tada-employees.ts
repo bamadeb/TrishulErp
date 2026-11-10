@@ -31,7 +31,7 @@ export interface GetTadaEmployees$Params {
   vehicleType?: ('Own bike' | 'Own car' | 'Company vehicle' | 'Public transport' | null);
   status?: ('In progress' | 'Completed' | 'Auto closed' | null);
   approvalStatus?: ('Pending' | 'Approved' | 'Rejected' | null);
-  settlementStatus?: ('Open' | 'Sent' | null);
+  settlementStatus?: ('Open' | 'Sent' | 'Paid' | null);
 }
 
 export function getTadaEmployees(http: HttpClient, rootUrl: string, params?: GetTadaEmployees$Params, context?: HttpContext): Observable<StrictHttpResponse<TadaEmployeeReport>> {

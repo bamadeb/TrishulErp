@@ -6,3 +6,7 @@ export * from './lib/organization/organization.models';
 export * from './lib/organization/organization.api';
 export * from './lib/organization/organization.store';
 export * from './lib/tada/tada.api';
+export * from './lib/payroll/salary-components.api';
+export * from './lib/payroll/salary-structures.api';
+export * from './lib/payroll/statutory.api';
+export * from './lib/payroll/payroll-runs.api';

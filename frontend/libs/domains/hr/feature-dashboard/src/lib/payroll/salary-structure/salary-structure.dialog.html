@@ -1,0 +1,92 @@
+<h2 mat-dialog-title>Salary structure</h2>
+<mat-dialog-content>
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+  @if (form(); as current) {
+    <p class="who">
+      <strong>{{ current.employeeCode }}</strong>
+      {{ current.fullName }}
+      @if (current.department) {
+        · {{ current.department }}
+      }
+      @if (current.designation) {
+        · {{ current.designation }}
+      }
+    </p>
+    <section>
+      <h3>Structure</h3>
+      <div class="grid">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Effective from</mat-label>
+          <input matInput [matDatepicker]="fromPicker" [formControl]="effectiveFrom" [required]="true" (dateChange)="onFrom($event.value)" />
+          <mat-datepicker-toggle matIconSuffix [for]="fromPicker" aria-label="Choose effective from" />
+          <mat-datepicker #fromPicker />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Effective to</mat-label>
+          <input matInput [matDatepicker]="toPicker" [formControl]="effectiveTo" [min]="nextDay(fromDate())" (dateChange)="onTo($event.value)" />
+          <mat-datepicker-toggle matIconSuffix [for]="toPicker" aria-label="Choose effective to" />
+          <mat-datepicker #toPicker />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Annual CTC</mat-label>
+          <input matInput inputmode="decimal" [value]="current.annualCtc" [disabled]="readOnly" (input)="patch({ annualCtc: $any($event.target).value })" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Monthly gross</mat-label>
+          <input matInput inputmode="decimal" [value]="current.monthlyGross" [disabled]="readOnly" (input)="patch({ monthlyGross: $any($event.target).value })" />
+        </mat-form-field>
+      </div>
+    </section>
+    @for (group of groups(); track group.type) {
+      <section>
+        <h3>{{ group.type }}</h3>
+        @for (line of group.lines; track line.salaryComponentId) {
+          <article class="line">
+            <mat-checkbox [checked]="line.included" [disabled]="readOnly" (change)="patchLine(line.salaryComponentId, { included: $event.checked })">
+              <strong>{{ line.code }}</strong> {{ line.name }}
+            </mat-checkbox>
+            <p class="note">{{ line.calculationMethod }}@if (line.calculationBasis) { · {{ line.calculationBasis }} }</p>
+            @if (line.included && line.calculationMethod === 'Fixed Amount') {
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Monthly amount</mat-label>
+                <input matInput inputmode="decimal" [value]="line.monthlyAmount" [disabled]="readOnly" (input)="patchLine(line.salaryComponentId, { monthlyAmount: $any($event.target).value })" />
+              </mat-form-field>
+            }
+            @if (line.included && line.calculationMethod === 'Percentage') {
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Percentage</mat-label>
+                <input matInput inputmode="decimal" [value]="line.percentage" [disabled]="readOnly" (input)="patchLine(line.salaryComponentId, { percentage: $any($event.target).value })" />
+              </mat-form-field>
+            }
+            @if (line.included && line.calculationMethod === 'Formula') {
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Formula</mat-label>
+                <textarea matInput rows="2" [value]="line.formula" [disabled]="readOnly" (input)="patchLine(line.salaryComponentId, { formula: $any($event.target).value })"></textarea>
+              </mat-form-field>
+            }
+            @if (line.included && line.calculationMethod === 'Manual Entry') {
+              <p class="note">The amount is entered for the payroll month, or taken from the loan and advance record.</p>
+            }
+            @if (line.included && !line.includeInNetPay) {
+              <p class="note">This is not deducted from the employee net salary.</p>
+            }
+            @if (line.included && (line.calculationBasis === 'Eligible PF Wages' || line.calculationBasis === 'Eligible ESI Wages' || line.code === 'IT')) {
+              <p class="note">No rate is stored here. Statutory configuration supplies the rule.</p>
+            }
+          </article>
+        }
+      </section>
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="false">{{ readOnly ? 'Close' : 'Cancel' }}</button>
+  @if (!readOnly) {
+    <button mat-flat-button color="primary" type="button" [disabled]="saving() || loading()" (click)="save()">Save</button>
+  }
+</mat-dialog-actions>
