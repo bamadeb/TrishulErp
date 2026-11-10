@@ -15990,6 +15990,724 @@
         }
       }
     },
+    "/hr/statutory/summary": {
+      "get": {
+        "tags": [
+          "payroll"
+        ],
+        "summary": "Statutory compliance for a month",
+        "operationId": "statutory_summary",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "scheme",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "PF",
+                    "ESI",
+                    "PT",
+                    "TDS"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scheme"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatutorySummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/statutory/rules": {
+      "get": {
+        "tags": [
+          "payroll"
+        ],
+        "summary": "Saved statutory rules",
+        "operationId": "list_statutory_rules",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheme",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "PF",
+                    "ESI",
+                    "PT",
+                    "TDS"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scheme"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatutoryRule"
+                  },
+                  "title": "Response List Statutory Rules"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "payroll"
+        ],
+        "summary": "Add a statutory rule",
+        "operationId": "create_statutory_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatutoryRuleWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatutoryRule"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/statutory/rules/{ruleId}": {
+      "patch": {
+        "tags": [
+          "payroll"
+        ],
+        "summary": "Change a statutory rule",
+        "operationId": "update_statutory_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Ruleid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatutoryRuleWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatutoryRule"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/statutory/contributions": {
+      "get": {
+        "tags": [
+          "payroll"
+        ],
+        "summary": "Employees for a statutory scheme",
+        "operationId": "list_statutory_contributions",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "scheme",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "PF",
+                "ESI",
+                "PT",
+                "TDS"
+              ],
+              "type": "string",
+              "title": "Scheme"
+            }
+          },
+          {
+            "name": "departmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Departmentid"
+            }
+          },
+          {
+            "name": "stateId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stateid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_StatutoryContribution_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/payroll-runs": {
+      "get": {
+        "tags": [
+          "payroll"
+        ],
+        "summary": "Processed payroll months",
+        "operationId": "list_payroll_runs",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PayrollRunItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Payroll Runs"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "payroll"
+        ],
+        "summary": "Process a payroll month",
+        "operationId": "process_payroll_run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayrollRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PayrollRunItem"
+                  },
+                  "type": "array",
+                  "title": "Response Process Payroll Run"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/hr/tada/report": {
       "get": {
         "tags": [
@@ -25469,6 +26187,24 @@
         "title": "CustomerUpdate",
         "description": "Only the fields sent are changed."
       },
+      "DepartmentChoice": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "DepartmentChoice"
+      },
       "DepartmentCreate": {
         "properties": {
           "code": {
@@ -31322,6 +32058,37 @@
         ],
         "title": "Page[ServiceContractListItem]"
       },
+      "Page_StatutoryContribution_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StatutoryContribution"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[StatutoryContribution]"
+      },
       "Page_TripListItem_": {
         "properties": {
           "items": {
@@ -31473,6 +32240,79 @@
           "signInStatus"
         ],
         "title": "PasswordResetResult"
+      },
+      "PayrollRunItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "periodMonth": {
+            "type": "string",
+            "format": "date",
+            "title": "Periodmonth"
+          },
+          "runDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Rundate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Draft",
+              "Processed",
+              "Approved",
+              "Paid",
+              "Locked"
+            ],
+            "title": "Status"
+          },
+          "employees": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Employees"
+          },
+          "gross": {
+            "type": "string",
+            "title": "Gross"
+          },
+          "deductions": {
+            "type": "string",
+            "title": "Deductions"
+          },
+          "netPay": {
+            "type": "string",
+            "title": "Netpay"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "periodMonth",
+          "runDate",
+          "status",
+          "employees",
+          "gross",
+          "deductions",
+          "netPay"
+        ],
+        "title": "PayrollRunItem"
+      },
+      "PayrollRunRequest": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "month"
+        ],
+        "title": "PayrollRunRequest"
       },
       "PermissionItem": {
         "properties": {
@@ -36428,6 +37268,24 @@
         "title": "StartTripInput",
         "description": "Start a trip for a business activity. `module` + `referenceId` name the activity in its own\nmodule (SVC -> service_call id, PRE -> sales_activity id); the trk engine registers it and links\nthe trip. `clientUuid` makes a retried start return the same trip instead of a second one."
       },
+      "StateChoice": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StateChoice"
+      },
       "StateOption": {
         "properties": {
           "id": {
@@ -36450,6 +37308,552 @@
           "gstStateCode"
         ],
         "title": "StateOption"
+      },
+      "StatutoryContribution": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "fullName": {
+            "type": "string",
+            "title": "Fullname"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "applicableWages": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applicablewages"
+          },
+          "employeeContribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecontribution"
+          },
+          "employerContribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employercontribution"
+          },
+          "totalContribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalcontribution"
+          },
+          "calculationStatus": {
+            "type": "string",
+            "enum": [
+              "Calculated",
+              "Not calculated",
+              "Not applicable"
+            ],
+            "title": "Calculationstatus"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "employeeCode",
+          "fullName",
+          "department",
+          "location",
+          "applicableWages",
+          "employeeContribution",
+          "employerContribution",
+          "totalContribution",
+          "calculationStatus",
+          "reason"
+        ],
+        "title": "StatutoryContribution"
+      },
+      "StatutoryRule": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "configType": {
+            "type": "string",
+            "enum": [
+              "PF",
+              "ESI",
+              "PT",
+              "LWF",
+              "TDS"
+            ],
+            "title": "Configtype"
+          },
+          "stateId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stateid"
+          },
+          "stateName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statename"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Effectivefrom"
+          },
+          "effectiveTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectiveto"
+          },
+          "employeeRate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeerate"
+          },
+          "employerRate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employerrate"
+          },
+          "wageCeiling": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wageceiling"
+          },
+          "slabJson": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slabjson"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdby"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          },
+          "updatedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedby"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "configType",
+          "stateId",
+          "stateName",
+          "effectiveFrom",
+          "effectiveTo",
+          "employeeRate",
+          "employerRate",
+          "wageCeiling",
+          "slabJson",
+          "isActive",
+          "createdAt",
+          "createdBy",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "title": "StatutoryRule"
+      },
+      "StatutoryRuleWrite": {
+        "properties": {
+          "configType": {
+            "type": "string",
+            "enum": [
+              "PF",
+              "ESI",
+              "PT",
+              "TDS"
+            ],
+            "title": "Configtype"
+          },
+          "stateId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stateid"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Effectivefrom"
+          },
+          "employeeRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeerate"
+          },
+          "employerRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employerrate"
+          },
+          "wageCeiling": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wageceiling"
+          },
+          "slabJson": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slabjson"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "configType",
+          "effectiveFrom"
+        ],
+        "title": "StatutoryRuleWrite"
+      },
+      "StatutorySchemeStatus": {
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "enum": [
+              "PF",
+              "ESI",
+              "PT",
+              "TDS"
+            ],
+            "title": "Scheme"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "configurationStatus": {
+            "type": "string",
+            "enum": [
+              "Configured",
+              "Not configured"
+            ],
+            "title": "Configurationstatus"
+          },
+          "calculationStatus": {
+            "type": "string",
+            "enum": [
+              "Calculated",
+              "Not calculated",
+              "Not applicable"
+            ],
+            "title": "Calculationstatus"
+          },
+          "filingStatus": {
+            "type": "string",
+            "const": "Not filed",
+            "title": "Filingstatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scheme",
+          "name",
+          "configurationStatus",
+          "calculationStatus",
+          "filingStatus"
+        ],
+        "title": "StatutorySchemeStatus"
+      },
+      "StatutorySummary": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "financialYear": {
+            "type": "string",
+            "title": "Financialyear"
+          },
+          "eligibleEmployees": {
+            "type": "integer",
+            "title": "Eligibleemployees"
+          },
+          "employeeContribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecontribution"
+          },
+          "employerContribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employercontribution"
+          },
+          "totalLiability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalliability"
+          },
+          "configurationStatus": {
+            "type": "string",
+            "enum": [
+              "Configured",
+              "Partial",
+              "Not configured"
+            ],
+            "title": "Configurationstatus"
+          },
+          "calculationStatus": {
+            "type": "string",
+            "enum": [
+              "Calculated",
+              "Not calculated",
+              "Not applicable"
+            ],
+            "title": "Calculationstatus"
+          },
+          "filingStatus": {
+            "type": "string",
+            "const": "Not filed",
+            "title": "Filingstatus"
+          },
+          "schemes": {
+            "items": {
+              "$ref": "#/components/schemas/StatutorySchemeStatus"
+            },
+            "type": "array",
+            "title": "Schemes"
+          },
+          "states": {
+            "items": {
+              "$ref": "#/components/schemas/StateChoice"
+            },
+            "type": "array",
+            "title": "States"
+          },
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/DepartmentChoice"
+            },
+            "type": "array",
+            "title": "Departments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "financialYear",
+          "eligibleEmployees",
+          "employeeContribution",
+          "employerContribution",
+          "totalLiability",
+          "configurationStatus",
+          "calculationStatus",
+          "filingStatus",
+          "schemes",
+          "states",
+          "departments"
+        ],
+        "title": "StatutorySummary"
       },
       "StopTripInput": {
         "properties": {

@@ -6,15 +6,15 @@ Files attached to a checklist use the common document module (core.attachment); 
 
 Idempotent: every statement checks first.
 
-Revision ID: 0027_checklist_template_note
-Revises: 0026_service_report_permissions
+Revision ID: 0029_checklist_template_note
+Revises: 0028_merge_service_report_salary
 Created: 2026-11-10
 """
 
 from alembic import op
 
-revision = "0027_checklist_template_note"
-down_revision = "0026_service_report_permissions"
+revision = "0029_checklist_template_note"
+down_revision = "0028_merge_service_report_salary"
 branch_labels = None
 depends_on = None
 
