@@ -96,6 +96,24 @@ export default [
                 'scope:core',
               ],
             },
+            {
+              // Purchasing receives stock: it may use the inventory pickers and lookups.
+              sourceTag: 'scope:purchases',
+              onlyDependOnLibsWithTags: [
+                'scope:purchases',
+                'scope:inventory',
+                'scope:shared',
+                'scope:core',
+              ],
+            },
+            {
+              sourceTag: 'scope:inventory',
+              onlyDependOnLibsWithTags: [
+                'scope:inventory',
+                'scope:shared',
+                'scope:core',
+              ],
+            },
           ],
         },
       ],

@@ -1,0 +1,171 @@
+<trishul-page-header
+  [title]="'Welcome, ' + (auth.user()?.displayName ?? '')"
+  [subtitle]="subtitle()"
+>
+  <button mat-button type="button" (click)="load()" [disabled]="loading()">
+    <mat-icon>refresh</mat-icon>
+    Refresh
+  </button>
+</trishul-page-header>
+
+<div class="progress">
+  @if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+  }
+</div>
+
+@if (failed()) {
+<p class="message">The dashboard could not be loaded. Try Refresh.</p>
+} @else if (empty()) {
+<p class="message">There is nothing on your dashboard yet. Select a module from the menu.</p>
+}
+
+<ng-template #tiles let-items>
+  <div class="tiles">
+    @for (tile of items; track tile.label) {
+    @if (tile.link) {
+    <a
+      class="tile link"
+      [class]="tile.tone"
+      [routerLink]="tile.link"
+      [queryParams]="tile.query"
+      [matTooltip]="tile.hint ?? ''"
+    >
+      <mat-icon>{{ tile.icon }}</mat-icon>
+      <span class="value">{{ tile.value }}</span>
+      <span class="label">{{ tile.label }}</span>
+    </a>
+    } @else {
+    <div class="tile" [class]="tile.tone" [matTooltip]="tile.hint ?? ''">
+      <mat-icon>{{ tile.icon }}</mat-icon>
+      <span class="value">{{ tile.value }}</span>
+      <span class="label">{{ tile.label }}</span>
+    </div>
+    }
+    }
+  </div>
+</ng-template>
+
+<ng-template #visitList let-visits let-emptyText="emptyText">
+  @if (visits.length) {
+  <ul class="visits">
+    @for (v of visits; track v.serviceCallId) {
+    <li>
+      <span class="day" [class.overdue]="isOverdue(v)">
+        {{ dayLabel(v) ?? (v.plannedDate | date: 'dd MMM') }}
+      </span>
+      <div class="what">
+        <a class="call" [routerLink]="['/service/calls', v.serviceCallId]">{{ v.callNo }}</a>
+        <span class="muted">{{ v.customerName }}@if (v.machineModel) { · {{ v.machineModel }} }</span>
+        <span class="complaint" [matTooltip]="v.complaintDescription">{{ v.complaintDescription }}</span>
+      </div>
+      <div class="side">
+        <trishul-status-badge [status]="v.priority" [severities]="prioritySeverity" />
+        @if (v.isMachineDown) {
+        <span class="down"><mat-icon inline>warning</mat-icon> Down</span>
+        }
+        @if (v.engineerName) {
+        <span class="muted engineer">{{ v.engineerName }}</span>
+        }
+      </div>
+    </li>
+    }
+  </ul>
+  } @else {
+  <p class="muted none">{{ emptyText }}</p>
+  }
+</ng-template>
+
+@if (data()?.myWork; as work) {
+<section class="card">
+  <h2><mat-icon>engineering</mat-icon> My work</h2>
+  <ng-container *ngTemplateOutlet="tiles; context: { $implicit: myTiles() }" />
+  <h3>My visits — overdue and next 7 days</h3>
+  <ng-container
+    *ngTemplateOutlet="visitList; context: { $implicit: work.upcoming, emptyText: 'No visits planned for you this week.' }"
+  />
+</section>
+}
+
+@if (data()?.calls; as calls) {
+<section class="card">
+  <h2>
+    <mat-icon>support_agent</mat-icon>
+    {{ calls.scope === 'all' ? 'Service calls' : "My team's calls" }}
+  </h2>
+  <ng-container *ngTemplateOutlet="tiles; context: { $implicit: callTiles() }" />
+
+  @if (calls.byStatus.length) {
+  <h3>Open calls by status</h3>
+  <div class="statuses">
+    @for (s of calls.byStatus; track s.status) {
+    <a class="status" [routerLink]="'/service/calls'" [queryParams]="{ status: s.status }">
+      <span class="count">{{ s.count }}</span> {{ s.status }}
+    </a>
+    }
+  </div>
+  }
+
+  <div class="columns">
+    <div>
+      <h3>Engineers — open calls and today's visits</h3>
+      @if (calls.engineers.length) {
+      <table class="engineers">
+        <thead>
+          <tr>
+            <th>Engineer</th>
+            <th class="num">Open calls</th>
+            <th class="num">Visits today</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of calls.engineers; track e.engineerId) {
+          <tr>
+            <td>{{ e.name }}</td>
+            <td class="num">{{ e.openCalls }}</td>
+            <td class="num">{{ e.visitsToday }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+      } @else {
+      <p class="muted none">No engineer has an open call.</p>
+      }
+    </div>
+    <div>
+      <h3>Overdue visits</h3>
+      <ng-container
+        *ngTemplateOutlet="visitList; context: { $implicit: calls.overdue, emptyText: 'No overdue visits.' }"
+      />
+    </div>
+  </div>
+</section>
+}
+
+@if (data()?.asc; as asc) {
+<section class="card">
+  <h2><mat-icon>verified</mat-icon> ASC contracts</h2>
+  <ng-container *ngTemplateOutlet="tiles; context: { $implicit: ascTiles() }" />
+  <h3>Expiring in the next 30 days</h3>
+  @if (asc.expiring.length) {
+  <ul class="visits">
+    @for (c of asc.expiring; track c.id) {
+    <li>
+      <span class="day">{{ c.endDate | date: 'dd MMM' }}</span>
+      <div class="what">
+        <a class="call" [routerLink]="['/service/asc', c.id]">{{ c.contractNo }}</a>
+        <span class="muted">{{ c.customerName }}@if (c.machineSerialNo) { · {{ c.machineSerialNo }} }</span>
+      </div>
+      <div class="side">
+        @if (c.visitsRemaining !== null) {
+        <span class="muted">{{ c.visitsRemaining }} visits left</span>
+        }
+      </div>
+    </li>
+    }
+  </ul>
+  } @else {
+  <p class="muted none">No ASC expires in the next 30 days.</p>
+  }
+</section>
+}

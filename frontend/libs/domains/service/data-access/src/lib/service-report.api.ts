@@ -55,10 +55,11 @@ export const SERVICE_REPORT_WRITE_PERMISSIONS = [
   'svc.call.assign',
 ] as const;
 
-/** Inspection checklists: who may open the list, and who may change them. */
+/** Inspection checklists: who may open the list (engineers read them for their reports), and who may change them. */
 export const CHECKLIST_VIEW_PERMISSIONS = [
   'svc.checklist.manage',
   'svc.call.assign',
+  'svc.report.submit',
 ] as const;
 export const CHECKLIST_MANAGE_PERMISSION = 'svc.checklist.manage';
 

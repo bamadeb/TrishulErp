@@ -22,6 +22,13 @@ export const appRoutes: Route[] = [
     canActivate: [guestGuard],
     component: LoginPage,
   },
+  // Printable documents (purchase order, payment voucher), without the app's menus.
+  {
+    path: 'print',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('@trishul/purchases-feature').then((m) => m.purchasesPrintRoutes),
+  },
   {
     path: '',
     component: Shell,
@@ -50,7 +57,17 @@ export const appRoutes: Route[] = [
         loadChildren: () =>
           import('@trishul/hr-feature-dashboard').then((m) => m.hrRoutes),
       },
-      // Phase 1+: masters, inventory, purchase, sales, presales, accounts, integration, reports.
+      {
+        path: 'inventory',
+        loadChildren: () =>
+          import('@trishul/inventory-feature').then((m) => m.inventoryRoutes),
+      },
+      {
+        path: 'purchases',
+        loadChildren: () =>
+          import('@trishul/purchases-feature').then((m) => m.purchasesRoutes),
+      },
+      // Phase 1+: sales, presales, accounts, integration, reports.
       { path: 'forbidden', title: 'Access denied', component: ForbiddenPage },
       { path: '**', title: 'Not found', component: NotFoundPage },
     ],

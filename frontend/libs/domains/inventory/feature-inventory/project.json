@@ -1,0 +1,10 @@
+{
+  "name": "inventory-feature-inventory",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/inventory/feature-inventory/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:inventory", "type:feature"],
+  "// targets": "to see all targets run: nx show project inventory-feature-inventory --web",
+  "targets": {}
+}

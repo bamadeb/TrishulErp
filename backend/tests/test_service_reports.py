@@ -438,8 +438,8 @@ def test_checklist_references_are_validated(lead: TestClient) -> None:
     assert "principalId" in response.json()["errors"]
 
 
-def test_engineer_cannot_manage_checklists(engineer: TestClient) -> None:
-    assert engineer.get(CHECKLIST).status_code == 403
+def test_engineer_can_read_but_not_manage_checklists(engineer: TestClient) -> None:
+    assert engineer.get(CHECKLIST, params={"includeInactive": False}).status_code == 200  # to fill in reports
     assert engineer.post(CHECKLIST, json={"name": "X", "items": [{"itemText": "Q"}]}).status_code == 403
 
 
@@ -529,8 +529,8 @@ def test_checklist_dropdown_options(lead: TestClient, engineer: TestClient) -> N
     types = lead.get("/api/v1/svc/checklist-answer-types").json()
     assert [t["value"] for t in types] == ["OK Not OK", "Number", "Text", "Photo"]
     assert types[0]["label"] == "OK / Not OK"
-    assert engineer.get("/api/v1/svc/checklist-brands").status_code == 403
-    assert engineer.get("/api/v1/svc/checklist-answer-types").status_code == 403
+    assert engineer.get("/api/v1/svc/checklist-brands").status_code == 200
+    assert engineer.get("/api/v1/svc/checklist-answer-types").status_code == 200
 
 
 def test_report_outcome_options(lead: TestClient, engineer: TestClient) -> None:

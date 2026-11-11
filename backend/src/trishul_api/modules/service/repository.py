@@ -2,7 +2,7 @@ import builtins
 from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, case, exists, false, func, or_, select
+from sqlalchemy import ColumnElement, Select, case, exists, false, func, or_, select, true
 from sqlalchemy.orm import InstrumentedAttribute, Session, aliased
 
 from trishul_api.auth import RequestScope
@@ -22,16 +22,15 @@ from trishul_api.db.models import (
     Principal,
     ServiceCall,
     ServiceVisit,
-    TrackableActivity,
     Team,
     TeamMember,
+    TrackableActivity,
     TrkTrip,
 )
 from trishul_api.modules.core.teams.repository import current_member
 from trishul_api.modules.service.access import FINISHED_STATUSES, CallVisibility
 from trishul_api.modules.service.assignment import support_engineers, supports_call
 from trishul_api.modules.service.contracts.repository import ContractRepository
-from trishul_api.modules.trk.constants import IN_PROGRESS as TRIP_IN_PROGRESS
 from trishul_api.modules.service.schemas import (
     AssignedServiceCallListItem,
     AssignedServiceCallQuery,
@@ -47,6 +46,7 @@ from trishul_api.modules.service.schemas import (
     UnassignedCallItem,
     UnassignedCallQuery,
 )
+from trishul_api.modules.trk.constants import IN_PROGRESS as TRIP_IN_PROGRESS
 
 # Calls the engineer no longer needs to travel to: hidden unless the client asks for them by status.
 _CLOSED_STATUSES = ("Closed", "Cancelled")
@@ -67,6 +67,11 @@ def _visible(visibility: CallVisibility) -> ColumnElement[bool]:
     if visibility.engineer_ids:
         conditions.append(supports_call(visibility.engineer_ids))
     return or_(*conditions) if conditions else false()
+
+
+def visible_calls(visibility: CallVisibility) -> ColumnElement[bool]:
+    """Which calls the user sees, as a WHERE condition (the register's rule, for other screens)."""
+    return true() if visibility.everything else _visible(visibility)
 
 
 def _trip_ongoing() -> ColumnElement[bool]:
