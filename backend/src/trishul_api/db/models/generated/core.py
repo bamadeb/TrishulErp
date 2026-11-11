@@ -428,6 +428,8 @@ class Customer(Audited, Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    opening_balance: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    opening_balance_date: Mapped[dt.date | None] = mapped_column(sa.Date())
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -479,6 +481,11 @@ class CustomerSite(Base):
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
     locality_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.locality.id"), doc="Village / town of the site")
+    site_code: Mapped[str | None] = mapped_column(sa.NVARCHAR(20))
+    gstin: Mapped[str | None] = mapped_column(sa.NVARCHAR(15))
+    billing_address: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    billing_state_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.state.id"))
+    email: Mapped[str | None] = mapped_column(sa.NVARCHAR(120))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 

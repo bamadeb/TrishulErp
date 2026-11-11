@@ -1,0 +1,10 @@
+{
+  "name": "sales-feature-sales",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/sales/feature-sales/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:sales", "type:feature"],
+  "// targets": "to see all targets run: nx show project sales-feature-sales --web",
+  "targets": {}
+}

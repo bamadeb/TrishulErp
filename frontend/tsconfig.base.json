@@ -78,6 +78,12 @@
       ],
       "@trishul/inventory-feature": [
         "./libs/domains/inventory/feature-inventory/src/index.ts"
+      ],
+      "@trishul/sales-data-access": [
+        "./libs/domains/sales/data-access/src/index.ts"
+      ],
+      "@trishul/sales-feature": [
+        "./libs/domains/sales/feature-sales/src/index.ts"
       ]
     }
   },

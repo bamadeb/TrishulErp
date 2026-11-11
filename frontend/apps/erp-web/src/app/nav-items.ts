@@ -25,6 +25,13 @@ import {
   PUR_SUPPLIER_PERMISSIONS,
 } from '@trishul/purchases-data-access';
 import {
+  SAL_ACCOUNT_PERMISSIONS,
+  SAL_DELIVERY_PERMISSIONS,
+  SAL_ORDER_PERMISSIONS,
+  SAL_QUOTATION_PERMISSIONS,
+  SAL_USER_PERMISSIONS,
+} from '@trishul/sales-data-access';
+import {
   ASC_VIEW_PERMISSIONS,
   MACHINE_VIEW_PERMISSIONS,
   MY_TRIPS_PERMISSION,
@@ -210,6 +217,60 @@ export const navItems: NavItem[] = [
         icon: 'local_shipping',
         route: '/purchases/suppliers',
         permissions: [...PUR_SUPPLIER_PERMISSIONS],
+      },
+    ],
+  },
+  {
+    label: 'Sales',
+    icon: 'storefront',
+    children: [
+      {
+        label: 'Quotations',
+        icon: 'request_quote',
+        route: '/sales/quotations',
+        permissions: [...SAL_QUOTATION_PERMISSIONS],
+      },
+      {
+        label: 'Sales orders',
+        icon: 'shopping_bag',
+        route: '/sales/orders',
+        permissions: [...SAL_ORDER_PERMISSIONS],
+      },
+      {
+        label: 'Orders to deliver',
+        icon: 'pending_actions',
+        route: '/sales/outstanding',
+        permissions: [...SAL_ORDER_PERMISSIONS],
+      },
+      {
+        label: 'Deliveries',
+        icon: 'local_shipping',
+        route: '/sales/deliveries',
+        permissions: [...SAL_DELIVERY_PERMISSIONS],
+      },
+      {
+        label: 'Sales invoices',
+        icon: 'receipt_long',
+        route: '/sales/invoices',
+        permissions: [...SAL_ACCOUNT_PERMISSIONS],
+      },
+      {
+        label: 'Receipts & advances',
+        icon: 'payments',
+        route: '/sales/receipts',
+        permissions: [...SAL_ACCOUNT_PERMISSIONS],
+      },
+      {
+        label: 'Allocations',
+        icon: 'link',
+        route: '/sales/allocations',
+        permissions: [...SAL_ACCOUNT_PERMISSIONS],
+      },
+      {
+        label: 'Customer accounts',
+        icon: 'account_balance_wallet',
+        route: '/sales/customers',
+        permissions: [...SAL_USER_PERMISSIONS],
       },
     ],
   },

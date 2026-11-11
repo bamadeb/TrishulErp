@@ -24,10 +24,14 @@ GRN_MANAGE = "inv.grn.manage"
 TRANSFER_MANAGE = "inv.transfer.manage"
 STOCK_ADJUST = "inv.stock.adjust"
 
+#: Sales users who pick items, dispatch locations and racks (quotations, orders, deliveries, invoices).
+SALES_PICKERS = ("sal.quotation.manage", "sal.order.manage", "sal.delivery.manage", "sal.invoice.direct")
 #: Any inventory permission: enough to read the masters the inventory screens pick from.
-ANY_INVENTORY = (ITEM_VIEW, ITEM_MANAGE, LOCATION_MANAGE, STOCK_VIEW, GRN_MANAGE, TRANSFER_MANAGE, STOCK_ADJUST)
-#: Screens that work with stock (pick a location, see what is there).
-STOCK_USERS = (STOCK_VIEW, GRN_MANAGE, TRANSFER_MANAGE, STOCK_ADJUST)
+ANY_INVENTORY = (
+    ITEM_VIEW, ITEM_MANAGE, LOCATION_MANAGE, STOCK_VIEW, GRN_MANAGE, TRANSFER_MANAGE, STOCK_ADJUST, *SALES_PICKERS,
+)  # fmt: skip
+#: Screens that work with stock (pick a location, see what is there; deliveries pick a batch).
+STOCK_USERS = (STOCK_VIEW, GRN_MANAGE, TRANSFER_MANAGE, STOCK_ADJUST, "sal.delivery.manage", "sal.invoice.direct")
 
 ZERO = Decimal(0)
 

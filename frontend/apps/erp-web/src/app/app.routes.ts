@@ -22,7 +22,13 @@ export const appRoutes: Route[] = [
     canActivate: [guestGuard],
     component: LoginPage,
   },
-  // Printable documents (purchase order, payment voucher), without the app's menus.
+  // Printable documents, without the app's menus. Sales first: /print/sales/... is more specific.
+  {
+    path: 'print/sales',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('@trishul/sales-feature').then((m) => m.salesPrintRoutes),
+  },
   {
     path: 'print',
     canActivate: [authGuard],
@@ -67,7 +73,12 @@ export const appRoutes: Route[] = [
         loadChildren: () =>
           import('@trishul/purchases-feature').then((m) => m.purchasesRoutes),
       },
-      // Phase 1+: sales, presales, accounts, integration, reports.
+      {
+        path: 'sales',
+        loadChildren: () =>
+          import('@trishul/sales-feature').then((m) => m.salesRoutes),
+      },
+      // Phase 1+: presales, accounts, integration, reports.
       { path: 'forbidden', title: 'Access denied', component: ForbiddenPage },
       { path: '**', title: 'Not found', component: NotFoundPage },
     ],

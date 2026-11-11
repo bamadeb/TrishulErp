@@ -16,17 +16,17 @@ from trishul_api.db.models.base import Audited, Base
 
 PriceListPriceListType = Literal["Retail", "Dealer", "Government", "Service labour"]
 QuotationQuotationType = Literal["Machine", "Parts", "Service"]
-QuotationStatus = Literal["Draft", "Pending approval", "Sent", "Accepted", "Rejected", "Expired"]
+QuotationStatus = Literal["Draft", "Pending approval", "Submitted", "Sent", "Accepted", "Rejected", "Expired", "Converted"]
 QuotationVersionSentVia = Literal["Email", "WhatsApp", "Print"]
 SalesOrderFinanceMode = Literal["Cash", "Financed"]
-SalesOrderStatus = Literal["Draft", "Confirmed", "Part delivered", "Delivered", "Invoiced", "Cancelled"]
 SalesOrderCreditCheckStatus = Literal["Not checked", "Within limit", "On hold", "Approved override"]
+SalesOrderStatus = Literal["Draft", "Pending approval", "Approved", "Confirmed", "Part delivered", "Delivered", "Part invoiced", "Invoiced", "Closed", "Cancelled"]
 ExchangeMachineStatus = Literal["Evaluated", "Agreed", "Received", "Cancelled"]
 DeliveryNoteStatus = Literal["Draft", "Dispatched", "Delivered", "Cancelled"]
 PdiInstallationRecordType = Literal["PDI", "Installation", "Commissioning"]
 SalesInvoiceInvoiceType = Literal["Tax invoice", "Bill of supply", "Export"]
-SalesInvoiceSourceType = Literal["Sales order", "Service call", "Counter sale", "Contract"]
 SalesInvoiceStatus = Literal["Draft", "Posted", "Part paid", "Paid", "Cancelled"]
+SalesInvoiceSourceType = Literal["Sales order", "Delivery", "Direct", "Service call", "Counter sale", "Contract"]
 ReceiptReceiptType = Literal["Against invoice", "Advance", "Order advance"]
 ReceiptPaymentMode = Literal["Cash", "Cheque", "NEFT", "RTGS", "UPI", "Finance disbursement"]
 ReceiptStatus = Literal["Draft", "Pending confirmation", "Posted", "Bounced", "Cancelled"]
@@ -136,6 +136,19 @@ class Quotation(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    customer_site_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.customer_site.id"))
+    cgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    sgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    igst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    other_charges: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    submitted_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    submitted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    approved_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    approved_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    responded_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    responded_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    response_note: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -193,6 +206,7 @@ class QuotationLine(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    gst_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -236,6 +250,24 @@ class SalesOrder(Base):
     is_payment_confirmed: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     payment_confirmed_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
     payment_confirmed_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    customer_site_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.customer_site.id"))
+    bill_to_address: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    ship_to_address: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    place_of_supply_state_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.state.id"))
+    is_prepaid: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    cgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    sgst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    igst: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    other_charges: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    submitted_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    submitted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    approved_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    approved_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    approval_note: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    closed_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    closed_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    close_reason: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -268,6 +300,9 @@ class SalesOrderLine(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    discount_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    gst_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    uom_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.uom.id"))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -332,6 +367,15 @@ class DeliveryNote(Base):
     delivered_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
     received_by_name: Mapped[str | None] = mapped_column(sa.NVARCHAR(100))
     pod_attachment_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.attachment.id"))
+    customer_site_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.customer_site.id"))
+    ship_to_address: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    delivery_reference: Mapped[str | None] = mapped_column(sa.NVARCHAR(40))
+    recipient_phone: Mapped[str | None] = mapped_column(sa.NVARCHAR(15))
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    posted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    cancelled_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    cancelled_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    cancel_reason: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -355,6 +399,14 @@ class DeliveryNoteLine(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    qty_invoiced: Mapped[Decimal] = mapped_column(sa.Numeric(18, 3), server_default=sa.FetchedValue())
+    unit_price: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 4))
+    discount_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    gst_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    description: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    uom_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.uom.id"))
+    bin_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.bin.id"))
+    unit_cost: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 4))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -397,7 +449,7 @@ class SalesInvoice(Audited, Base):
     principal_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.principal.id"), doc="Brand (one brand per invoice)")
     company_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.company.id"), doc="Company")
     branch_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.branch.id"), doc="Branch")
-    gstin_registration_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("acc.gstin_registration.id"), doc="Our GSTIN")
+    gstin_registration_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("acc.gstin_registration.id"), doc="Our GSTIN")
     customer_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.customer.id"), doc="Customer")
     bill_to_address: Mapped[str | None] = mapped_column(sa.NVARCHAR(500), doc="Billing address")
     ship_to_site_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.customer_site.id"), doc="Ship to")
@@ -427,6 +479,18 @@ class SalesInvoice(Audited, Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    customer_site_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.customer_site.id"))
+    ship_to_address: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    other_charges: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(500))
+    is_direct: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    location_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.location.id"))
+    posted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    credit_override_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    credit_override_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    cancelled_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    cancelled_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    cancel_reason: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -446,13 +510,13 @@ class SalesInvoiceLine(Base):
     sales_order_line_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("sal.sales_order_line.id"), doc="Order line")
     service_charge_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("svc.service_charge.id"), doc="Service charge")
     description: Mapped[str] = mapped_column(sa.NVARCHAR(300), doc="Description")
-    hsn_sac_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.hsn_sac.id"), doc="HSN / SAC")
+    hsn_sac_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.hsn_sac.id"), doc="HSN / SAC")
     quantity: Mapped[Decimal] = mapped_column(sa.Numeric(18, 3), doc="Qty")
     uom_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.uom.id"), doc="Unit")
     unit_price: Mapped[Decimal] = mapped_column(sa.Numeric(18, 4), doc="Price")
     discount_amount: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue(), doc="Discount")
     taxable_value: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), doc="Taxable")
-    gst_rate_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("acc.gst_rate.id"), doc="GST rate")
+    gst_rate_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("acc.gst_rate.id"), doc="GST rate")
     cgst_amount: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue(), doc="CGST")
     sgst_amount: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue(), doc="SGST")
     igst_amount: Mapped[Decimal] = mapped_column(sa.Numeric(18, 2), server_default=sa.FetchedValue(), doc="IGST")
@@ -464,6 +528,10 @@ class SalesInvoiceLine(Base):
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
     unit_cost: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 4))
+    gst_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    discount_pct: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), server_default=sa.FetchedValue())
+    delivery_note_line_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("sal.delivery_note_line.id"))
+    bin_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.bin.id"))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -498,6 +566,11 @@ class Receipt(Audited, Base):
     confirmed_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
     confirmed_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
     collected_by_employee_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.employee.id"))
+    sales_order_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("sal.sales_order.id"))
+    bank_name: Mapped[str | None] = mapped_column(sa.NVARCHAR(100))
+    cheque_date: Mapped[dt.date | None] = mapped_column(sa.Date())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    posted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
@@ -577,6 +650,10 @@ class CustomerAllocation(Base):
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
     opening_balance_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("acc.opening_balance.id"))
+    allocated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    reversed_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    reversed_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    reversal_reason: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 

@@ -114,6 +114,16 @@ export default [
                 'scope:core',
               ],
             },
+            {
+              // Sales dispatches stock: it may use the inventory pickers and lookups.
+              sourceTag: 'scope:sales',
+              onlyDependOnLibsWithTags: [
+                'scope:sales',
+                'scope:inventory',
+                'scope:shared',
+                'scope:core',
+              ],
+            },
           ],
         },
       ],

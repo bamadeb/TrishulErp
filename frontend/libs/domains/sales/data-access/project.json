@@ -1,0 +1,10 @@
+{
+  "name": "sales-data-access",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/domains/sales/data-access/src",
+  "prefix": "trishul",
+  "projectType": "library",
+  "tags": ["scope:sales", "type:data-access"],
+  "// targets": "to see all targets run: nx show project sales-data-access --web",
+  "targets": {}
+}
