@@ -414,7 +414,10 @@ class PurchaseOrderService:
         po.remarks = data.remarks
 
     def _replace_lines(self, po: PurchaseOrder, data: PoCreate, supplier: Supplier) -> None:
-        for old in self._db.scalars(select(PurchaseOrderLine).where(PurchaseOrderLine.purchase_order_id == po.id)):
+        old_lines = self._db.scalars(
+            select(PurchaseOrderLine).where(PurchaseOrderLine.purchase_order_id == po.id)
+        ).all()
+        for old in old_lines:
             self._db.delete(old)
         self._db.flush()
         inter_state = is_inter_state(self._db, supplier, po.branch_id)

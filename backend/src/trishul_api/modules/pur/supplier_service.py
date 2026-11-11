@@ -196,17 +196,24 @@ class SupplierService:
         )
 
     def form_options(self) -> SupplierFormOptions:
-        states = self._db.execute(
-            select(State.id, State.gst_state_code.label("code"), State.name).order_by(State.name)
-        ).mappings()
-        terms = self._db.execute(
-            select(PaymentTerms.id, PaymentTerms.code, PaymentTerms.description.label("name"))
-            .where(PaymentTerms.is_active)
-            .order_by(PaymentTerms.days_before_due, PaymentTerms.code)
-        ).mappings()
+        # .all() before the next query: SQL Server allows one open result per connection.
+        states = (
+            self._db.execute(select(State.id, State.gst_state_code.label("code"), State.name).order_by(State.name))
+            .mappings()
+            .all()
+        )
+        terms = (
+            self._db.execute(
+                select(PaymentTerms.id, PaymentTerms.code, PaymentTerms.description.label("name"))
+                .where(PaymentTerms.is_active)
+                .order_by(PaymentTerms.days_before_due, PaymentTerms.code)
+            )
+            .mappings()
+            .all()
+        )
         return SupplierFormOptions(
-            states=[Option.model_validate(r) for r in states.all()],
-            payment_terms=[Option.model_validate(r) for r in terms.all()],
+            states=[Option.model_validate(r) for r in states],
+            payment_terms=[Option.model_validate(r) for r in terms],
         )
 
     # ------------------------------------------------------------------ open items and statement
