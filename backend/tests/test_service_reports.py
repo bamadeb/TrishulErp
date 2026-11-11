@@ -531,3 +531,13 @@ def test_checklist_dropdown_options(lead: TestClient, engineer: TestClient) -> N
     assert types[0]["label"] == "OK / Not OK"
     assert engineer.get("/api/v1/svc/checklist-brands").status_code == 403
     assert engineer.get("/api/v1/svc/checklist-answer-types").status_code == 403
+
+
+def test_report_outcome_options(lead: TestClient, engineer: TestClient) -> None:
+    for client in (lead, engineer):
+        res = client.get("/api/v1/svc/service-report-outcomes")
+        assert res.status_code == 200, res.text
+        outcomes = res.json()
+        assert [o["value"] for o in outcomes] == ["None", "Parts required", "Revisit", "Escalate"]
+        assert outcomes[0]["label"] == "Work done"
+        assert [o["requiresVisitDate"] for o in outcomes] == [False, False, True, False]

@@ -216,12 +216,12 @@
       <mat-form-field appearance="outline">
         <mat-label>Outcome of this visit</mat-label>
         <mat-select formControlName="nextAction">
-          @for (a of nextActions; track a.value) {
-          <mat-option [value]="a.value">{{ a.label }} — {{ a.hint }}</mat-option>
+          @for (a of outcomes(); track a.value) {
+          <mat-option [value]="a.value">{{ a.label }} — {{ a.description }}</mat-option>
           }
         </mat-select>
       </mat-form-field>
-      @if (finish.controls.nextAction.value === 'Revisit') {
+      @if (needsVisitDate()) {
       <mat-form-field appearance="outline">
         <mat-label>Next visit date</mat-label>
         <input matInput type="date" [min]="today" formControlName="nextVisitDate" />

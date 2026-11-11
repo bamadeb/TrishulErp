@@ -160,6 +160,7 @@ export type { PrincipalRef } from './models/principal-ref';
 export type { ProblemDetails } from './models/problem-details';
 export type { RegisterDeviceInput } from './models/register-device-input';
 export type { ReportAttachment } from './models/report-attachment';
+export type { ReportOutcome } from './models/report-outcome';
 export type { ReportSummary } from './models/report-summary';
 export type { RoleCreate } from './models/role-create';
 export type { RoleDetail } from './models/role-detail';
