@@ -8927,6 +8927,76 @@
         }
       }
     },
+    "/svc/service-report-outcomes": {
+      "get": {
+        "tags": [
+          "service-reports"
+        ],
+        "summary": "Outcomes for the \"Outcome of this visit\" dropdown when finishing a visit",
+        "operationId": "list_service_report_outcomes",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportOutcome"
+                  },
+                  "type": "array",
+                  "title": "Response List Service Report Outcomes"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/svc/service-visits/{visitId}/report": {
       "get": {
         "tags": [
@@ -60950,6 +61020,48 @@
         ],
         "title": "ReportAttachment",
         "description": "A photo or file attached to a report (download with GET /core/documents/{id}/content)."
+      },
+      "ReportOutcome": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": [
+              "None",
+              "Parts required",
+              "Revisit",
+              "Escalate"
+            ],
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "callBecomes": {
+            "type": "string",
+            "title": "Callbecomes",
+            "description": "The status the call moves to when the report is submitted."
+          },
+          "requiresVisitDate": {
+            "type": "boolean",
+            "title": "Requiresvisitdate",
+            "description": "True when the next visit date must be given (Revisit)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label",
+          "description",
+          "callBecomes",
+          "requiresVisitDate"
+        ],
+        "title": "ReportOutcome",
+        "description": "A way a visit can end (the \"Outcome of this visit\" dropdown) and what it does to the call."
       },
       "ReportSummary": {
         "properties": {

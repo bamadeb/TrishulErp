@@ -315,6 +315,7 @@ export type { ReceiptDetail } from './models/receipt-detail';
 export type { ReceiptListItem } from './models/receipt-list-item';
 export type { RegisterDeviceInput } from './models/register-device-input';
 export type { ReportAttachment } from './models/report-attachment';
+export type { ReportOutcome } from './models/report-outcome';
 export type { ReportSummary } from './models/report-summary';
 export type { RoleCreate } from './models/role-create';
 export type { RoleDetail } from './models/role-detail';
@@ -621,6 +622,8 @@ export type { ListServiceCallReports$Params as ListServiceCallReports$Params } f
 export { listServiceCallReports as listServiceCallReports } from './fn/service-reports/list-service-call-reports';
 export type { ListServiceReports$Params as ListServiceReports$Params } from './fn/service-reports/list-service-reports';
 export { listServiceReports as listServiceReports } from './fn/service-reports/list-service-reports';
+export type { ListServiceReportOutcomes$Params as ListServiceReportOutcomes$Params } from './fn/service-reports/list-service-report-outcomes';
+export { listServiceReportOutcomes as listServiceReportOutcomes } from './fn/service-reports/list-service-report-outcomes';
 export type { GetServiceVisitReport$Params as GetServiceVisitReport$Params } from './fn/service-reports/get-service-visit-report';
 export { getServiceVisitReport as getServiceVisitReport } from './fn/service-reports/get-service-visit-report';
 export type { StartServiceReport$Params as StartServiceReport$Params } from './fn/service-reports/start-service-report';

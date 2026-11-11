@@ -100,6 +100,16 @@ class ServiceReportOut(ApiModel):
     row_version: RowVersion
 
 
+class ReportOutcome(ApiModel):
+    """A way a visit can end (the "Outcome of this visit" dropdown) and what it does to the call."""
+
+    value: NextAction
+    label: str
+    description: str
+    call_becomes: str = Field(description="The status the call moves to when the report is submitted.")
+    requires_visit_date: bool = Field(description="True when the next visit date must be given (Revisit).")
+
+
 class ChecklistAnswerInput(InputModel):
     id: int = Field(gt=0, description="The id of the report's question (ChecklistAnswer.id).")
     is_ok: bool | None = None

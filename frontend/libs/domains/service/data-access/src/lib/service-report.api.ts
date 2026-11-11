@@ -8,6 +8,7 @@ import {
   ChecklistTemplateInput,
   ChecklistTemplateOut,
   ChecklistTemplateUpdate,
+  ReportOutcome,
   ServiceReportListItem,
   ServiceReportOut,
   ServiceReportSubmit,
@@ -19,6 +20,7 @@ import {
   listChecklistAnswerTypes,
   listChecklistBrands,
   listChecklistTemplates,
+  listServiceReportOutcomes,
   listServiceCallReports,
   listServiceReports,
   listServiceCallVisits,
@@ -40,6 +42,7 @@ export type {
   ChecklistTemplateOut,
   ChecklistTemplateUpdate,
   ReportAttachment,
+  ReportOutcome,
   ServiceReportListItem,
   ServiceReportOut,
   ServiceReportSubmit,
@@ -133,6 +136,11 @@ export class ServiceReportApi {
   /** The customer's signature image. */
   signatureImage(reportId: number): Observable<Blob> {
     return this.api.call(getServiceReportSignature, { reportId }) as Observable<Blob>;
+  }
+
+  /** The "Outcome of this visit" dropdown when finishing a visit. */
+  outcomes(): Observable<ReportOutcome[]> {
+    return this.api.call(listServiceReportOutcomes);
   }
 
   /** The Brand dropdown of the checklist form. */

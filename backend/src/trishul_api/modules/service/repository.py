@@ -421,6 +421,8 @@ class ServiceCallRepository:
                     ServiceCall.oem_call_id.contains(term, autoescape=True),
                     Customer.name.contains(term, autoescape=True),
                     MachineUnit.serial_number.contains(term, autoescape=True),
+                    _ENGINEER_NAME.contains(term, autoescape=True),
+                    Employee.employee_code.contains(term, autoescape=True),
                 )
             )
 

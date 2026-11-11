@@ -309,6 +309,7 @@ export type { ReceiptDetail } from './models/receipt-detail';
 export type { ReceiptListItem } from './models/receipt-list-item';
 export type { RegisterDeviceInput } from './models/register-device-input';
 export type { ReportAttachment } from './models/report-attachment';
+export type { ReportOutcome } from './models/report-outcome';
 export type { ReportSummary } from './models/report-summary';
 export type { RoleCreate } from './models/role-create';
 export type { RoleDetail } from './models/role-detail';

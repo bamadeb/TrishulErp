@@ -179,6 +179,8 @@ export type { ListServiceCallReports$Params as ListServiceCallReports$Params } f
 export { listServiceCallReports as listServiceCallReports } from './fn/service-reports/list-service-call-reports';
 export type { ListServiceReports$Params as ListServiceReports$Params } from './fn/service-reports/list-service-reports';
 export { listServiceReports as listServiceReports } from './fn/service-reports/list-service-reports';
+export type { ListServiceReportOutcomes$Params as ListServiceReportOutcomes$Params } from './fn/service-reports/list-service-report-outcomes';
+export { listServiceReportOutcomes as listServiceReportOutcomes } from './fn/service-reports/list-service-report-outcomes';
 export type { GetServiceVisitReport$Params as GetServiceVisitReport$Params } from './fn/service-reports/get-service-visit-report';
 export { getServiceVisitReport as getServiceVisitReport } from './fn/service-reports/get-service-visit-report';
 export type { StartServiceReport$Params as StartServiceReport$Params } from './fn/service-reports/start-service-report';

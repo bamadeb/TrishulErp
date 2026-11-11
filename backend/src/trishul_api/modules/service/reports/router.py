@@ -13,6 +13,7 @@ from trishul_api.modules.service.reports.schemas import (
     ChecklistTemplateInput,
     ChecklistTemplateOut,
     ChecklistTemplateUpdate,
+    ReportOutcome,
     ServiceReportListItem,
     ServiceReportOut,
     ServiceReportSubmit,
@@ -26,6 +27,37 @@ ANSWER_TYPES = [
     ChecklistAnswerType(value="Number", label="Number", description="A reading, e.g. pressure or hours."),
     ChecklistAnswerType(value="Text", label="Text", description="A short written answer."),
     ChecklistAnswerType(value="Photo", label="Photo", description="A photo of the check point."),
+]
+
+REPORT_OUTCOMES = [
+    ReportOutcome(
+        value="None",
+        label="Work done",
+        description="The machine is fixed; nothing more to do.",
+        call_becomes="Report submitted",
+        requires_visit_date=False,
+    ),
+    ReportOutcome(
+        value="Parts required",
+        label="Parts required",
+        description="The call waits for parts.",
+        call_becomes="Awaiting parts",
+        requires_visit_date=False,
+    ),
+    ReportOutcome(
+        value="Revisit",
+        label="Revisit needed",
+        description="Plan another visit on a date.",
+        call_becomes="Revisit scheduled",
+        requires_visit_date=True,
+    ),
+    ReportOutcome(
+        value="Escalate",
+        label="Escalate",
+        description="Needs a specialist; the team lead is told.",
+        call_becomes="Report submitted",
+        requires_visit_date=False,
+    ),
 ]
 
 router = APIRouter(prefix="/svc", tags=["service-reports"])
@@ -77,6 +109,15 @@ def list_service_reports(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[ServiceReportListItem]:
     return ServiceReportService(db, actor).search(search, status, limit)
+
+
+@router.get(
+    "/service-report-outcomes",
+    summary="Outcomes for the \"Outcome of this visit\" dropdown when finishing a visit",
+    dependencies=[CAN_VIEW],
+)
+def list_service_report_outcomes() -> list[ReportOutcome]:
+    return REPORT_OUTCOMES
 
 
 @router.get(

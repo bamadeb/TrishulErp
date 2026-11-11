@@ -33,6 +33,7 @@ import {
   CallVisit,
   SERVICE_REPORT_ENTITY,
   ServiceCallApi,
+  ReportOutcome,
   ServiceReportApi,
   ServiceReportOut,
   ServiceReportSubmit,
@@ -41,13 +42,6 @@ import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { SignaturePad } from './signature-pad';
 
 type NextAction = ServiceReportSubmit['nextAction'];
-
-const NEXT_ACTIONS: { value: NextAction; label: string; hint: string }[] = [
-  { value: 'None', label: 'Work done', hint: 'The machine is fixed; nothing more to do.' },
-  { value: 'Parts required', label: 'Parts required', hint: 'The call waits for parts.' },
-  { value: 'Revisit', label: 'Revisit needed', hint: 'Plan another visit on a date.' },
-  { value: 'Escalate', label: 'Escalate', hint: 'Needs a specialist; the team lead is told.' },
-];
 
 const VISIT_SEVERITY: Record<CallVisit['status'], StatusSeverity> = {
   Planned: 'neutral',
@@ -98,7 +92,11 @@ export class ServiceReportPage {
   readonly visitId = input<string>();
 
   protected readonly entityType = SERVICE_REPORT_ENTITY;
-  protected readonly nextActions = NEXT_ACTIONS;
+  protected readonly outcomes = signal<ReportOutcome[]>([]);
+  protected needsVisitDate(): boolean {
+    const chosen = this.finish.controls.nextAction.value;
+    return this.outcomes().find((o) => o.value === chosen)?.requiresVisitDate ?? false;
+  }
   protected readonly visitSeverity = VISIT_SEVERITY;
   protected readonly reportSeverity: Record<string, StatusSeverity> = { Draft: 'warn', Submitted: 'success' };
   protected readonly loading = signal(true);
@@ -143,6 +141,7 @@ export class ServiceReportPage {
   protected readonly today = new Date().toISOString().slice(0, 10);
 
   constructor() {
+    this.api.outcomes().subscribe((v) => this.outcomes.set(v));
     this.calls.lookups('MACHINE_CONDITION').subscribe((v) => this.conditions.set(v));
     this.calls.lookups('FAILURE_CODE').subscribe((v) => this.failureCodes.set(v));
     effect(() => {
