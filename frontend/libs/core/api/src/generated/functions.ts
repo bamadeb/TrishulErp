@@ -211,6 +211,10 @@ export type { CreatePartRequests$Params as CreatePartRequests$Params } from './f
 export { createPartRequests as createPartRequests } from './fn/service-parts/create-part-requests';
 export type { ListPartRequests$Params as ListPartRequests$Params } from './fn/service-parts/list-part-requests';
 export { listPartRequests as listPartRequests } from './fn/service-parts/list-part-requests';
+export type { ListPartRequestCalls$Params as ListPartRequestCalls$Params } from './fn/service-parts/list-part-request-calls';
+export { listPartRequestCalls as listPartRequestCalls } from './fn/service-parts/list-part-request-calls';
+export type { GetPartRequestQuotationDraft$Params as GetPartRequestQuotationDraft$Params } from './fn/service-parts/get-part-request-quotation-draft';
+export { getPartRequestQuotationDraft as getPartRequestQuotationDraft } from './fn/service-parts/get-part-request-quotation-draft';
 export type { RejectPartRequest$Params as RejectPartRequest$Params } from './fn/service-parts/reject-part-request';
 export { rejectPartRequest as rejectPartRequest } from './fn/service-parts/reject-part-request';
 export type { CreatePartRequestQuotation$Params as CreatePartRequestQuotation$Params } from './fn/service-parts/create-part-request-quotation';

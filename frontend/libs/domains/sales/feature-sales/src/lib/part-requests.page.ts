@@ -2,13 +2,11 @@ import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
-import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import {
   MatFormField,
@@ -23,10 +21,10 @@ import { MatOption, MatSelect } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
 import {
   ApiClient,
-  ListPartRequests$Params,
+  ListPartRequestCalls$Params,
+  PartRequestCall,
   PartRequestListItem,
-  createPartRequestQuotation,
-  listPartRequests,
+  listPartRequestCalls,
   rejectPartRequest,
 } from '@trishul/core-api';
 import { HasPermission } from '@trishul/core-auth';
@@ -39,7 +37,7 @@ import {
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { Subject, debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 
-type PartStatus = NonNullable<ListPartRequests$Params['status']>;
+type PartStatus = NonNullable<ListPartRequestCalls$Params['status']>;
 const STATUSES: PartStatus[] = ['Requested', 'Quoted', 'Rejected'];
 const SEVERITY: Record<string, StatusSeverity> = {
   Requested: 'warn',
@@ -47,14 +45,17 @@ const SEVERITY: Record<string, StatusSeverity> = {
   Rejected: 'danger',
 };
 
-/** Parts the engineers asked for on their calls: the office quotes them (a draft quotation) or rejects them. */
+/**
+ * Parts the engineers asked for, call by call (several engineers may ask on one call).
+ * One line per call. "Create quotation" opens a new quotation filled with the call's waiting parts; it is
+ * saved only when the user has checked it there (a part line removed there stays waiting).
+ */
 @Component({
   selector: 'trishul-part-requests-page',
   imports: [
     DatePipe,
     RouterLink,
     MatButton,
-    MatCheckbox,
     MatIcon,
     MatFormField,
     MatLabel,
@@ -70,34 +71,34 @@ const SEVERITY: Record<string, StatusSeverity> = {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: '../../../../inventory/data-access/src/lib/inventory.scss',
+  styles: `
+    td {
+      vertical-align: top;
+    }
+    .part {
+      white-space: nowrap;
+    }
+    .part .done {
+      text-decoration: line-through;
+      color: var(--mat-sys-on-surface-variant);
+    }
+    .actions {
+      text-align: end;
+      white-space: nowrap;
+    }
+    .actions button {
+      display: flex;
+      margin-inline-start: auto;
+    }
+    .actions button + button {
+      margin-top: 4px;
+    }
+  `,
   template: `
     <trishul-page-header
       title="Parts requests"
-      subtitle="Parts engineers requested on their service calls: make a quotation or reject them"
-    >
-      @if (selected().length) {
-        <button mat-stroked-button type="button" (click)="reject()">
-          <mat-icon>block</mat-icon>Reject ({{ selected().length }})
-        </button>
-        <button
-          mat-flat-button
-          type="button"
-          *trishulHasPermission="quoteManage"
-          [disabled]="!oneCustomer() || busy()"
-          (click)="quote()"
-        >
-          <mat-icon>request_quote</mat-icon>Create quotation ({{
-            selected().length
-          }})
-        </button>
-      }
-    </trishul-page-header>
-    @if (selected().length && !oneCustomer()) {
-      <p class="muted" role="status">
-        A quotation is for one customer, brand and branch: choose parts of one
-        call (or of calls of the same customer).
-      </p>
-    }
+      subtitle="Parts engineers requested, call by call: make a quotation or reject them"
+    />
     <div class="filters">
       <mat-form-field
         class="search"
@@ -141,7 +142,7 @@ const SEVERITY: Record<string, StatusSeverity> = {
 
     <div class="table-card">
       <div class="progress">
-        @if (list.loading() || busy()) {
+        @if (list.loading()) {
           <mat-progress-bar mode="indeterminate" />
         }
       </div>
@@ -149,100 +150,97 @@ const SEVERITY: Record<string, StatusSeverity> = {
         <table class="plain wide">
           <thead>
             <tr>
-              <th>
-                <mat-checkbox
-                  aria-label="Select all waiting parts on this page"
-                  [checked]="allChosen()"
-                  [indeterminate]="selected().length > 0 && !allChosen()"
-                  [disabled]="!waiting().length"
-                  (change)="toggleAll($event.checked)"
-                />
-              </th>
               <th>Requested</th>
               <th>Call</th>
               <th>Customer</th>
-              <th>Part</th>
-              <th class="num">Qty</th>
+              <th>Parts</th>
               <th>Requested by</th>
               <th>Status</th>
               <th>Quotation / note</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            @for (p of list.items(); track p.id) {
+            @for (c of list.items(); track c.serviceCallId) {
               <tr>
-                <td>
-                  @if (p.status === 'Requested') {
-                    <mat-checkbox
-                      [attr.aria-label]="
-                        'Select ' + (p.itemCode ?? p.partDescription)
-                      "
-                      [checked]="chosen().has(p.id)"
-                      (change)="toggle(p, $event.checked)"
-                    />
-                  }
-                </td>
                 <td class="nowrap">
-                  {{ p.createdAt | date: 'dd MMM yyyy, HH:mm' }}
-                  @if (p.requiredByDate) {
+                  {{ c.lastRequestedAt | date: 'dd MMM yyyy, HH:mm' }}
+                  @if (c.requiredByDate) {
                     <div class="muted">
-                      Needed by {{ p.requiredByDate | date: 'dd MMM' }}
+                      Needed by {{ c.requiredByDate | date: 'dd MMM' }}
                     </div>
                   }
                 </td>
                 <td class="nowrap">
                   <a
                     class="name"
-                    [routerLink]="['/service/calls', p.serviceCallId]"
-                    >{{ p.callNo }}</a
+                    [routerLink]="['/service/calls', c.serviceCallId]"
+                    >{{ c.callNo }}</a
                   >
-                  <div class="muted">{{ p.callStatus }}</div>
+                  <div class="muted">{{ c.callStatus }}</div>
                 </td>
                 <td>
-                  {{ p.customerName }}
+                  {{ c.customerName }}
                   <div class="muted">
-                    {{ p.principalName }} · {{ p.branchName }}
+                    {{ c.principalName }} · {{ c.branchName }}
                   </div>
                 </td>
                 <td>
-                  {{ p.itemCode ?? 'Not in item master' }}
-                  <div class="muted">{{ p.partDescription }}</div>
-                  @if (!p.isChargeable) {
-                    <div class="muted">Not chargeable (warranty / ASC)</div>
+                  @for (p of c.parts; track p.id) {
+                    <div class="part">
+                      <span [class.done]="p.status !== 'Requested'">{{
+                        p.itemCode ?? p.partDescription
+                      }}</span>
+                      × {{ qty(p.quantity) }} {{ p.uomCode ?? '' }}
+                      @if (p.status !== 'Requested') {
+                        <span class="muted">({{ p.status }})</span>
+                      }
+                    </div>
                   }
                 </td>
-                <td class="num nowrap">
-                  {{ qty(p.quantity) }} {{ p.uomCode ?? '' }}
-                </td>
-                <td>{{ p.requestedByName ?? '—' }}</td>
+                <td>{{ c.requestedBy.join(', ') || '—' }}</td>
                 <td>
                   <trishul-status-badge
-                    [status]="p.status"
+                    [status]="status(c)"
                     [severities]="severity"
                   />
+                  @if (c.waiting && c.waiting < c.parts.length) {
+                    <div class="muted">{{ c.waiting }} waiting</div>
+                  }
                 </td>
                 <td>
-                  @if (p.quotationId) {
-                    <a
-                      class="name"
-                      [routerLink]="['/sales/quotations', p.quotationId]"
-                      >{{ p.quotationNo }}</a
-                    >
-                  }
-                  @if (p.reviewNote) {
-                    <div class="muted">{{ p.reviewNote }}</div>
-                  }
-                  @if (p.reviewedBy) {
-                    <div class="muted">
-                      {{ p.reviewedBy }},
-                      {{ p.reviewedAt | date: 'dd MMM, HH:mm' }}
+                  @for (q of quotations(c); track q.id) {
+                    <div>
+                      <a
+                        class="name"
+                        [routerLink]="['/sales/quotations', q.id]"
+                        >{{ q.no }}</a
+                      >
                     </div>
+                  }
+                  @for (n of notes(c); track n) {
+                    <div class="muted">{{ n }}</div>
+                  }
+                </td>
+                <td class="actions">
+                  @if (c.waiting) {
+                    <button
+                      mat-flat-button
+                      type="button"
+                      *trishulHasPermission="quoteManage"
+                      (click)="quote(c)"
+                    >
+                      <mat-icon>request_quote</mat-icon>Create quotation
+                    </button>
+                    <button mat-button type="button" (click)="reject(c)">
+                      <mat-icon>block</mat-icon>Reject
+                    </button>
                   }
                 </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="9" class="empty">
+                <td colspan="8" class="empty">
                   {{ list.loading() ? 'Loading…' : 'No parts requests match.' }}
                 </td>
               </tr>
@@ -254,8 +252,8 @@ const SEVERITY: Record<string, StatusSeverity> = {
         [length]="list.total()"
         [pageIndex]="(query().page ?? 1) - 1"
         [pageSize]="query().pageSize"
-        [pageSizeOptions]="[20, 50, 100]"
-        aria-label="Pages of parts requests"
+        [pageSizeOptions]="[10, 20, 50]"
+        aria-label="Pages of calls with parts requests"
         (page)="onPage($event)"
       />
     </div>
@@ -272,37 +270,15 @@ export class PartRequestsPage {
   protected readonly options = toSignal(inject(SalesLookups).options(), {
     initialValue: NO_SALES_OPTIONS,
   });
-  protected readonly query = signal<ListPartRequests$Params>({
+  protected readonly query = signal<ListPartRequestCalls$Params>({
     page: 1,
-    pageSize: 50,
+    pageSize: 20,
     status: 'Requested',
   });
   protected readonly list = pagedList(this.query, (q) =>
-    this.api.call(listPartRequests, q),
+    this.api.call(listPartRequestCalls, q),
   );
   protected readonly search$ = new Subject<string>();
-  protected readonly busy = signal(false);
-
-  /** The ticked parts, by id (kept across pages until they are reviewed). */
-  protected readonly chosen = signal(new Map<number, PartRequestListItem>());
-  protected readonly selected = computed(() => [...this.chosen().values()]);
-  protected readonly waiting = computed(() =>
-    this.list.items().filter((p) => p.status === 'Requested'),
-  );
-  protected readonly allChosen = computed(
-    () =>
-      this.waiting().length > 0 &&
-      this.waiting().every((p) => this.chosen().has(p.id)),
-  );
-  /** One quotation: one customer, brand and branch. */
-  protected readonly oneCustomer = computed(() => {
-    const keys = new Set(
-      this.selected().map(
-        (p) => `${p.customerId}:${p.principalId}:${p.branchId}`,
-      ),
-    );
-    return keys.size === 1;
-  });
 
   constructor() {
     this.search$
@@ -314,7 +290,7 @@ export class PartRequestsPage {
     return Number(value).toLocaleString('en-IN', { maximumFractionDigits: 3 });
   }
 
-  protected update(change: Partial<ListPartRequests$Params>): void {
+  protected update(change: Partial<ListPartRequestCalls$Params>): void {
     this.query.update((q) => ({ ...q, ...change, page: change.page ?? 1 }));
   }
 
@@ -322,49 +298,48 @@ export class PartRequestsPage {
     this.update({ page: event.pageIndex + 1, pageSize: event.pageSize });
   }
 
-  protected toggle(part: PartRequestListItem, checked: boolean): void {
-    this.chosen.update((map) => {
-      const next = new Map(map);
-      if (checked) next.set(part.id, part);
-      else next.delete(part.id);
-      return next;
+  /** The call's parts still waiting for the office. */
+  private waitingParts(call: PartRequestCall): PartRequestListItem[] {
+    return call.parts.filter((p) => p.status === 'Requested');
+  }
+
+  /** Requested while any part waits; otherwise Quoted if any part was quoted, else Rejected. */
+  protected status(call: PartRequestCall): string {
+    if (call.waiting) return 'Requested';
+    return call.parts.some((p) => p.status === 'Quoted')
+      ? 'Quoted'
+      : 'Rejected';
+  }
+
+  protected quotations(call: PartRequestCall): { id: number; no: string }[] {
+    const seen = new Map<number, string>();
+    for (const p of call.parts)
+      if (p.quotationId) seen.set(p.quotationId, p.quotationNo ?? '');
+    return [...seen].map(([id, no]) => ({ id, no }));
+  }
+
+  protected notes(call: PartRequestCall): string[] {
+    return [
+      ...new Set(
+        call.parts
+          .filter((p) => p.reviewNote)
+          .map((p) => `${p.itemCode ?? p.partDescription}: ${p.reviewNote}`),
+      ),
+    ];
+  }
+
+  /** Opens a new quotation filled with the call's waiting parts; nothing is saved until the user saves it there. */
+  protected quote(call: PartRequestCall): void {
+    const ids = this.waitingParts(call).map((p) => p.id);
+    void this.router.navigate(['/sales/quotations/new'], {
+      queryParams: { partRequests: ids.join(',') },
     });
   }
 
-  protected toggleAll(checked: boolean): void {
-    this.chosen.update((map) => {
-      const next = new Map(map);
-      for (const p of this.waiting()) {
-        if (checked) next.set(p.id, p);
-        else next.delete(p.id);
-      }
-      return next;
-    });
-  }
-
-  /** A draft quotation with the ticked parts; opens it to set prices and send. */
-  protected quote(): void {
-    const ids = this.selected().map((p) => p.id);
-    this.busy.set(true);
-    this.api
-      .call(createPartRequestQuotation, { body: { partRequestIds: ids } })
-      .subscribe({
-        next: (result) => {
-          this.busy.set(false);
-          this.chosen.set(new Map());
-          void this.router.navigate(['/sales/quotations', result.quotationId]);
-        },
-        error: () => {
-          this.busy.set(false);
-          this.list.reload();
-        },
-      });
-  }
-
-  protected reject(): void {
-    const parts = this.selected();
+  protected reject(call: PartRequestCall): void {
+    const parts = this.waitingParts(call);
     openFieldsDialog(this.dialog, {
-      title: `Reject ${parts.length} part${parts.length === 1 ? '' : 's'}`,
+      title: `Reject ${parts.length} part${parts.length === 1 ? '' : 's'} of ${call.callNo}`,
       submitText: 'Reject',
       fields: [
         {
@@ -385,9 +360,7 @@ export class PartRequestsPage {
           ),
         ),
     }).subscribe((done) => {
-      if (!done) return;
-      this.chosen.set(new Map());
-      this.list.reload();
+      if (done) this.list.reload();
     });
   }
 }

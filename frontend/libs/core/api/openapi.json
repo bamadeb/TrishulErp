@@ -10575,6 +10575,363 @@
         }
       }
     },
+    "/svc/part-request-calls": {
+      "get": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "Parts requests grouped by service call, latest request first (office review)",
+        "operationId": "list_part_request_calls",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Requested",
+                    "Under review",
+                    "Quoted",
+                    "Customer approved",
+                    "Approved",
+                    "Reserved",
+                    "Ordered",
+                    "Issued",
+                    "Dispatched",
+                    "Delivered to site",
+                    "Fitted",
+                    "Returned",
+                    "Rejected",
+                    "Cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branchid"
+            }
+          },
+          {
+            "name": "customerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customerid"
+            }
+          },
+          {
+            "name": "serviceCallId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Servicecallid"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Requested on or after (UTC date).",
+              "title": "Fromdate"
+            },
+            "description": "Requested on or after (UTC date)."
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Requested on or before (UTC date).",
+              "title": "Todate"
+            },
+            "description": "Requested on or before (UTC date)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_PartRequestCall_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/part-request-quotation-draft": {
+      "get": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "What a quotation for these requested parts would be (prices filled in); nothing is saved",
+        "operationId": "get_part_request_quotation_draft",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partRequestIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "maxItems": 200,
+              "title": "Partrequestids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartRequestQuotationDraft"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The part was already quoted or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The parts are of different customers or brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/svc/part-requests/{partRequestId}/reject": {
       "post": {
         "tags": [
@@ -10688,7 +11045,7 @@
         "tags": [
           "service-parts"
         ],
-        "summary": "Convert requested parts (one customer, brand and branch) into a draft sales quotation",
+        "summary": "Save the checked draft quotation for requested parts; the parts become Quoted",
         "operationId": "create_part_request_quotation",
         "requestBody": {
           "content": {
@@ -10772,7 +11129,7 @@
             }
           },
           "400": {
-            "description": "The parts are of different customers, brands or branches.",
+            "description": "The parts are of another customer or brand than the quotation, or a line is invalid.",
             "content": {
               "application/json": {
                 "schema": {
@@ -57795,6 +58152,37 @@
         ],
         "title": "Page[OutstandingOrderLine]"
       },
+      "Page_PartRequestCall_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PartRequestCall"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[PartRequestCall]"
+      },
       "Page_PartRequestListItem_": {
         "properties": {
           "items": {
@@ -58322,6 +58710,104 @@
         ],
         "title": "Page[UserListItem]"
       },
+      "PartRequestCall": {
+        "properties": {
+          "serviceCallId": {
+            "type": "integer",
+            "title": "Servicecallid"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "callStatus": {
+            "type": "string",
+            "title": "Callstatus"
+          },
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "principalId": {
+            "type": "integer",
+            "title": "Principalid"
+          },
+          "principalName": {
+            "type": "string",
+            "title": "Principalname"
+          },
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
+          },
+          "customerName": {
+            "type": "string",
+            "title": "Customername"
+          },
+          "lastRequestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Lastrequestedat"
+          },
+          "requiredByDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiredbydate",
+            "description": "The earliest date any of the parts is needed by."
+          },
+          "waiting": {
+            "type": "integer",
+            "title": "Waiting",
+            "description": "Parts still Requested (not yet quoted or rejected)."
+          },
+          "requestedBy": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requestedby",
+            "description": "The engineers who asked."
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartRequestListItem"
+            },
+            "type": "array",
+            "title": "Parts",
+            "description": "The call's parts that match the filters, oldest first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "serviceCallId",
+          "callNo",
+          "callStatus",
+          "branchId",
+          "branchName",
+          "principalId",
+          "principalName",
+          "customerId",
+          "customerName",
+          "lastRequestedAt",
+          "requiredByDate",
+          "waiting",
+          "requestedBy",
+          "parts"
+        ],
+        "title": "PartRequestCall",
+        "description": "A service call with the parts requested on it (one engineer or several)."
+      },
       "PartRequestCreate": {
         "properties": {
           "serviceVisitId": {
@@ -58367,6 +58853,65 @@
         ],
         "title": "PartRequestCreate",
         "description": "The parts an engineer needs for a call, all sent at once."
+      },
+      "PartRequestDraftLine": {
+        "properties": {
+          "partRequestId": {
+            "type": "integer",
+            "title": "Partrequestid"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "unitPrice": {
+            "type": "string",
+            "title": "Unitprice",
+            "description": "Price list, else MRP, else 0."
+          },
+          "discountPct": {
+            "type": "string",
+            "title": "Discountpct"
+          },
+          "gstPct": {
+            "type": "string",
+            "title": "Gstpct",
+            "description": "From the item's HSN, else 18."
+          }
+        },
+        "type": "object",
+        "required": [
+          "partRequestId",
+          "itemId",
+          "description",
+          "quantity",
+          "unitPrice",
+          "discountPct",
+          "gstPct"
+        ],
+        "title": "PartRequestDraftLine"
       },
       "PartRequestLineInput": {
         "properties": {
@@ -58924,14 +59469,18 @@
       },
       "PartRequestQuotationCreate": {
         "properties": {
-          "partRequestIds": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "maxItems": 200,
-            "minItems": 1,
-            "title": "Partrequestids"
+          "principalId": {
+            "type": "integer",
+            "title": "Principalid",
+            "description": "Brand: one brand per quotation."
+          },
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
           },
           "customerSiteId": {
             "anyOf": [
@@ -58943,7 +59492,30 @@
               }
             ],
             "title": "Customersiteid",
-            "description": "The customer's branch to quote."
+            "description": "The customer's branch."
+          },
+          "quotationType": {
+            "type": "string",
+            "enum": [
+              "Machine",
+              "Parts",
+              "Service"
+            ],
+            "title": "Quotationtype",
+            "default": "Parts"
+          },
+          "quotationDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quotationdate",
+            "description": "Default today."
           },
           "validUntil": {
             "anyOf": [
@@ -58956,7 +59528,32 @@
               }
             ],
             "title": "Validuntil",
-            "description": "Default 30 days from today."
+            "description": "Default 30 days from the quotation date."
+          },
+          "otherCharges": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Othercharges",
+            "default": "0"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms"
           },
           "remarks": {
             "anyOf": [
@@ -58968,17 +59565,91 @@
                 "type": "null"
               }
             ],
-            "title": "Remarks",
-            "description": "Default: the call numbers the parts are for."
+            "title": "Remarks"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PricedLineIn"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines"
+          },
+          "partRequestIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Partrequestids"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "principalId",
+          "branchId",
+          "customerId",
+          "lines",
           "partRequestIds"
         ],
         "title": "PartRequestQuotationCreate",
-        "description": "Make one draft quotation from requested parts of one customer, brand and branch (usually one call).\nPrices come from the price list (else MRP, else 0) and GST from the item's HSN; edit the draft after."
+        "description": "The quotation the user checked (POST /sal/quotations body) plus the parts it quotes, which become Quoted.\nThe parts must be of the quotation's customer and brand."
+      },
+      "PartRequestQuotationDraft": {
+        "properties": {
+          "partRequestIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Partrequestids"
+          },
+          "callNos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Callnos"
+          },
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
+          },
+          "principalId": {
+            "type": "integer",
+            "title": "Principalid"
+          },
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "remarks": {
+            "type": "string",
+            "title": "Remarks"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PartRequestDraftLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "partRequestIds",
+          "callNos",
+          "customerId",
+          "principalId",
+          "branchId",
+          "remarks",
+          "lines"
+        ],
+        "title": "PartRequestQuotationDraft",
+        "description": "What a quotation for the requested parts would be: for the user to check and change before saving it."
       },
       "PartRequestQuotationOut": {
         "properties": {

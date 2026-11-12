@@ -8,11 +8,13 @@ from trishul_api.common.schemas import Page
 from trishul_api.modules.sal.common import QUOTATION_MANAGE
 from trishul_api.modules.service.access import CAN_VIEW_CALLS
 from trishul_api.modules.service.parts.schemas import (
+    PartRequestCall,
     PartRequestCreate,
     PartRequestListItem,
     PartRequestOut,
     PartRequestQuery,
     PartRequestQuotationCreate,
+    PartRequestQuotationDraft,
     PartRequestQuotationOut,
     PartRequestReject,
 )
@@ -68,6 +70,38 @@ def list_part_requests(
     return PartRequestService(db, actor).search(scope, query)
 
 
+@router.get(
+    "/part-request-calls",
+    summary="Parts requests grouped by service call, latest request first (office review)",
+    dependencies=[CAN_REVIEW],
+)
+def list_part_request_calls(
+    query: Annotated[PartRequestQuery, Query()],
+    actor: CurrentUserDep,
+    scope: ScopeDep,
+    db: DbSession,
+) -> Page[PartRequestCall]:
+    return PartRequestService(db, actor).calls(scope, query)
+
+
+@router.get(
+    "/part-request-quotation-draft",
+    summary="What a quotation for these requested parts would be (prices filled in); nothing is saved",
+    dependencies=[CAN_REVIEW, Depends(require_permission(QUOTATION_MANAGE))],
+    responses={
+        **NOT_FOUND_RESPONSE,
+        **ALREADY_REVIEWED,
+        400: problem_response("The parts are of different customers or brands."),
+    },
+)
+def get_part_request_quotation_draft(
+    part_request_ids: Annotated[list[int], Query(alias="partRequestIds", min_length=1, max_length=200)],
+    actor: CurrentUserDep,
+    db: DbSession,
+) -> PartRequestQuotationDraft:
+    return PartRequestService(db, actor).draft(part_request_ids)
+
+
 @router.post(
     "/part-requests/{partRequestId}/reject",
     summary="Reject a requested part (it won't be supplied), with the reason",
@@ -85,13 +119,13 @@ def reject_part_request(
 
 @router.post(
     "/part-request-quotations",
-    summary="Convert requested parts (one customer, brand and branch) into a draft sales quotation",
+    summary="Save the checked draft quotation for requested parts; the parts become Quoted",
     status_code=201,
     dependencies=[CAN_REVIEW, Depends(require_permission(QUOTATION_MANAGE))],
     responses={
         **NOT_FOUND_RESPONSE,
         **ALREADY_REVIEWED,
-        400: problem_response("The parts are of different customers, brands or branches."),
+        400: problem_response("The parts are of another customer or brand than the quotation, or a line is invalid."),
     },
 )
 def create_part_request_quotation(

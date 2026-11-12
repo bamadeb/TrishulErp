@@ -5,6 +5,7 @@ from pydantic import Field, model_validator
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, UtcDateTime
 from trishul_api.db.models.generated.svc import ServicePartRequestRequestChannel, ServicePartRequestStatus
+from trishul_api.modules.sal.quotation_schemas import QuotationCreate
 
 
 class PartRequestLineInput(InputModel):
@@ -84,21 +85,56 @@ class PartRequestQuery(PageQuery):
     to_date: dt.date | None = Field(None, description="Requested on or before (UTC date).")
 
 
-class PartRequestIds(InputModel):
-    part_request_ids: list[int] = Field(min_length=1, max_length=200)
+class PartRequestCall(ApiModel):
+    """A service call with the parts requested on it (one engineer or several)."""
+
+    service_call_id: int
+    call_no: str
+    call_status: str
+    branch_id: int
+    branch_name: str
+    principal_id: int
+    principal_name: str
+    customer_id: int
+    customer_name: str
+    last_requested_at: UtcDateTime
+    required_by_date: dt.date | None = Field(description="The earliest date any of the parts is needed by.")
+    waiting: int = Field(description="Parts still Requested (not yet quoted or rejected).")
+    requested_by: list[str] = Field(description="The engineers who asked.")
+    parts: list[PartRequestListItem] = Field(description="The call's parts that match the filters, oldest first.")
 
 
 class PartRequestReject(InputModel):
     note: str = Field(min_length=1, max_length=300, description="Why the parts are not supplied.")
 
 
-class PartRequestQuotationCreate(PartRequestIds):
-    """Make one draft quotation from requested parts of one customer, brand and branch (usually one call).
-    Prices come from the price list (else MRP, else 0) and GST from the item's HSN; edit the draft after."""
+class PartRequestDraftLine(ApiModel):
+    part_request_id: int
+    item_id: int | None
+    description: str | None
+    quantity: Decimal
+    unit_price: Decimal = Field(description="Price list, else MRP, else 0.")
+    discount_pct: Decimal
+    gst_pct: Decimal = Field(description="From the item's HSN, else 18.")
 
-    customer_site_id: int | None = Field(None, description="The customer's branch to quote.")
-    valid_until: dt.date | None = Field(None, description="Default 30 days from today.")
-    remarks: str | None = Field(None, max_length=500, description="Default: the call numbers the parts are for.")
+
+class PartRequestQuotationDraft(ApiModel):
+    """What a quotation for the requested parts would be: for the user to check and change before saving it."""
+
+    part_request_ids: list[int]
+    call_nos: list[str]
+    customer_id: int
+    principal_id: int
+    branch_id: int
+    remarks: str
+    lines: list[PartRequestDraftLine]
+
+
+class PartRequestQuotationCreate(QuotationCreate):
+    """The quotation the user checked (POST /sal/quotations body) plus the parts it quotes, which become Quoted.
+    The parts must be of the quotation's customer and brand."""
+
+    part_request_ids: list[int] = Field(min_length=1, max_length=200)
 
 
 class PartRequestQuotationOut(ApiModel):

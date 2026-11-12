@@ -36,17 +36,19 @@ from trishul_api.db.models import (
 )
 from trishul_api.modules.alerts.engine import AlertEngine
 from trishul_api.modules.sal.customer_service import CustomerAccountService
-from trishul_api.modules.sal.lines import PricedLineIn
 from trishul_api.modules.sal.quotation_schemas import QuotationCreate
 from trishul_api.modules.sal.quotation_service import QuotationService
 from trishul_api.modules.service.access import FINISHED_STATUSES
 from trishul_api.modules.service.assignment import assignees
 from trishul_api.modules.service.parts.schemas import (
+    PartRequestCall,
     PartRequestCreate,
+    PartRequestDraftLine,
     PartRequestListItem,
     PartRequestOut,
     PartRequestQuery,
     PartRequestQuotationCreate,
+    PartRequestQuotationDraft,
     PartRequestQuotationOut,
     PartRequestReject,
 )
@@ -132,6 +134,54 @@ class PartRequestService:
     # ------------------------------------------------------------------ the office's review
 
     def search(self, scope: RequestScope, query: PartRequestQuery) -> Page[PartRequestListItem]:
+        statement = self._filtered(scope, query)
+        total = self._db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
+        key = (query.sort or "-createdAt").lstrip("-")
+        column = _SORTS.get(key, ServicePartRequest.id)
+        order = column.desc() if (query.sort or "-createdAt").startswith("-") else column.asc()
+        # SQL Server refuses the same column twice in ORDER BY: add the id tie-breaker only for other sorts.
+        ordering = [order] if column is ServicePartRequest.id else [order, ServicePartRequest.id.desc()]
+        rows = self._db.execute(
+            statement.order_by(*ordering).offset((query.page - 1) * query.page_size).limit(query.page_size)
+        )
+        return Page(
+            items=[self._list_item(row) for row in rows], total=total, page=query.page, page_size=query.page_size
+        )
+
+    def calls(self, scope: RequestScope, query: PartRequestQuery) -> Page[PartRequestCall]:
+        """The same filters, grouped by call (latest request first); each call with its matching parts."""
+        statement = self._filtered(scope, query)
+        matching = (
+            statement.order_by(None)
+            .with_only_columns(ServicePartRequest.service_call_id, ServicePartRequest.id)
+            .subquery()
+        )
+        total = self._db.scalar(select(func.count(func.distinct(matching.c.service_call_id)))) or 0
+        latest = func.max(matching.c.id)
+        call_ids = list(
+            self._db.scalars(
+                select(matching.c.service_call_id)
+                .group_by(matching.c.service_call_id)
+                .order_by(latest.desc())
+                .offset((query.page - 1) * query.page_size)
+                .limit(query.page_size)
+            )
+        )
+        grouped: dict[int, list[PartRequestListItem]] = {call_id: [] for call_id in call_ids}
+        if call_ids:
+            rows = self._db.execute(
+                statement.where(ServicePartRequest.service_call_id.in_(call_ids)).order_by(ServicePartRequest.id)
+            )
+            for row in rows:
+                grouped[row.ServicePartRequest.service_call_id].append(self._list_item(row))
+        return Page(
+            items=[self._call(parts) for parts in grouped.values() if parts],
+            total=total,
+            page=query.page,
+            page_size=query.page_size,
+        )
+
+    def _filtered(self, scope: RequestScope, query: PartRequestQuery) -> Select[*tuple[Any, ...]]:
         statement = self._listing()
         if scope.branch_id is not None:
             statement = statement.where(ServiceCall.branch_id == scope.branch_id)
@@ -161,19 +211,27 @@ class PartRequestService:
                     ServicePartRequest.part_description.ilike(like),
                 )
             )
-        total = self._db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
-        key = (query.sort or "-createdAt").lstrip("-")
-        column = _SORTS.get(key, ServicePartRequest.id)
-        order = column.desc() if (query.sort or "-createdAt").startswith("-") else column.asc()
-        # SQL Server refuses the same column twice in ORDER BY: add the id tie-breaker only for other sorts.
-        ordering = [order] if column is ServicePartRequest.id else [order, ServicePartRequest.id.desc()]
-        rows = self._db.execute(
-            statement.order_by(*ordering)
-            .offset((query.page - 1) * query.page_size)
-            .limit(query.page_size)
-        )
-        return Page(
-            items=[self._list_item(row) for row in rows], total=total, page=query.page, page_size=query.page_size
+        return statement
+
+    @staticmethod
+    def _call(parts: list[PartRequestListItem]) -> PartRequestCall:
+        first = parts[0]
+        needed = [p.required_by_date for p in parts if p.required_by_date is not None]
+        return PartRequestCall(
+            service_call_id=first.service_call_id,
+            call_no=first.call_no,
+            call_status=first.call_status,
+            branch_id=first.branch_id,
+            branch_name=first.branch_name,
+            principal_id=first.principal_id,
+            principal_name=first.principal_name,
+            customer_id=first.customer_id,
+            customer_name=first.customer_name,
+            last_requested_at=max(p.created_at for p in parts),
+            required_by_date=min(needed) if needed else None,
+            waiting=sum(1 for p in parts if p.status == "Requested"),
+            requested_by=list(dict.fromkeys(p.requested_by_name for p in parts if p.requested_by_name)),
+            parts=parts,
         )
 
     def reject(self, part_request_id: int, data: PartRequestReject) -> PartRequestListItem:
@@ -191,36 +249,50 @@ class PartRequestService:
         self._db.commit()
         return self._by_ids([r.id for r in rows])[0]
 
-    def quote(self, data: PartRequestQuotationCreate) -> PartRequestQuotationOut:
-        """A draft quotation from the requested parts, which become Quoted."""
-        rows, calls = self._reviewable(data.part_request_ids)
+    def draft(self, part_request_ids: list[int]) -> PartRequestQuotationDraft:
+        """The quotation the parts would make, for the user to check and change before saving it (nothing saved).
+        Prices come from the price list (else MRP, else 0) and GST from the item's HSN (else 18)."""
+        rows, calls = self._quotable(part_request_ids)
         first = calls[rows[0].service_call_id]
-        target = (first.customer_id, first.principal_id, first.branch_id)
-        if any((c.customer_id, c.principal_id, c.branch_id) != target for c in calls.values()):
-            raise ApiError(
-                "One quotation is for one customer, brand and branch; these parts are from calls that differ.",
-                errors={"partRequestIds": ["Choose parts of one customer, brand and branch."]},
-            )
         prices = CustomerAccountService(self._db, self._actor)
-        lines: list[PricedLineIn] = []
+        lines: list[PartRequestDraftLine] = []
         for row in rows:
-            if row.item_id is None:
-                lines.append(
-                    PricedLineIn(description=row.part_description, quantity=row.quantity, unit_price=Decimal(0))
-                )
-                continue
-            info = prices.item_info(row.item_id, first.principal_id)
-            price = info.price if info.price is not None else (info.mrp or Decimal(0))
+            price, gst = Decimal(0), _DEFAULT_GST
+            if row.item_id is not None:
+                info = prices.item_info(row.item_id, first.principal_id)
+                price = info.price if info.price is not None else (info.mrp or Decimal(0))
+                gst = info.gst_pct if info.gst_pct is not None else _DEFAULT_GST
             lines.append(
-                PricedLineIn(
+                PartRequestDraftLine(
+                    part_request_id=row.id,
                     item_id=row.item_id,
                     description=row.part_description,
                     quantity=row.quantity,
                     unit_price=price,
-                    gst_pct=info.gst_pct if info.gst_pct is not None else _DEFAULT_GST,
+                    discount_pct=Decimal(0),
+                    gst_pct=gst,
                 )
             )
-        call_nos = ", ".join(sorted({c.call_no for c in calls.values()}))
+        call_nos = sorted({c.call_no for c in calls.values()})
+        return PartRequestQuotationDraft(
+            part_request_ids=[r.id for r in rows],
+            call_nos=call_nos,
+            customer_id=first.customer_id,
+            principal_id=first.principal_id,
+            branch_id=first.branch_id,
+            remarks=f"Parts requested on service call {', '.join(call_nos)}"[:500],
+            lines=lines,
+        )
+
+    def quote(self, data: PartRequestQuotationCreate) -> PartRequestQuotationOut:
+        """Save the quotation the user checked; the parts it quotes become Quoted."""
+        rows, calls = self._quotable(data.part_request_ids)
+        first = calls[rows[0].service_call_id]
+        if (data.customer_id, data.principal_id) != (first.customer_id, first.principal_id):
+            raise ApiError(
+                "The quotation must be for the customer and brand of the service call.",
+                errors={"customerId": [f"The parts are for {first.call_no}'s customer and brand."]},
+            )
         now = _now()
         # Marked first so the quotation's commit saves both, and a second reviewer quoting the same parts at
         # the same time fails on the row version instead of quoting them twice.
@@ -232,16 +304,7 @@ class PartRequestService:
             row.updated_by_user_id = self._actor.id
         self._db.flush()
         quotation = QuotationService(self._db, self._actor).create(
-            QuotationCreate(
-                principal_id=first.principal_id,
-                branch_id=first.branch_id,
-                customer_id=first.customer_id,
-                customer_site_id=data.customer_site_id,
-                quotation_type="Parts",
-                valid_until=data.valid_until,
-                remarks=data.remarks or f"Parts requested on service call {call_nos}"[:500],
-                lines=lines,
-            )
+            QuotationCreate.model_validate(data.model_dump(exclude={"part_request_ids"}))
         )
         for row in rows:
             row.quotation_id = quotation.id
@@ -286,6 +349,17 @@ class PartRequestService:
                 + ". Reload the list."
             )
         return [rows[i] for i in wanted], calls
+
+    def _quotable(self, ids: list[int]) -> tuple[list[ServicePartRequest], dict[int, ServiceCall]]:
+        """Waiting parts that fit on one quotation: one customer and brand."""
+        rows, calls = self._reviewable(ids)
+        first = calls[rows[0].service_call_id]
+        if any((c.customer_id, c.principal_id) != (first.customer_id, first.principal_id) for c in calls.values()):
+            raise ApiError(
+                "One quotation is for one customer and brand; these parts are from calls that differ.",
+                errors={"partRequestIds": ["Choose parts of one customer and brand."]},
+            )
+        return rows, calls
 
     def _sees(self, call: ServiceCall) -> bool:
         return self._actor.can_use_branch(call.branch_id) and self._actor.can_see_principal(call.principal_id)

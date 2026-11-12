@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Iterator
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -164,28 +165,84 @@ def test_office_lists_all_requests_and_the_engineer_sees_their_call(engineer: Te
     assert engineer.get(f"{SVC}/part-requests").status_code == 403
 
 
-def test_convert_to_a_draft_quotation_and_resolve_the_alert(
+def test_office_lists_requests_call_wise(engineer: TestClient, admin: TestClient, settings: Settings,
+                                         db: Engine) -> None:  # fmt: skip
+    request_parts(engineer)
+    request_parts(engineer, call=OTHER_CALL, parts=[{"itemId": OIL, "quantity": 3}])
+    # A second engineer asks on the first call too.
+    insert_row(db, "core.employee", id=301, company_id=COMPANY, branch_id=BRANCH, employee_code="E301",
+               first_name="Parsuram", last_name="Samal", employee_type="Permanent", status="Active")  # fmt: skip
+    insert_row(db, "svc.call_assignment", service_call_id=CALL, engineer_employee_id=301, assignment_type="Support",
+               assigned_by_user_id=ADMIN_USER, assigned_at=datetime(2026, 11, 12, 10), is_current=True,
+               is_active=True)  # fmt: skip
+    # No `with`: closing a second app would dispose the shared in-memory database.
+    request_parts(client_for(settings, db, 3, 301, ENGINEER_PERMISSIONS), parts=[{"itemId": OIL, "quantity": 1}])
+    page = ok(admin.get(f"{SVC}/part-request-calls"))
+    assert page["total"] == 2
+    first, other = page["items"]  # the call with the latest request first
+    assert (first["callNo"], first["waiting"], first["requestedBy"]) == (
+        "BHADRAK/SC/00024", 3, ["Jyoti Mohanty", "Parsuram Samal"],
+    )  # fmt: skip
+    assert [p["partDescription"] for p in first["parts"]] == ["KF70500 item", "Seal kit", "TL07110 item"]
+    assert (other["callNo"], len(other["parts"])) == ("BHADRAK/SC/00025", 1)
+    only = ok(admin.get(f"{SVC}/part-request-calls", params={"search": "seal"}))
+    assert [(c["callNo"], len(c["parts"])) for c in only["items"]] == [("BHADRAK/SC/00024", 1)]
+
+
+def draft(client: TestClient, ids: list[int]) -> Any:
+    return ok(client.get(f"{SVC}/part-request-quotation-draft", params={"partRequestIds": ids}))
+
+
+def draft_status(client: TestClient, ids: list[int]) -> int:
+    return client.get(f"{SVC}/part-request-quotation-draft", params={"partRequestIds": ids}).status_code
+
+
+def save(client: TestClient, d: dict[str, Any], **change: Any) -> Any:
+    """Post the draft as the quotation form would (the user may have changed it)."""
+    body = {
+        "partRequestIds": d["partRequestIds"], "customerId": d["customerId"], "principalId": d["principalId"],
+        "branchId": d["branchId"], "remarks": d["remarks"],
+        "lines": [{k: ln[k] for k in ("itemId", "description", "quantity", "unitPrice", "discountPct", "gstPct")}
+                  for ln in d["lines"]],
+        **change,
+    }  # fmt: skip
+    return client.post(f"{SVC}/part-request-quotations", json=body)
+
+
+def test_the_draft_is_filled_in_and_nothing_is_saved_until_the_user_saves(
     engineer: TestClient, admin: TestClient, db: Engine
 ) -> None:
     parts = request_parts(engineer)
-    result = ok(admin.post(f"{SVC}/part-request-quotations", json={"partRequestIds": [p["id"] for p in parts]}), 201)
+    d = draft(admin, [p["id"] for p in parts])
+    assert (d["customerId"], d["principalId"], d["branchId"], d["callNos"]) == (
+        CUSTOMER, BRAND, BRANCH, ["BHADRAK/SC/00024"],
+    )  # fmt: skip
+    assert d["remarks"] == "Parts requested on service call BHADRAK/SC/00024"
+    # The filter at its MRP (no price list); the unknown seal kit as a text line at 0 for the office to price.
+    lines = [(ln["itemId"], ln["description"], Decimal(ln["quantity"]), Decimal(ln["unitPrice"])) for ln in d["lines"]]
+    assert lines == [
+        (FILTER, "KF70500 item", Decimal(2), Decimal(1200)),
+        (None, "Seal kit", Decimal(1), Decimal(0)),
+    ]  # fmt: skip
+    with Session(db) as s:
+        assert s.scalars(select(Quotation)).all() == []
+    assert len(open_alerts(db)) == 1
+
+    # The user prices the seal kit, then saves.
+    d["lines"][1]["unitPrice"] = "450"
+    result = ok(save(admin, d), 201)
     assert result["quotationNo"] == "QT/001"
     assert {(p["status"], p["quotationNo"]) for p in result["parts"]} == {("Quoted", "QT/001")}
     with Session(db) as s:
         quotation = s.get(Quotation, result["quotationId"])
         assert quotation is not None
         assert (quotation.status, quotation.customer_id, quotation.principal_id) == ("Draft", CUSTOMER, BRAND)
-        assert quotation.remarks == "Parts requested on service call BHADRAK/SC/00024"
         lines = s.scalars(select(QuotationLine).order_by(QuotationLine.line_no)).all()
-        # The filter at its MRP (no price list); the unknown seal kit as a text line at 0 for the office to price.
-        assert [(ln.item_id, ln.description, Decimal(ln.quantity), Decimal(ln.unit_price)) for ln in lines] == [
-            (FILTER, "KF70500 item", Decimal(2), Decimal(1200)),
-            (None, "Seal kit", Decimal(1), Decimal(0)),
-        ]
+        assert [Decimal(ln.unit_price) for ln in lines] == [Decimal(1200), Decimal(450)]
     assert open_alerts(db) == []
-    # Quoting the same parts again is refused.
-    again = admin.post(f"{SVC}/part-request-quotations", json={"partRequestIds": [parts[0]["id"]]})
-    assert again.status_code == 409
+    # The parts are no longer waiting: no second draft or quotation.
+    assert draft_status(admin, [parts[0]["id"]]) == 409
+    assert save(admin, d).status_code == 409
 
 
 def test_alert_stays_open_until_every_part_is_reviewed(engineer: TestClient, admin: TestClient, db: Engine) -> None:
@@ -193,20 +250,28 @@ def test_alert_stays_open_until_every_part_is_reviewed(engineer: TestClient, adm
     rejected = ok(admin.post(f"{SVC}/part-requests/{seal['id']}/reject", json={"note": "Not stocked"}))
     assert (rejected["status"], rejected["reviewNote"], rejected["reviewedBy"]) == ("Rejected", "Not stocked", "admin")
     assert len(open_alerts(db)) == 1  # the filter is still waiting
-    ok(admin.post(f"{SVC}/part-request-quotations", json={"partRequestIds": [filter_part["id"]]}), 201)
+    ok(save(admin, draft(admin, [filter_part["id"]])), 201)
     assert open_alerts(db) == []
 
 
 def test_one_quotation_is_for_one_customer(engineer: TestClient, admin: TestClient) -> None:
     first = request_parts(engineer, parts=[{"itemId": FILTER, "quantity": 1}])
     other = request_parts(engineer, call=OTHER_CALL, parts=[{"itemId": OIL, "quantity": 1}])
-    response = admin.post(f"{SVC}/part-request-quotations", json={"partRequestIds": [first[0]["id"], other[0]["id"]]})
+    response = admin.get(
+        f"{SVC}/part-request-quotation-draft", params={"partRequestIds": [first[0]["id"], other[0]["id"]]}
+    )
     assert response.status_code == 400
     assert "partRequestIds" in response.json()["errors"]
+    # Nor may the quotation be switched to another customer.
+    response = save(admin, draft(admin, [first[0]["id"]]), customerId=OTHER_CUSTOMER)
+    assert response.status_code == 400
+    assert "customerId" in response.json()["errors"]
 
 
-def test_converting_needs_the_quotation_permission(settings: Settings, db: Engine, engineer: TestClient) -> None:
+def test_converting_needs_the_quotation_permission(settings: Settings, db: Engine, engineer: TestClient,
+                                                   admin: TestClient) -> None:  # fmt: skip
     parts = request_parts(engineer)
+    d = draft(admin, [parts[0]["id"]])
     with client_for(settings, db, ADMIN_USER, None, {"svc.part_request.review"}) as reviewer:
-        response = reviewer.post(f"{SVC}/part-request-quotations", json={"partRequestIds": [parts[0]["id"]]})
-        assert response.status_code == 403
+        assert draft_status(reviewer, [parts[0]["id"]]) == 403
+        assert save(reviewer, d).status_code == 403

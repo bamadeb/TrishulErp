@@ -31,16 +31,20 @@ import {
 } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import {
   ApiClient,
   CustomerBranchOut,
   ItemListItem,
+  PartRequestQuotationDraft,
   QuotationCreate,
   QuotationDetail,
+  createPartRequestQuotation,
   createQuotation,
   getCustomerAccount,
   getItem,
+  getPartRequestQuotationDraft,
   getQuotation,
   listCustomerBranches,
   updateQuotation,
@@ -55,7 +59,15 @@ import {
   SalesLookups,
 } from '@trishul/sales-data-access';
 import { PageHeader } from '@trishul/shared-ui';
-import { EMPTY, catchError, finalize, forkJoin, of } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  catchError,
+  finalize,
+  forkJoin,
+  map,
+  of,
+} from 'rxjs';
 import { SaleLines } from './sale-lines';
 import {
   SaleLineForm,
@@ -106,6 +118,16 @@ type QuotationType = NonNullable<QuotationCreate['quotationType']>;
       "
       subtitle="Saved as a draft; submit it to the customer from the quotation page"
     />
+    @if (fromParts(); as d) {
+      <p class="muted" role="status">
+        Filled in from {{ d.partRequestIds.length }} part{{
+          d.partRequestIds.length === 1 ? '' : 's'
+        }}
+        requested on {{ d.callNos.join(', ') }}. Check the prices, then save:
+        the parts are marked Quoted only when you save. A part line you remove
+        stays waiting on the parts requests page.
+      </p>
+    }
     <form [formGroup]="form" (ngSubmit)="save()">
       <section class="card">
         <h2>Quotation</h2>
@@ -219,7 +241,9 @@ type QuotationType = NonNullable<QuotationCreate['quotationType']>;
           [routerLink]="
             existing()
               ? ['/sales/quotations', existing()!.id]
-              : ['/sales/quotations']
+              : fromParts()
+                ? ['/sales/part-requests']
+                : ['/sales/quotations']
           "
           >Cancel</a
         >
@@ -234,10 +258,18 @@ export class QuotationFormPage {
   private readonly api = inject(ApiClient);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthStore);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly quotationId = input<string>();
   /** ?customerId=… from a customer page. */
   readonly customerId = input<string>();
+  /** ?partRequests=1,2,3 from the parts requests page: filled in from those parts. */
+  readonly partRequests = input<string>();
+
+  /** The parts this quotation is for (they become Quoted when it is saved). */
+  protected readonly fromParts = signal<PartRequestQuotationDraft | null>(null);
+  /** The requested part each prefilled line is for: a line removed here leaves its part waiting. */
+  private readonly partOf = new WeakMap<SaleLineForm, number>();
 
   protected readonly money = (v: number) => rupees(v);
   protected readonly options = toSignal(inject(SalesLookups).options(), {
@@ -310,6 +342,77 @@ export class QuotationFormPage {
             .subscribe((c) => this.form.controls.customer.setValue(c)),
         );
     });
+    effect(() => {
+      const ids = (this.partRequests() ?? '')
+        .split(',')
+        .map(Number)
+        .filter((n) => n > 0);
+      if (ids.length && !this.quotationId())
+        untracked(() => this.loadParts(ids));
+    });
+  }
+
+  private loadParts(ids: number[]): void {
+    this.api
+      .call(getPartRequestQuotationDraft, { partRequestIds: ids })
+      .pipe(catchError(() => EMPTY))
+      .subscribe((d) => {
+        this.fromParts.set(d);
+        this.api
+          .call(getCustomerAccount, { customerId: d.customerId })
+          .pipe(catchError(() => EMPTY))
+          // customerChanged() loads the customer's branches (and picks the default one).
+          .subscribe((c) => this.form.controls.customer.setValue(c));
+        this.form.patchValue({
+          principalId: d.principalId,
+          branchId: d.branchId,
+          quotationType: 'Parts',
+          remarks: d.remarks,
+        });
+        // The parts are for this customer and brand.
+        this.form.controls.customer.disable();
+        this.form.controls.principalId.disable();
+        this.setLines(d.lines);
+      });
+  }
+
+  /** Lines with their items loaded (the line editor shows the picked item). */
+  private setLines(
+    lines: {
+      partRequestId?: number;
+      itemId?: number | null;
+      description?: string | null;
+      quantity: string | number;
+      unitPrice: string | number;
+      discountPct: string | number;
+      gstPct: string | number;
+    }[],
+  ): void {
+    forkJoin(
+      lines.map((l) =>
+        l.itemId
+          ? this.api
+              .call(getItem, { itemId: l.itemId })
+              .pipe(catchError(() => of(null)))
+          : of(null),
+      ),
+    ).subscribe((items) => {
+      this.lines.set(
+        lines.map((l, i) => {
+          const line = this.watched(saleLine());
+          line.patchValue({
+            item: items[i] as unknown as ItemListItem | null,
+            description: l.description ?? null,
+            quantity: num(l.quantity),
+            unitPrice: num(l.unitPrice),
+            discountPct: num(l.discountPct),
+            gstPct: num(l.gstPct),
+          });
+          if (l.partRequestId) this.partOf.set(line, l.partRequestId);
+          return line;
+        }),
+      );
+    });
   }
 
   private load(id: number): void {
@@ -337,26 +440,7 @@ export class QuotationFormPage {
           remarks: q.remarks,
         });
         this.form.controls.branchId.disable();
-        forkJoin(
-          q.lines.map((l) =>
-            l.itemId ? this.api.call(getItem, { itemId: l.itemId }) : of(null),
-          ),
-        ).subscribe((items) => {
-          this.lines.set(
-            q.lines.map((l, i) => {
-              const line = this.watched(saleLine());
-              line.patchValue({
-                item: items[i] as unknown as ItemListItem | null,
-                description: l.description,
-                quantity: num(l.quantity),
-                unitPrice: num(l.unitPrice),
-                discountPct: num(l.discountPct),
-                gstPct: num(l.gstPct),
-              });
-              return line;
-            }),
-          );
-        });
+        this.setLines(q.lines);
       });
   }
 
@@ -405,19 +489,39 @@ export class QuotationFormPage {
       lines: this.lines().map(saleLineBody),
     };
     const existing = this.existing();
+    const parts = this.fromParts();
+    const partIds = this.lines()
+      .map((l) => this.partOf.get(l))
+      .filter((id): id is number => id !== undefined);
+    if (parts && !partIds.length) {
+      this.snackBar.open(
+        'Keep at least one requested part on the quotation, or reject the parts on the parts requests page.',
+        'OK',
+        { duration: 6000 },
+      );
+      return;
+    }
     this.saving.set(true);
-    const request = existing
-      ? this.api.call(
-          updateQuotation,
-          { quotationId: existing.id, body },
-          withRowVersion(existing.rowVersion),
-        )
-      : this.api.call(createQuotation, { body });
+    const request: Observable<number> = existing
+      ? this.api
+          .call(
+            updateQuotation,
+            { quotationId: existing.id, body },
+            withRowVersion(existing.rowVersion),
+          )
+          .pipe(map((q) => q.id))
+      : parts
+        ? this.api
+            .call(createPartRequestQuotation, {
+              body: { ...body, partRequestIds: partIds },
+            })
+            .pipe(map((r) => r.quotationId))
+        : this.api.call(createQuotation, { body }).pipe(map((q) => q.id));
     request
       .pipe(
         finalize(() => this.saving.set(false)),
         catchError(() => EMPTY),
       )
-      .subscribe((q) => void this.router.navigate(['/sales/quotations', q.id]));
+      .subscribe((id) => void this.router.navigate(['/sales/quotations', id]));
   }
 }
