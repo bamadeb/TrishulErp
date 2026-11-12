@@ -13,6 +13,7 @@ import {
   SAL_QUOTATION_PERMISSIONS,
   SAL_RECEIPT_MANAGE,
   SAL_USER_PERMISSIONS,
+  SVC_PART_REQUEST_REVIEW,
 } from '@trishul/sales-data-access';
 import { SalesAllocationsPage } from './allocations.page';
 import { CustomerAccountPage } from './customer-detail.page';
@@ -25,6 +26,7 @@ import { OrderDetailPage } from './order-detail.page';
 import { OrderFormPage } from './order-form.page';
 import { OrderListPage } from './order-list.page';
 import { SalesOutstandingPage } from './outstanding.page';
+import { PartRequestsPage } from './part-requests.page';
 import {
   DeliveryPrintPage,
   OrderPrintPage,
@@ -62,6 +64,12 @@ export const salesRoutes: Route[] = [
     title: 'Quotations',
     canActivate: [QUOTES],
     component: QuotationListPage,
+  },
+  {
+    path: 'part-requests',
+    title: 'Parts requests',
+    canActivate: [permissionGuard(SVC_PART_REQUEST_REVIEW)],
+    component: PartRequestsPage,
   },
   {
     path: 'quotations/new',

@@ -205,6 +205,16 @@ export type { GetChecklistTemplate$Params as GetChecklistTemplate$Params } from 
 export { getChecklistTemplate as getChecklistTemplate } from './fn/service-reports/get-checklist-template';
 export type { UpdateChecklistTemplate$Params as UpdateChecklistTemplate$Params } from './fn/service-reports/update-checklist-template';
 export { updateChecklistTemplate as updateChecklistTemplate } from './fn/service-reports/update-checklist-template';
+export type { ListServiceCallPartRequests$Params as ListServiceCallPartRequests$Params } from './fn/service-parts/list-service-call-part-requests';
+export { listServiceCallPartRequests as listServiceCallPartRequests } from './fn/service-parts/list-service-call-part-requests';
+export type { CreatePartRequests$Params as CreatePartRequests$Params } from './fn/service-parts/create-part-requests';
+export { createPartRequests as createPartRequests } from './fn/service-parts/create-part-requests';
+export type { ListPartRequests$Params as ListPartRequests$Params } from './fn/service-parts/list-part-requests';
+export { listPartRequests as listPartRequests } from './fn/service-parts/list-part-requests';
+export type { RejectPartRequest$Params as RejectPartRequest$Params } from './fn/service-parts/reject-part-request';
+export { rejectPartRequest as rejectPartRequest } from './fn/service-parts/reject-part-request';
+export type { CreatePartRequestQuotation$Params as CreatePartRequestQuotation$Params } from './fn/service-parts/create-part-request-quotation';
+export { createPartRequestQuotation as createPartRequestQuotation } from './fn/service-parts/create-part-request-quotation';
 export type { ListMachines$Params as ListMachines$Params } from './fn/machines/list-machines';
 export { listMachines as listMachines } from './fn/machines/list-machines';
 export type { CreateMachine$Params as CreateMachine$Params } from './fn/machines/create-machine';

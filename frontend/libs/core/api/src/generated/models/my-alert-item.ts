@@ -4,7 +4,7 @@
 export interface MyAlertItem {
   acknowledgedAt: (string | null);
   acknowledgedByName: (string | null);
-  alertType: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY';
+  alertType: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | 'SVC_PART_REQUEST';
   entityId: number;
   entityType: 'svc.service_call' | 'core.machine_unit' | 'svc.service_contract';
   id: number;

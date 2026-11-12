@@ -18,6 +18,7 @@ The engine never commits; callers do (the request for an event, the job runner p
 
 import json
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -111,14 +112,20 @@ class AlertEngine:
 
     # ------------------------------------------------------------------ events (in the request)
 
-    def raise_event(self, alert_type: str, call_id: int) -> int:
-        """Raise alerts for an event on a call (e.g. SVC_CALL_REOPENED). Does not commit."""
+    def raise_event(self, alert_type: str, call_id: int, first_request_id: int | None = None) -> int:
+        """Raise alerts for an event on a call (SVC_CALL_REOPENED, or SVC_PART_REQUEST with the first row id of
+        the request just saved). Does not commit."""
         raised = 0
         rules = self._db.scalars(
             select(AlertRule).where(AlertRule.is_active, AlertRule.alert_type == alert_type).order_by(AlertRule.id)
         )
         for rule in rules:
-            candidates = conditions.call_reopened(self._db, rule_scope(rule), rule_parameters(rule), call_id)
+            if alert_type == "SVC_PART_REQUEST":
+                candidates = conditions.part_requested(
+                    self._db, rule_scope(rule), rule_parameters(rule), call_id, first_request_id
+                )
+            else:
+                candidates = conditions.call_reopened(self._db, rule_scope(rule), rule_parameters(rule), call_id)
             specs = self._specs(rule.id)
             raised += sum(1 for c in candidates if self._raise(rule, specs, c) is not None)
         return raised
@@ -217,7 +224,31 @@ class AlertEngine:
         finished = [a for a in alerts if a.entity_id not in still_open]
         for alert in finished:
             self._resolve(alert, "Call finished")
+        if rule.alert_type == "SVC_PART_REQUEST":
+            return len(finished) + self.resolve_reviewed_parts(a.entity_id for a in alerts if a not in finished)
         return len(finished)
+
+    def resolve_reviewed_parts(self, call_ids: Iterable[int]) -> int:
+        """Resolve the open part-request alerts of calls whose requested parts are all quoted or rejected.
+        Does not commit."""
+        ids = set(call_ids)
+        if not ids:
+            return 0
+        alerts = list(
+            self._db.scalars(
+                select(Alert).where(
+                    Alert.alert_type == "SVC_PART_REQUEST",
+                    Alert.entity_type == "svc.service_call",
+                    Alert.entity_id.in_(ids),
+                    Alert.status != "Resolved",
+                )
+            )
+        )
+        waiting = conditions.calls_with_requested_parts(self._db, ids)
+        done = [a for a in alerts if a.entity_id not in waiting]
+        for alert in done:
+            self._resolve(alert, "Parts reviewed")
+        return len(done)
 
 
 def resolve_rule_alerts(db: Session, rule_id: int, note: str, now: datetime | None = None) -> int:

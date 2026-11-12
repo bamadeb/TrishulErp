@@ -19,10 +19,12 @@ from sqlalchemy.orm import Session
 from trishul_api.db.models import (
     CallStatusLog,
     Customer,
+    Item,
     MachineModel,
     MachineUnit,
     ServiceCall,
     ServiceContract,
+    ServicePartRequest,
 )
 from trishul_api.modules.alerts.catalogue import OPEN_STATUSES
 from trishul_api.modules.service import sla
@@ -252,6 +254,75 @@ def call_reopened(db: Session, scope: Scope, params: dict[str, Any], call_id: in
     ]
 
 
+def part_requested(
+    db: Session, scope: Scope, params: dict[str, Any], call_id: int | None = None, first_request_id: int | None = None
+) -> list[Candidate]:
+    """The parts just requested on a call (event: the request's rows from first_request_id on), or for a Test
+    Rule preview every open call with parts still waiting for review."""
+    statement = _calls(scope, params)
+    if call_id is not None:
+        statement = statement.where(ServiceCall.id == call_id)
+    rows = list(db.execute(statement))
+    if not rows:
+        return []
+    parts = (
+        select(
+            ServicePartRequest.id,
+            ServicePartRequest.service_call_id,
+            ServicePartRequest.quantity,
+            ServicePartRequest.part_description,
+            Item.item_code,
+        )
+        .outerjoin(Item, Item.id == ServicePartRequest.item_id)
+        .where(
+            ServicePartRequest.service_call_id.in_([r.id for r in rows]),
+            ServicePartRequest.is_active,
+            ServicePartRequest.status == "Requested",
+        )
+        .order_by(ServicePartRequest.id)
+    )
+    if first_request_id is not None:
+        parts = parts.where(ServicePartRequest.id >= first_request_id)
+    by_call: dict[int, list[Any]] = {}
+    for part in db.execute(parts):
+        by_call.setdefault(part.service_call_id, []).append(part)
+    found: list[Candidate] = []
+    for row in rows:
+        requested = by_call.get(row.id)
+        if not requested:
+            continue
+        names = [f"{p.item_code or p.part_description} x {p.quantity.normalize():f}" for p in requested[:5]]
+        more = f" and {len(requested) - 5} more" if len(requested) > 5 else ""
+        count = f"{len(requested)} part{'s' if len(requested) != 1 else ''}"
+        found.append(
+            _call_candidate(
+                row,
+                f":parts-{requested[0].id}",
+                f"Parts requested on {row.call_no}",
+                f"{count} requested on {row.call_no} for {row.customer_name}: {', '.join(names)}{more}.",
+            )
+        )
+    return found
+
+
+def calls_with_requested_parts(db: Session, call_ids: Iterable[int]) -> set[int]:
+    """Of these calls, the ones with parts still waiting for review (status Requested)."""
+    ids = list(call_ids)
+    if not ids:
+        return set()
+    return set(
+        db.scalars(
+            select(ServicePartRequest.service_call_id)
+            .distinct()
+            .where(
+                ServicePartRequest.service_call_id.in_(ids),
+                ServicePartRequest.is_active,
+                ServicePartRequest.status == "Requested",
+            )
+        )
+    )
+
+
 def open_call_ids(db: Session, call_ids: Iterable[int]) -> set[int]:
     """Of these calls, the ones still open (an event alert on a finished call is resolved)."""
     ids = list(call_ids)
@@ -370,4 +441,6 @@ def evaluate(db: Session, alert_type: str, scope: Scope, params: dict[str, Any],
     """Records that match a scheduled rule now (or, for the event type, a preview of current matches)."""
     if alert_type == "SVC_CALL_REOPENED":
         return call_reopened(db, scope, params)
+    if alert_type == "SVC_PART_REQUEST":
+        return part_requested(db, scope, params)
     return _SCHEDULED[alert_type](db, scope, params, now)

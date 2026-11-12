@@ -30,6 +30,7 @@ import {
   SAL_ORDER_PERMISSIONS,
   SAL_QUOTATION_PERMISSIONS,
   SAL_USER_PERMISSIONS,
+  SVC_PART_REQUEST_REVIEW,
 } from '@trishul/sales-data-access';
 import {
   ASC_VIEW_PERMISSIONS,
@@ -67,6 +68,12 @@ export const navItems: NavItem[] = [
         icon: 'assignment_ind',
         route: '/service/assign',
         permissions: [SERVICE_CALL_ASSIGN_PERMISSION],
+      },
+      {
+        label: 'Parts requests',
+        icon: 'build_circle',
+        route: '/sales/part-requests',
+        permissions: [SVC_PART_REQUEST_REVIEW],
       },
       {
         label: 'Machines',
@@ -225,6 +232,12 @@ export const navItems: NavItem[] = [
     icon: 'storefront',
     children: [
       {
+        label: 'Parts requests',
+        icon: 'build_circle',
+        route: '/sales/part-requests',
+        permissions: [SVC_PART_REQUEST_REVIEW],
+      },
+      {
         label: 'Quotations',
         icon: 'request_quote',
         route: '/sales/quotations',
@@ -350,19 +363,71 @@ export const navItems: NavItem[] = [
         icon: 'payments',
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
         children: [
-          { label: 'Payroll Dashboard', icon: 'insights', route: '/hr/payroll/dashboard' },
-          { label: 'Employee Salary Structure', icon: 'account_balance', route: '/hr/payroll/salary-structure' },
-          { label: 'Salary Components', icon: 'category', route: '/hr/payroll/components' },
-          { label: 'Salary Templates', icon: 'layers', route: '/hr/payroll/templates' },
-          { label: 'Payroll Processing', icon: 'play_circle', route: '/hr/payroll/processing' },
-          { label: 'Payroll Approvals', icon: 'fact_check', route: '/hr/payroll/approvals' },
-          { label: 'Payslips', icon: 'receipt_long', route: '/hr/payroll/payslips' },
-          { label: 'Reimbursements & Claims', icon: 'request_quote', route: '/hr/payroll/claims' },
-          { label: 'Service Engineer TA/DA Management', icon: 'two_wheeler', route: '/hr/payroll/tada' },
-          { label: 'TA/DA Import', icon: 'upload_file', route: '/hr/payroll/tada-import' },
-          { label: 'Statutory Compliance', icon: 'gavel', route: '/hr/payroll/compliance' },
-          { label: 'Payroll Reports', icon: 'assessment', route: '/hr/payroll/reports' },
-          { label: 'Payroll Settings', icon: 'settings', route: '/hr/payroll/settings' },
+          {
+            label: 'Payroll Dashboard',
+            icon: 'insights',
+            route: '/hr/payroll/dashboard',
+          },
+          {
+            label: 'Employee Salary Structure',
+            icon: 'account_balance',
+            route: '/hr/payroll/salary-structure',
+          },
+          {
+            label: 'Salary Components',
+            icon: 'category',
+            route: '/hr/payroll/components',
+          },
+          {
+            label: 'Salary Templates',
+            icon: 'layers',
+            route: '/hr/payroll/templates',
+          },
+          {
+            label: 'Payroll Processing',
+            icon: 'play_circle',
+            route: '/hr/payroll/processing',
+          },
+          {
+            label: 'Payroll Approvals',
+            icon: 'fact_check',
+            route: '/hr/payroll/approvals',
+          },
+          {
+            label: 'Payslips',
+            icon: 'receipt_long',
+            route: '/hr/payroll/payslips',
+          },
+          {
+            label: 'Reimbursements & Claims',
+            icon: 'request_quote',
+            route: '/hr/payroll/claims',
+          },
+          {
+            label: 'Service Engineer TA/DA Management',
+            icon: 'two_wheeler',
+            route: '/hr/payroll/tada',
+          },
+          {
+            label: 'TA/DA Import',
+            icon: 'upload_file',
+            route: '/hr/payroll/tada-import',
+          },
+          {
+            label: 'Statutory Compliance',
+            icon: 'gavel',
+            route: '/hr/payroll/compliance',
+          },
+          {
+            label: 'Payroll Reports',
+            icon: 'assessment',
+            route: '/hr/payroll/reports',
+          },
+          {
+            label: 'Payroll Settings',
+            icon: 'settings',
+            route: '/hr/payroll/settings',
+          },
         ],
       },
     ],

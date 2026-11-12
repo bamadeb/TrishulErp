@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import Field, model_validator
 
-from trishul_api.common.schemas import ApiModel, InputModel, UtcDateTime
+from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, UtcDateTime
 from trishul_api.db.models.generated.svc import ServicePartRequestRequestChannel, ServicePartRequestStatus
 
 
@@ -53,3 +53,55 @@ class PartRequestOut(ApiModel):
     requested_by_employee_id: int | None
     required_by_date: dt.date | None
     created_at: UtcDateTime
+
+
+class PartRequestListItem(PartRequestOut):
+    """A requested part with its call, customer, who asked and what the office did with it."""
+
+    branch_id: int
+    branch_name: str
+    principal_id: int
+    principal_name: str
+    customer_id: int
+    customer_name: str
+    call_status: str
+    requested_by_name: str | None
+    quotation_id: int | None
+    quotation_no: str | None
+    review_note: str | None
+    reviewed_at: UtcDateTime | None
+    reviewed_by: str | None
+
+
+class PartRequestQuery(PageQuery):
+    """search: call no, customer, item code or part description."""
+
+    status: ServicePartRequestStatus | None = None
+    branch_id: int | None = None
+    customer_id: int | None = None
+    service_call_id: int | None = None
+    from_date: dt.date | None = Field(None, description="Requested on or after (UTC date).")
+    to_date: dt.date | None = Field(None, description="Requested on or before (UTC date).")
+
+
+class PartRequestIds(InputModel):
+    part_request_ids: list[int] = Field(min_length=1, max_length=200)
+
+
+class PartRequestReject(InputModel):
+    note: str = Field(min_length=1, max_length=300, description="Why the parts are not supplied.")
+
+
+class PartRequestQuotationCreate(PartRequestIds):
+    """Make one draft quotation from requested parts of one customer, brand and branch (usually one call).
+    Prices come from the price list (else MRP, else 0) and GST from the item's HSN; edit the draft after."""
+
+    customer_site_id: int | None = Field(None, description="The customer's branch to quote.")
+    valid_until: dt.date | None = Field(None, description="Default 30 days from today.")
+    remarks: str | None = Field(None, max_length=500, description="Default: the call numbers the parts are for.")
+
+
+class PartRequestQuotationOut(ApiModel):
+    quotation_id: int
+    quotation_no: str
+    parts: list[PartRequestListItem] = Field(description="The parts, now Quoted.")

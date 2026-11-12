@@ -557,6 +557,7 @@ class ServicePartRequest(Base):
     expected_available_date: Mapped[dt.date | None] = mapped_column(sa.Date())
     quotation_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("sal.quotation.id"))
     purchase_request_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("pur.purchase_request.id"))
+    review_note: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 

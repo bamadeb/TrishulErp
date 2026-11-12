@@ -143,6 +143,19 @@ CATALOGUE: dict[str, AlertTypeDef] = {
             dynamic_recipients=CALL_RECIPIENTS,
         ),
         AlertTypeDef(
+            code="SVC_PART_REQUEST",
+            name="Parts requested on a call",
+            description=(
+                "Raised the moment an engineer requests parts on a call (every request). Resolved once all the "
+                "requested parts are quoted or rejected."
+            ),
+            module="Service",
+            trigger="Event",
+            entity_type="svc.service_call",
+            params=(_PRIORITY_FILTER,),
+            dynamic_recipients=CALL_RECIPIENTS,
+        ),
+        AlertTypeDef(
             code="MACHINE_COVERAGE_EXPIRY",
             name="Machine warranty or AMC ending",
             description="A machine's warranty, or a customer's AMC contract, ends within the set number of days.",

@@ -3,7 +3,7 @@
 
 import { AlertRecipientItem } from '../models/alert-recipient-item';
 export interface AlertRuleDetail {
-  alertType: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY';
+  alertType: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | 'SVC_PART_REQUEST';
   alertTypeName: string;
   branchId: (number | null);
   branchName: (string | null);

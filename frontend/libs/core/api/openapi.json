@@ -4148,7 +4148,8 @@
                     "SVC_STATUS_STALE",
                     "SVC_AWAITING_PARTS",
                     "SVC_CALL_REOPENED",
-                    "MACHINE_COVERAGE_EXPIRY"
+                    "MACHINE_COVERAGE_EXPIRY",
+                    "SVC_PART_REQUEST"
                   ],
                   "type": "string"
                 },
@@ -10125,6 +10126,667 @@
             }
           }
         }
+      }
+    },
+    "/svc/service-calls/{callId}/part-requests": {
+      "post": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "Request spare parts for a service call (engineer on the call, from the mobile app)",
+        "operationId": "create_part_requests",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartRequestCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PartRequestOut"
+                  },
+                  "title": "Response Create Part Requests"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A part, unit or visit is not valid for this call, or the call is finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "Parts requested on a service call, with what the office did with each",
+        "operationId": "list_service_call_part_requests",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PartRequestListItem"
+                  },
+                  "title": "Response List Service Call Part Requests"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/part-requests": {
+      "get": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "All parts requests in the user's branches and brands, newest first (office review)",
+        "operationId": "list_part_requests",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Requested",
+                    "Under review",
+                    "Quoted",
+                    "Customer approved",
+                    "Approved",
+                    "Reserved",
+                    "Ordered",
+                    "Issued",
+                    "Dispatched",
+                    "Delivered to site",
+                    "Fitted",
+                    "Returned",
+                    "Rejected",
+                    "Cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branchid"
+            }
+          },
+          {
+            "name": "customerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customerid"
+            }
+          },
+          {
+            "name": "serviceCallId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Servicecallid"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Requested on or after (UTC date).",
+              "title": "Fromdate"
+            },
+            "description": "Requested on or after (UTC date)."
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Requested on or before (UTC date).",
+              "title": "Todate"
+            },
+            "description": "Requested on or before (UTC date)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_PartRequestListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/part-requests/{partRequestId}/reject": {
+      "post": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "Reject a requested part (it won't be supplied), with the reason",
+        "operationId": "reject_part_request",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partRequestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Partrequestid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartRequestReject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartRequestListItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The part was already quoted or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/svc/part-request-quotations": {
+      "post": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "Convert requested parts (one customer, brand and branch) into a draft sales quotation",
+        "operationId": "create_part_request_quotation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartRequestQuotationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartRequestQuotationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The part was already quoted or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The parts are of different customers, brands or branches.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/svc/machines": {
@@ -36230,7 +36892,8 @@
               "SVC_STATUS_STALE",
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
-              "MACHINE_COVERAGE_EXPIRY"
+              "MACHINE_COVERAGE_EXPIRY",
+              "SVC_PART_REQUEST"
             ],
             "title": "Alerttype"
           },
@@ -36334,7 +36997,8 @@
               "SVC_STATUS_STALE",
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
-              "MACHINE_COVERAGE_EXPIRY"
+              "MACHINE_COVERAGE_EXPIRY",
+              "SVC_PART_REQUEST"
             ],
             "title": "Alerttype"
           },
@@ -36563,7 +37227,8 @@
               "SVC_STATUS_STALE",
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
-              "MACHINE_COVERAGE_EXPIRY"
+              "MACHINE_COVERAGE_EXPIRY",
+              "SVC_PART_REQUEST"
             ],
             "title": "Alerttype"
           },
@@ -36878,7 +37543,8 @@
               "SVC_STATUS_STALE",
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
-              "MACHINE_COVERAGE_EXPIRY"
+              "MACHINE_COVERAGE_EXPIRY",
+              "SVC_PART_REQUEST"
             ],
             "title": "Code"
           },
@@ -54276,7 +54942,8 @@
               "SVC_STATUS_STALE",
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
-              "MACHINE_COVERAGE_EXPIRY"
+              "MACHINE_COVERAGE_EXPIRY",
+              "SVC_PART_REQUEST"
             ],
             "title": "Alerttype"
           },
@@ -57128,6 +57795,37 @@
         ],
         "title": "Page[OutstandingOrderLine]"
       },
+      "Page_PartRequestListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PartRequestListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[PartRequestListItem]"
+      },
       "Page_PaymentListItem_": {
         "properties": {
           "items": {
@@ -57623,6 +58321,708 @@
           "pageSize"
         ],
         "title": "Page[UserListItem]"
+      },
+      "PartRequestCreate": {
+        "properties": {
+          "serviceVisitId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Servicevisitid",
+            "description": "The visit the parts were found missing on."
+          },
+          "requiredByDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiredbydate",
+            "description": "When the parts are needed on site."
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartRequestLineInput"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parts"
+        ],
+        "title": "PartRequestCreate",
+        "description": "The parts an engineer needs for a call, all sent at once."
+      },
+      "PartRequestLineInput": {
+        "properties": {
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid",
+            "description": "The part from the item master (GET /inv/items)."
+          },
+          "partDescription": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partdescription",
+            "description": "What the part is, when it isn't in the item master."
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "uomId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uomid",
+            "description": "Unit; defaults to the item's stock unit."
+          },
+          "isChargeable": {
+            "type": "boolean",
+            "title": "Ischargeable",
+            "description": "Charged to the customer (false: warranty / ASC).",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantity"
+        ],
+        "title": "PartRequestLineInput",
+        "description": "One part asked for: an item from the item master, or a description when the part isn't in it."
+      },
+      "PartRequestListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "serviceCallId": {
+            "type": "integer",
+            "title": "Servicecallid"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "serviceVisitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Servicevisitid"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemcode"
+          },
+          "oemPartNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oempartnumber"
+          },
+          "partDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partdescription",
+            "description": "The item's description, or the one the engineer typed."
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "uomId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uomid"
+          },
+          "uomCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uomcode"
+          },
+          "isChargeable": {
+            "type": "boolean",
+            "title": "Ischargeable"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Requested",
+              "Under review",
+              "Quoted",
+              "Customer approved",
+              "Approved",
+              "Reserved",
+              "Ordered",
+              "Issued",
+              "Dispatched",
+              "Delivered to site",
+              "Fitted",
+              "Returned",
+              "Rejected",
+              "Cancelled"
+            ],
+            "title": "Status"
+          },
+          "requestChannel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "App",
+                  "WhatsApp",
+                  "Email",
+                  "Phone"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestchannel"
+          },
+          "requestedByEmployeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedbyemployeeid"
+          },
+          "requiredByDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiredbydate"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "principalId": {
+            "type": "integer",
+            "title": "Principalid"
+          },
+          "principalName": {
+            "type": "string",
+            "title": "Principalname"
+          },
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid"
+          },
+          "customerName": {
+            "type": "string",
+            "title": "Customername"
+          },
+          "callStatus": {
+            "type": "string",
+            "title": "Callstatus"
+          },
+          "requestedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedbyname"
+          },
+          "quotationId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quotationid"
+          },
+          "quotationNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quotationno"
+          },
+          "reviewNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewnote"
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewedat"
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewedby"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "serviceCallId",
+          "callNo",
+          "serviceVisitId",
+          "itemId",
+          "itemCode",
+          "oemPartNumber",
+          "partDescription",
+          "quantity",
+          "uomId",
+          "uomCode",
+          "isChargeable",
+          "status",
+          "requestChannel",
+          "requestedByEmployeeId",
+          "requiredByDate",
+          "createdAt",
+          "branchId",
+          "branchName",
+          "principalId",
+          "principalName",
+          "customerId",
+          "customerName",
+          "callStatus",
+          "requestedByName",
+          "quotationId",
+          "quotationNo",
+          "reviewNote",
+          "reviewedAt",
+          "reviewedBy"
+        ],
+        "title": "PartRequestListItem",
+        "description": "A requested part with its call, customer, who asked and what the office did with it."
+      },
+      "PartRequestOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "serviceCallId": {
+            "type": "integer",
+            "title": "Servicecallid"
+          },
+          "callNo": {
+            "type": "string",
+            "title": "Callno"
+          },
+          "serviceVisitId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Servicevisitid"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemcode"
+          },
+          "oemPartNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oempartnumber"
+          },
+          "partDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partdescription",
+            "description": "The item's description, or the one the engineer typed."
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "uomId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uomid"
+          },
+          "uomCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uomcode"
+          },
+          "isChargeable": {
+            "type": "boolean",
+            "title": "Ischargeable"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Requested",
+              "Under review",
+              "Quoted",
+              "Customer approved",
+              "Approved",
+              "Reserved",
+              "Ordered",
+              "Issued",
+              "Dispatched",
+              "Delivered to site",
+              "Fitted",
+              "Returned",
+              "Rejected",
+              "Cancelled"
+            ],
+            "title": "Status"
+          },
+          "requestChannel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "App",
+                  "WhatsApp",
+                  "Email",
+                  "Phone"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestchannel"
+          },
+          "requestedByEmployeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedbyemployeeid"
+          },
+          "requiredByDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiredbydate"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "serviceCallId",
+          "callNo",
+          "serviceVisitId",
+          "itemId",
+          "itemCode",
+          "oemPartNumber",
+          "partDescription",
+          "quantity",
+          "uomId",
+          "uomCode",
+          "isChargeable",
+          "status",
+          "requestChannel",
+          "requestedByEmployeeId",
+          "requiredByDate",
+          "createdAt"
+        ],
+        "title": "PartRequestOut",
+        "description": "One requested part on a call."
+      },
+      "PartRequestQuotationCreate": {
+        "properties": {
+          "partRequestIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Partrequestids"
+          },
+          "customerSiteId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customersiteid",
+            "description": "The customer's branch to quote."
+          },
+          "validUntil": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validuntil",
+            "description": "Default 30 days from today."
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks",
+            "description": "Default: the call numbers the parts are for."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "partRequestIds"
+        ],
+        "title": "PartRequestQuotationCreate",
+        "description": "Make one draft quotation from requested parts of one customer, brand and branch (usually one call).\nPrices come from the price list (else MRP, else 0) and GST from the item's HSN; edit the draft after."
+      },
+      "PartRequestQuotationOut": {
+        "properties": {
+          "quotationId": {
+            "type": "integer",
+            "title": "Quotationid"
+          },
+          "quotationNo": {
+            "type": "string",
+            "title": "Quotationno"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartRequestListItem"
+            },
+            "type": "array",
+            "title": "Parts",
+            "description": "The parts, now Quoted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "quotationId",
+          "quotationNo",
+          "parts"
+        ],
+        "title": "PartRequestQuotationOut"
+      },
+      "PartRequestReject": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Note",
+            "description": "Why the parts are not supplied."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "PartRequestReject"
       },
       "PasswordResetRequest": {
         "properties": {

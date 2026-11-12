@@ -18,6 +18,8 @@ export const SAL_RECEIPT_MANAGE = 'sal.receipt.manage';
 export const SAL_ALLOCATION_MANAGE = 'sal.allocation.manage';
 export const SAL_ALLOCATION_REVERSE = 'sal.allocation.reverse';
 export const SAL_CREDIT_OVERRIDE = 'sal.credit.override';
+/** Engineers' parts requests: see them all, quote or reject them (backend: modules/service/parts). */
+export const SVC_PART_REQUEST_REVIEW = 'svc.part_request.review';
 
 /** Customer money: invoices, receipts, allocations, statements. */
 export const SAL_ACCOUNT_PERMISSIONS = [

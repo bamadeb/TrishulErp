@@ -19,7 +19,7 @@ export interface ListAlertRules$Params {
   sort?: (string | null);
   search?: (string | null);
   status?: 'active' | 'inactive' | 'all';
-  alertType?: ('SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | null);
+  alertType?: ('SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | 'SVC_PART_REQUEST' | null);
 }
 
 export function listAlertRules(http: HttpClient, rootUrl: string, params?: ListAlertRules$Params, context?: HttpContext): Observable<StrictHttpResponse<PageAlertRuleListItem>> {

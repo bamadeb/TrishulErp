@@ -452,8 +452,10 @@ def test_alert_types_catalogue(admin: TestClient) -> None:
         "SVC_AWAITING_PARTS",
         "SVC_CALL_REOPENED",
         "MACHINE_COVERAGE_EXPIRY",
+        "SVC_PART_REQUEST",
     }
     assert types["SVC_CALL_REOPENED"]["trigger"] == "Event"
+    assert types["SVC_PART_REQUEST"]["trigger"] == "Event"
     assert "Assigned engineer" not in types["MACHINE_COVERAGE_EXPIRY"]["recipientTypes"]
     assert [p["key"] for p in types["SVC_SLA_DUE"]["params"]] == ["stages", "priorities"]  # no SLA times here
 
