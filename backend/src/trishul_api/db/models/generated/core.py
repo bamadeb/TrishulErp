@@ -967,6 +967,9 @@ class UserDevice(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
     row_version: Mapped[bytes] = mapped_column(mssql.ROWVERSION(), server_default=sa.FetchedValue(), server_onupdate=sa.FetchedValue())
+    manufacturer: Mapped[str | None] = mapped_column(sa.NVARCHAR(50), doc="Device manufacturer")
+    model: Mapped[str | None] = mapped_column(sa.NVARCHAR(100), doc="Device model")
+    build_number: Mapped[str | None] = mapped_column(sa.NVARCHAR(50), doc="Device build number")
     os_version: Mapped[str | None] = mapped_column(sa.NVARCHAR(30), doc="Device OS version")
 
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}

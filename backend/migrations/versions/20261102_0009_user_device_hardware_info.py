@@ -19,19 +19,32 @@ depends_on = None
 def upgrade() -> None:
     # Guarded: the columns may already exist (this was applied to the shared database before the
     # alert-module migration was chained in), so a re-run must be a no-op.
-    for column, length, text in (
-        ("manufacturer", 50, "Device manufacturer"),
-        ("model", 100, "Device model"),
-        ("build_number", 50, "Device build number"),
-    ):
-        op.execute(f"""
-            IF COL_LENGTH(N'core.user_device', N'{column}') IS NULL
-            BEGIN
-                ALTER TABLE [core].[user_device] ADD [{column}] NVARCHAR({length}) NULL;
-                EXEC sys.sp_addextendedproperty N'MS_Description', N'{text}',
-                    N'SCHEMA', N'core', N'TABLE', N'user_device', N'COLUMN', N'{column}';
-            END
-        """)
+    # Written out in full (no f-string): scripts/generate_models.py only reads literal DDL, and a
+    # loop here made the generator drop these columns from the UserDevice model.
+    op.execute("""
+        IF COL_LENGTH(N'core.user_device', N'manufacturer') IS NULL
+        BEGIN
+            ALTER TABLE [core].[user_device] ADD [manufacturer] NVARCHAR(50) NULL;
+            EXEC sys.sp_addextendedproperty N'MS_Description', N'Device manufacturer',
+                N'SCHEMA', N'core', N'TABLE', N'user_device', N'COLUMN', N'manufacturer';
+        END
+    """)
+    op.execute("""
+        IF COL_LENGTH(N'core.user_device', N'model') IS NULL
+        BEGIN
+            ALTER TABLE [core].[user_device] ADD [model] NVARCHAR(100) NULL;
+            EXEC sys.sp_addextendedproperty N'MS_Description', N'Device model',
+                N'SCHEMA', N'core', N'TABLE', N'user_device', N'COLUMN', N'model';
+        END
+    """)
+    op.execute("""
+        IF COL_LENGTH(N'core.user_device', N'build_number') IS NULL
+        BEGIN
+            ALTER TABLE [core].[user_device] ADD [build_number] NVARCHAR(50) NULL;
+            EXEC sys.sp_addextendedproperty N'MS_Description', N'Device build number',
+                N'SCHEMA', N'core', N'TABLE', N'user_device', N'COLUMN', N'build_number';
+        END
+    """)
 
 
 def downgrade() -> None:
