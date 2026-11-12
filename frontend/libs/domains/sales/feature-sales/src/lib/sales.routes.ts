@@ -28,10 +28,10 @@ import { SalesOutstandingPage } from './outstanding.page';
 import {
   DeliveryPrintPage,
   OrderPrintPage,
-  QuotationPrintPage,
   ReceiptPrintPage,
   SalesInvoicePrintPage,
 } from './print.pages';
+import { QuotationPrintPage } from './quotation-print.page';
 import { QuotationDetailPage } from './quotation-detail.page';
 import { QuotationFormPage } from './quotation-form.page';
 import { QuotationListPage } from './quotation-list.page';

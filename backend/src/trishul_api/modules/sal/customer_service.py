@@ -26,6 +26,7 @@ from trishul_api.db.models import (
     CustomerAllocation,
     CustomerSite,
     DeliveryNote,
+    GstRate,
     HsnSac,
     Item,
     Location,
@@ -530,14 +531,15 @@ class CustomerAccountService:
 
     def item_info(self, item_id: int, principal_id: int | None) -> ItemSaleInfo:
         row = self._db.execute(
-            select(Item, Uom.code, HsnSac.code)
+            select(Item, Uom.code, HsnSac.code, GstRate.total_rate)
             .join(Uom, Uom.id == Item.uom_id)
             .outerjoin(HsnSac, HsnSac.id == Item.hsn_sac_id)
+            .outerjoin(GstRate, GstRate.id == HsnSac.gst_rate_id)
             .where(Item.id == item_id)
         ).first()
         if row is None:
             raise NotFound("Item not found.")
-        item, uom_code, hsn = row
+        item, uom_code, hsn, gst_pct = row
         if item.principal_id is not None and not self._actor.can_see_principal(item.principal_id):
             raise NotFound("Item not found.")
         today = date.today()
@@ -588,6 +590,7 @@ class CustomerAccountService:
             uom_id=item.uom_id,
             uom_code=uom_code,
             hsn_code=hsn,
+            gst_pct=gst_pct,
             mrp=item.mrp,
             price=price[0] if price else None,
             price_list=price[1] if price else None,

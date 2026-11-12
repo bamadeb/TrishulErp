@@ -83,6 +83,21 @@ class QuotationDetail(QuotationListItem):
     customer_address: str | None
     customer_phone: str | None
     place_of_supply: str
+    # For the printed quotation (OEM-style layout).
+    principal_logo_url: str | None
+    branch_phone: str | None
+    branch_email: str | None
+    customer_oem_code: str | None = Field(description="The customer's code in the brand's system (e.g. SAP ByD).")
+    customer_gst_type: str | None
+    customer_contact_name: str | None = Field(description="Attention: the customer's primary contact.")
+    billing_address: str | None
+    delivery_address: str | None
+    payment_terms: str | None
+    contact_name: str | None = Field(description="Our salesperson (or whoever made the quotation).")
+    contact_phone: str | None
+    contact_email: str | None
+    rounded_total: Decimal = Field(description="Total rounded to the rupee, as printed.")
+    amount_in_words: str = Field(description="e.g. SEVENTEEN THOUSAND ... RUPEES AND ZERO PAISE ONLY")
     subtotal: Decimal = Field(description="Before discount.")
     discount_total: Decimal
     taxable_value: Decimal

@@ -5,6 +5,7 @@ export interface PricedLineOut {
   description: string;
   discountPct: string;
   gstPct: string;
+  hsnCode: (string | null);
   id: number;
   itemCode: (string | null);
   itemId: (number | null);

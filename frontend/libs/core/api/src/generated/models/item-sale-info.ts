@@ -4,6 +4,11 @@
 import { SaleStockAt } from '../models/sale-stock-at';
 export interface ItemSaleInfo {
   description: string;
+
+  /**
+   * GST % of the item's HSN / SAC code (the line default).
+   */
+  gstPct: (string | null);
   hsnCode: (string | null);
   itemCode: string;
   itemId: number;

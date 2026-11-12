@@ -48,6 +48,38 @@ class UomUpdate(InputModel):
     is_active: bool | None = None
 
 
+# ---------------------------------------------------------------- HSN / SAC codes
+
+HsnCodeType = Literal["HSN", "SAC"]
+
+
+class HsnOut(ApiModel):
+    id: int
+    code: str
+    code_type: HsnCodeType = Field(description="HSN for goods, SAC for services.")
+    description: str | None
+    gst_pct: Decimal = Field(description="GST % that applies to this code (CGST + SGST, or IGST).")
+    item_count: int = Field(description="Items using this code.")
+    is_active: bool
+    row_version: RowVersion
+
+
+class HsnCreate(InputModel):
+    code: str = Field(pattern=r"^\d{4,8}$", description="4, 6 or 8 digits.")
+    code_type: HsnCodeType = "HSN"
+    description: str | None = Field(None, max_length=300)
+    gst_pct: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
+
+
+class HsnUpdate(InputModel):
+    """Only the fields sent are changed. The code itself can't change (documents print it)."""
+
+    code_type: HsnCodeType | None = None
+    description: str | None = Field(None, max_length=300)
+    gst_pct: Decimal | None = Field(None, ge=0, le=100, max_digits=5, decimal_places=2)
+    is_active: bool | None = None
+
+
 class ConversionQuery(StatusQuery):
     item_id: int | None = Field(None, description="Conversions for this item plus the general ones.")
 

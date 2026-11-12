@@ -58,6 +58,7 @@ import {
             />
             @if (info(line); as info) {
               <div class="muted stock">
+                HSN {{ info.hsnCode ?? '—' }} ·
                 {{
                   info.priceList
                     ? info.priceList + ' ' + money(info.price)
@@ -190,6 +191,11 @@ export class SaleLines {
       this.infos.update((m) => new Map(m).set(line, info));
       if (line.controls.unitPrice.value === null) {
         line.controls.unitPrice.setValue(num(info.price) ?? num(info.mrp));
+      }
+      // The item's HSN / SAC code sets the GST %, unless the user typed one.
+      const gst = num(info.gstPct);
+      if (gst !== null && line.controls.gstPct.pristine) {
+        line.controls.gstPct.setValue(gst);
       }
     });
   }

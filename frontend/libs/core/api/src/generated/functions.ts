@@ -413,6 +413,12 @@ export type { CreateUom$Params as CreateUom$Params } from './fn/inventory-master
 export { createUom as createUom } from './fn/inventory-masters/create-uom';
 export type { UpdateUom$Params as UpdateUom$Params } from './fn/inventory-masters/update-uom';
 export { updateUom as updateUom } from './fn/inventory-masters/update-uom';
+export type { ListHsnCodes$Params as ListHsnCodes$Params } from './fn/inventory-masters/list-hsn-codes';
+export { listHsnCodes as listHsnCodes } from './fn/inventory-masters/list-hsn-codes';
+export type { CreateHsnCode$Params as CreateHsnCode$Params } from './fn/inventory-masters/create-hsn-code';
+export { createHsnCode as createHsnCode } from './fn/inventory-masters/create-hsn-code';
+export type { UpdateHsnCode$Params as UpdateHsnCode$Params } from './fn/inventory-masters/update-hsn-code';
+export { updateHsnCode as updateHsnCode } from './fn/inventory-masters/update-hsn-code';
 export type { ListUomConversions$Params as ListUomConversions$Params } from './fn/inventory-masters/list-uom-conversions';
 export { listUomConversions as listUomConversions } from './fn/inventory-masters/list-uom-conversions';
 export type { CreateUomConversion$Params as CreateUomConversion$Params } from './fn/inventory-masters/create-uom-conversion';

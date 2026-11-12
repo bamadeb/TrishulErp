@@ -20932,6 +20932,285 @@
         }
       }
     },
+    "/inv/hsn-codes": {
+      "get": {
+        "tags": [
+          "inventory masters"
+        ],
+        "summary": "HSN / SAC codes with their GST %",
+        "operationId": "list_hsn_codes",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HsnOut"
+                  },
+                  "title": "Response List Hsn Codes"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "inventory masters"
+        ],
+        "summary": "Add an HSN / SAC code",
+        "operationId": "create_hsn_code",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HsnCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HsnOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/hsn-codes/{hsnId}": {
+      "patch": {
+        "tags": [
+          "inventory masters"
+        ],
+        "summary": "Change or deactivate an HSN / SAC code",
+        "operationId": "update_hsn_code",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hsnId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Hsnid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HsnUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HsnOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/inv/uom-conversions": {
       "get": {
         "tags": [
@@ -50178,6 +50457,57 @@
         "title": "HierarchyUpdate",
         "description": "Changes ``core.employee.reporting_manager_id`` only."
       },
+      "HsnCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{4,8}$",
+            "title": "Code",
+            "description": "4, 6 or 8 digits."
+          },
+          "codeType": {
+            "type": "string",
+            "enum": [
+              "HSN",
+              "SAC"
+            ],
+            "title": "Codetype",
+            "default": "HSN"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "gstPct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Gstpct"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "gstPct"
+        ],
+        "title": "HsnCreate"
+      },
       "HsnOption": {
         "properties": {
           "id": {
@@ -50207,6 +50537,130 @@
           "description"
         ],
         "title": "HsnOption"
+      },
+      "HsnOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "codeType": {
+            "type": "string",
+            "enum": [
+              "HSN",
+              "SAC"
+            ],
+            "title": "Codetype",
+            "description": "HSN for goods, SAC for services."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "gstPct": {
+            "type": "string",
+            "title": "Gstpct",
+            "description": "GST % that applies to this code (CGST + SGST, or IGST)."
+          },
+          "itemCount": {
+            "type": "integer",
+            "title": "Itemcount",
+            "description": "Items using this code."
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "codeType",
+          "description",
+          "gstPct",
+          "itemCount",
+          "isActive",
+          "rowVersion"
+        ],
+        "title": "HsnOut"
+      },
+      "HsnUpdate": {
+        "properties": {
+          "codeType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "HSN",
+                  "SAC"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codetype"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "gstPct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gstpct"
+          },
+          "isActive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isactive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HsnUpdate",
+        "description": "Only the fields sent are changed. The code itself can't change (documents print it)."
       },
       "InvoiceCreate": {
         "properties": {
@@ -51694,6 +52148,18 @@
             ],
             "title": "Hsncode"
           },
+          "gstPct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gstpct",
+            "description": "GST % of the item's HSN / SAC code (the line default)."
+          },
           "mrp": {
             "anyOf": [
               {
@@ -51746,6 +52212,7 @@
           "uomId",
           "uomCode",
           "hsnCode",
+          "gstPct",
           "mrp",
           "price",
           "priceList",
@@ -55303,6 +55770,17 @@
             "type": "string",
             "title": "Linetotal"
           },
+          "hsnCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hsncode"
+          },
           "qtyDelivered": {
             "type": "string",
             "title": "Qtydelivered"
@@ -55332,6 +55810,7 @@
           "taxableValue",
           "taxAmount",
           "lineTotal",
+          "hsnCode",
           "qtyDelivered",
           "qtyInvoiced",
           "qtyToDeliver"
@@ -59018,6 +59497,17 @@
           "lineTotal": {
             "type": "string",
             "title": "Linetotal"
+          },
+          "hsnCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hsncode"
           }
         },
         "type": "object",
@@ -59035,7 +59525,8 @@
           "netPrice",
           "taxableValue",
           "taxAmount",
-          "lineTotal"
+          "lineTotal",
+          "hsnCode"
         ],
         "title": "PricedLineOut"
       },
@@ -59766,6 +60257,151 @@
             "type": "string",
             "title": "Placeofsupply"
           },
+          "principalLogoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principallogourl"
+          },
+          "branchPhone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchphone"
+          },
+          "branchEmail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchemail"
+          },
+          "customerOemCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customeroemcode",
+            "description": "The customer's code in the brand's system (e.g. SAP ByD)."
+          },
+          "customerGstType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customergsttype"
+          },
+          "customerContactName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customercontactname",
+            "description": "Attention: the customer's primary contact."
+          },
+          "billingAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billingaddress"
+          },
+          "deliveryAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliveryaddress"
+          },
+          "paymentTerms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paymentterms"
+          },
+          "contactName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contactname",
+            "description": "Our salesperson (or whoever made the quotation)."
+          },
+          "contactPhone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contactphone"
+          },
+          "contactEmail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contactemail"
+          },
+          "roundedTotal": {
+            "type": "string",
+            "title": "Roundedtotal",
+            "description": "Total rounded to the rupee, as printed."
+          },
+          "amountInWords": {
+            "type": "string",
+            "title": "Amountinwords",
+            "description": "e.g. SEVENTEEN THOUSAND ... RUPEES AND ZERO PAISE ONLY"
+          },
           "subtotal": {
             "type": "string",
             "title": "Subtotal",
@@ -59985,6 +60621,20 @@
           "customerAddress",
           "customerPhone",
           "placeOfSupply",
+          "principalLogoUrl",
+          "branchPhone",
+          "branchEmail",
+          "customerOemCode",
+          "customerGstType",
+          "customerContactName",
+          "billingAddress",
+          "deliveryAddress",
+          "paymentTerms",
+          "contactName",
+          "contactPhone",
+          "contactEmail",
+          "roundedTotal",
+          "amountInWords",
           "subtotal",
           "discountTotal",
           "taxableValue",

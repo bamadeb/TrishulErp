@@ -186,9 +186,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
           <table class="plain">
             <thead>
               <tr>
-                <th>Code</th>
-                <th>Rack</th>
-                <th>Shelf</th>
+                <th>Rack no</th>
                 <th>Description</th>
                 <th>Status</th>
                 <th></th>
@@ -205,8 +203,6 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
                       >{{ r.code }}</a
                     >
                   </td>
-                  <td>{{ r.rack ?? '—' }}</td>
-                  <td>{{ r.shelf ?? '—' }}</td>
                   <td>{{ r.description ?? '' }}</td>
                   <td>{{ r.isActive ? 'Active' : 'Inactive' }}</td>
                   <td class="actions">
@@ -223,7 +219,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6" class="empty">
+                  <td colspan="4" class="empty">
                     No racks. Stock here is kept without a rack.
                   </td>
                 </tr>
@@ -371,14 +367,13 @@ export class LocationsPage {
       fields: [
         {
           key: 'code',
-          label: 'Rack code',
+          label: 'Rack no',
           required: true,
           maxLength: 20,
           pattern: CODE,
-          hint: 'Unique across all locations',
+          hint: 'Unique across all locations, e.g. A1',
+          wide: true,
         },
-        { key: 'rack', label: 'Rack', maxLength: 10 },
-        { key: 'shelf', label: 'Shelf', maxLength: 10 },
         {
           key: 'description',
           label: 'Description',

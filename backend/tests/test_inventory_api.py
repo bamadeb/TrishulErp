@@ -30,6 +30,7 @@ TABLES = [
     "core.location",
     "core.uom",
     "core.hsn_sac",
+    "acc.gst_rate",
     "core.item_category",
     "core.item",
     "core.supplier",
@@ -223,6 +224,30 @@ def test_categories_nest_and_items_default_their_unit(client: TestClient) -> Non
         headers={"If-Match": f'"{parent["rowVersion"]}"'},
     )
     assert loop.status_code == 400 and "parentCategoryId" in loop.json()["errors"]
+
+
+def test_hsn_codes_carry_their_gst_rate_and_items_pick_them(client: TestClient) -> None:
+    filter_code = {"code": "84212900", "description": "Filters", "gstPct": "18"}
+    filters = ok(client.post(f"{API}/hsn-codes", json=filter_code), 201)
+    oils = ok(client.post(f"{API}/hsn-codes", json={"code": "27101980", "gstPct": "18"}), 201)
+    labour = ok(client.post(f"{API}/hsn-codes", json={"code": "998719", "codeType": "SAC", "gstPct": "18"}), 201)
+    assert (filters["codeType"], Decimal(filters["gstPct"]), filters["itemCount"]) == ("HSN", 18, 0)
+    assert labour["codeType"] == "SAC"
+    assert client.post(f"{API}/hsn-codes", json={"code": "84212900", "gstPct": "18"}).status_code == 409
+    assert client.post(f"{API}/hsn-codes", json={"code": "84A1", "gstPct": "18"}).status_code == 422  # digits only
+
+    # Same % reuses one GST rate; a new % adds one. The code can't change, its rate can.
+    changed = ok(client.patch(f"{API}/hsn-codes/{oils['id']}", json={"gstPct": "28"},
+                              headers={"If-Match": f'"{oils["rowVersion"]}"'}))  # fmt: skip
+    assert Decimal(changed["gstPct"]) == 28
+
+    item = ok(client.post(f"{API}/items", json={"itemCode": "KF70500", "description": "Filter kit",
+                                                "categoryId": SPARES, "hsnSacId": filters["id"]}), 201)  # fmt: skip
+    assert item["hsnCode"] == "84212900"
+    codes = {h["code"]: h["itemCount"] for h in ok(client.get(f"{API}/hsn-codes"))}
+    assert codes == {"27101980": 0, "84212900": 1, "998719": 0}
+    options = ok(client.get(f"{API}/items/form-options"))["hsnCodes"]
+    assert [o["code"] for o in options] == ["27101980", "84212900", "998719"]
 
 
 def test_rack_codes_are_unique_across_locations(client: TestClient) -> None:

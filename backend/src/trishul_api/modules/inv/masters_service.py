@@ -6,6 +6,8 @@ duplicate is still caught on commit. Masters are never deleted, only deactivated
 documents that used them keep showing them.
 """
 
+from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, or_, select
@@ -19,6 +21,8 @@ from trishul_api.db.models import (
     Bin,
     Branch,
     Currency,
+    GstRate,
+    HsnSac,
     Item,
     ItemCategory,
     Location,
@@ -40,6 +44,9 @@ from trishul_api.modules.inv.masters_schemas import (
     ConversionOut,
     ConversionQuery,
     ConversionUpdate,
+    HsnCreate,
+    HsnOut,
+    HsnUpdate,
     LocationCreate,
     LocationOut,
     LocationQuery,
@@ -88,6 +95,82 @@ class MastersService:
         self._apply(row, data, ("name", "decimals", "is_active"))
         self._save(row, "The unit could not be saved.")
         return UomOut.model_validate(row)
+
+    # ================================================================ HSN / SAC codes
+
+    def hsn_codes(self, status: StatusFilter) -> list[HsnOut]:
+        items = select(func.count(Item.id)).where(Item.hsn_sac_id == HsnSac.id).correlate(HsnSac).scalar_subquery()
+        statement = (
+            select(
+                HsnSac.id,
+                HsnSac.code,
+                HsnSac.code_type,
+                HsnSac.description,
+                GstRate.total_rate.label("gst_pct"),
+                items.label("item_count"),
+                HsnSac.is_active,
+                HsnSac.row_version,
+            )
+            .join(GstRate, GstRate.id == HsnSac.gst_rate_id)
+            .order_by(HsnSac.code)
+        )
+        rows = self._db.execute(_status(statement, HsnSac.is_active, status)).mappings().all()
+        return [HsnOut.model_validate(row) for row in rows]
+
+    def create_hsn(self, data: HsnCreate) -> HsnOut:
+        self._unique(HsnSac, HsnSac.code, data.code, None, f"HSN / SAC code {data.code} already exists.")
+        row = HsnSac(
+            code=data.code,
+            code_type=data.code_type,
+            description=data.description,
+            gst_rate_id=self._gst_rate(data.gst_pct),
+            created_by_user_id=self._actor.id,
+        )
+        self._save(row, f"HSN / SAC code {data.code} already exists.")
+        return self._one_hsn(row.id)
+
+    def update_hsn(self, hsn_id: int, expected: bytes, data: HsnUpdate) -> HsnOut:
+        row = self._get(HsnSac, hsn_id, "HSN / SAC code not found.")
+        check_row_version(row.row_version, expected)
+        self._apply(row, data, ("description", "is_active"))
+        if data.code_type is not None:
+            row.code_type = data.code_type
+        if data.gst_pct is not None:
+            row.gst_rate_id = self._gst_rate(data.gst_pct)
+        row.updated_at = now()
+        row.updated_by_user_id = self._actor.id
+        self._save(row, "The HSN / SAC code could not be saved.")
+        return self._one_hsn(row.id)
+
+    def _one_hsn(self, hsn_id: int) -> HsnOut:
+        return next(h for h in self.hsn_codes("all") if h.id == hsn_id)
+
+    def _gst_rate(self, pct: Decimal) -> int:
+        """The GST rate row for a percentage (acc.gst_rate, e.g. GST18), added the first time it is used."""
+        rate_id = self._db.scalar(
+            select(GstRate.id)
+            .where(GstRate.total_rate == pct, GstRate.is_active)
+            .order_by(GstRate.effective_from.desc())
+            .limit(1)
+        )
+        if rate_id is not None:
+            return int(rate_id)
+        label = format(pct.normalize(), "f")
+        half = (pct / 2).quantize(Decimal("0.01"))
+        rate = GstRate(
+            code=f"GST{label}",
+            description=f"GST {label}%",
+            total_rate=pct,
+            cgst_rate=half,
+            sgst_rate=pct - half,
+            igst_rate=pct,
+            cess_rate=Decimal(0),
+            effective_from=date(2017, 7, 1),  # GST came into force
+            created_by_user_id=self._actor.id,
+        )
+        self._db.add(rate)
+        self._db.flush()
+        return int(rate.id)
 
     def conversions(self, query: ConversionQuery) -> list[ConversionOut]:
         from_uom, to_uom = aliased(Uom), aliased(Uom)

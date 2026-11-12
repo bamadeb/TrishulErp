@@ -227,10 +227,11 @@ const NOTE_TEXT: Record<
               <tr>
                 <th>#</th>
                 <th>Item</th>
+                <th>HSN / SAC</th>
                 <th class="num">Qty</th>
                 <th class="num">Price</th>
-                <th class="num">Disc</th>
-                <th class="num">Taxable</th>
+                <th class="num">Discount (%)</th>
+                <th class="num">Net Price (INR)</th>
                 <th class="num">GST</th>
                 <th class="num">Total</th>
               </tr>
@@ -243,6 +244,7 @@ const NOTE_TEXT: Record<
                     {{ l.itemCode ?? '' }}
                     <div [class.muted]="!!l.itemCode">{{ l.description }}</div>
                   </td>
+                  <td>{{ l.hsnCode ?? '—' }}</td>
                   <td class="num">
                     {{ l.quantity | number: '1.0-3' }} {{ l.uomCode ?? '' }}
                   </td>
@@ -263,28 +265,28 @@ const NOTE_TEXT: Record<
             <tfoot>
               @if (n0(q.discountTotal)) {
                 <tr>
-                  <td colspan="7">Before discount · discount</td>
+                  <td colspan="8">Before discount · discount</td>
                   <td class="num">
                     {{ money(q.subtotal) }} · {{ money(q.discountTotal) }}
                   </td>
                 </tr>
               }
               <tr>
-                <td colspan="7">Taxable</td>
+                <td colspan="8">Taxable</td>
                 <td class="num">{{ money(q.taxableValue) }}</td>
               </tr>
               <tr>
-                <td colspan="7">{{ n0(q.igst) ? 'IGST' : 'CGST + SGST' }}</td>
+                <td colspan="8">{{ n0(q.igst) ? 'IGST' : 'CGST + SGST' }}</td>
                 <td class="num">{{ money(q.taxTotal) }}</td>
               </tr>
               @if (n0(q.otherCharges)) {
                 <tr>
-                  <td colspan="7">Other charges</td>
+                  <td colspan="8">Other charges</td>
                   <td class="num">{{ money(q.otherCharges) }}</td>
                 </tr>
               }
               <tr>
-                <td colspan="7">Total</td>
+                <td colspan="8">Total</td>
                 <td class="num">{{ money(q.total) }}</td>
               </tr>
             </tfoot>

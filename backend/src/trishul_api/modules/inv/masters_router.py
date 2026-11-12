@@ -15,6 +15,9 @@ from trishul_api.modules.inv.masters_schemas import (
     ConversionOut,
     ConversionQuery,
     ConversionUpdate,
+    HsnCreate,
+    HsnOut,
+    HsnUpdate,
     LocationCreate,
     LocationOut,
     LocationQuery,
@@ -71,6 +74,26 @@ def update_uom(
     uom_id: Annotated[int, Path(alias="uomId", gt=0)], data: UomUpdate, row_version: RowVersionDep, masters: Masters
 ) -> UomOut:
     return masters.update_uom(uom_id, row_version, data)
+
+
+@router.get("/hsn-codes", summary="HSN / SAC codes with their GST %", dependencies=[CAN_READ])
+def list_hsn_codes(query: Annotated[StatusQuery, Query()], masters: Masters) -> list[HsnOut]:
+    return masters.hsn_codes(query.status)
+
+
+@router.post("/hsn-codes", summary="Add an HSN / SAC code", status_code=201, dependencies=[CAN_MANAGE_ITEMS])
+def create_hsn_code(data: HsnCreate, masters: Masters) -> HsnOut:
+    return masters.create_hsn(data)
+
+
+@router.patch(
+    "/hsn-codes/{hsnId}", summary="Change or deactivate an HSN / SAC code", dependencies=[CAN_MANAGE_ITEMS],
+    responses=UPDATE_RESPONSES,
+)  # fmt: skip
+def update_hsn_code(
+    hsn_id: Annotated[int, Path(alias="hsnId", gt=0)], data: HsnUpdate, row_version: RowVersionDep, masters: Masters
+) -> HsnOut:
+    return masters.update_hsn(hsn_id, row_version, data)
 
 
 @router.get("/uom-conversions", summary="Unit conversions (general and per item)", dependencies=[CAN_READ])

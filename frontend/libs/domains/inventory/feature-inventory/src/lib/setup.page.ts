@@ -19,20 +19,26 @@ import {
   ConversionCreate,
   ConversionOut,
   ConversionUpdate,
+  HsnCreate,
+  HsnOut,
+  HsnUpdate,
   PriceListCreate,
   PriceListOut,
   PriceListUpdate,
   UomCreate,
   UomOut,
   UomUpdate,
+  createHsnCode,
   createItemCategory,
   createPriceList,
   createUom,
   createUomConversion,
+  listHsnCodes,
   listItemCategories,
   listPriceLists,
   listUomConversions,
   listUoms,
+  updateHsnCode,
   updateItemCategory,
   updatePriceList,
   updateUom,
@@ -95,7 +101,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
   template: `
     <trishul-page-header
       title="Item setup"
-      subtitle="Categories, units of measure and sales price lists"
+      subtitle="Categories, units of measure, HSN / SAC codes and sales price lists"
     >
       <a mat-stroked-button routerLink="../items"
         ><mat-icon>inventory_2</mat-icon>Items</a
@@ -291,6 +297,68 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
         </section>
       </mat-tab>
 
+      <mat-tab label="HSN / SAC">
+        <section class="card">
+          <h2>
+            HSN / SAC codes
+            @if (canManage) {
+              <button mat-flat-button (click)="editHsn(null)">
+                <mat-icon>add</mat-icon>Add code
+              </button>
+            }
+          </h2>
+          <p class="muted">
+            Pick the code on each item (Items → Edit). Quotations, orders and
+            invoices print it, and new lines take its GST %.
+          </p>
+          <table class="plain">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th class="num">GST %</th>
+                <th class="num">Items</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of hsnCodes(); track h.id) {
+                <tr>
+                  <td>{{ h.code }}</td>
+                  <td>
+                    {{ h.codeType === 'SAC' ? 'SAC (service)' : 'HSN (goods)' }}
+                  </td>
+                  <td>{{ h.description ?? '' }}</td>
+                  <td class="num">{{ h.gstPct | number: '1.0-2' }}%</td>
+                  <td class="num">{{ h.itemCount }}</td>
+                  <td>{{ h.isActive ? 'Active' : 'Inactive' }}</td>
+                  <td class="actions">
+                    @if (canManage) {
+                      <button
+                        mat-icon-button
+                        matTooltip="Change"
+                        (click)="editHsn(h)"
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="7" class="empty">
+                    No HSN / SAC codes yet (e.g. 84212900 filters, 27101980
+                    lubricants).
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      </mat-tab>
+
       <mat-tab label="Sales price lists">
         <section class="card">
           <h2>
@@ -370,10 +438,12 @@ export class SetupPage {
   protected readonly uoms = signal<UomOut[]>([]);
   protected readonly conversions = signal<ConversionOut[]>([]);
   protected readonly priceLists = signal<PriceListOut[]>([]);
+  protected readonly hsnCodes = signal<HsnOut[]>([]);
 
   constructor() {
     this.loadCategories();
     this.loadUoms();
+    this.loadHsnCodes();
     this.loadConversions();
     this.loadPriceLists();
   }
@@ -390,6 +460,74 @@ export class SetupPage {
       .call(listUoms, { status: 'all' })
       .pipe(catchError(() => EMPTY))
       .subscribe((r) => this.uoms.set(r));
+  }
+
+  private loadHsnCodes(): void {
+    this.api
+      .call(listHsnCodes, { status: 'all' })
+      .pipe(catchError(() => EMPTY))
+      .subscribe((r) => this.hsnCodes.set(r));
+  }
+
+  protected editHsn(hsn: HsnOut | null): void {
+    openFieldsDialog(this.dialog, {
+      title: hsn ? `Change ${hsn.code}` : 'Add HSN / SAC code',
+      submitText: hsn ? 'Save' : 'Add',
+      fields: [
+        ...(hsn
+          ? []
+          : [
+              {
+                key: 'code',
+                label: 'Code',
+                required: true,
+                pattern: '^\\d{4,8}$',
+                hint: '4, 6 or 8 digits, e.g. 84212900',
+              },
+            ]),
+        {
+          key: 'codeType',
+          label: 'Type',
+          type: 'select' as const,
+          required: true,
+          options: [
+            { value: 'HSN', label: 'HSN (goods)' },
+            { value: 'SAC', label: 'SAC (services)' },
+          ],
+        },
+        {
+          key: 'gstPct',
+          label: 'GST %',
+          type: 'number' as const,
+          required: true,
+          min: 0,
+          max: 100,
+          hint: 'e.g. 18 (CGST 9 + SGST 9, or IGST 18)',
+        },
+        {
+          key: 'description',
+          label: 'Description',
+          maxLength: 300,
+          wide: true,
+        },
+        ...(hsn
+          ? [{ key: 'isActive', label: 'Active', type: 'checkbox' as const }]
+          : []),
+      ],
+      value: hsn
+        ? { ...hsn, gstPct: num(hsn.gstPct) }
+        : { codeType: 'HSN', gstPct: 18 },
+      save: (v) =>
+        hsn
+          ? this.api.call(
+              updateHsnCode,
+              { hsnId: hsn.id, body: v as HsnUpdate },
+              withRowVersion(hsn.rowVersion),
+            )
+          : this.api.call(createHsnCode, { body: v as unknown as HsnCreate }),
+    })
+      .pipe(filter((saved) => !!saved))
+      .subscribe(() => this.loadHsnCodes());
   }
 
   private loadConversions(): void {

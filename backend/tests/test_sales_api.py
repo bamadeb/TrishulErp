@@ -22,8 +22,8 @@ from .sqlite_db import insert_row, sqlite_engine
 TABLES = [
     "core.company", "core.principal", "core.state", "core.branch", "core.location", "core.uom", "core.hsn_sac",
     "core.item_category", "core.item", "core.customer", "core.customer_site", "core.number_series",
-    "core.payment_terms", "core.app_user", "core.audit_log",
-    "acc.gstin_registration",
+    "core.payment_terms", "core.app_user", "core.audit_log", "core.employee", "core.contact", "core.customer_principal",
+    "acc.gstin_registration", "acc.gst_rate",
     "inv.bin", "inv.movement_type", "inv.stock_lot", "inv.lot_balance", "inv.stock_balance", "inv.stock_move",
     "sal.credit_status", "sal.credit_limit_change", "sal.price_list", "sal.price_list_item", "sal.quotation",
     "sal.quotation_version", "sal.quotation_line", "sal.sales_order", "sal.sales_order_line", "sal.delivery_note",
@@ -183,6 +183,10 @@ def test_quotation_totals_revision_and_conversion_to_an_order(client: TestClient
     assert (d(quote["subtotal"]), d(quote["discountTotal"]), d(quote["taxableValue"])) == (12500, 1000, 11500)
     assert (d(quote["cgst"]), d(quote["sgst"]), d(quote["igst"]), d(quote["total"])) == (1035, 1035, 0, 13670)
     assert quote["validUntil"] == (date.today() + timedelta(days=30)).isoformat()
+    # Print header: the customer's terms, GST type and addresses (no branch: the billing address for both).
+    assert (quote["paymentTerms"], quote["customerGstType"]) == ("30 days", "Regular")
+    assert (quote["billingAddress"], quote["deliveryAddress"]) == ("C1 road", "C1 road")
+    assert quote["amountInWords"] == "THIRTEEN THOUSAND SIX HUNDRED SEVENTY RUPEES AND ZERO PAISE ONLY"
 
     url = f"{API}/quotations/{quote['id']}"
     assert ok(client.post(f"{url}/submit"))["state"] == "Submitted"  # the submitter may approve discounts

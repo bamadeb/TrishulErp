@@ -12,6 +12,7 @@ Every version keeps its own lines (sal.quotation_line.version_no) and a row in s
 """
 
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Select, and_, case, func, or_, select
@@ -28,9 +29,14 @@ from trishul_api.db.models import (
     AppUser,
     Branch,
     Company,
+    Contact,
     Customer,
+    CustomerPrincipal,
     CustomerSite,
+    Employee,
+    HsnSac,
     Item,
+    PaymentTerms,
     Principal,
     Quotation,
     QuotationLine,
@@ -40,6 +46,7 @@ from trishul_api.db.models import (
     Uom,
 )
 from trishul_api.modules.inv.common import now, visible_branch
+from trishul_api.modules.pur.words import number_in_words
 from trishul_api.modules.sal.common import (
     QUOTATION_APPROVE,
     ZERO,
@@ -51,6 +58,7 @@ from trishul_api.modules.sal.common import (
     is_inter_state,
     place_of_supply,
     require,
+    rupees,
 )
 from trishul_api.modules.sal.lines import ItemLineIn, PricedLineOut, net_price, price_lines
 from trishul_api.modules.sal.order_schemas import OrderCreate, OrderDetail
@@ -67,6 +75,14 @@ from trishul_api.modules.sal.quotation_schemas import (
 
 REVISABLE = ("Pending approval", "Submitted", "Accepted", "Rejected")
 VALIDITY_DAYS = 30
+
+
+def amount_in_words(amount: Decimal) -> str:
+    """Decimal('17682') -> 'SEVENTEEN THOUSAND SIX HUNDRED EIGHTY-TWO RUPEES AND ZERO PAISE ONLY' (OEM style)."""
+    value = amount.quantize(Decimal("0.01"))
+    whole = int(value)
+    paise = int((value - whole) * 100)
+    return f"{number_in_words(whole)} rupees and {number_in_words(paise)} paise only".upper()
 
 
 def quotation_state(status: str, valid_until: date | None, today: date) -> QuotationState:
@@ -164,6 +180,27 @@ class QuotationService:
     def get(self, quotation_id: int) -> QuotationDetail:
         quotation = self._visible(quotation_id)
         created, submitted, approved, responded = (aliased(AppUser) for _ in range(4))
+        # Contact person on the print: the salesperson, else the employee who made the quotation.
+        salesperson, maker = aliased(Employee), aliased(Employee)
+        oem_code = (
+            select(CustomerPrincipal.oem_customer_code)
+            .where(
+                CustomerPrincipal.customer_id == Quotation.customer_id,
+                CustomerPrincipal.principal_id == Quotation.principal_id,
+                CustomerPrincipal.is_active,
+            )
+            .limit(1)
+            .correlate(Quotation)
+            .scalar_subquery()
+        )
+        attention = (
+            select(Contact.name)
+            .where(Contact.customer_id == Quotation.customer_id, Contact.is_active)
+            .order_by(Contact.is_primary.desc(), Contact.id)
+            .limit(1)
+            .correlate(Quotation)
+            .scalar_subquery()
+        )
         header = (
             self._db.execute(
                 self._select()
@@ -182,6 +219,25 @@ class QuotationService:
                     ),
                     func.coalesce(CustomerSite.site_contact_phone, Customer.primary_phone).label("customer_phone"),
                     State.name.label("place_of_supply"),
+                    Principal.logo_url.label("principal_logo_url"),
+                    Branch.phone.label("branch_phone"),
+                    Branch.email.label("branch_email"),
+                    oem_code.label("customer_oem_code"),
+                    Customer.gst_registration_type.label("customer_gst_type"),
+                    attention.label("customer_contact_name"),
+                    func.coalesce(CustomerSite.billing_address, Customer.billing_address).label("billing_address"),
+                    func.coalesce(CustomerSite.address, Customer.billing_address).label("delivery_address"),
+                    PaymentTerms.description.label("payment_terms"),
+                    func.nullif(
+                        func.concat_ws(
+                            " ",
+                            func.coalesce(salesperson.first_name, maker.first_name),
+                            func.coalesce(salesperson.last_name, maker.last_name),
+                        ),
+                        "",
+                    ).label("contact_name"),
+                    func.coalesce(salesperson.mobile, maker.mobile).label("contact_phone"),
+                    func.coalesce(salesperson.email, maker.email, created.email).label("contact_email"),
                     Quotation.subtotal,
                     Quotation.discount_total,
                     Quotation.cgst,
@@ -203,7 +259,10 @@ class QuotationService:
                 )
                 .join(Company, Company.id == Branch.company_id)
                 .join(State, State.id == Quotation.place_of_supply_state_id)
+                .outerjoin(PaymentTerms, PaymentTerms.id == Customer.payment_terms_id)
+                .outerjoin(salesperson, salesperson.id == Quotation.salesperson_employee_id)
                 .outerjoin(created, created.id == Quotation.created_by_user_id)
+                .outerjoin(maker, maker.id == created.employee_id)
                 .outerjoin(submitted, submitted.id == Quotation.submitted_by_user_id)
                 .outerjoin(approved, approved.id == Quotation.approved_by_user_id)
                 .outerjoin(responded, responded.id == Quotation.responded_by_user_id)
@@ -228,11 +287,13 @@ class QuotationService:
                 taxable_value=line.taxable_value,
                 tax_amount=line.tax_amount,
                 line_total=line.line_total,
+                hsn_code=hsn,
             )
-            for line, code, uom in self._db.execute(
-                select(QuotationLine, Item.item_code, Uom.code)
+            for line, code, uom, hsn in self._db.execute(
+                select(QuotationLine, Item.item_code, Uom.code, HsnSac.code)
                 .outerjoin(Item, Item.id == QuotationLine.item_id)
                 .outerjoin(Uom, Uom.id == QuotationLine.uom_id)
+                .outerjoin(HsnSac, HsnSac.id == QuotationLine.hsn_sac_id)
                 .where(
                     QuotationLine.quotation_id == quotation.id, QuotationLine.version_no == quotation.current_version
                 )
@@ -266,6 +327,8 @@ class QuotationService:
                 "versions": versions,
                 "sales_order_id": order[0] if order else None,
                 "order_no": order[1] if order else None,
+                "rounded_total": rupees(quotation.total),
+                "amount_in_words": amount_in_words(rupees(quotation.total)),
             }
         )
 

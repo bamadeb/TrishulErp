@@ -4,25 +4,52 @@
 import { PricedLineOut } from '../models/priced-line-out';
 import { QuotationVersionOut } from '../models/quotation-version-out';
 export interface QuotationDetail {
+
+  /**
+   * e.g. SEVENTEEN THOUSAND ... RUPEES AND ZERO PAISE ONLY
+   */
+  amountInWords: string;
   approvedAt: (string | null);
   approvedBy: (string | null);
+  billingAddress: (string | null);
   branchAddress: (string | null);
+  branchEmail: (string | null);
   branchId: number;
   branchName: string;
+  branchPhone: (string | null);
   cgst: string;
   companyAddress: (string | null);
   companyName: string;
+  contactEmail: (string | null);
+
+  /**
+   * Our salesperson (or whoever made the quotation).
+   */
+  contactName: (string | null);
+  contactPhone: (string | null);
   createdAt: string;
   createdBy: (string | null);
   currentVersion: number;
   customerAddress: (string | null);
   customerCode: string;
+
+  /**
+   * Attention: the customer's primary contact.
+   */
+  customerContactName: (string | null);
+  customerGstType: (string | null);
   customerGstin: (string | null);
   customerId: number;
   customerName: string;
+
+  /**
+   * The customer's code in the brand's system (e.g. SAP ByD).
+   */
+  customerOemCode: (string | null);
   customerPhone: (string | null);
   customerSiteId: (number | null);
   customerSiteName: (string | null);
+  deliveryAddress: (string | null);
   discountTotal: string;
   id: number;
   igst: string;
@@ -30,8 +57,10 @@ export interface QuotationDetail {
   needsDiscountApproval: boolean;
   orderNo: (string | null);
   otherCharges: string;
+  paymentTerms: (string | null);
   placeOfSupply: string;
   principalId: number;
+  principalLogoUrl: (string | null);
   principalName: string;
   quotationDate: string;
   quotationNo: string;
@@ -40,6 +69,11 @@ export interface QuotationDetail {
   respondedAt: (string | null);
   respondedBy: (string | null);
   responseNote: (string | null);
+
+  /**
+   * Total rounded to the rupee, as printed.
+   */
+  roundedTotal: string;
   rowVersion: string;
   salesOrderId: (number | null);
   sgst: string;

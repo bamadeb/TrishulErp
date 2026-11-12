@@ -59,6 +59,7 @@ class PricedLineOut(ApiModel):
     taxable_value: Decimal
     tax_amount: Decimal
     line_total: Decimal
+    hsn_code: str | None = None
 
 
 @dataclass

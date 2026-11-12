@@ -209,6 +209,7 @@ class ItemSaleInfo(ApiModel):
     uom_id: int
     uom_code: str
     hsn_code: str | None
+    gst_pct: Decimal | None = Field(description="GST % of the item's HSN / SAC code (the line default).")
     mrp: Decimal | None
     price: Decimal | None = Field(description="From the active price list for the brand (or a common one).")
     price_list: str | None
