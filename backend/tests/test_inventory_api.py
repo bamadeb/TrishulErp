@@ -405,6 +405,19 @@ def test_opening_stock_carries_its_original_grn_date(client: TestClient) -> None
     assert client.post(f"{API}/opening-stock", json={"locationId": WH_MAIN, "lines": [tomorrow]}).status_code == 400
 
 
+def test_costs_are_hidden_from_users_who_only_look_items_up(client: TestClient, settings: Settings, db: Engine) -> None:
+    grn(client, line(quantity="2", cost="100"), grn_date=days_ago(3))
+    full = ok(client.get(f"{API}/items", params={"search": "FLT-01"}))["items"][0]
+    assert d(full["stockValue"]) == 200
+    # A service engineer: inv.item.view only. Stock yes, costs no. (No `with`: it would dispose the shared db.)
+    engineer = make_client(settings, db, {"inv.item.view"})
+    item = ok(engineer.get(f"{API}/items", params={"search": "FLT-01"}))["items"][0]
+    assert d(item["qtyOnHand"]) == 2
+    assert (item["stockValue"], item["standardCost"]) == (None, None)
+    detail = ok(engineer.get(f"{API}/items/{FILTER_ITEM}"))
+    assert (detail["stockValue"], detail["standardCost"], detail["lastPurchaseCost"]) == (None, None, None)
+
+
 def test_ageing_by_item_and_branch_follows_the_users_branches(client: TestClient, db: Engine) -> None:
     grn(client, line(quantity="1", cost="100"), grn_date=days_ago(45))
     grn(client, line(item=OIL_ITEM, quantity="2", cost="50"), grn_date=days_ago(75), location=BR_MAIN)

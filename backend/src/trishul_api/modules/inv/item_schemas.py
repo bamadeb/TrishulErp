@@ -34,7 +34,9 @@ class ItemListItem(ApiModel):
     mrp: Decimal | None
     reorder_level: Decimal | None
     qty_on_hand: Decimal = Field(description="Across the stock locations of the user's branches.")
-    stock_value: Decimal = Field(description="At each GRN batch's actual cost.")
+    stock_value: Decimal | None = Field(
+        description="At each GRN batch's actual cost. Empty (as are the costs) for users who may not see costs."
+    )
     is_active: bool
 
 

@@ -30,6 +30,12 @@ SALES_PICKERS = ("sal.quotation.manage", "sal.order.manage", "sal.delivery.manag
 ANY_INVENTORY = (
     ITEM_VIEW, ITEM_MANAGE, LOCATION_MANAGE, STOCK_VIEW, GRN_MANAGE, TRANSFER_MANAGE, STOCK_ADJUST, *SALES_PICKERS,
 )  # fmt: skip
+#: Who may see what items cost us (standard / last purchase cost, stock value). Others, e.g. service engineers
+#: who only look items up, get these fields empty.
+COST_VIEWERS = (
+    ITEM_MANAGE, STOCK_VIEW, GRN_MANAGE, TRANSFER_MANAGE, STOCK_ADJUST,
+    "pur.po.manage", "pur.invoice.manage", "pur.credit_note.manage",
+)  # fmt: skip
 #: Screens that work with stock (pick a location, see what is there; deliveries pick a batch).
 STOCK_USERS = (STOCK_VIEW, GRN_MANAGE, TRANSFER_MANAGE, STOCK_ADJUST, "sal.delivery.manage", "sal.invoice.direct")
 

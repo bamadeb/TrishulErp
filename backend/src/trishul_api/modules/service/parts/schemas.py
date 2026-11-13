@@ -85,6 +85,31 @@ class PartRequestQuery(PageQuery):
     to_date: dt.date | None = Field(None, description="Requested on or before (UTC date).")
 
 
+class WarehouseStock(ApiModel):
+    branch_id: int
+    branch_name: str
+    qty_available: Decimal
+    supplies_call_branch: bool = Field(description="This warehouse supplies the call's branch (or is it).")
+
+
+class PartAvailability(ApiModel):
+    """Stock of one part for a call: in the warehouse that supplies the call's branch, and elsewhere.
+    Quantities only (no costs)."""
+
+    item_id: int
+    item_code: str
+    description: str
+    uom_code: str
+    supplying_warehouse_id: int | None = Field(description="The warehouse that supplies the call's branch.")
+    supplying_warehouse_name: str | None
+    qty_in_supplying_warehouse: Decimal = Field(description="What the engineer can get from their own warehouse.")
+    qty_elsewhere: Decimal = Field(description="In the other warehouses (needs a transfer).")
+    total_available: Decimal
+    warehouses: list[WarehouseStock] = Field(
+        description="Every warehouse holding the part: the supplying one first, then the most stock first."
+    )
+
+
 class PartRequestCall(ApiModel):
     """A service call with the parts requested on it (one engineer or several)."""
 

@@ -35,7 +35,7 @@ from trishul_api.db.models import (
     SupplierItemPrice,
     Uom,
 )
-from trishul_api.modules.inv.common import default_company, now, visible_item, visible_location
+from trishul_api.modules.inv.common import COST_VIEWERS, default_company, now, visible_item, visible_location
 from trishul_api.modules.inv.item_schemas import (
     HsnOption,
     ItemCreate,
@@ -154,9 +154,16 @@ class ItemService:
                     Item.oem_part_number.contains(term, autoescape=True),
                 )
             )
-        sort: SortColumns = {**_SORT, "qtyOnHand": func.coalesce(stock.c.qty, 0)}
+        sort: SortColumns = {
+            key: column
+            for key, column in {**_SORT, "qtyOnHand": func.coalesce(stock.c.qty, 0)}.items()
+            # No sorting by a cost the user can't see.
+            if key != "standardCost" or self._actor.can(*COST_VIEWERS)
+        }
         statement = order_by_sort(statement, query.sort, sort, default="itemCode", tiebreaker=Item.id.asc())
-        return paginate(self._db, statement, query, ItemListItem)
+        page = paginate(self._db, statement, query, ItemListItem)
+        page.items = [self._without_costs(i) for i in page.items]
+        return page
 
     def get(self, item_id: int) -> ItemDetail:
         self._visible(item_id)
@@ -177,7 +184,16 @@ class ItemService:
             .outerjoin(HsnSac, HsnSac.id == Item.hsn_sac_id)
             .where(Item.id == item_id)
         )
-        return ItemDetail.model_validate(self._db.execute(statement).mappings().one())
+        return self._without_costs(ItemDetail.model_validate(self._db.execute(statement).mappings().one()))
+
+    def _without_costs[T: ItemListItem](self, item: T) -> T:
+        """Costs and stock value only for those who may see them (not e.g. service engineers)."""
+        if self._actor.can(*COST_VIEWERS):
+            return item
+        hidden: dict[str, Any] = {"standard_cost": None, "stock_value": None}
+        if isinstance(item, ItemDetail):
+            hidden["last_purchase_cost"] = None
+        return item.model_copy(update=hidden)
 
     def form_options(self) -> ItemFormOptions:
         masters = MastersService(self._db, self._actor)

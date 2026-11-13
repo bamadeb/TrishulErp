@@ -8,6 +8,7 @@ from trishul_api.common.schemas import Page
 from trishul_api.modules.sal.common import QUOTATION_MANAGE
 from trishul_api.modules.service.access import CAN_VIEW_CALLS
 from trishul_api.modules.service.parts.schemas import (
+    PartAvailability,
     PartRequestCall,
     PartRequestCreate,
     PartRequestListItem,
@@ -44,6 +45,23 @@ def create_part_requests(
     db: DbSession,
 ) -> list[PartRequestOut]:
     return PartRequestService(db, actor).create(call_id, data)
+
+
+@router.get(
+    "/service-calls/{callId}/part-availability",
+    summary="Stock of parts for a call: in the warehouse supplying the call's branch and in the other warehouses",
+    description="Quantities only, across all warehouses (not only the user's branches). Call it after the engineer "
+    "picks the parts (GET /inv/items) and before sending the request; a request is allowed when stock is short.",
+    dependencies=[Depends(require_permission(CAN_REQUEST_PARTS, CAN_REVIEW_PARTS))],
+    responses={**NOT_FOUND_RESPONSE, 400: problem_response("An item is unknown or of another brand.")},
+)
+def list_part_availability(
+    call_id: CallId,
+    item_ids: Annotated[list[int], Query(alias="itemIds", min_length=1, max_length=50)],
+    actor: CurrentUserDep,
+    db: DbSession,
+) -> list[PartAvailability]:
+    return PartRequestService(db, actor).availability(call_id, item_ids)
 
 
 @router.get(

@@ -209,6 +209,8 @@ export type { ListServiceCallPartRequests$Params as ListServiceCallPartRequests$
 export { listServiceCallPartRequests as listServiceCallPartRequests } from './fn/service-parts/list-service-call-part-requests';
 export type { CreatePartRequests$Params as CreatePartRequests$Params } from './fn/service-parts/create-part-requests';
 export { createPartRequests as createPartRequests } from './fn/service-parts/create-part-requests';
+export type { ListPartAvailability$Params as ListPartAvailability$Params } from './fn/service-parts/list-part-availability';
+export { listPartAvailability as listPartAvailability } from './fn/service-parts/list-part-availability';
 export type { ListPartRequests$Params as ListPartRequests$Params } from './fn/service-parts/list-part-requests';
 export { listPartRequests as listPartRequests } from './fn/service-parts/list-part-requests';
 export type { ListPartRequestCalls$Params as ListPartRequestCalls$Params } from './fn/service-parts/list-part-request-calls';

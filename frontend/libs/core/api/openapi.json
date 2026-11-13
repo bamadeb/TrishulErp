@@ -10330,6 +10330,123 @@
         }
       }
     },
+    "/svc/service-calls/{callId}/part-availability": {
+      "get": {
+        "tags": [
+          "service-parts"
+        ],
+        "summary": "Stock of parts for a call: in the warehouse supplying the call's branch and in the other warehouses",
+        "description": "Quantities only, across all warehouses (not only the user's branches). Call it after the engineer picks the parts (GET /inv/items) and before sending the request; a request is allowed when stock is short.",
+        "operationId": "list_part_availability",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Callid"
+            }
+          },
+          {
+            "name": "itemIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "maxItems": 50,
+              "title": "Itemids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PartAvailability"
+                  },
+                  "title": "Response List Part Availability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An item is unknown or of another brand.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/svc/part-requests": {
       "get": {
         "tags": [
@@ -52646,9 +52763,16 @@
             "description": "Across the stock locations of the user's branches."
           },
           "stockValue": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Stockvalue",
-            "description": "At each GRN batch's actual cost."
+            "description": "At each GRN batch's actual cost. Empty (as are the costs) for users who may not see costs."
           },
           "isActive": {
             "type": "boolean",
@@ -53011,9 +53135,16 @@
             "description": "Across the stock locations of the user's branches."
           },
           "stockValue": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Stockvalue",
-            "description": "At each GRN batch's actual cost."
+            "description": "At each GRN batch's actual cost. Empty (as are the costs) for users who may not see costs."
           },
           "isActive": {
             "type": "boolean",
@@ -58709,6 +58840,86 @@
           "pageSize"
         ],
         "title": "Page[UserListItem]"
+      },
+      "PartAvailability": {
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "uomCode": {
+            "type": "string",
+            "title": "Uomcode"
+          },
+          "supplyingWarehouseId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplyingwarehouseid",
+            "description": "The warehouse that supplies the call's branch."
+          },
+          "supplyingWarehouseName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplyingwarehousename"
+          },
+          "qtyInSupplyingWarehouse": {
+            "type": "string",
+            "title": "Qtyinsupplyingwarehouse",
+            "description": "What the engineer can get from their own warehouse."
+          },
+          "qtyElsewhere": {
+            "type": "string",
+            "title": "Qtyelsewhere",
+            "description": "In the other warehouses (needs a transfer)."
+          },
+          "totalAvailable": {
+            "type": "string",
+            "title": "Totalavailable"
+          },
+          "warehouses": {
+            "items": {
+              "$ref": "#/components/schemas/WarehouseStock"
+            },
+            "type": "array",
+            "title": "Warehouses",
+            "description": "Every warehouse holding the part: the supplying one first, then the most stock first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "itemId",
+          "itemCode",
+          "description",
+          "uomCode",
+          "supplyingWarehouseId",
+          "supplyingWarehouseName",
+          "qtyInSupplyingWarehouse",
+          "qtyElsewhere",
+          "totalAvailable",
+          "warehouses"
+        ],
+        "title": "PartAvailability",
+        "description": "Stock of one part for a call: in the warehouse that supplies the call's branch, and elsewhere.\nQuantities only (no costs)."
       },
       "PartRequestCall": {
         "properties": {
@@ -76571,6 +76782,35 @@
         ],
         "title": "WarehouseOut",
         "description": "A warehouse: a core.branch row of type Warehouse."
+      },
+      "WarehouseStock": {
+        "properties": {
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "qtyAvailable": {
+            "type": "string",
+            "title": "Qtyavailable"
+          },
+          "suppliesCallBranch": {
+            "type": "boolean",
+            "title": "Suppliescallbranch",
+            "description": "This warehouse supplies the call's branch (or is it)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "branchId",
+          "branchName",
+          "qtyAvailable",
+          "suppliesCallBranch"
+        ],
+        "title": "WarehouseStock"
       },
       "WarehouseUpdate": {
         "properties": {

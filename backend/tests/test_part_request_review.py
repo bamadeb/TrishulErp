@@ -189,6 +189,44 @@ def test_office_lists_requests_call_wise(engineer: TestClient, admin: TestClient
     assert [(c["callNo"], len(c["parts"])) for c in only["items"]] == [("BHADRAK/SC/00024", 1)]
 
 
+def stock(db: Engine, lot: int, item: int, location: int, qty: int) -> None:
+    insert_row(db, "inv.stock_lot", id=lot, company_id=COMPANY, item_id=item, lot_no=f"LOT{lot}", source_type="GRN",
+               grn_no=f"GRN{lot}", grn_date=datetime(2026, 11, 1).date(), received_location_id=location,
+               unit_cost=Decimal(100), qty_received=Decimal(qty))  # fmt: skip
+    insert_row(db, "inv.lot_balance", stock_lot_id=lot, item_id=item, location_id=location, qty_on_hand=Decimal(qty),
+               is_active=True)  # fmt: skip
+
+
+def test_engineer_sees_stock_in_their_warehouse_and_the_others(engineer: TestClient, db: Engine) -> None:
+    # Bhubaneswar (the call's branch is this warehouse) and Barbil; Bhadrak is a branch Bhubaneswar supplies.
+    insert_row(db, "core.branch", id=2, company_id=COMPANY, code="BARBIL", name="Barbil", branch_type="Warehouse",
+               state_id=ODISHA)  # fmt: skip
+    insert_row(db, "core.branch", id=3, company_id=COMPANY, code="BHADRAK", name="Bhadrak", branch_type="Branch",
+               parent_warehouse_id=BRANCH, state_id=ODISHA)  # fmt: skip
+    for location, branch in ((71, BRANCH), (72, 2)):
+        insert_row(db, "core.location", id=location, branch_id=branch, code=f"L{location}", name=f"Store {location}",
+                   location_type="Main store", is_stock_location=True, is_active=True)  # fmt: skip
+    stock(db, 1, FILTER, 71, 2)
+    stock(db, 2, FILTER, 72, 7)
+    stock(db, 3, FILTER, 71, 1)  # a second batch in the same warehouse
+    insert_row(db, "svc.service_call", id=26, company_id=COMPANY, branch_id=3, principal_id=BRAND,
+               call_no="BHADRAK/SC/00026", customer_id=CUSTOMER, assigned_engineer_id=ENGINEER,
+               call_type_lookup_id=30, current_status="In progress", priority="Normal")  # fmt: skip
+
+    filter_part, oil = ok(engineer.get(f"{SVC}/service-calls/26/part-availability", params={"itemIds": [FILTER, OIL]}))
+    assert (filter_part["supplyingWarehouseName"], filter_part["uomCode"]) == ("Bhubaneswar", "EA")
+    totals = [Decimal(filter_part[k]) for k in ("qtyInSupplyingWarehouse", "qtyElsewhere", "totalAvailable")]
+    assert totals == [Decimal(3), Decimal(7), Decimal(10)]
+    places = [(w["branchName"], Decimal(w["qtyAvailable"]), w["suppliesCallBranch"]) for w in filter_part["warehouses"]]
+    assert places == [("Bhubaneswar", Decimal(3), True), ("Barbil", Decimal(7), False)]
+    assert Decimal(oil["totalAvailable"]) == Decimal(0)
+    assert oil["warehouses"] == []
+    assert "standardCost" not in filter_part and "unitCost" not in filter_part
+
+    bad = engineer.get(f"{SVC}/service-calls/26/part-availability", params={"itemIds": [999]})
+    assert bad.status_code == 400
+
+
 def draft(client: TestClient, ids: list[int]) -> Any:
     return ok(client.get(f"{SVC}/part-request-quotation-draft", params={"partRequestIds": ids}))
 
@@ -219,8 +257,10 @@ def test_the_draft_is_filled_in_and_nothing_is_saved_until_the_user_saves(
     )  # fmt: skip
     assert d["remarks"] == "Parts requested on service call BHADRAK/SC/00024"
     # The filter at its MRP (no price list); the unknown seal kit as a text line at 0 for the office to price.
-    lines = [(ln["itemId"], ln["description"], Decimal(ln["quantity"]), Decimal(ln["unitPrice"])) for ln in d["lines"]]
-    assert lines == [
+    draft_lines = [
+        (ln["itemId"], ln["description"], Decimal(ln["quantity"]), Decimal(ln["unitPrice"])) for ln in d["lines"]
+    ]
+    assert draft_lines == [
         (FILTER, "KF70500 item", Decimal(2), Decimal(1200)),
         (None, "Seal kit", Decimal(1), Decimal(0)),
     ]  # fmt: skip

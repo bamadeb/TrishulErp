@@ -281,6 +281,7 @@ export type { PageTransferListItem } from './models/page-transfer-list-item';
 export type { PageTripListItem } from './models/page-trip-list-item';
 export type { PageUnassignedCallItem } from './models/page-unassigned-call-item';
 export type { PageUserListItem } from './models/page-user-list-item';
+export type { PartAvailability } from './models/part-availability';
 export type { PartRequestCall } from './models/part-request-call';
 export type { PartRequestCreate } from './models/part-request-create';
 export type { PartRequestDraftLine } from './models/part-request-draft-line';
@@ -457,6 +458,7 @@ export type { WarehouseCompany } from './models/warehouse-company';
 export type { WarehouseCreate } from './models/warehouse-create';
 export type { WarehouseMap } from './models/warehouse-map';
 export type { WarehouseOut } from './models/warehouse-out';
+export type { WarehouseStock } from './models/warehouse-stock';
 export type { WarehouseUpdate } from './models/warehouse-update';
 
 export type { GetMe$Params as GetMe$Params } from './fn/core/get-me';
@@ -667,6 +669,8 @@ export type { ListServiceCallPartRequests$Params as ListServiceCallPartRequests$
 export { listServiceCallPartRequests as listServiceCallPartRequests } from './fn/service-parts/list-service-call-part-requests';
 export type { CreatePartRequests$Params as CreatePartRequests$Params } from './fn/service-parts/create-part-requests';
 export { createPartRequests as createPartRequests } from './fn/service-parts/create-part-requests';
+export type { ListPartAvailability$Params as ListPartAvailability$Params } from './fn/service-parts/list-part-availability';
+export { listPartAvailability as listPartAvailability } from './fn/service-parts/list-part-availability';
 export type { ListPartRequests$Params as ListPartRequests$Params } from './fn/service-parts/list-part-requests';
 export { listPartRequests as listPartRequests } from './fn/service-parts/list-part-requests';
 export type { ListPartRequestCalls$Params as ListPartRequestCalls$Params } from './fn/service-parts/list-part-request-calls';

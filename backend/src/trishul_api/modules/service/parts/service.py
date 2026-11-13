@@ -27,6 +27,8 @@ from trishul_api.db.models import (
     Customer,
     Employee,
     Item,
+    Location,
+    LotBalance,
     Principal,
     Quotation,
     ServiceCall,
@@ -41,6 +43,7 @@ from trishul_api.modules.sal.quotation_service import QuotationService
 from trishul_api.modules.service.access import FINISHED_STATUSES
 from trishul_api.modules.service.assignment import assignees
 from trishul_api.modules.service.parts.schemas import (
+    PartAvailability,
     PartRequestCall,
     PartRequestCreate,
     PartRequestDraftLine,
@@ -51,6 +54,7 @@ from trishul_api.modules.service.parts.schemas import (
     PartRequestQuotationDraft,
     PartRequestQuotationOut,
     PartRequestReject,
+    WarehouseStock,
 )
 from trishul_api.modules.service.reports.service import can_read
 
@@ -130,6 +134,87 @@ class PartRequestService:
             raise NotFound("Service call not found.")
         statement = self._listing().where(ServicePartRequest.service_call_id == call.id)
         return [self._list_item(row) for row in self._db.execute(statement.order_by(ServicePartRequest.id))]
+
+    def availability(self, call_id: int, item_ids: list[int]) -> list[PartAvailability]:
+        """Stock of the parts for this call, in every warehouse (not only the engineer's branches)."""
+        call = self._db.get(ServiceCall, call_id)
+        if call is None or not (self._actor.can(CAN_REVIEW_PARTS) or can_read(self._db, self._actor, call)):
+            raise NotFound("Service call not found.")
+        wanted = list(dict.fromkeys(item_ids))
+        items = {
+            i.id: i
+            for i in self._db.scalars(
+                select(Item).where(
+                    Item.id.in_(wanted),
+                    or_(Item.principal_id.is_(None), Item.principal_id == call.principal_id),
+                )
+            )
+        }
+        missing = [i for i in wanted if i not in items]
+        if missing:
+            raise ApiError(
+                "Some items are unknown or of another brand than the call's machine.",
+                errors={"itemIds": [f"No item {i} for this call." for i in missing]},
+            )
+        branch = self._db.get(Branch, call.branch_id)
+        supplying_id = (branch.parent_warehouse_id or branch.id) if branch else None
+        home = {call.branch_id, supplying_id}
+        stock = self._db.execute(
+            select(
+                LotBalance.item_id,
+                Branch.id.label("branch_id"),
+                Branch.name.label("branch_name"),
+                func.sum(LotBalance.qty_on_hand).label("qty"),
+            )
+            .join(Location, Location.id == LotBalance.location_id)
+            .join(Branch, Branch.id == Location.branch_id)
+            .where(
+                LotBalance.item_id.in_(wanted),
+                LotBalance.qty_on_hand > 0,
+                LotBalance.is_active,
+                Location.is_active,
+                Location.is_stock_location,
+                Branch.company_id == call.company_id,
+            )
+            .group_by(LotBalance.item_id, Branch.id, Branch.name)
+        ).all()
+        uoms = {
+            u.id: u.code for u in self._db.scalars(select(Uom).where(Uom.id.in_({i.uom_id for i in items.values()})))
+        }
+        supplying = self._db.get(Branch, supplying_id) if supplying_id else None
+        result: list[PartAvailability] = []
+        for item_id in wanted:
+            item = items[item_id]
+            places = sorted(
+                (
+                    WarehouseStock(
+                        branch_id=r.branch_id,
+                        branch_name=r.branch_name,
+                        qty_available=r.qty,
+                        supplies_call_branch=r.branch_id in home,
+                    )
+                    for r in stock
+                    if r.item_id == item_id
+                ),
+                key=lambda w: (not w.supplies_call_branch, -w.qty_available, w.branch_name),
+            )
+            near = sum((w.qty_available for w in places if w.supplies_call_branch), Decimal(0))
+            total = sum((w.qty_available for w in places), Decimal(0))
+            result.append(
+                PartAvailability(
+                    item_id=item.id,
+                    item_code=item.item_code,
+                    description=item.description,
+                    uom_code=uoms.get(item.uom_id, ""),
+                    supplying_warehouse_id=supplying.id if supplying else None,
+                    supplying_warehouse_name=supplying.name if supplying else None,
+                    qty_in_supplying_warehouse=near,
+                    qty_elsewhere=total - near,
+                    total_available=total,
+                    warehouses=places,
+                )
+            )
+        return result
 
     # ------------------------------------------------------------------ the office's review
 

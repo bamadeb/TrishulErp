@@ -32,9 +32,9 @@ export interface ItemDetail {
   standardCost: (string | null);
 
   /**
-   * At each GRN batch's actual cost.
+   * At each GRN batch's actual cost. Empty (as are the costs) for users who may not see costs.
    */
-  stockValue: string;
+  stockValue: (string | null);
   uomCode: string;
   uomId: number;
 }
