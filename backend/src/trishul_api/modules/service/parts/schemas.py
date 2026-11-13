@@ -92,6 +92,15 @@ class WarehouseStock(ApiModel):
     supplies_call_branch: bool = Field(description="This warehouse supplies the call's branch (or is it).")
 
 
+class BranchStock(ApiModel):
+    branch_id: int
+    branch_name: str
+    branch_type: str = Field(description="Warehouse, Branch, Service point, Head office.")
+    qty_available: Decimal = Field(description="0 when the branch holds none.")
+    is_call_branch: bool = Field(description="The call's own branch.")
+    supplies_call_branch: bool = Field(description="This warehouse supplies the call's branch.")
+
+
 class PartAvailability(ApiModel):
     """Stock of one part for a call: in the warehouse that supplies the call's branch, and elsewhere.
     Quantities only (no costs)."""
@@ -107,6 +116,10 @@ class PartAvailability(ApiModel):
     total_available: Decimal
     warehouses: list[WarehouseStock] = Field(
         description="Every warehouse holding the part: the supplying one first, then the most stock first."
+    )
+    branches: list[BranchStock] = Field(
+        description="Every active branch with its stock of the part (0 included): the call's branch first, "
+        "then its supplying warehouse, then the most stock first, then by name."
     )
 
 

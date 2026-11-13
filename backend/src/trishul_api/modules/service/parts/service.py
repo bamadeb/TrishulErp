@@ -43,6 +43,7 @@ from trishul_api.modules.sal.quotation_service import QuotationService
 from trishul_api.modules.service.access import FINISHED_STATUSES
 from trishul_api.modules.service.assignment import assignees
 from trishul_api.modules.service.parts.schemas import (
+    BranchStock,
     PartAvailability,
     PartRequestCall,
     PartRequestCreate,
@@ -185,9 +186,27 @@ class PartRequestService:
         uoms = {
             u.id: u.code for u in self._db.scalars(select(Uom).where(Uom.id.in_({i.uom_id for i in items.values()})))
         }
+        all_branches = self._db.scalars(
+            select(Branch).where(Branch.is_active, Branch.company_id.in_(companies)).order_by(Branch.name)
+        ).all()
+        qty = {(r.item_id, r.branch_id): r.qty for r in stock}
         result: list[PartAvailability] = []
         for item_id in wanted:
             item = items[item_id]
+            by_branch = sorted(
+                (
+                    BranchStock(
+                        branch_id=b.id,
+                        branch_name=b.name,
+                        branch_type=b.branch_type,
+                        qty_available=qty.get((item_id, b.id), Decimal(0)),
+                        is_call_branch=b.id == call.branch_id,
+                        supplies_call_branch=b.id == supplying_id and b.id != call.branch_id,
+                    )
+                    for b in all_branches
+                ),
+                key=lambda s: (not s.is_call_branch, not s.supplies_call_branch, -s.qty_available, s.branch_name),
+            )
             places = sorted(
                 (
                     WarehouseStock(
@@ -215,6 +234,7 @@ class PartRequestService:
                     qty_elsewhere=total - near,
                     total_available=total,
                     warehouses=places,
+                    branches=by_branch,
                 )
             )
         return result

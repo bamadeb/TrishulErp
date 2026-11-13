@@ -51,6 +51,7 @@ export type { BranchDetail } from './models/branch-detail';
 export type { BranchListItem } from './models/branch-list-item';
 export type { BranchOption } from './models/branch-option';
 export type { BranchRef } from './models/branch-ref';
+export type { BranchStock } from './models/branch-stock';
 export type { BranchUpdate } from './models/branch-update';
 export type { BranchWarehouseUpdate } from './models/branch-warehouse-update';
 export type { BydImportLogDetail } from './models/byd-import-log-detail';

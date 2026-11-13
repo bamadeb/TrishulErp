@@ -219,8 +219,18 @@ def test_engineer_sees_stock_in_their_warehouse_and_the_others(engineer: TestCli
     assert totals == [Decimal(3), Decimal(7), Decimal(10)]
     places = [(w["branchName"], Decimal(w["qtyAvailable"]), w["suppliesCallBranch"]) for w in filter_part["warehouses"]]
     assert places == [("Bhubaneswar", Decimal(3), True), ("Barbil", Decimal(7), False)]
+    branches = [(b["branchName"], Decimal(b["qtyAvailable"]), b["isCallBranch"], b["suppliesCallBranch"])
+                for b in filter_part["branches"]]  # fmt: skip
+    assert branches == [
+        ("Bhadrak", Decimal(0), True, False),
+        ("Bhubaneswar", Decimal(3), False, True),
+        ("Barbil", Decimal(7), False, False),
+    ]
     assert Decimal(oil["totalAvailable"]) == Decimal(0)
     assert oil["warehouses"] == []
+    assert [(b["branchName"], Decimal(b["qtyAvailable"])) for b in oil["branches"]] == [
+        ("Bhadrak", Decimal(0)), ("Bhubaneswar", Decimal(0)), ("Barbil", Decimal(0)),
+    ]  # fmt: skip
     assert "standardCost" not in filter_part and "unitCost" not in filter_part
 
     bad = engineer.get(f"{SVC}/service-calls/26/part-availability", params={"itemIds": [999]})
@@ -247,6 +257,7 @@ def test_stock_of_a_supplying_warehouse_under_another_company_counts(engineer: T
     (part,) = ok(engineer.get(f"{SVC}/service-calls/27/part-availability", params={"itemIds": [FILTER]}))
     assert (part["supplyingWarehouseName"], Decimal(part["qtyInSupplyingWarehouse"])) == ("Bhubaneswar", Decimal(10))
     assert Decimal(part["totalAvailable"]) == Decimal(10)
+    assert [b["branchName"] for b in part["branches"]] == ["Bhadrak", "Bhubaneswar"]  # not the other company's
 
 
 def draft(client: TestClient, ids: list[int]) -> Any:

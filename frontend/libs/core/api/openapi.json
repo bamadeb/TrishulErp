@@ -39901,6 +39901,48 @@
         ],
         "title": "BranchRef"
       },
+      "BranchStock": {
+        "properties": {
+          "branchId": {
+            "type": "integer",
+            "title": "Branchid"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "branchType": {
+            "type": "string",
+            "title": "Branchtype",
+            "description": "Warehouse, Branch, Service point, Head office."
+          },
+          "qtyAvailable": {
+            "type": "string",
+            "title": "Qtyavailable",
+            "description": "0 when the branch holds none."
+          },
+          "isCallBranch": {
+            "type": "boolean",
+            "title": "Iscallbranch",
+            "description": "The call's own branch."
+          },
+          "suppliesCallBranch": {
+            "type": "boolean",
+            "title": "Suppliescallbranch",
+            "description": "This warehouse supplies the call's branch."
+          }
+        },
+        "type": "object",
+        "required": [
+          "branchId",
+          "branchName",
+          "branchType",
+          "qtyAvailable",
+          "isCallBranch",
+          "suppliesCallBranch"
+        ],
+        "title": "BranchStock"
+      },
       "BranchUpdate": {
         "properties": {
           "code": {
@@ -58903,6 +58945,14 @@
             "type": "array",
             "title": "Warehouses",
             "description": "Every warehouse holding the part: the supplying one first, then the most stock first."
+          },
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/BranchStock"
+            },
+            "type": "array",
+            "title": "Branches",
+            "description": "Every active branch with its stock of the part (0 included): the call's branch first, then its supplying warehouse, then the most stock first, then by name."
           }
         },
         "type": "object",
@@ -58916,7 +58966,8 @@
           "qtyInSupplyingWarehouse",
           "qtyElsewhere",
           "totalAvailable",
-          "warehouses"
+          "warehouses",
+          "branches"
         ],
         "title": "PartAvailability",
         "description": "Stock of one part for a call: in the warehouse that supplies the call's branch, and elsewhere.\nQuantities only (no costs)."
