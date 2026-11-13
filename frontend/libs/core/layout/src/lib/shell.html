@@ -63,8 +63,8 @@
       </button>
       @if (!isCollapsed(item.label)) {
       <div class="nav-children">
-        @for (child of item.children; track child.label) {
-        @if (child.children) {
+        @for (child of item.children; track child.label) { @if (child.children)
+        {
         <button
           type="button"
           class="nav-group nav-subgroup"
@@ -97,8 +97,7 @@
           </a>
           }
         </div>
-        }
-        } @else {
+        } } @else {
         <a
           mat-list-item
           class="nav-child"
@@ -113,8 +112,7 @@
           }
           <span matListItemTitle>{{ child.label }}</span>
         </a>
-        }
-        }
+        } }
       </div>
       } } @else {
       <a
@@ -137,7 +135,10 @@
 
   <mat-sidenav-content>
     <main class="content">
+      <!-- Re-created when the branch or brand changes in the header, so every page loads again for it. -->
+      @for (scope of [scopeKey()]; track scope) {
       <router-outlet />
+      }
     </main>
   </mat-sidenav-content>
 </mat-sidenav-container>
@@ -152,18 +153,17 @@
         (valueChange)="auth.selectBranch($event)"
       >
         <mat-select-trigger>
-          {{ auth.currentBranch()?.name }}
-          @if (auth.currentBranch()?.warehouseName && auth.currentBranch()?.branchType !== 'Warehouse') {
-          · {{ auth.currentBranch()?.warehouseName }}
-          }
+          {{ auth.currentBranch()?.name }} @if
+          (auth.currentBranch()?.warehouseName &&
+          auth.currentBranch()?.branchType !== 'Warehouse') { · {{
+          auth.currentBranch()?.warehouseName }} }
         </mat-select-trigger>
         @for (group of branchGroups(); track group.label) {
         <mat-optgroup>
           <span class="group-head">
             @if (group.warehouse) {
             <mat-icon aria-hidden="true">warehouse</mat-icon>
-            }
-            {{ group.label }}
+            } {{ group.label }}
           </span>
           @for (branch of group.branches; track branch.id) {
           <mat-option [value]="branch.id">{{ branch.name }}</mat-option>

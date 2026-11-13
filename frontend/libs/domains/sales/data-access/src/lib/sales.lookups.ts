@@ -6,6 +6,7 @@ import {
   getItemSaleInfo,
   getSalesFormOptions,
 } from '@trishul/core-api';
+import { AuthStore } from '@trishul/core-auth';
 import { Observable, catchError, of, shareReplay } from 'rxjs';
 
 const EMPTY_OPTIONS: SalesFormOptions = {
@@ -22,9 +23,17 @@ const EMPTY_OPTIONS: SalesFormOptions = {
 @Injectable({ providedIn: 'root' })
 export class SalesLookups {
   private readonly api = inject(ApiClient);
+  private readonly auth = inject(AuthStore);
   private options$?: Observable<SalesFormOptions>;
+  /** The header's branch and brand the options were loaded for (their defaults follow it). */
+  private loadedFor?: string;
 
   options(): Observable<SalesFormOptions> {
+    const scope = `${this.auth.branchId()}:${this.auth.principalId()}`;
+    if (scope !== this.loadedFor) {
+      this.loadedFor = scope;
+      this.options$ = undefined;
+    }
     this.options$ ??= this.api.call(getSalesFormOptions).pipe(
       catchError(() => of(EMPTY_OPTIONS)),
       shareReplay({ bufferSize: 1, refCount: false }),

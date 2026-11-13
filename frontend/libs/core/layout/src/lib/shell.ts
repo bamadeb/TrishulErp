@@ -18,7 +18,12 @@ import {
   MatListItemTitle,
   MatNavList,
 } from '@angular/material/list';
-import { MatOptgroup, MatOption, MatSelect, MatSelectTrigger } from '@angular/material/select';
+import {
+  MatOptgroup,
+  MatOption,
+  MatSelect,
+  MatSelectTrigger,
+} from '@angular/material/select';
 import {
   MatSidenav,
   MatSidenavContainer,
@@ -90,6 +95,10 @@ export class Shell {
   );
 
   protected readonly menu = computed(() => this.filter(this.navItems));
+  /** The header's branch and brand: the page is opened again when either changes. */
+  protected readonly scopeKey = computed(
+    () => `${this.auth.branchId()}:${this.auth.principalId()}`,
+  );
 
   /** The user's role beside their name: the only one, or the first and how many more. */
   protected readonly roleLabel = computed(() => {

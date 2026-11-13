@@ -159,6 +159,10 @@ class PartRequestService:
         branch = self._db.get(Branch, call.branch_id)
         supplying_id = (branch.parent_warehouse_id or branch.id) if branch else None
         home = {call.branch_id, supplying_id}
+        supplying = self._db.get(Branch, supplying_id) if supplying_id else None
+        # The supplying warehouse can sit under another company than the call's branch
+        # (Bhadrak is under Trishul, its Bhubaneswar warehouse under Trishul Tread): count both.
+        companies = {call.company_id} | ({supplying.company_id} if supplying else set())
         stock = self._db.execute(
             select(
                 LotBalance.item_id,
@@ -174,14 +178,13 @@ class PartRequestService:
                 LotBalance.is_active,
                 Location.is_active,
                 Location.is_stock_location,
-                Branch.company_id == call.company_id,
+                Branch.company_id.in_(companies),
             )
             .group_by(LotBalance.item_id, Branch.id, Branch.name)
         ).all()
         uoms = {
             u.id: u.code for u in self._db.scalars(select(Uom).where(Uom.id.in_({i.uom_id for i in items.values()})))
         }
-        supplying = self._db.get(Branch, supplying_id) if supplying_id else None
         result: list[PartAvailability] = []
         for item_id in wanted:
             item = items[item_id]

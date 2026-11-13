@@ -227,6 +227,28 @@ def test_engineer_sees_stock_in_their_warehouse_and_the_others(engineer: TestCli
     assert bad.status_code == 400
 
 
+def test_stock_of_a_supplying_warehouse_under_another_company_counts(engineer: TestClient, db: Engine) -> None:
+    # As on the live data: Bhadrak is under Trishul, its Bhubaneswar warehouse under Trishul Tread.
+    insert_row(db, "core.company", id=8, code="TRISHUL", legal_name="Trishul")
+    insert_row(db, "core.company", id=9, code="OTHER", legal_name="Unrelated company")
+    insert_row(db, "core.branch", id=3, company_id=8, code="BHADRAK", name="Bhadrak", branch_type="Branch",
+               parent_warehouse_id=BRANCH, state_id=ODISHA)  # fmt: skip
+    insert_row(db, "core.branch", id=4, company_id=9, code="FAR", name="Far away", branch_type="Warehouse",
+               state_id=ODISHA)  # fmt: skip
+    for location, branch in ((71, BRANCH), (72, 4)):
+        insert_row(db, "core.location", id=location, branch_id=branch, code=f"L{location}", name=f"Store {location}",
+                   location_type="Main store", is_stock_location=True, is_active=True)  # fmt: skip
+    stock(db, 1, FILTER, 71, 10)
+    stock(db, 2, FILTER, 72, 5)  # an unrelated company's stock is not offered
+    insert_row(db, "svc.service_call", id=27, company_id=8, branch_id=3, principal_id=BRAND,
+               call_no="BHADRAK/SC/00027", customer_id=CUSTOMER, assigned_engineer_id=ENGINEER,
+               call_type_lookup_id=30, current_status="In progress", priority="Normal")  # fmt: skip
+
+    (part,) = ok(engineer.get(f"{SVC}/service-calls/27/part-availability", params={"itemIds": [FILTER]}))
+    assert (part["supplyingWarehouseName"], Decimal(part["qtyInSupplyingWarehouse"])) == ("Bhubaneswar", Decimal(10))
+    assert Decimal(part["totalAvailable"]) == Decimal(10)
+
+
 def draft(client: TestClient, ids: list[int]) -> Any:
     return ok(client.get(f"{SVC}/part-request-quotation-draft", params={"partRequestIds": ids}))
 
