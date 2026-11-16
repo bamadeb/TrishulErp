@@ -3,7 +3,8 @@
 Each requested part is one svc.service_part_request row:
 
     Requested  the engineer asked for it (channel App). An SVC_PART_REQUEST alert goes to the reviewers.
-    Quoted     the office put it on a draft sales quotation (quotation_id).
+    Quoted     the office put it on a draft sales quotation (quotation_id); the call moves to
+               'Quotation sent' (unless it is already finished).
     Rejected   the office won't supply it (review_note says why).
 
 Once no part of a call is still Requested, the call's open part-request alerts are resolved.
@@ -36,6 +37,7 @@ from trishul_api.db.models import (
     ServiceVisit,
     Uom,
 )
+from trishul_api.db.models.generated.svc import ServiceCallCurrentStatus
 from trishul_api.modules.alerts.engine import AlertEngine
 from trishul_api.modules.sal.customer_service import CustomerAccountService
 from trishul_api.modules.sal.quotation_schemas import QuotationCreate
@@ -58,6 +60,7 @@ from trishul_api.modules.service.parts.schemas import (
     WarehouseStock,
 )
 from trishul_api.modules.service.reports.service import can_read
+from trishul_api.modules.service.status_log import record_status_change
 
 log = logging.getLogger(__name__)
 
@@ -66,6 +69,8 @@ CAN_REQUEST_PARTS = "svc.part_request.create"
 # Who sees every request and quotes or rejects them (the office / warehouse).
 CAN_REVIEW_PARTS = "svc.part_request.review"
 ALERT_TYPE = "SVC_PART_REQUEST"
+# The call's status once the office has saved a quotation for its requested parts.
+QUOTATION_SENT: ServiceCallCurrentStatus = "Quotation sent"
 _DEFAULT_GST = Decimal(18)
 _SORTS = {"createdAt": ServicePartRequest.id, "callNo": ServiceCall.call_no, "status": ServicePartRequest.status}
 
@@ -169,6 +174,7 @@ class PartRequestService:
                 LotBalance.item_id,
                 Branch.id.label("branch_id"),
                 Branch.name.label("branch_name"),
+                Branch.branch_type,
                 func.sum(LotBalance.qty_on_hand).label("qty"),
             )
             .join(Location, Location.id == LotBalance.location_id)
@@ -179,31 +185,29 @@ class PartRequestService:
                 LotBalance.is_active,
                 Location.is_active,
                 Location.is_stock_location,
+                Branch.is_active,
                 Branch.company_id.in_(companies),
             )
-            .group_by(LotBalance.item_id, Branch.id, Branch.name)
+            .group_by(LotBalance.item_id, Branch.id, Branch.name, Branch.branch_type)
         ).all()
         uoms = {
             u.id: u.code for u in self._db.scalars(select(Uom).where(Uom.id.in_({i.uom_id for i in items.values()})))
         }
-        all_branches = self._db.scalars(
-            select(Branch).where(Branch.is_active, Branch.company_id.in_(companies)).order_by(Branch.name)
-        ).all()
-        qty = {(r.item_id, r.branch_id): r.qty for r in stock}
         result: list[PartAvailability] = []
         for item_id in wanted:
             item = items[item_id]
             by_branch = sorted(
                 (
                     BranchStock(
-                        branch_id=b.id,
-                        branch_name=b.name,
-                        branch_type=b.branch_type,
-                        qty_available=qty.get((item_id, b.id), Decimal(0)),
-                        is_call_branch=b.id == call.branch_id,
-                        supplies_call_branch=b.id == supplying_id and b.id != call.branch_id,
+                        branch_id=r.branch_id,
+                        branch_name=r.branch_name,
+                        branch_type=r.branch_type,
+                        qty_available=r.qty,
+                        is_call_branch=r.branch_id == call.branch_id,
+                        supplies_call_branch=r.branch_id == supplying_id and r.branch_id != call.branch_id,
                     )
-                    for b in all_branches
+                    for r in stock
+                    if r.item_id == item_id
                 ),
                 key=lambda s: (not s.is_call_branch, not s.supplies_call_branch, -s.qty_available, s.branch_name),
             )
@@ -416,6 +420,15 @@ class PartRequestService:
         )
         for row in rows:
             row.quotation_id = quotation.id
+        for call in calls.values():
+            # The engineer's app shows the call moving on; a finished call keeps its status.
+            if call.current_status not in FINISHED_STATUSES and call.current_status != QUOTATION_SENT:
+                record_status_change(
+                    self._db, call.id, call.current_status, QUOTATION_SENT, self._actor.id,
+                    f"Quotation {quotation.quotation_no} for the requested parts",
+                )  # fmt: skip
+                call.current_status = QUOTATION_SENT
+                call.updated_at, call.updated_by_user_id = now, self._actor.id
         self._resolve_alerts(set(calls))
         self._db.commit()
         return PartRequestQuotationOut(

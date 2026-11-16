@@ -46,6 +46,7 @@ export const CALL_STATUSES = allOf<CallStatus>()([
   'In progress',
   'Report submitted',
   'Awaiting parts',
+  'Quotation sent',
   'Parts ready',
   'Revisit scheduled',
   'Closed',

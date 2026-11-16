@@ -96,7 +96,7 @@ class BranchStock(ApiModel):
     branch_id: int
     branch_name: str
     branch_type: str = Field(description="Warehouse, Branch, Service point, Head office.")
-    qty_available: Decimal = Field(description="0 when the branch holds none.")
+    qty_available: Decimal
     is_call_branch: bool = Field(description="The call's own branch.")
     supplies_call_branch: bool = Field(description="This warehouse supplies the call's branch.")
 
@@ -118,8 +118,8 @@ class PartAvailability(ApiModel):
         description="Every warehouse holding the part: the supplying one first, then the most stock first."
     )
     branches: list[BranchStock] = Field(
-        description="Every active branch with its stock of the part (0 included): the call's branch first, "
-        "then its supplying warehouse, then the most stock first, then by name."
+        description="Every active branch holding the part (branches with none are left out): the call's branch "
+        "first, then its supplying warehouse, then the most stock first, then by name."
     )
 
 
