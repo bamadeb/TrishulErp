@@ -1,30 +1,96 @@
+::ng-deep .employee-filter-panel.mat-mdc-select-panel {
+  padding: 4px 0;
+  border-radius: 8px;
+  --mat-option-label-text-size: 12px;
+  --mat-option-label-text-weight: 500;
+  --mat-option-label-text-line-height: 1.3;
+  --mat-option-label-text-font: Inter, sans-serif;
+  --mat-option-label-text-tracking: 0.01em;
+
+  .mat-mdc-option {
+    min-height: 32px;
+    font: 500 12px/1.3 Inter, sans-serif;
+    letter-spacing: 0.01em;
+  }
+
+  .mdc-list-item__primary-text {
+    font: 500 12px/1.3 Inter, sans-serif;
+    letter-spacing: 0.01em;
+  }
+}
+
+.filters,
+.view-bar {
+  --mat-form-field-container-height: 32px;
+  --mat-form-field-container-vertical-padding: 4px;
+  --mat-form-field-container-text-size: 12px;
+  --mat-form-field-outlined-label-text-size: 11px;
+  --mat-select-trigger-text-size: 12px;
+  --mdc-outlined-text-field-container-shape: 6px;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
 
   .search {
-    flex: 1 1 18rem;
+    flex: 1 1 16rem;
   }
 
   mat-form-field:not(.search) {
-    flex: 1 1 9rem;
-    max-width: 13rem;
+    flex: 0 1 9.5rem;
+    max-width: 11rem;
+  }
+
+  mat-form-field {
+    font-size: 12px;
+  }
+
+  .mat-mdc-text-field-wrapper,
+  .mat-mdc-form-field-flex {
+    height: 32px;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 0;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .mat-mdc-form-field-icon-prefix,
+  .mat-mdc-form-field-icon-suffix {
+    padding: 0 2px;
   }
 }
 
-.reset {
-  align-self: center;
+.reset,
+.view-bar .mat-mdc-button,
+.view-bar .mat-mdc-outlined-button {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 0.65rem;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 32px;
+}
+
+.filters .mat-icon,
+.view-bar .mat-icon {
+  width: 15px;
+  height: 15px;
+  font-size: 15px;
+  margin-right: 0.15rem;
 }
 
 .view-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
 }
 
 .view-tabs {
@@ -34,16 +100,18 @@
 }
 
 .view-tab {
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  padding: 0.4rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.18rem 0.6rem;
   color: var(--mat-sys-on-surface-variant);
+  font: 500 12px/1.3 Inter, sans-serif;
   cursor: pointer;
 
   &.active {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--mat-sys-primary) 12%, white);
     color: var(--mat-sys-primary);
-    border-bottom-color: var(--mat-sys-primary);
     font-weight: 600;
   }
 }

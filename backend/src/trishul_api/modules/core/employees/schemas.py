@@ -21,10 +21,11 @@ class EmployeeQuery(PageQuery):
 
 
 class EmployeeCounts(ApiModel):
-    """Totals for the overview cards. Probation has no column yet, so that count stays 0."""
+    """Totals for the overview cards. Confirmed and probation use the confirmation date."""
 
     all_employees: int
     active: int
+    confirmed: int
     probation: int
     notice: int
     exited: int
@@ -169,3 +170,10 @@ class EmploymentEvent(ApiModel):
     event_type: EmploymentHistoryEventType
     effective_date: date
     remarks: str | None = None
+
+
+class EmploymentConfirm(InputModel):
+    """Records one Confirmed event. Leave can be applied on or after this date."""
+
+    effective_date: date
+    remarks: str | None = Field(None, max_length=500)

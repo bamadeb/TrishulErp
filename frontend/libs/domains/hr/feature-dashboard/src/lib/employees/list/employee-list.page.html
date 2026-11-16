@@ -55,7 +55,7 @@
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Status</mat-label>
-    <mat-select [value]="prefs.filters().lifecycle" (valueChange)="selectCard($event)">
+    <mat-select panelClass="employee-filter-panel" [value]="prefs.filters().lifecycle" (valueChange)="selectCard($event)">
       @for (card of cards(); track card.id) {
         <mat-option [value]="card.id">{{ card.title }}</mat-option>
       }
@@ -63,7 +63,7 @@
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Branch</mat-label>
-    <mat-select [value]="prefs.filters().branchId" (valueChange)="onBranch($event)">
+    <mat-select panelClass="employee-filter-panel" [value]="prefs.filters().branchId" (valueChange)="onBranch($event)">
       <mat-option [value]="null">Any branch</mat-option>
       @for (branch of branches(); track branch.id) {
         <mat-option [value]="branch.id">{{ branch.name }}</mat-option>
@@ -72,7 +72,7 @@
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Department</mat-label>
-    <mat-select [value]="prefs.filters().departmentId" (valueChange)="onDepartment($event)">
+    <mat-select panelClass="employee-filter-panel" [value]="prefs.filters().departmentId" (valueChange)="onDepartment($event)">
       <mat-option [value]="null">Any department</mat-option>
       @for (department of departments(); track department.id) {
         <mat-option [value]="department.id">{{ department.name }}</mat-option>
@@ -81,7 +81,7 @@
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Designation</mat-label>
-    <mat-select [value]="prefs.filters().designationId" (valueChange)="onDesignation($event)">
+    <mat-select panelClass="employee-filter-panel" [value]="prefs.filters().designationId" (valueChange)="onDesignation($event)">
       <mat-option [value]="null">Any designation</mat-option>
       @for (designation of designations(); track designation.id) {
         <mat-option [value]="designation.id">{{ designation.name }}@if (designation.grade) { · {{ designation.grade }} }</mat-option>
@@ -90,7 +90,7 @@
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Employment type</mat-label>
-    <mat-select [value]="prefs.filters().employeeType" (valueChange)="onType($event)">
+    <mat-select panelClass="employee-filter-panel" [value]="prefs.filters().employeeType" (valueChange)="onType($event)">
       <mat-option [value]="null">Any type</mat-option>
       @for (type of employeeTypes; track type) {
         <mat-option [value]="type">{{ type }}</mat-option>

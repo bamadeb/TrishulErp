@@ -11,7 +11,7 @@ export interface OverviewCard {
 
 export const DIRECTORY_OVERVIEW: readonly OverviewCard[] = [
   { id: 'all', title: 'All Employees', description: 'Total workforce', icon: 'groups', tone: 'blue' },
-  { id: 'active', title: 'Active', description: 'Currently working', icon: 'check_circle', tone: 'green' },
+  { id: 'active', title: 'Confirmed', description: 'Confirmation recorded', icon: 'check_circle', tone: 'green' },
   { id: 'probation', title: 'Probation', description: 'Under probation', icon: 'hourglass_top', tone: 'orange' },
   { id: 'notice', title: 'Notice Period', description: 'Serving notice', icon: 'event_busy', tone: 'cyan' },
   { id: 'exited', title: 'Exited', description: 'Former employees', icon: 'logout', tone: 'pink' },

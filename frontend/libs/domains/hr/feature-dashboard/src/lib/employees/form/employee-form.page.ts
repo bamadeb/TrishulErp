@@ -23,6 +23,7 @@ import {
   MatAutocompleteTrigger,
 } from '@angular/material/autocomplete';
 import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import {
@@ -70,6 +71,7 @@ import { AuthStore } from '@trishul/core-auth';
 import { StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { TrishulValidators } from '@trishul/shared-util';
 import { EmployeeActions } from '../employee-actions';
+import { EmployeeHistoryDialog } from '../list/employee-history.dialog';
 
 /** A manager chosen from the picker (not just typed text). */
 type ManagerChoice = Pick<
@@ -155,6 +157,7 @@ function pickedOrEmpty(control: AbstractControl): ValidationErrors | null {
 export class EmployeeFormPage {
   private readonly api = inject(EmployeesApi);
   private readonly actions = inject(EmployeeActions);
+  private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly auth = inject(AuthStore);
@@ -534,6 +537,21 @@ export class EmployeeFormPage {
     this.photoUrl.set(employee.photo);
     this.photoToSave.set(null);
     this.finishEditState();
+  }
+
+  protected openConfirmation(): void {
+    const current = this.employee();
+    const employeeId = Number(this.employeeId());
+    if (!current || !employeeId) return;
+    this.dialog.open(EmployeeHistoryDialog, {
+      data: {
+        employeeId,
+        fullName: current.fullName,
+        employeeCode: current.employeeCode,
+        canManage: this.canManage,
+      },
+      width: '32rem',
+    });
   }
 
   private markStep(index: number): boolean {

@@ -71,7 +71,7 @@ export class LeaveMinePage {
   protected readonly periodTo = signal<Date | null>(new Date(2027, 2, 31));
   protected readonly page = signal(0);
   protected readonly pageSize = signal(5);
-  protected readonly calendar = signal(new Date(2026, 10, 1));
+  protected readonly calendar = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   protected readonly showAllHolidays = signal(false);
   protected readonly error = signal('');
   protected readonly balances = signal<BalanceCard[]>([]);
@@ -104,14 +104,14 @@ export class LeaveMinePage {
   protected readonly history = computed(() => this.filtered().filter((row) => row.status !== 'Pending'));
 
   protected readonly summary = computed(() => {
-    const rows = this.filtered();
+    const rows = this.requests();
     const today = strip(new Date());
     return {
       total: rows.length,
       pending: rows.filter((row) => row.status === 'Pending').length,
       approved: rows.filter((row) => row.status === 'Approved').length,
       rejected: rows.filter((row) => row.status === 'Rejected').length,
-      upcoming: rows.filter((row) => row.status !== 'Rejected' && new Date(`${row.from}T00:00:00`) >= today).length,
+      upcoming: rows.filter((row) => row.status !== 'Rejected' && row.status !== 'Cancelled' && new Date(`${row.from}T00:00:00`) >= today).length,
     };
   });
 

@@ -29,6 +29,7 @@ from trishul_api.modules.core.employees.schemas import (
     EmployeeCreate,
     EmployeeDetail,
     EmployeeUpdate,
+    EmploymentConfirm,
     EmploymentEvent,
 )
 
@@ -134,6 +135,30 @@ class EmployeeService:
     def employment_history(self, employee_id: int) -> list[EmploymentEvent]:
         self._require(employee_id)
         return self._repo.employment_history(employee_id)
+
+    def confirm(self, actor: CurrentUser, employee_id: int, data: EmploymentConfirm) -> EmploymentEvent:
+        self._require(employee_id)
+        existing = self._repo.confirmation_date(employee_id)
+        if existing is not None:
+            raise AlreadyExists(f"This employee is already confirmed on {existing.isoformat()}.")
+        remarks = (data.remarks or "").strip() or None
+        row = EmploymentHistory(
+            employee_id=employee_id,
+            event_type="Confirmed",
+            effective_date=data.effective_date,
+            remarks=remarks,
+            created_by_user_id=actor.id,
+            is_active=True,
+        )
+        self._repo.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return EmploymentEvent(
+            id=row.id,
+            event_type=row.event_type,
+            effective_date=row.effective_date,
+            remarks=row.remarks,
+        )
 
     def activate(self, actor: CurrentUser, employee_id: int) -> EmployeeDetail:
         employee = self._require(employee_id)

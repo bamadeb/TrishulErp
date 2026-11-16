@@ -276,6 +276,7 @@ export const mockEmployeeRoutes: MockRoute[] = [
         counts: {
           allEmployees: matched.length,
           active: matched.filter((s) => s.isActive).length,
+          confirmed: 0,
           probation: 0,
           notice: matched.filter((s) => s.status === 'Notice').length,
           exited: matched.filter((s) => s.status === 'Exited').length,

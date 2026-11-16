@@ -96,25 +96,27 @@ class LeaveMineRepository:
             select(LeaveType).where(LeaveType.is_active == True).order_by(LeaveType.code)  # noqa: E712
         ).scalars().all()
         rules = self._configured_lines(employee)
-        items = [
-            MineBalance(
-                leave_type_id=leave_type.id,
-                code=leave_type.code,
-                name=leave_type.name,
-                opening=(row.opening if row else _ZERO),
-                credited=(row.accrued if row else _ZERO),
-                availed=(row.availed if row else _ZERO),
-                pending=pending.get(leave_type.id, _ZERO),
-                available=(row.closing if row else _ZERO),
-                expired=None,
-                max_backdate_days=rules[leave_type.id].max_backdate_days if leave_type.id in rules else None,
-                backdate_requires_authorization=(
-                    rules[leave_type.id].backdate_requires_authorization if leave_type.id in rules else False
-                ),
+        items = []
+        for leave_type in types:
+            row = latest.get(leave_type.id)
+            if row is None and leave_type.id not in rules:
+                continue
+            rule = rules.get(leave_type.id)
+            items.append(
+                MineBalance(
+                    leave_type_id=leave_type.id,
+                    code=leave_type.code,
+                    name=leave_type.name,
+                    opening=(row.opening if row else _ZERO),
+                    credited=(row.accrued if row else _ZERO),
+                    availed=(row.availed if row else _ZERO),
+                    pending=pending.get(leave_type.id, _ZERO),
+                    available=(row.closing if row else _ZERO),
+                    expired=None,
+                    max_backdate_days=rule.max_backdate_days if rule else None,
+                    backdate_requires_authorization=rule.backdate_requires_authorization if rule else False,
+                )
             )
-            for leave_type in types
-            if (row := latest.get(leave_type.id)) or True
-        ]
         return MineBalances(financial_year=financial_year, items=items)
 
     def comp_off(self, actor: CurrentUser, financial_year: int) -> MineCompOff:

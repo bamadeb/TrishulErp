@@ -345,6 +345,12 @@
             </mat-select>
           </mat-form-field>
         </div>
+        @if (!isNew() && canManage) {
+          <div class="confirm-row">
+            <p>Confirmation is recorded as an employment event. Leave can be applied on or after that date.</p>
+            <button mat-stroked-button type="button" (click)="openConfirmation()">Record confirmation</button>
+          </div>
+        }
       </section>
     }
     @case (3) {
