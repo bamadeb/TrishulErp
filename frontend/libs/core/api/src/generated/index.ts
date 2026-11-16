@@ -321,6 +321,7 @@ export type { PurchasePriceOut } from './models/purchase-price-out';
 export type { PurchasePriceUpdate } from './models/purchase-price-update';
 export type { QuotationCreate } from './models/quotation-create';
 export type { QuotationDetail } from './models/quotation-detail';
+export type { QuotationDownloadLink } from './models/quotation-download-link';
 export type { QuotationListItem } from './models/quotation-list-item';
 export type { QuotationNote } from './models/quotation-note';
 export type { QuotationVersionOut } from './models/quotation-version-out';
@@ -1068,6 +1069,10 @@ export type { GetQuotation$Params as GetQuotation$Params } from './fn/sales/get-
 export { getQuotation as getQuotation } from './fn/sales/get-quotation';
 export type { UpdateQuotation$Params as UpdateQuotation$Params } from './fn/sales/update-quotation';
 export { updateQuotation as updateQuotation } from './fn/sales/update-quotation';
+export type { CreateQuotationDownloadLink$Params as CreateQuotationDownloadLink$Params } from './fn/sales/create-quotation-download-link';
+export { createQuotationDownloadLink as createQuotationDownloadLink } from './fn/sales/create-quotation-download-link';
+export type { GetQuotationDownload$Params as GetQuotationDownload$Params } from './fn/sales/get-quotation-download';
+export { getQuotationDownload as getQuotationDownload } from './fn/sales/get-quotation-download';
 export type { SubmitQuotation$Params as SubmitQuotation$Params } from './fn/sales/submit-quotation';
 export { submitQuotation as submitQuotation } from './fn/sales/submit-quotation';
 export type { ApproveQuotation$Params as ApproveQuotation$Params } from './fn/sales/approve-quotation';

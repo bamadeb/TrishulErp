@@ -421,3 +421,40 @@ def test_credit_terms_change_is_logged(client: TestClient, db: Engine) -> None:
     assert ([b["code"] for b in options["brands"]], options["defaultBranchId"]) == (["TATA_HITACHI"], BRANCH)
     info = ok(client.get(f"{API}/items/{FILTER_ITEM}/sale-info"))
     assert [(s["locationName"], d(s["qtyOnHand"])) for s in info["stock"]] == [("Main store", 16)]
+
+
+def test_quotation_pdf_download_link_for_the_mobile_app(client: TestClient, settings: Settings, db: Engine) -> None:
+    body = {"principalId": BRAND, "branchId": BRANCH, "customerId": CUSTOMER, "otherCharges": "100", "lines": LINES}
+    quote = ok(client.post(f"{API}/quotations", json=body), 201)
+
+    link = ok(client.post(f"{API}/quotations/{quote['id']}/download-link"))
+    assert link["fileName"] == "Quotation-QT-001.pdf"
+    assert link["contentType"] == "application/pdf"
+    assert link["expiresInSeconds"] == settings.download_link_minutes * 60
+    assert "/api/v1/sal/quotation-downloads/" in link["url"]
+
+    # The link works without a sign-in (the phone opens it in a viewer), and only as a download of that file.
+    path = "/api/v1/" + link["url"].split("/api/v1/", 1)[1]
+    anonymous = TestClient(client.app)
+    pdf = anonymous.get(path)
+    assert pdf.status_code == 200, pdf.text
+    assert pdf.content.startswith(b"%PDF-") and len(pdf.content) > 2000
+    assert pdf.headers["content-type"] == "application/pdf"
+    assert "Quotation-QT-001.pdf" in pdf.headers["content-disposition"]
+    assert pdf.headers["cache-control"] == "private, no-store"
+
+    # A changed token, a made-up token and an unknown quotation are refused; so is a user without the permission.
+    token = path.rsplit("/", 1)[1]
+    assert anonymous.get(path[:-3] + "xyz").status_code == 404
+    assert anonymous.get(path.replace(token, "abc.def")).status_code == 404
+    assert client.post(f"{API}/quotations/99999/download-link").status_code == 404
+    assert make_client(settings, db, set()).post(f"{API}/quotations/{quote['id']}/download-link").status_code == 403
+
+
+def test_quotation_download_link_expires(client: TestClient, settings: Settings) -> None:
+    from trishul_api.modules.sal import quotation_download
+
+    link = quotation_download.create(b"%PDF-1.4 test", "Quotation-X.pdf", settings.download_signing_key, -1)
+    assert client.get(f"{API}/quotation-downloads/{link.token}").status_code == 404
+    live = quotation_download.create(b"%PDF-1.4 test", "Quotation-X.pdf", settings.download_signing_key, 60)
+    assert client.get(f"{API}/quotation-downloads/{live.token}").content == b"%PDF-1.4 test"

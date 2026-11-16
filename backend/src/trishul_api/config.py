@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     environment: Literal["dev", "test", "uat", "prod"] = "dev"
     api_prefix: str = "/api/v1"
     cors_origins: list[str] = ["http://localhost:4200"]
+    # Download links handed to the mobile app (quotation PDFs). public_base_url is the address the phone
+    # reaches this server at, e.g. http://13.204.203.158 (no trailing slash); blank = the address of the request.
+    public_base_url: str | None = None
+    # Signs the download links. Set a long random value in every deployed environment; blank = a random key per
+    # process start (links stop working when the API restarts).
+    download_signing_key: str = ""
+    download_link_minutes: int = 15
     log_level: str = "INFO"
 
     # Database (Amazon RDS for SQL Server)
