@@ -122,3 +122,14 @@ class QuotationDetail(QuotationListItem):
     lines: list[PricedLineOut]
     versions: list[QuotationVersionOut]
     row_version: RowVersion
+
+
+class QuotationDownloadLink(ApiModel):
+    """A short-lived link to the quotation PDF (the same layout as the web print page)."""
+
+    url: str = Field(description="Open or download this address; no sign-in is needed while it is valid.")
+    file_name: str
+    content_type: str = "application/pdf"
+    expires_at: UtcDateTime
+    expires_in_seconds: int
+

@@ -15,6 +15,7 @@ from trishul_api.modules.core.employees.schemas import (
     EmployeeDirectoryPage,
     EmployeeQuery,
     EmployeeUpdate,
+    EmploymentConfirm,
     EmploymentEvent,
 )
 from trishul_api.modules.core.employees.service import EmployeeService
@@ -52,6 +53,19 @@ def list_employees(query: Annotated[EmployeeQuery, Query()], repo: EmployeeRepo)
 )
 def list_employment_history(employee_id: EmployeeId, employees: Employees) -> list[EmploymentEvent]:
     return employees.employment_history(employee_id)
+
+
+@router.post(
+    "/employees/{employeeId}/confirm",
+    summary="Record the employee's confirmation date",
+    status_code=201,
+    dependencies=[CAN_MANAGE],
+    responses=NOT_FOUND_RESPONSE,
+)
+def confirm_employee(
+    employee_id: EmployeeId, data: EmploymentConfirm, actor: CurrentUserDep, employees: Employees
+) -> EmploymentEvent:
+    return employees.confirm(actor, employee_id, data)
 
 
 @router.get("/employees/{employeeId}", summary="One employee", dependencies=[CAN_VIEW], responses=NOT_FOUND_RESPONSE)

@@ -1,0 +1,181 @@
+<trishul-page-header title="Leave Management" subtitle="Leave for the selected month, from the employee and leave records.">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Month</mat-label>
+    <mat-select [ngModel]="monthKey()" (ngModelChange)="selectMonth($event)" name="month">
+      @for (month of months; track month.key) { <mat-option [value]="month.key">{{ month.label }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <a mat-flat-button color="primary" routerLink="/hr/leave/mine">Apply leave</a>
+</trishul-page-header>
+
+@if (loading()) { <mat-progress-bar mode="indeterminate" /> }
+@if (error()) { <p class="error">{{ error() }}</p> }
+@if (loading() && !data()) { <p class="empty">Loading leave figures…</p> }
+
+@if (data(); as board) {
+<section class="kpis" aria-label="Leave summary">
+  <a class="kpi" routerLink="/hr/employees"><mat-icon>groups</mat-icon><span>Total employees</span><strong>{{ board.activeEmployees }}</strong></a>
+  <button type="button" class="kpi" (click)="filterStatus('Approved')"><mat-icon>event_busy</mat-icon><span>On leave today</span><strong>{{ board.onLeaveToday }}</strong></button>
+  <button type="button" class="kpi" (click)="filterStatus('Pending')"><mat-icon>pending_actions</mat-icon><span>Pending approval</span><strong>{{ board.pendingRequests }}</strong></button>
+  <button type="button" class="kpi" (click)="filterStatus('Approved')"><mat-icon>check_circle</mat-icon><span>Approved this month</span><strong>{{ board.approvedRequests }}</strong></button>
+  <button type="button" class="kpi" (click)="filterStatus('Rejected')"><mat-icon>cancel</mat-icon><span>Rejected this month</span><strong>{{ board.rejectedRequests }}</strong></button>
+  <button type="button" class="kpi" (click)="filterStatus('Approved', true)"><mat-icon>event</mat-icon><span>Upcoming leaves</span><strong>{{ board.upcomingLeaves }}</strong></button>
+</section>
+
+<div class="board">
+  <div class="main">
+    <div class="charts">
+      <section class="panel">
+        <h2>Leave overview</h2>
+        <div class="overview">
+          <svg viewBox="0 0 120 120" class="donut" role="img" aria-label="Employees working, on leave and pending">
+            <g transform="rotate(-90 60 60)">
+              <circle cx="60" cy="60" r="42" class="ring" />
+              @for (slice of slices(); track slice.label) {
+              <circle cx="60" cy="60" r="42" class="slice" [style.stroke]="slice.color" [attr.stroke-dasharray]="slice.dash" [attr.stroke-dashoffset]="slice.offset" />
+              }
+            </g>
+            <text x="60" y="58" text-anchor="middle" class="donut-value">{{ board.activeEmployees }}</text>
+            <text x="60" y="74" text-anchor="middle" class="donut-caption">Employees</text>
+          </svg>
+          <ul>
+            @for (slice of slices(); track slice.label) {
+            <li><i [style.background]="slice.color"></i>{{ slice.label }} <strong>{{ slice.count }}</strong> <span>{{ slice.percent | percent:'1.0-1' }}</span></li>
+            }
+          </ul>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Leave trend</h2>
+        <p class="muted">Approved days for the six months ending with the selected month.</p>
+        <svg viewBox="0 0 280 100" class="trend" role="img" aria-label="Approved leave days by month">
+          <polyline [attr.points]="trendLine()" />
+        </svg>
+        <div class="trend-labels">
+          @for (point of board.trend; track point.month) { <span>{{ point.month }}<br />{{ point.days | number:'1.0-1' }}</span> }
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Leave balance</h2>
+        <p class="muted">{{ board.organisationWide ? 'Organisation' : 'Your team' }} · {{ board.year }}</p>
+        <table>
+          <thead><tr><th>Type</th><th>Entitlement</th><th>Used</th><th>Balance</th></tr></thead>
+          <tbody>
+            @for (row of board.balances; track row.code) {
+            <tr><td>{{ row.name }}</td><td>{{ row.entitlement | number:'1.0-1' }}</td><td>{{ row.used | number:'1.0-1' }}</td><td>{{ row.closing | number:'1.0-1' }}</td></tr>
+            } @empty { <tr><td class="empty" colspan="4">No active leave types.</td></tr> }
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Employee leave requests</h2>
+        <button mat-stroked-button type="button" (click)="exportList()">Export</button>
+      </div>
+      <form class="filters" (ngSubmit)="applyFilters()">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Department</mat-label>
+          <mat-select [ngModel]="departmentId()" (ngModelChange)="departmentId.set($event); applyFilters()" name="department">
+            <mat-option [value]="null">All departments</mat-option>
+            @for (option of board.departmentOptions; track option.id) { <mat-option [value]="option.id">{{ option.name }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Leave type</mat-label>
+          <mat-select [ngModel]="leaveTypeId()" (ngModelChange)="leaveTypeId.set($event); applyFilters()" name="type">
+            <mat-option [value]="null">All leave types</mat-option>
+            @for (option of board.leaveTypeOptions; track option.id) { <mat-option [value]="option.id">{{ option.name }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Status</mat-label>
+          <mat-select [ngModel]="status()" (ngModelChange)="filterStatus($event)" name="status">
+            <mat-option [value]="null">All statuses</mat-option>
+            <mat-option value="Pending">Pending</mat-option>
+            <mat-option value="Approved">Approved</mat-option>
+            <mat-option value="Rejected">Rejected</mat-option>
+            <mat-option value="Cancelled">Cancelled</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+          <mat-label>Employee</mat-label>
+          <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Name or employee ID" />
+        </mat-form-field>
+        <button mat-stroked-button type="submit">Search</button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><button type="button" (click)="toggleSort('employee')">Employee</button></th>
+              <th>Department</th>
+              <th>Leave type</th>
+              <th><button type="button" (click)="toggleSort('fromDate')">From</button></th>
+              <th>To</th>
+              <th><button type="button" (click)="toggleSort('days')">Days</button></th>
+              <th>Reason</th>
+              <th><button type="button" (click)="toggleSort('status')">Status</button></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of board.requests.items; track row.requestId) {
+            <tr>
+              <td>{{ row.employeeName }}<br /><small>{{ row.employeeCode }}</small></td>
+              <td>{{ row.department || '—' }}</td>
+              <td>{{ row.leaveType }}</td>
+              <td>{{ row.fromDate | date:'dd-MM-yyyy' }}</td>
+              <td>{{ row.toDate | date:'dd-MM-yyyy' }}</td>
+              <td>{{ row.days | number:'1.0-1' }}</td>
+              <td class="reason">{{ row.reason || '—' }}</td>
+              <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+            </tr>
+            } @empty { <tr><td class="empty" colspan="8">No leave requests for this month.</td></tr> }
+          </tbody>
+        </table>
+      </div>
+      <mat-paginator
+        [length]="board.requests.total"
+        [pageIndex]="board.requests.page - 1"
+        [pageSize]="board.requests.pageSize"
+        [pageSizeOptions]="[5, 10, 20]"
+        (page)="onPage($event)"
+      />
+    </section>
+  </div>
+
+  <aside class="rail">
+    <section>
+      <h2>My leave</h2>
+      @if (board.mine.balances.length === 0) { <p class="empty">No leave balance is recorded for your employee record.</p> }
+      <ul class="mine-balances">
+        @for (balance of board.mine.balances; track balance.code) {
+        <li><span>{{ balance.code }}</span><strong>{{ balance.closing | number:'1.0-1' }}</strong><small>{{ balance.name }}</small></li>
+        }
+      </ul>
+      <mat-tab-group>
+        <mat-tab label="My requests">
+          @for (row of board.mine.requests; track row.requestId) {
+          <p class="mine-row"><span>{{ row.leaveType }}</span><span>{{ row.fromDate | date:'dd MMM' }} – {{ row.toDate | date:'dd MMM' }}</span><trishul-status-badge [status]="row.status" [severities]="severities" /></p>
+          } @empty { <p class="empty">No pending requests this month.</p> }
+        </mat-tab>
+        <mat-tab label="My leave history">
+          @for (row of board.mine.history; track row.requestId) {
+          <p class="mine-row"><span>{{ row.leaveType }}</span><span>{{ row.fromDate | date:'dd MMM' }} – {{ row.toDate | date:'dd MMM' }}</span><trishul-status-badge [status]="row.status" [severities]="severities" /></p>
+          } @empty { <p class="empty">No earlier requests this month.</p> }
+        </mat-tab>
+      </mat-tab-group>
+      <a mat-flat-button color="primary" routerLink="/hr/leave/mine">Apply leave for myself</a>
+    </section>
+    <section>
+      <h2>Quick actions</h2>
+      <nav>
+        @for (action of actions; track action.route) {
+        <a [routerLink]="action.route"><mat-icon>{{ action.icon }}</mat-icon>{{ action.label }}</a>
+        }
+      </nav>
+    </section>
+  </aside>
+</div>
+}

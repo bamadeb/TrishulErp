@@ -186,8 +186,11 @@ def test_list_filters_by_status_branch_and_search(client: TestClient) -> None:
     everyone_all = client.get(URL, params={"status": "all"}).json()
     assert everyone_all["counts"]["allEmployees"] == everyone_all["total"] == 3
     assert everyone_all["counts"]["active"] == 3
-    assert everyone_all["counts"]["probation"] == 0
+    assert everyone_all["counts"]["confirmed"] == 0
+    assert everyone_all["counts"]["probation"] == 3
     assert everyone_all["counts"]["notice"] == 0
+    on_probation = client.get(URL, params={"lifecycle": "probation"}).json()
+    assert {e["employeeCode"] for e in on_probation["items"]} == {"E010", "E100", "E101"}
     exited = create(client, employeeCode="E102", mobile="9876500102", firstName="Nila", status="Exited")
     assert exited.status_code == 201
     notice = client.get(URL, params={"lifecycle": "exited", "status": "all"}).json()
@@ -204,6 +207,27 @@ def test_list_filters_by_status_branch_and_search(client: TestClient) -> None:
 def test_employment_history_is_empty_until_events_exist(client: TestClient) -> None:
     assert client.get(f"{URL}/{RAHUL}/employment-history").json() == []
     assert client.get(f"{URL}/999/employment-history").status_code == 404
+
+
+def test_confirm_records_one_event_and_the_list_date(client: TestClient) -> None:
+    recorded = client.post(f"{URL}/{RAHUL}/confirm", json={"effectiveDate": "2026-11-16", "remarks": "Confirmed"})
+    assert recorded.status_code == 201, recorded.text
+    body = recorded.json()
+    assert body["eventType"] == "Confirmed"
+    assert body["effectiveDate"] == "2026-11-16"
+    history = client.get(f"{URL}/{RAHUL}/employment-history").json()
+    assert history[0]["eventType"] == "Confirmed"
+    listed = client.get(f"{URL}/{RAHUL}").json()
+    assert listed["confirmationDate"] == "2026-11-16"
+    assert client.get(URL).json()["counts"]["probation"] == 0
+    assert client.get(URL).json()["counts"]["confirmed"] == 1
+    confirmed = client.get(URL, params={"lifecycle": "active"}).json()
+    assert confirmed["total"] == 1
+    assert confirmed["items"][0]["employeeCode"] == "E010"
+    assert client.get(URL, params={"lifecycle": "probation"}).json()["total"] == 0
+    again = client.post(f"{URL}/{RAHUL}/confirm", json={"effectiveDate": "2026-01-01"})
+    assert again.status_code == 409
+    assert client.post(f"{URL}/999/confirm", json={"effectiveDate": "2026-11-16"}).status_code == 404
 
 
 def test_get_one_and_unknown_is_404(client: TestClient) -> None:
@@ -225,6 +249,9 @@ def test_update_changes_fields_with_a_row_version_check(client: TestClient) -> N
     assert body["branchName"] == "Mumbai"
     assert body["designation"] is None
     assert body["employeeCode"] == "E010"  # not sent, unchanged
+    history = client.get(f"{URL}/{RAHUL}/employment-history").json()
+    assert history[0]["eventType"] == "Promoted"
+    assert history[0]["remarks"] == "Grade none to none."
 
 
 def test_update_rejects_duplicate_code_and_self_manager(client: TestClient) -> None:

@@ -1,7 +1,8 @@
 from collections.abc import Collection
+from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, case, false, func, or_, select, true
+from sqlalchemy import ColumnElement, Select, and_, case, func, or_, select, true
 from sqlalchemy.orm import Session, aliased
 
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
@@ -105,10 +106,53 @@ def _list_select() -> Select[*tuple[Any, ...]]:
     )
 
 
+def _confirmation_dates() -> Any:
+    """One row per employee: the latest Confirmed date. A join, so a SUM can use it on SQL Server."""
+    return (
+        select(
+            EmploymentHistory.employee_id.label("employee_id"),
+            func.max(EmploymentHistory.effective_date).label("confirmed_on"),
+        )
+        .where(
+            EmploymentHistory.event_type == "Confirmed",
+            EmploymentHistory.is_active == True,  # noqa: E712
+        )
+        .group_by(EmploymentHistory.employee_id)
+        .subquery()
+    )
+
+
+def _probation_condition(confirmed_on: ColumnElement[Any]) -> ColumnElement[bool]:
+    """Active employees with no confirmation on or before today. Exited and notice stay on their own cards."""
+    return and_(
+        Employee.is_active == True,  # noqa: E712
+        Employee.status == "Active",
+        or_(confirmed_on.is_(None), confirmed_on > date.today()),
+    )
+
+
+def _confirmed_condition(confirmed_on: ColumnElement[Any]) -> ColumnElement[bool]:
+    """Working employees whose confirmation date is on or before today."""
+    return and_(
+        Employee.is_active == True,  # noqa: E712
+        Employee.status == "Active",
+        confirmed_on.is_not(None),
+        confirmed_on <= date.today(),
+    )
+
+
+def _on_probation() -> ColumnElement[bool]:
+    return _probation_condition(_confirmation_date())
+
+
+def _is_confirmed() -> ColumnElement[bool]:
+    return _confirmed_condition(_confirmation_date())
+
+
 def _lifecycle_clause(lifecycle: EmployeeLifecycle) -> ColumnElement[bool]:
-    """Card filter. Archived is is_active = 0. Probation is not stored, so that card is empty."""
+    """Card filter. Archived is is_active = 0. Probation is active and not yet confirmed."""
     if lifecycle == "active":
-        return Employee.is_active == True  # noqa: E712
+        return _is_confirmed()
     if lifecycle == "archived":
         return Employee.is_active == False  # noqa: E712
     if lifecycle == "notice":
@@ -116,7 +160,7 @@ def _lifecycle_clause(lifecycle: EmployeeLifecycle) -> ColumnElement[bool]:
     if lifecycle == "exited":
         return Employee.status == "Exited"
     if lifecycle == "probation":
-        return false()
+        return _on_probation()
     return true()
 
 
@@ -171,15 +215,23 @@ class EmployeeRepository:
         )
 
     def _counts(self, query: EmployeeQuery) -> EmployeeCounts:
-        """Card totals for the same search and dropdowns, ignoring the selected card."""
+        """Card totals for the same search and dropdowns, ignoring the selected card.
+
+        Probation is joined, not a subquery inside SUM. SQL Server rejects an aggregate over a subquery.
+        """
+        confirmed = _confirmation_dates()
         statement = _narrow(
             select(
                 func.count().label("all_employees"),
                 _count_value(Employee.is_active == True).label("active"),  # noqa: E712
+                _count_value(_confirmed_condition(confirmed.c.confirmed_on)).label("confirmed"),
+                _count_value(_probation_condition(confirmed.c.confirmed_on)).label("probation"),
                 _count_value(Employee.status == "Notice").label("notice"),
                 _count_value(Employee.status == "Exited").label("exited"),
                 _count_value(Employee.is_active == False).label("archived"),  # noqa: E712
-            ).select_from(Employee),
+            )
+            .select_from(Employee)
+            .outerjoin(confirmed, confirmed.c.employee_id == Employee.id),
             query,
             apply_lifecycle=False,
         )
@@ -187,7 +239,8 @@ class EmployeeRepository:
         return EmployeeCounts(
             all_employees=row["all_employees"],
             active=row["active"],
-            probation=0,
+            confirmed=row["confirmed"],
+            probation=row["probation"],
             notice=row["notice"],
             exited=row["exited"],
             archived=row["archived"],
@@ -246,6 +299,15 @@ class EmployeeRepository:
         )
         return dict(self._session.execute(statement).mappings().one())
 
+    def confirmation_date(self, employee_id: int) -> date | None:
+        return self._session.scalar(
+            select(func.max(EmploymentHistory.effective_date)).where(
+                EmploymentHistory.employee_id == employee_id,
+                EmploymentHistory.event_type == "Confirmed",
+                EmploymentHistory.is_active == True,  # noqa: E712
+            )
+        )
+
     def employment_history(self, employee_id: int) -> list[EmploymentEvent]:
         rows = self._session.execute(
             select(
@@ -277,11 +339,22 @@ class EmployeeRepository:
 
     def designations(self) -> list[DesignationOption]:
         rows = self._session.execute(
-            select(Designation.id, Designation.code, Designation.name, Designation.department_id)
+            select(
+                Designation.id,
+                Designation.code,
+                Designation.name,
+                Designation.department_id,
+                Designation.grade,
+            )
             .where(Designation.is_active)
             .order_by(Designation.name)
         ).mappings()
         return [DesignationOption.model_validate(row) for row in rows]
+
+    def designation_grade(self, designation_id: int | None) -> str | None:
+        if designation_id is None:
+            return None
+        return self._session.scalar(select(Designation.grade).where(Designation.id == designation_id))
 
     # ------------------------------------------------------------------ checks
 

@@ -1,11 +1,14 @@
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Request, Response
 
 from trishul_api.auth import CurrentUserDep, DbSession, ScopeDep, require_permission
 from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, problem_response
 from trishul_api.common.schemas import Page
+from trishul_api.config import Settings, get_settings
+from trishul_api.modules.sal import quotation_download, quotation_pdf
 from trishul_api.modules.sal.account_schemas import (
     CustomerAllocationCreate,
     CustomerAllocationOut,
@@ -82,6 +85,7 @@ from trishul_api.modules.sal.quotation_schemas import (
     ConvertQuotation,
     QuotationCreate,
     QuotationDetail,
+    QuotationDownloadLink,
     QuotationListItem,
     QuotationNote,
     QuotationQuery,
@@ -273,6 +277,51 @@ def list_quotations(query: Annotated[QuotationQuery, Query()], quotations: Quota
 )  # fmt: skip
 def get_quotation(quotation_id: QuotationId, quotations: Quotations) -> QuotationDetail:
     return quotations.get(quotation_id)
+
+
+@router.post(
+    "/quotations/{quotationId}/download-link",
+    summary="Make the quotation PDF (same layout as the web print page) and return a short-lived download link",
+    dependencies=[CAN_SEE_QUOTATIONS], responses=NOT_FOUND_RESPONSE,
+)  # fmt: skip
+def create_quotation_download_link(
+    quotation_id: QuotationId,
+    quotations: Quotations,
+    request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> QuotationDownloadLink:
+    quotation = quotations.get(quotation_id)  # 404 for a quotation this user may not see
+    file_name = quotation_pdf.file_name_of(quotation.quotation_no)
+    seconds = max(1, settings.download_link_minutes) * 60
+    link = quotation_download.create(quotation_pdf.render(quotation), file_name, settings.download_signing_key, seconds)
+    base = (settings.public_base_url or str(request.base_url)).rstrip("/")
+    return QuotationDownloadLink(
+        url=f"{base}{settings.api_prefix}/sal/quotation-downloads/{link.token}",
+        file_name=file_name,
+        expires_at=datetime.fromtimestamp(link.expires_at, UTC),
+        expires_in_seconds=seconds,
+    )
+
+
+@router.get(
+    "/quotation-downloads/{token}",
+    summary="Download a quotation PDF with the signed link from download-link (no sign-in; expires)",
+    response_class=Response, responses={**NOT_FOUND_RESPONSE, 200: {"content": {"application/pdf": {}}}},
+    openapi_extra={"x-access": "Anyone holding a valid, unexpired signed link"},
+)  # fmt: skip
+def get_quotation_download(
+    token: Annotated[str, Path(max_length=600)], settings: Annotated[Settings, Depends(get_settings)]
+) -> Response:
+    found = quotation_download.fetch(token, settings.download_signing_key)
+    return Response(
+        content=found.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{found.file_name}"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @router.post("/quotations", summary="Create a quotation (draft)", status_code=201, dependencies=[CAN_MANAGE_QUOTATIONS])

@@ -1,0 +1,68 @@
+<header class="head">
+  <h2 mat-dialog-title>{{ title() }}</h2>
+  <button mat-icon-button type="button" mat-dialog-close aria-label="Close">
+    <mat-icon>close</mat-icon>
+  </button>
+</header>
+<mat-dialog-content>
+  <div class="form">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Leave type</mat-label>
+      <mat-select [ngModel]="leaveType()" (ngModelChange)="onType($event)" name="type" [disabled]="viewing">
+        @for (type of types; track type.id) { <mat-option [value]="type.id">{{ type.label }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Day part</mat-label>
+      <mat-select [ngModel]="part()" (ngModelChange)="onPart($event)" name="part" [disabled]="viewing">
+        @for (item of parts; track item) { <mat-option [value]="item">{{ item }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>From date</mat-label>
+      <input matInput [matDatepicker]="fromPicker" [ngModel]="from()" (ngModelChange)="onFrom($event)" [min]="earliest()" name="from" [readonly]="true" (click)="openDate(fromPicker)" />
+      <mat-datepicker-toggle matIconSuffix [for]="fromPicker" [disabled]="viewing" aria-label="Choose from date" />
+      <mat-datepicker #fromPicker />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>To date</mat-label>
+      <input matInput [matDatepicker]="toPicker" [ngModel]="to()" (ngModelChange)="onTo($event)" [min]="toEarliest()" name="to" [readonly]="true" (click)="openDate(toPicker)" />
+      <mat-datepicker-toggle matIconSuffix [for]="toPicker" [disabled]="viewing" aria-label="Choose to date" />
+      <mat-datepicker #toPicker />
+    </mat-form-field>
+    @if (backdateHint()) { <p class="note wide">{{ backdateHint() }}</p> }
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Number of days</mat-label>
+      <input matInput [value]="dayLabel()" readonly name="days" />
+      <mat-hint>{{ counting() ? 'Calculating…' : 'Calculated from the dates' }}</mat-hint>
+    </mat-form-field>
+    <div class="file">
+      <mat-icon>attach_file</mat-icon>
+      @if (!viewing) {
+      <label class="pick">
+        <input type="file" (change)="chooseFile($event)" />
+        <span>{{ fileName() || 'Supporting document' }}</span>
+      </label>
+      } @else {
+      <span>{{ fileName() || 'No document' }}</span>
+      }
+    </div>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide reason">
+      <mat-label>Reason</mat-label>
+      <textarea matInput rows="3" [ngModel]="reason()" (ngModelChange)="reason.set($event)" name="reason" [readonly]="viewing"></textarea>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide">
+      <mat-label>Contact details</mat-label>
+      <input matInput [ngModel]="contact()" (ngModelChange)="contact.set($event)" name="contact" [readonly]="viewing" />
+    </mat-form-field>
+    @if (error()) { <p class="error wide">{{ error() }}</p> }
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close type="button" [disabled]="saving()">{{ viewing ? 'Close' : 'Cancel' }}</button>
+  @if (!viewing) {
+  <button mat-flat-button color="primary" type="button" [disabled]="!canSubmit()" (click)="submit()">
+    {{ saving() ? 'Submitting…' : 'Submit leave' }}
+  </button>
+  }
+</mat-dialog-actions>

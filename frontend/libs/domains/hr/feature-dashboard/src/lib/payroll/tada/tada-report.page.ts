@@ -4,17 +4,22 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  Injectable,
   ElementRef,
   HostListener,
   computed,
   inject,
+  input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
+import { DateAdapter, MAT_DATE_FORMATS, MAT_NATIVE_DATE_FORMATS, NativeDateAdapter, provideNativeDateAdapter } from '@angular/material/core';
+import { MatDatepicker, MatDatepickerInput, MatDatepickerToggle } from '@angular/material/datepicker';
 import { MatDialog } from '@angular/material/dialog';
-import { MatFormField, MatLabel, MatPrefix } from '@angular/material/form-field';
+import { MatFormField, MatLabel, MatPrefix, MatSuffix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
@@ -38,9 +43,10 @@ import {
 import { DocumentApi, documentIcon } from '@trishul/core-documents';
 import { EmployeesApi, OrganizationApi, TadaApi } from '@trishul/hr-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
-import { concatMap, forkJoin, map, Observable, of, range, switchMap, toArray } from 'rxjs';
+import { concatMap, forkJoin, map, Observable, of, range, switchMap, throwError, toArray } from 'rxjs';
 import { openPayrollRecord } from '../payroll.dialog';
 import { openTadaConfirm } from './tada-confirm.dialog';
+import { openTripDecision } from './tada-trip-decision.dialog';
 import { openTadaPayment, TadaPaymentResult } from './tada-payment.dialog';
 import { inr } from '../payroll.format';
 import { PayrollPagerBar } from '../payroll-pager.bar';
@@ -147,17 +153,114 @@ interface KpiCard {
   tone: 'up' | 'down' | 'muted';
 }
 
+type TripPreset = 'today' | 'yesterday' | '7' | '15' | 'this' | 'last' | 'month' | 'custom';
+
+const TRIP_PRESETS: readonly { id: Exclude<TripPreset, 'month'>; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: '7', label: 'Last 7 Days' },
+  { id: '15', label: 'Last 15 Days' },
+  { id: 'this', label: 'This Month' },
+  { id: 'last', label: 'Last Month' },
+  { id: 'custom', label: 'Custom Range' },
+];
+
+const TRIP_DATE_FORMATS = {
+  ...MAT_NATIVE_DATE_FORMATS,
+  parse: { ...MAT_NATIVE_DATE_FORMATS.parse, dateInput: 'DD-MM-YYYY' },
+  display: { ...MAT_NATIVE_DATE_FORMATS.display, dateInput: 'DD-MM-YYYY' },
+};
+
+@Injectable()
+class TripDateAdapter extends NativeDateAdapter {
+  override format(date: Date, displayFormat: object): string {
+    return String(displayFormat) === 'DD-MM-YYYY' ? formatDay(date) : super.format(date, displayFormat);
+  }
+
+  override parse(value: unknown): Date | null {
+    if (typeof value !== 'string') return super.parse(value);
+    const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(value.trim());
+    if (!match) return null;
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return date;
+  }
+}
+
+const PAYROLL_MONTH_FORMATS = {
+  ...MAT_NATIVE_DATE_FORMATS,
+  parse: { ...MAT_NATIVE_DATE_FORMATS.parse, dateInput: 'MMMM, YYYY' },
+  display: { ...MAT_NATIVE_DATE_FORMATS.display, dateInput: 'MMMM, YYYY' },
+};
+
+@Injectable()
+class PayrollMonthAdapter extends NativeDateAdapter {
+  override format(date: Date, displayFormat: object): string {
+    return String(displayFormat) === 'MMMM, YYYY' ? payrollMonthText(date) : super.format(date, displayFormat);
+  }
+}
+
+@Component({
+  selector: 'trishul-payroll-month',
+  imports: [MatFormField, MatLabel, MatInput, MatDatepicker, MatDatepickerInput, MatDatepickerToggle, MatSuffix],
+  providers: [
+    provideNativeDateAdapter(),
+    { provide: DateAdapter, useClass: PayrollMonthAdapter },
+    { provide: MAT_DATE_FORMATS, useValue: PAYROLL_MONTH_FORMATS },
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <mat-form-field class="payroll-month" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Payroll month</mat-label>
+      <input matInput [matDatepicker]="picker" [value]="date()" (click)="picker.open()" readonly />
+      <mat-datepicker-toggle matIconSuffix [for]="picker" />
+      <mat-datepicker #picker startView="year" (monthSelected)="choose($event, picker)" />
+    </mat-form-field>
+  `,
+  styles: `
+    :host { display: block; }
+    .payroll-month { width: 13.5rem; }
+  `,
+})
+class PayrollMonthField {
+  readonly month = input.required<string>();
+  readonly monthChange = output<string>();
+  protected readonly date = computed(() => {
+    const [year, mon] = this.month().split('-').map(Number);
+    return new Date(year || 2000, (mon || 1) - 1, 1);
+  });
+
+  protected choose(value: Date, picker: MatDatepicker<Date>): void {
+    picker.close();
+    const next = `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
+    if (next !== this.month()) this.monthChange.emit(next);
+  }
+}
+
+function payrollMonthText(date: Date): string {
+  return `${date.toLocaleDateString('en-GB', { month: 'long' })}, ${date.getFullYear()}`;
+}
+
 /** Employee summary, trip lines, rates, approval and payroll settlement for TA/DA. */
 @Component({
   selector: 'trishul-tada-report-page',
   imports: [
-    DatePipe, MatButton, MatIconButton, MatCheckbox, MatMenu, MatMenuItem, MatMenuTrigger,
-    MatFormField, MatLabel, MatPrefix, MatIcon, MatInput, MatSelect, MatOption, MatProgressBar,
+    DatePipe, MatButton, MatIconButton, MatCheckbox, MatDatepicker, MatDatepickerInput, MatDatepickerToggle, PayrollMonthField,
+    MatMenu, MatMenuItem, MatMenuTrigger, MatFormField, MatLabel, MatPrefix, MatSuffix, MatIcon, MatInput,
+    MatSelect, MatOption, MatProgressBar,
     PageHeader, StatusBadge, PayrollPagerBar,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tada-report.page.html',
   styleUrls: ['../payroll.shared.scss', './tada-report.page.scss'],
+  providers: [
+    provideNativeDateAdapter(),
+    { provide: DateAdapter, useClass: TripDateAdapter },
+    { provide: MAT_DATE_FORMATS, useValue: TRIP_DATE_FORMATS },
+  ],
 })
 export class TadaReportPage {
   private readonly api = inject(TadaApi);
@@ -202,6 +305,7 @@ export class TadaReportPage {
   protected readonly departments = signal<DepartmentOption[]>([]);
   protected readonly draft = signal<Filters>(emptyFilters());
   protected readonly applied = signal<Filters>(emptyFilters());
+  protected readonly summaryQuery = signal('');
   protected readonly sort = signal('employeeCode');
   protected readonly employeeSort = signal<{ key: EmployeeSortKey; dir: 'asc' | 'desc' } | null>(null);
   protected readonly sortedEmployees = computed(() => sortEmployees(this.employees(), this.employeeSort(), this.rates()));
@@ -211,10 +315,23 @@ export class TadaReportPage {
   protected readonly drawerTab = signal<DrawerTab>('overview');
   protected readonly drawerLoading = signal(false);
   protected readonly monthLabel = monthLabel;
+  protected readonly payrollMonthDate = computed(() => {
+    const [year, mon] = this.applied().month.split('-').map(Number);
+    return new Date(year, (mon || 1) - 1, 1);
+  });
   protected readonly decisionHistory = signal<TadaDecisionHistoryItem[] | null>(null);
   protected readonly drawerProfile = signal<{ department: string | null; location: string | null } | null>(null);
   protected readonly historyQuery = signal('');
   protected readonly historyStatus = signal('All');
+  protected readonly historyFrom = signal<Date | null>(null);
+  protected readonly historyTo = signal<Date | null>(null);
+  protected readonly historyDateError = signal('');
+  protected readonly historyLoading = signal(false);
+  private readonly historySource = signal<TadaTripItem[] | null>(null);
+  private historyRequest = 0;
+  private historyTimer: ReturnType<typeof setTimeout> | null = null;
+  private tripFilterTimer: ReturnType<typeof setTimeout> | null = null;
+  private historyKey = '';
   protected readonly historyPage = signal(0);
   protected readonly historyTripId = signal<number | null>(null);
   protected readonly expandedHistoryCalls = signal<ReadonlySet<string>>(new Set());
@@ -226,8 +343,6 @@ export class TadaReportPage {
   protected readonly tripDocumentsLoading = signal(false);
   protected readonly tripDocumentsError = signal('');
   protected readonly supportingDocuments = computed(() => this.shownDocuments());
-  protected readonly reviewNote = signal('');
-  protected readonly reviewNoteError = signal('');
   protected readonly documentChoice = signal<'verified' | 'missing' | 'not-applicable'>('not-applicable');
   protected readonly documentReason = signal('');
   protected readonly approveAmount = signal('');
@@ -235,6 +350,18 @@ export class TadaReportPage {
   protected readonly tripQuery = signal('');
   protected readonly tripMode = signal('All');
   protected readonly tripReview = signal('All');
+  protected readonly tripPresets = TRIP_PRESETS;
+  protected readonly tripPreset = signal<TripPreset>('month');
+  protected readonly draftTripFrom = signal<Date | null>(null);
+  protected readonly draftTripTo = signal<Date | null>(null);
+  protected readonly tripDateError = signal('');
+  private readonly appliedTripQuery = signal('');
+  private readonly appliedTripMode = signal('All');
+  private readonly appliedTripReview = signal('All');
+  private readonly appliedTripFrom = signal<Date | null>(null);
+  private readonly appliedTripTo = signal<Date | null>(null);
+  private readonly rangeTrips = signal<TadaTripItem[] | null>(null);
+  private tripRangeRequest = 0;
   protected readonly collapsedCalls = signal<ReadonlySet<string>>(new Set());
   protected readonly documentReasons = [
     'Employee unable to provide ticket/receipt',
@@ -247,6 +374,9 @@ export class TadaReportPage {
     'Partial distance approved',
   ];
   private reviewTripId: number | null = null;
+  private summaryTimer: ReturnType<typeof setTimeout> | null = null;
+  private appliedSummary = '';
+  private tableRequest = 0;
   private documentTouched = false;
   private documentRequest = 0;
 
@@ -277,18 +407,31 @@ export class TadaReportPage {
     [...this.expandedTrips()].sort((left, right) => right.startAt.localeCompare(left.startAt)).slice(0, 3),
   );
   protected readonly filteredDrawerTrips = computed(() => {
-    const query = this.tripQuery().trim().toLowerCase();
-    const mode = this.tripMode();
-    const review = this.tripReview();
-    return this.expandedTrips().filter((trip) => {
+    const query = this.appliedTripQuery().trim().toLowerCase();
+    const mode = this.appliedTripMode();
+    const review = this.appliedTripReview();
+    const from = isoDay(this.appliedTripFrom());
+    const to = isoDay(this.appliedTripTo());
+    return (this.rangeTrips() ?? this.expandedTrips()).filter((trip) => {
+      if (from && trip.tripDate < from) return false;
+      if (to && trip.tripDate > to) return false;
       if (mode !== 'All' && trip.vehicleType !== mode) return false;
       if (review !== 'All' && (trip.reviewStatus || 'Pending') !== review) return false;
       if (!query) return true;
-      return [trip.callNo, trip.complaintDescription, trip.oemCallId, trip.travelFrom, trip.travelTo, trip.tripDate].filter((part) => !!part).join(' ').toLowerCase().includes(query);
+      return [trip.callNo, trip.complaintDescription, trip.travelFrom, trip.travelTo].filter((part) => !!part).join(' ').toLowerCase().includes(query);
     });
   });
+  protected readonly filteredTripPayable = computed(() =>
+    this.filteredDrawerTrips().reduce((sum, trip) => sum + Number(trip.taAmount || 0), 0).toFixed(2),
+  );
+  protected readonly tripRangeLabel = computed(() => {
+    const from = this.appliedTripFrom();
+    const to = this.appliedTripTo();
+    if (!from || !to) return 'Choose a from and to date.';
+    return `${formatDay(from)} – ${formatDay(to)}`;
+  });
   protected readonly callGroups = computed((): ServiceCallGroup[] => {
-    const ordered = [...this.filteredDrawerTrips()].sort((left, right) => left.startAt.localeCompare(right.startAt));
+    const ordered = [...this.filteredDrawerTrips()].sort((left, right) => right.startAt.localeCompare(left.startAt) || right.id - left.id);
     if (!ordered.length) return [];
     const buckets = new Map<string, ServiceCallGroup>();
     for (const trip of ordered) {
@@ -308,7 +451,8 @@ export class TadaReportPage {
       if (left.unlinked !== right.unlinked) return left.unlinked ? 1 : -1;
       return (left.callNo || '').localeCompare(right.callNo || '');
     });
-    if (!groups.some((group) => group.unlinked)) {
+    const narrowed = this.tripPreset() !== 'month' || !!this.appliedTripQuery() || this.appliedTripMode() !== 'All' || this.appliedTripReview() !== 'All';
+    if (!narrowed && !groups.some((group) => group.unlinked)) {
       groups.push({ key: 'unlinked', callNo: null, complaint: null, trips: [], unlinked: true });
     }
     return groups;
@@ -344,21 +488,11 @@ export class TadaReportPage {
       return (left.callNo || '').localeCompare(right.callNo || '');
     });
   });
-  protected readonly filteredHistory = computed(() => {
-    const query = this.historyQuery().trim().toLowerCase();
-    const status = this.historyStatus();
-    return this.historyRows().filter((row) => {
-      const review = row.trip.reviewStatus || 'Pending';
-      if (status !== 'All' && review !== status) return false;
-      if (!query) return true;
-      const distance = this.tripDistanceLabel(row.trip) || '';
-      return [row.trip.callNo, row.trip.travelFrom, row.trip.travelTo, distance, this.modeLabel(row.trip.vehicleType), `trip ${row.number}`]
-        .filter((part) => !!part)
-        .join(' ')
-        .toLowerCase()
-        .includes(query);
-    });
-  });
+  protected readonly payrollMonthStart = computed(() => monthBounds(this.applied().month).from);
+  protected readonly payrollMonthEnd = computed(() => monthBounds(this.applied().month).to);
+  protected readonly filteredHistory = computed(() =>
+    buildHistoryRows(this.historySource() ?? this.expandedTrips(), this.decisionHistory() ?? []),
+  );
   protected readonly historyGroups = computed((): HistoryCallGroup[] => {
     const buckets = new Map<string, HistoryCallGroup>();
     for (const row of this.filteredHistory()) {
@@ -443,7 +577,12 @@ export class TadaReportPage {
     this.load();
     const outsideClick = (event: Event) => this.closeWhenClickedOutside(event);
     this.document.addEventListener('click', outsideClick, true);
-    inject(DestroyRef).onDestroy(() => this.document.removeEventListener('click', outsideClick, true));
+    inject(DestroyRef).onDestroy(() => {
+      this.document.removeEventListener('click', outsideClick, true);
+      if (this.summaryTimer) clearTimeout(this.summaryTimer);
+      if (this.historyTimer) clearTimeout(this.historyTimer);
+      if (this.tripFilterTimer) clearTimeout(this.tripFilterTimer);
+    });
   }
 
   @HostListener('document:keydown.escape')
@@ -522,12 +661,57 @@ export class TadaReportPage {
   }
 
   protected onMonth(value: string): void {
-    if (!value) return;
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value) || value === this.applied().month) return;
     this.patch({ month: value });
     this.applied.update((current) => ({ ...current, month: value }));
     this.pageIndex.set(0);
     this.selected.set([]);
+    this.loading.set(true);
+    const open = this.drawerEmployee();
+    if (open) {
+      this.expandedId.set(null);
+      this.expandedTrips.set([]);
+      this.rangeTrips.set(null);
+      this.selectedListTrip.set(null);
+      this.selectedTrip.set(null);
+      this.clearSupportingDocuments();
+      this.resetHistoryFilters();
+      this.historyTripId.set(null);
+      this.decisionHistory.set(null);
+    }
     this.load();
+    if (open) this.reloadDrawerForMonth(open);
+  }
+
+  protected choosePayrollMonth(value: Date, picker: MatDatepicker<Date>): void {
+    picker.close();
+    this.onMonth(`${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`);
+  }
+
+  protected onSummaryInput(value: string): void {
+    this.summaryQuery.set(value);
+    this.queueSummarySearch();
+  }
+
+  protected clearSummarySearch(): void {
+    this.summaryQuery.set('');
+    this.queueSummarySearch();
+  }
+
+  private queueSummarySearch(): void {
+    if (this.summaryTimer) clearTimeout(this.summaryTimer);
+    const delay = this.summaryQuery().trim() ? 180 : 0;
+    this.summaryTimer = setTimeout(() => this.runSummarySearch(), delay);
+  }
+
+  protected runSummarySearch(): void {
+    const trimmed = this.summaryQuery().trim();
+    if (this.summaryQuery() !== trimmed) this.summaryQuery.set(trimmed);
+    if (trimmed === this.appliedSummary) return;
+    this.appliedSummary = trimmed;
+    this.pageIndex.set(0);
+    this.selected.set([]);
+    this.loadTable();
   }
 
   protected applyFilters(): void {
@@ -594,12 +778,9 @@ export class TadaReportPage {
   }
 
   protected openDrawer(row: TadaEmployeeItem, tab: DrawerTab = 'overview'): void {
-    if (this.drawerEmployee()?.employeeId !== row.employeeId) {
-      this.historyQuery.set('');
-      this.historyStatus.set('All');
-      this.historyPage.set(0);
+    if (this.drawerEmployee()?.employeeId !== row.employeeId || !this.historyFrom()) {
+      this.resetHistoryFilters();
       this.historyTripId.set(null);
-      this.expandedHistoryCalls.set(new Set());
       this.drawerProfile.set(null);
     }
     this.drawerEmployee.set(row);
@@ -621,6 +802,8 @@ export class TadaReportPage {
       next: (items) => {
         if (this.drawerEmployee()?.employeeId !== row.employeeId) return;
         this.expandedTrips.set(items);
+        this.rangeTrips.set(null);
+        this.resetTripFilters();
         this.drawerLoading.set(false);
         this.ensureSelectedTrip(items);
       },
@@ -757,29 +940,109 @@ export class TadaReportPage {
     });
   }
 
-  protected onDrawerMonth(value: string): void {
-    this.expandedTrips.set([]);
-    this.selectedListTrip.set(null);
-    this.selectedTrip.set(null);
-    this.clearSupportingDocuments();
-    this.historyPage.set(0);
-    this.historyTripId.set(null);
-    this.expandedHistoryCalls.set(new Set());
-    this.onMonth(value);
-    const employee = this.drawerEmployee();
-    if (employee) this.openDrawer(employee, this.drawerTab());
+  private reloadDrawerForMonth(open: TadaEmployeeItem): void {
+    const month = this.applied().month;
+    this.drawerLoading.set(true);
+    this.api.employees({ page: 1, pageSize: 1, sort: 'employeeCode', month, employeeId: open.employeeId, includeSummary: false }).subscribe({
+      next: (report) => {
+        if (this.applied().month !== month || this.drawerEmployee()?.employeeId !== open.employeeId) return;
+        this.openDrawer(report.items[0] ?? emptyEmployeeMonth(open), this.drawerTab());
+      },
+      error: () => {
+        if (this.applied().month !== month || this.drawerEmployee()?.employeeId !== open.employeeId) return;
+        this.drawerLoading.set(false);
+        this.snackBar.open('This payroll month could not be loaded.', 'OK', { duration: 4000 });
+      },
+    });
   }
 
-  protected setHistoryQuery(value: string): void {
-    this.historyQuery.set(value);
-    this.historyPage.set(0);
-    this.expandedHistoryCalls.set(new Set());
+  protected onHistoryDate(which: 'from' | 'to', value: Date | null): void {
+    if (which === 'from') this.historyFrom.set(value);
+    else this.historyTo.set(value);
+    this.queueHistoryLoad(0);
   }
 
-  protected setHistoryStatus(value: string): void {
+  protected onHistoryStatus(value: string): void {
     this.historyStatus.set(value);
+    this.queueHistoryLoad(0);
+  }
+
+  protected onHistorySearch(value: string): void {
+    this.historyQuery.set(value);
+    this.queueHistoryLoad(300);
+  }
+
+  protected resetHistoryFilters(): void {
+    if (this.historyTimer) clearTimeout(this.historyTimer);
+    this.historyRequest += 1;
+    this.historyKey = '';
+    const range = monthBounds(this.applied().month);
+    this.historyFrom.set(range.from);
+    this.historyTo.set(range.to);
+    this.historyQuery.set('');
+    this.historyStatus.set('All');
+    this.historyDateError.set('');
+    this.historySource.set(null);
+    this.historyLoading.set(false);
     this.historyPage.set(0);
     this.expandedHistoryCalls.set(new Set());
+  }
+
+  private queueHistoryLoad(delay: number): void {
+    if (this.historyTimer) clearTimeout(this.historyTimer);
+    this.historyTimer = setTimeout(() => this.loadHistoryTrips(), delay);
+  }
+
+  private loadHistoryTrips(): void {
+    const from = this.historyFrom();
+    const to = this.historyTo();
+    const bounds = monthBounds(this.applied().month);
+    if (!from || !to || isoDay(from) > isoDay(to)) {
+      this.historyDateError.set('From date must be on or before the to date.');
+      return;
+    }
+    if (isoDay(from) < isoDay(bounds.from) || isoDay(to) > isoDay(bounds.to)) {
+      this.historyDateError.set('Choose dates inside the selected payroll month.');
+      return;
+    }
+    this.historyDateError.set('');
+    const employee = this.drawerEmployee();
+    if (!employee) return;
+    const search = this.historyQuery().trim();
+    const status = this.historyStatus();
+    const fullMonth = isoDay(from) === isoDay(bounds.from) && isoDay(to) === isoDay(bounds.to) && !search && status === 'All';
+    if (fullMonth) {
+      this.historyRequest += 1;
+      this.historyKey = '';
+      this.historySource.set(null);
+      this.historyLoading.set(false);
+      this.historyPage.set(0);
+      return;
+    }
+    const key = `${employee.employeeId}|${this.applied().month}|${isoDay(from)}|${isoDay(to)}|${status}|${search}`;
+    if (key === this.historyKey) return;
+    this.historyPage.set(0);
+    this.historyKey = key;
+    const request = ++this.historyRequest;
+    this.historyLoading.set(true);
+    this.api.filterEmployeeTrips(employee.employeeId, this.applied().month, {
+      fromDate: isoDay(from),
+      toDate: isoDay(to),
+      status,
+      search,
+    }).subscribe({
+      next: (items) => {
+        if (request !== this.historyRequest) return;
+        this.historySource.set(items);
+        this.historyLoading.set(false);
+      },
+      error: () => {
+        if (request !== this.historyRequest) return;
+        this.historyLoading.set(false);
+        this.historyKey = '';
+        this.snackBar.open('The history could not be filtered.', 'OK', { duration: 4000 });
+      },
+    });
   }
 
   protected historyCallExpanded(key: string): boolean {
@@ -810,10 +1073,143 @@ export class TadaReportPage {
     return audit.item.toStatus === 'Rejected' ? audit.parts.comment : null;
   }
 
-  protected openCallTrips(key: string, tripId?: number): void {
+  protected chooseTripPreset(id: TripPreset): void {
+    this.tripPreset.set(id);
+    this.tripDateError.set('');
+    if (id === 'custom') {
+      const range = monthBounds(this.applied().month);
+      this.draftTripFrom.set(range.from);
+      this.draftTripTo.set(range.to);
+      this.appliedTripFrom.set(range.from);
+      this.appliedTripTo.set(range.to);
+      this.tripRangeRequest += 1;
+      this.rangeTrips.set(null);
+      this.syncFilteredSelection();
+      return;
+    }
+    const range = id === 'month' ? monthBounds(this.applied().month) : presetRange(id);
+    this.draftTripFrom.set(range.from);
+    this.draftTripTo.set(range.to);
+    this.applyTripFilters();
+  }
+
+  protected setTripDate(which: 'from' | 'to', value: Date | null): void {
+    this.tripPreset.set('custom');
+    this.tripDateError.set('');
+    if (which === 'from') this.draftTripFrom.set(value);
+    else this.draftTripTo.set(value);
+    this.applyTripFilters();
+  }
+
+  protected onTripSearch(value: string): void {
+    this.tripQuery.set(value);
+    this.queueTripFilters(300);
+  }
+
+  protected onTripMode(value: string): void {
+    this.tripMode.set(value);
+    this.applyTripFilters();
+  }
+
+  protected onTripReview(value: string): void {
+    this.tripReview.set(value);
+    this.applyTripFilters();
+  }
+
+  private queueTripFilters(delay: number): void {
+    if (this.tripFilterTimer) clearTimeout(this.tripFilterTimer);
+    this.tripFilterTimer = setTimeout(() => this.applyTripFilters(), delay);
+  }
+
+  protected applyTripFilters(): void {
+    if (this.tripFilterTimer) clearTimeout(this.tripFilterTimer);
+    this.tripFilterTimer = null;
+    const from = this.draftTripFrom();
+    const to = this.draftTripTo();
+    if (!from || !to || isoDay(from) > isoDay(to)) {
+      this.tripDateError.set('From date must be on or before the to date.');
+      return;
+    }
+    this.tripDateError.set('');
+    this.appliedTripFrom.set(startOfDay(from));
+    this.appliedTripTo.set(startOfDay(to));
+    this.appliedTripQuery.set(this.tripQuery().trim());
+    this.appliedTripMode.set(this.tripMode());
+    this.appliedTripReview.set(this.tripReview());
+    this.loadTripRange();
+  }
+
+  protected resetTripFilters(): void {
+    if (this.tripFilterTimer) clearTimeout(this.tripFilterTimer);
+    this.tripFilterTimer = null;
+    const range = monthBounds(this.applied().month);
+    this.tripPreset.set('month');
     this.tripQuery.set('');
     this.tripMode.set('All');
     this.tripReview.set('All');
+    this.draftTripFrom.set(range.from);
+    this.draftTripTo.set(range.to);
+    this.tripDateError.set('');
+    this.appliedTripQuery.set('');
+    this.appliedTripMode.set('All');
+    this.appliedTripReview.set('All');
+    this.appliedTripFrom.set(range.from);
+    this.appliedTripTo.set(range.to);
+    this.tripRangeRequest += 1;
+    this.rangeTrips.set(null);
+    this.syncFilteredSelection();
+  }
+
+  private loadTripRange(): void {
+    const employee = this.drawerEmployee();
+    const from = this.appliedTripFrom();
+    const to = this.appliedTripTo();
+    if (!employee || !from || !to) return;
+    const months = monthsCovering(from, to);
+    if (months.length > 36) {
+      this.tripDateError.set('Choose a date range of 36 months or less.');
+      return;
+    }
+    const request = ++this.tripRangeRequest;
+    if (months.length === 1 && months[0] === this.applied().month) {
+      this.rangeTrips.set(null);
+      this.syncFilteredSelection();
+      return;
+    }
+    this.drawerLoading.set(true);
+    forkJoin(months.map((month) => this.api.employeeTrips(employee.employeeId, month))).subscribe({
+      next: (lists) => {
+        if (request !== this.tripRangeRequest || this.drawerEmployee()?.employeeId !== employee.employeeId) return;
+        const byId = new Map<number, TadaTripItem>();
+        for (const list of lists) for (const trip of list) byId.set(trip.id, trip);
+        this.rangeTrips.set([...byId.values()]);
+        this.drawerLoading.set(false);
+        this.syncFilteredSelection();
+      },
+      error: () => {
+        if (request !== this.tripRangeRequest) return;
+        this.drawerLoading.set(false);
+        this.snackBar.open('Trips for that date range could not be loaded.', 'OK', { duration: 4000 });
+      },
+    });
+  }
+
+  private syncFilteredSelection(): void {
+    const trips = this.filteredDrawerTrips();
+    const current = this.selectedListTrip();
+    if (current && trips.some((trip) => trip.id === current.id)) return;
+    if (!trips.length) {
+      this.selectedListTrip.set(null);
+      this.selectedTrip.set(null);
+      this.clearSupportingDocuments();
+      return;
+    }
+    const next = [...trips].sort((left, right) => left.startAt.localeCompare(right.startAt) || left.id - right.id)[0];
+    this.openReview(next);
+  }
+
+  protected openCallTrips(key: string, tripId?: number): void {
+    this.resetTripFilters();
     const collapsed = new Set(this.expandedTrips().map((trip) => tripCallKey(trip)));
     collapsed.add('unlinked');
     collapsed.delete(key);
@@ -827,11 +1223,6 @@ export class TadaReportPage {
       ?? trips[0];
     if (next) this.openReview(next);
     setTimeout(() => this.document.getElementById(`call-group-${key}`)?.scrollIntoView({ block: 'nearest' }));
-  }
-
-  protected callPressed(key: string): boolean {
-    const trip = this.selectedListTrip();
-    return !!trip && tripCallKey(trip) === key;
   }
 
   protected callDocumentActive(key: string): boolean {
@@ -851,24 +1242,6 @@ export class TadaReportPage {
     if (!trip || scope?.kind !== 'trip' || scope.tripId !== trip.id) return '';
     const when = trip.tripDate;
     return trip.callNo ? `${trip.callNo} · ${when}` : when;
-  }
-
-  protected selectServiceCall(group: ServiceCallGroup): void {
-    this.collapsedCalls.update((current) => {
-      const next = new Set(current);
-      next.delete(group.key);
-      return next;
-    });
-    const current = this.selectedListTrip();
-    const trip = group.trips.find((item) => item.id === current?.id) ?? group.trips[0];
-    if (trip) {
-      this.openReview(trip);
-      return;
-    }
-    this.selectedListTrip.set(null);
-    this.selectedTrip.set(null);
-    this.beginDocumentLoad({ kind: 'call', key: group.key, callId: null, callNo: group.callNo });
-    this.tripDocumentsLoading.set(false);
   }
 
   protected toggleCallGroup(key: string): void {
@@ -944,7 +1317,6 @@ export class TadaReportPage {
   protected setDocumentChoice(choice: 'verified' | 'missing' | 'not-applicable'): void {
     this.documentTouched = true;
     this.documentChoice.set(choice);
-    this.reviewNoteError.set('');
   }
 
   protected adjustmentValue(): number | null {
@@ -962,6 +1334,38 @@ export class TadaReportPage {
     if (value > 0) return `+${text}`;
     if (value < 0) return `−${text}`;
     return text;
+  }
+
+  protected priceRows(trip: TadaTripItem): PriceRow[] {
+    if (trip.vehicleType === 'Public transport') {
+      return [
+        { label: 'Claimed fare', value: trip.taAmount ? this.money(trip.taAmount) : 'Not recorded', icon: 'payments', calculated: false },
+        { label: 'Applicable fare', value: 'Ticket fare', icon: 'confirmation_number', calculated: false },
+        { label: 'Calculated Amount', value: 'Per-kilometre TA is not applied', icon: 'payments', calculated: true },
+      ];
+    }
+    const source = distanceSource(trip);
+    const distance = trip.applicableDistanceKm == null ? '—' : `${this.km(trip.applicableDistanceKm)} KM`;
+    if (trip.vehicleType === 'Company vehicle') {
+      return [
+        { label: 'Applicable TA Rate (Company Vehicle)', value: `${this.money('0')} / KM`, icon: 'local_shipping', calculated: false },
+        { label: source ?? 'Distance', value: distance, icon: 'straighten', calculated: false },
+        { label: 'Calculated Amount', value: this.money('0'), icon: 'payments', calculated: true },
+      ];
+    }
+    const rate = trip.ratePerKm;
+    return [
+      { label: `Applicable TA Rate (${this.modeLabel(trip.vehicleType)})`, value: rate == null ? '—' : `${this.money(rate)} / KM`, icon: this.modeIcon(trip.vehicleType), calculated: false },
+      { label: source ?? 'Distance', value: distance, icon: 'straighten', calculated: false },
+      { label: 'Calculated Amount', value: trip.taAmount ? this.money(trip.taAmount) : '—', icon: 'payments', calculated: true },
+    ];
+  }
+
+  protected priceFormula(trip: TadaTripItem): string {
+    if (trip.vehicleType === 'Public transport') return 'Applicable fare is the ticket fare. Own-vehicle per-kilometre rates are not used.';
+    if (trip.vehicleType === 'Company vehicle') return 'No per-kilometre TA is applicable.';
+    if (trip.applicableDistanceKm == null || trip.ratePerKm == null || trip.taAmount == null) return 'Distance or the configured rate is not available.';
+    return `${this.km(trip.applicableDistanceKm)} KM × ${this.money(trip.ratePerKm)} / KM = ${this.money(trip.taAmount)}`;
   }
 
   protected companyFare(trip: { vehicleType: string | null; taAmount: string | null }): string | null {
@@ -1040,39 +1444,44 @@ export class TadaReportPage {
 
   protected submitTripReview(decision: 'Approved' | 'Rejected'): void {
     const trip = this.selectedListTrip();
-    if (!trip || this.acting()) return;
+    const employee = this.drawerEmployee();
+    if (!trip || !employee || this.acting()) return;
     if (decision === 'Approved' && !this.canApproveTrip()) {
-      this.reviewNoteError.set(this.approvalBlockReason(trip));
+      this.snackBar.open(this.approvalBlockReason(trip), 'OK', { duration: 4000 });
       return;
     }
-    const note = this.reviewParts();
-    if (decision === 'Rejected' && !this.reviewNote().trim()) {
-      this.reviewNoteError.set('A rejection reason is required.');
-      return;
-    }
-    if (note.length > 500) {
-      this.reviewNoteError.set('The comments are longer than 500 characters.');
-      return;
-    }
-    this.reviewNoteError.set('');
     this.acting.set(true);
-    this.api.decideTrip(trip.id, decision, note || null).subscribe({
-      next: (detail) => {
-        this.acting.set(false);
-        this.selectedTrip.set(detail);
-        const status = detail.reviewStatus;
-        this.selectedListTrip.update((current) => current && current.id === detail.id ? { ...current, reviewStatus: status } : current);
-        this.expandedTrips.update((items) => items.map((item) => item.id === detail.id ? { ...item, reviewStatus: status } : item));
-        this.reviewNote.set('');
-        this.snackBar.open(decision === 'Rejected' ? 'Trip rejected.' : 'Trip approved.', 'OK', { duration: 3000 });
-        this.load();
+    openTripDecision(this.dialog, {
+      decision,
+      lines: [
+        { label: 'Employee Name', value: employee.employeeName },
+        { label: 'Employee ID', value: employee.employeeCode },
+        { label: 'Service Call Number', value: trip.callNo || 'Unavailable' },
+        { label: 'Trip Date', value: this.tripDay(trip.tripDate) },
+        ...(decision === 'Approved' ? [{ label: 'Approved Amount', value: this.money(this.approveAmount().trim() || null) }] : []),
+      ],
+      submit: (remarks) => {
+        const note = this.reviewParts(remarks);
+        if (note.length > 500) {
+          return throwError(() => new HttpErrorResponse({ error: { detail: 'The remarks are longer than 500 characters.' } }));
+        }
+        return this.api.decideTrip(trip.id, decision, note).pipe(
+          map((detail) => {
+            this.snackBar.open(decision === 'Rejected' ? 'Trip rejected.' : 'Trip approved.', 'OK', { duration: 3000 });
+            this.load();
+            const open = this.drawerEmployee();
+            if (open) this.reloadDrawerForMonth(open);
+            return detail;
+          }),
+        );
       },
-      error: (error: HttpErrorResponse) => {
-        this.acting.set(false);
-        const detail = error.error?.detail;
-        this.snackBar.open(typeof detail === 'string' && detail ? detail : 'The trip decision could not be saved.', 'OK', { duration: 5000 });
-      },
-    });
+    }).subscribe(() => this.acting.set(false));
+  }
+
+  private tripDay(iso: string): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    if (!year || !month || !day) return iso;
+    return new Date(year, month - 1, day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
 
@@ -1257,28 +1666,37 @@ export class TadaReportPage {
     }
     this.loading.set(true);
     this.error.set('');
+    const request = ++this.tableRequest;
     if (this.tab() === 'trips') {
-      this.api.report(this.tripParams(this.pageIndex() + 1, this.pageSize())).subscribe({
+      this.api.report({ ...this.tripParams(this.pageIndex() + 1, this.pageSize()), includeSummary: false }).subscribe({
         next: (report) => {
+          if (request !== this.tableRequest) return;
           this.trips.set(report.items);
           this.total.set(report.total);
           this.tripSummary.set(report.summary);
           this.rates.set(report.rates);
           this.loading.set(false);
         },
-        error: (error: HttpErrorResponse) => this.fail(error),
+        error: (error: HttpErrorResponse) => {
+          if (request !== this.tableRequest) return;
+          this.fail(error);
+        },
       });
       return;
     }
-    this.api.employees(this.employeeParams(this.pageIndex() + 1, this.pageSize())).subscribe({
+    this.api.employees({ ...this.employeeParams(this.pageIndex() + 1, this.pageSize()), includeSummary: false }).subscribe({
       next: (report) => {
+        if (request !== this.tableRequest) return;
         this.employees.set(report.items);
         this.total.set(report.total);
         this.rates.set(report.rates);
         this.loading.set(false);
         this.refreshDrawer(report.items);
       },
-      error: (error: HttpErrorResponse) => this.fail(error),
+      error: (error: HttpErrorResponse) => {
+        if (request !== this.tableRequest) return;
+        this.fail(error);
+      },
     });
   }
 
@@ -1310,8 +1728,6 @@ export class TadaReportPage {
     if (this.reviewTripId !== trip.id) {
       this.reviewTripId = trip.id;
       this.documentTouched = false;
-      this.reviewNote.set('');
-      this.reviewNoteError.set('');
       this.documentReason.set('');
       this.adjustmentReason.set('');
       this.approveAmount.set(trip.taAmount == null ? '' : Number(trip.taAmount).toFixed(2));
@@ -1325,13 +1741,13 @@ export class TadaReportPage {
     this.documentChoice.set(verified ? 'verified' : 'missing');
   }
 
-  private reviewParts(): string {
+  private reviewParts(remarks: string): string {
     const parts: string[] = [];
     const amount = this.approveAmount().trim();
     if (amount) parts.push(`Approved amount: ₹${amount}`);
     if (this.adjustmentReason()) parts.push(`Adjustment reason: ${this.adjustmentReason()}`);
     if (this.documentChoice() === 'missing' && this.documentReason()) parts.push(`Document: ${this.documentReason()}`);
-    if (this.reviewNote().trim()) parts.push(this.reviewNote().trim());
+    if (remarks.trim()) parts.push(remarks.trim());
     return parts.join('. ');
   }
 
@@ -1445,12 +1861,14 @@ export class TadaReportPage {
     const approval = options?.ignoreTab
       ? (options.approval === undefined ? filters.approval : options.approval)
       : (this.tab() === 'queue' ? 'Pending' : filters.approval);
+    const summarySearch = !options?.ignoreTab && this.tab() !== 'trips' ? this.summaryQuery().trim() : '';
+    const search = summarySearch || filters.search;
     return {
       page,
       pageSize,
       sort: this.sort(),
       month: filters.month,
-      ...(filters.search ? { search: filters.search } : {}),
+      ...(search ? { search } : {}),
       ...(filters.companyId != null ? { companyId: filters.companyId } : {}),
       ...(filters.branchId != null ? { branchId: filters.branchId } : {}),
       ...(filters.departmentId != null ? { departmentId: filters.departmentId } : {}),
@@ -1468,7 +1886,7 @@ export class TadaReportPage {
       pageSize,
       sort: this.sort(),
       month: filters.month,
-      ...(filters.search ? { search: filters.search } : {}),
+      ...((this.summaryQuery().trim() || filters.search) ? { search: this.summaryQuery().trim() || filters.search } : {}),
       ...(filters.companyId != null ? { companyId: filters.companyId } : {}),
       ...(filters.branchId != null ? { branchId: filters.branchId } : {}),
       ...(filters.departmentId != null ? { departmentId: filters.departmentId } : {}),
@@ -1480,13 +1898,13 @@ export class TadaReportPage {
   }
 
   private allEmployees() {
-    return pageAll((page) => this.api.employees(this.employeeParams(page, 200)).pipe(
+    return pageAll((page) => this.api.employees({ ...this.employeeParams(page, 200), includeSummary: false }).pipe(
       map((report) => ({ items: report.items, total: report.total })),
     ));
   }
 
   private allTrips() {
-    return pageAll((page) => this.api.report(this.tripParams(page, 200)).pipe(
+    return pageAll((page) => this.api.report({ ...this.tripParams(page, 200), includeSummary: false }).pipe(
       map((report) => ({ items: report.items, total: report.total })),
     ));
   }
@@ -1575,7 +1993,25 @@ function sortEmployees(
 function monthLabel(month: string): string {
   const [year, mon] = month.split('-').map(Number);
   if (!year || !mon) return month;
-  return new Date(year, mon - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  return payrollMonthText(new Date(year, mon - 1, 1));
+}
+
+function emptyEmployeeMonth(row: TadaEmployeeItem): TadaEmployeeItem {
+  return {
+    ...row,
+    totalTrips: 0,
+    pendingTrips: 0,
+    approvedTrips: 0,
+    rejectedTrips: 0,
+    bikeKm: '0.00',
+    carKm: '0.00',
+    totalKm: '0.00',
+    taAmount: '0.00',
+    additionalAllowance: '0.00',
+    totalPayable: '0.00',
+    approvalStatus: 'Pending',
+    settlementStatus: 'Open',
+  };
 }
 
 function emptyFilters(): Filters {
@@ -1592,6 +2028,20 @@ function emptyFilters(): Filters {
     tripStatus: null,
     search: '',
   };
+}
+
+interface PriceRow {
+  label: string;
+  value: string;
+  icon: string;
+  calculated: boolean;
+}
+
+function distanceSource(trip: TadaTripItem): 'Adjusted Distance' | 'Map Distance' | 'GPS Distance' | null {
+  if (trip.isDistanceAdjusted && trip.adjustedDistanceKm != null) return 'Adjusted Distance';
+  if (trip.mapDistanceKm != null) return 'Map Distance';
+  if (trip.gpsDistanceKm != null) return 'GPS Distance';
+  return null;
 }
 
 function lineAmount(km: string, rate: string | null): number {
@@ -1750,6 +2200,59 @@ function tripCsv(rows: readonly TadaTripItem[]): string {
 
 function csvCell(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+function formatDay(date: Date): string {
+  return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function isoDay(date: Date | null): string {
+  if (!date) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function monthBounds(month: string): { from: Date; to: Date } {
+  const [year, mon] = month.split('-').map(Number);
+  return { from: new Date(year, (mon || 1) - 1, 1), to: new Date(year, mon || 1, 0) };
+}
+
+function presetRange(id: Exclude<TripPreset, 'month' | 'custom'>): { from: Date; to: Date } {
+  const today = startOfDay(new Date());
+  if (id === 'today') return { from: today, to: today };
+  if (id === 'yesterday') {
+    const day = new Date(today);
+    day.setDate(day.getDate() - 1);
+    return { from: day, to: day };
+  }
+  if (id === '7' || id === '15') {
+    const from = new Date(today);
+    from.setDate(from.getDate() - (id === '7' ? 6 : 14));
+    return { from, to: today };
+  }
+  if (id === 'this') {
+    return { from: new Date(today.getFullYear(), today.getMonth(), 1), to: new Date(today.getFullYear(), today.getMonth() + 1, 0) };
+  }
+  return { from: new Date(today.getFullYear(), today.getMonth() - 1, 1), to: new Date(today.getFullYear(), today.getMonth(), 0) };
+}
+
+function monthsCovering(from: Date, to: Date): string[] {
+  const months: string[] = [];
+  let year = from.getFullYear();
+  let month = from.getMonth();
+  const end = to.getFullYear() * 12 + to.getMonth();
+  while (year * 12 + month <= end && months.length < 48) {
+    months.push(`${year}-${String(month + 1).padStart(2, '0')}`);
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+  return months;
 }
 
 function download(filename: string, contents: string): void {

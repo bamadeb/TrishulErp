@@ -1,0 +1,230 @@
+<mat-drawer-container class="board" autosize>
+  <mat-drawer #drawer mode="over" position="end" class="detail">
+    @if (drawerMode(); as drawerMode) {
+      <header class="detail-head">
+        <div>
+          <p>{{ drawerMode === 'view' ? 'Holiday details' : 'Holiday' }}</p>
+          <h2>{{ drawerMode === 'add' ? 'Add Holiday' : draft().name || 'Edit Holiday' }}</h2>
+        </div>
+        <button mat-icon-button type="button" aria-label="Close" (click)="close()"><mat-icon>close</mat-icon></button>
+      </header>
+      <div class="detail-body">
+        @if (drawerMode === 'view') {
+          <dl>
+            <div><dt>Holiday name</dt><dd>{{ draft().name }}</dd></div>
+            <div><dt>Date</dt><dd>{{ whenDate(draft().date) }}</dd></div>
+            <div><dt>Day</dt><dd>{{ dayDate(draft().date) }}</dd></div>
+            <div><dt>Holiday type</dt><dd>{{ draft().type }}</dd></div>
+            <div><dt>State</dt><dd>{{ draft().stateName || 'All States' }}</dd></div>
+            <div><dt>Applicable location</dt><dd>{{ draft().locationName }}</dd></div>
+            <div><dt>Description</dt><dd>{{ draft().description || '—' }}</dd></div>
+            <div><dt>Optional holiday</dt><dd>{{ draft().optional ? 'Yes' : 'No' }}</dd></div>
+            <div><dt>Status</dt><dd>{{ draft().active ? 'Active' : 'Inactive' }}</dd></div>
+          </dl>
+          <div class="detail-actions">
+            <button mat-flat-button type="button" class="save" (click)="startEdit()">Edit</button>
+            <button mat-stroked-button type="button" (click)="close()">Close</button>
+          </div>
+        } @else {
+          @if (formError()) { <p class="form-error">{{ formError() }}</p> }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Holiday Name</mat-label>
+            <input matInput [ngModel]="draft().name" (ngModelChange)="patch({ name: $event })" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Holiday Date</mat-label>
+            <input matInput [matDatepicker]="picker" [ngModel]="draft().date" (ngModelChange)="patch({ date: $event })" />
+            <mat-datepicker-toggle matIconSuffix [for]="picker" />
+            <mat-datepicker #picker />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Holiday Type</mat-label>
+            <mat-select [ngModel]="draft().type" (ngModelChange)="patch({ type: $event, optional: $event === 'Optional' || draft().optional })">
+              @for (item of types(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>State</mat-label>
+            <mat-select [ngModel]="draft().stateId" (ngModelChange)="patch({ stateId: $event, stateName: stateName($event) })">
+              <mat-option [value]="null">All States</mat-option>
+              @for (item of states(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Applicable Location</mat-label>
+            <mat-select [ngModel]="draft().locationId" (ngModelChange)="patch({ locationId: $event, locationName: locationName($event) })">
+              <mat-option [value]="null">All Locations</mat-option>
+              @for (item of locations(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Description</mat-label>
+            <textarea matInput rows="3" [ngModel]="draft().description" (ngModelChange)="patch({ description: $event })"></textarea>
+          </mat-form-field>
+          <div class="toggles">
+            <mat-slide-toggle [checked]="draft().optional" (change)="patch({ optional: $event.checked })">Optional holiday</mat-slide-toggle>
+            <mat-slide-toggle [checked]="draft().active" (change)="patch({ active: $event.checked })">Active status</mat-slide-toggle>
+          </div>
+          <div class="detail-actions">
+            <button mat-flat-button type="button" class="save" (click)="save()">Save Holiday</button>
+            <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+          </div>
+        }
+      </div>
+    }
+  </mat-drawer>
+
+  <mat-drawer-content>
+    <nav class="crumb" aria-label="Breadcrumb">
+      <a routerLink="/hr/leave/dashboard">Leave Management</a>
+      <mat-icon>chevron_right</mat-icon>
+      <span>Holiday Calendar</span>
+    </nav>
+
+    <trishul-page-header title="Holiday Calendar" subtitle="Manage organization holidays, regional holidays and branch-wise holiday schedules.">
+      <div class="header-tools">
+        <mat-form-field class="year" appearance="outline" subscriptSizing="dynamic">
+          <mat-icon matPrefix>calendar_month</mat-icon>
+          <mat-label>Financial Year</mat-label>
+          <mat-select [value]="year()" (valueChange)="setYear($event)" aria-label="Financial year">
+            @for (item of years(); track item.id) { <mat-option [value]="item.id">{{ item.label }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <input #fileInput type="file" accept=".xlsx,.xls,.csv" hidden (change)="pickFile($event)" />
+        <button mat-stroked-button type="button" (click)="browse()"><mat-icon>upload</mat-icon> Import Excel</button>
+        <button mat-stroked-button type="button" (click)="exportRows()"><mat-icon>download</mat-icon> Export</button>
+        <button mat-flat-button type="button" class="save" (click)="openAdd()"><mat-icon>add</mat-icon> Add Holiday</button>
+      </div>
+    </trishul-page-header>
+    @if (loadError()) { <p class="form-error">{{ loadError() }}</p> }
+
+    <section class="kpis" aria-label="Holiday summary">
+      <article class="kpi total"><mat-icon>event</mat-icon><div><strong>{{ summary().total }}</strong><span>Total Holidays</span></div></article>
+      <article class="kpi upcoming"><mat-icon>event_available</mat-icon><div><strong>{{ summary().upcoming }}</strong><span>Upcoming Holidays</span></div></article>
+      <article class="kpi national"><mat-icon>flag</mat-icon><div><strong>{{ summary().national }}</strong><span>National Holidays</span></div></article>
+      <article class="kpi regional"><mat-icon>location_on</mat-icon><div><strong>{{ summary().regional }}</strong><span>Regional Holidays</span></div></article>
+    </section>
+
+    <div class="views" role="tablist" aria-label="Holiday view">
+      <button type="button" role="tab" [class.active]="mode() === 'calendar'" (click)="mode.set('calendar')"><mat-icon>calendar_month</mat-icon> Calendar View</button>
+      <button type="button" role="tab" [class.active]="mode() === 'list'" (click)="mode.set('list')"><mat-icon>list</mat-icon> List View</button>
+    </div>
+
+    <section class="card filters">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Holiday Type</mat-label>
+        <mat-select [value]="type()" (valueChange)="setType($event)" aria-label="Holiday type">
+          <mat-option [value]="null">All Types</mat-option>
+          @for (item of types(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>State</mat-label>
+        <mat-select [value]="state()" (valueChange)="setState($event)" aria-label="State">
+          <mat-option [value]="null">All States</mat-option>
+          @for (item of states(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Location</mat-label>
+        <mat-select [value]="location()" (valueChange)="setLocation($event)" aria-label="Location">
+          <mat-option [value]="null">All Locations</mat-option>
+          @for (item of locations(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [ngModel]="search()" (ngModelChange)="setSearch($event)" placeholder="Search by Holiday Name" aria-label="Search by Holiday Name" />
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="reset()"><mat-icon>refresh</mat-icon> Reset</button>
+    </section>
+
+    <div class="workspace" [class.list]="mode() === 'list'">
+      @if (mode() === 'calendar') {
+        <section class="card calendar" aria-label="Holiday month">
+          <header class="cal-head">
+            <strong>{{ monthTitle() }}</strong>
+            <div class="cal-nav">
+              <button mat-icon-button type="button" aria-label="Previous month" (click)="shift(-1)"><mat-icon>chevron_left</mat-icon></button>
+              <button type="button" class="today" (click)="goToday()">Today</button>
+              <button mat-icon-button type="button" aria-label="Next month" (click)="shift(1)"><mat-icon>chevron_right</mat-icon></button>
+            </div>
+            <ul class="legend">
+              <li><i class="national"></i>National</li>
+              <li><i class="regional"></i>Regional</li>
+              <li><i class="optional"></i>Optional</li>
+            </ul>
+          </header>
+          <div class="weekdays">@for (day of weekdays; track day) { <span>{{ day }}</span> }</div>
+          <div class="grid">
+            @for (cell of cells(); track cell.iso) {
+              <div class="day" [class.out]="!cell.inMonth" [class.today]="cell.isToday" [class.selected]="cell.isSelected" (click)="selectDate(cell.date)">
+                <span class="num">{{ cell.date.getDate() }}</span>
+                @for (item of cell.holidays.slice(0, 2); track item.id) {
+                  <button type="button" class="chip" [class]="'chip ' + tone(item)" [title]="item.name" (click)="choose(item, cell.date, $event)">{{ item.name }}</button>
+                }
+                @if (cell.holidays.length > 2) {
+                  <button type="button" class="more" (click)="$event.stopPropagation(); selectDate(cell.date)">+{{ cell.holidays.length - 2 }} more</button>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="card list" aria-label="Holiday list">
+        <header class="list-head"><h2>Holiday List ({{ yearLabel() }})</h2></header>
+        <div class="table-wrap">
+          <table>
+            <colgroup>
+              <col class="c-n" /><col class="c-name" /><col class="c-date" /><col class="c-day" />
+              <col class="c-type" /><col class="c-loc" /><col class="c-status" /><col class="c-act" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Holiday Name</th>
+                <th><button type="button" (click)="toggleSort()">Date {{ sortAsc() ? '↑' : '↓' }}</button></th>
+                <th>Day</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th class="act">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of pageRows(); track item.id; let index = $index) {
+                <tr>
+                  <td>{{ serial(index) }}</td>
+                  <td class="name">{{ item.name }}</td>
+                  <td class="date">{{ when(item.holidayDate) }}</td>
+                  <td>{{ item.day }}</td>
+                  <td><span class="pill" [class]="'pill ' + tone(item)">{{ item.optional ? 'Optional' : item.category }}</span></td>
+                  <td>{{ item.locationName }}</td>
+                  <td><trishul-status-badge [status]="item.isActive ? 'Active' : 'Inactive'" [severities]="severities" /></td>
+                  <td class="actions">
+                    <button type="button" aria-label="View" (click)="openView(item)"><mat-icon>visibility</mat-icon></button>
+                    <button type="button" aria-label="Edit" (click)="openEdit(item)"><mat-icon>edit</mat-icon></button>
+                    <button type="button" class="danger" aria-label="Delete" (click)="remove(item)"><mat-icon>delete</mat-icon></button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td class="empty" colspan="8">No holidays match these filters.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <footer class="pager">
+          <span>{{ showing() }}</span>
+          <div>
+            <button type="button" aria-label="Previous page" [disabled]="pageIndex() === 0" (click)="goPage(pageIndex() - 1)"><mat-icon>chevron_left</mat-icon></button>
+            @for (page of pageNumbers(); track page) {
+              <button type="button" [class.active]="page === pageIndex()" (click)="goPage(page)">{{ page + 1 }}</button>
+            }
+            <button type="button" aria-label="Next page" [disabled]="pageIndex() >= pageCount() - 1" (click)="goPage(pageIndex() + 1)"><mat-icon>chevron_right</mat-icon></button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  </mat-drawer-content>
+</mat-drawer-container>

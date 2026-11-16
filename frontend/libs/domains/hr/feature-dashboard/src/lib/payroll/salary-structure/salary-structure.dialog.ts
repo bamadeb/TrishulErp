@@ -13,11 +13,19 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatOption, MatSelect } from '@angular/material/select';
 import { MatInput } from '@angular/material/input';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { SalaryStructureLineItem, SalaryStructureWrite } from '@trishul/core-api';
-import { COMPONENT_TYPES, ComponentType, SalaryStructuresApi } from '@trishul/hr-data-access';
+import { SalaryStructureLineItem } from '@trishul/core-api';
+import {
+  COMPONENT_TYPES,
+  ComponentType,
+  SalaryStructureSave,
+  SalaryStructuresApi,
+  SalaryTemplateListItem,
+  SalaryTemplatesApi,
+} from '@trishul/hr-data-access';
 
 export interface SalaryStructureDialogData {
   mode: 'view' | 'edit';
@@ -43,12 +51,16 @@ interface StructureForm {
   fullName: string;
   department: string;
   designation: string;
+  designationId: number | null;
+  grade: string | null;
   structureId: number | null;
   rowVersion: string | null;
   effectiveFrom: string;
   effectiveTo: string;
   annualCtc: string;
   monthlyGross: string;
+  salaryTemplateId: number | null;
+  applyTemplate: boolean;
   lines: LineDraft[];
 }
 
@@ -101,8 +113,10 @@ class SalaryStructureDateAdapter extends NativeDateAdapter {
     MatFormField,
     MatInput,
     MatLabel,
-    MatSuffix,
+    MatOption,
     MatProgressBar,
+    MatSelect,
+    MatSuffix,
   ],
   providers: [
     { provide: DateAdapter, useClass: SalaryStructureDateAdapter },
@@ -114,6 +128,7 @@ class SalaryStructureDateAdapter extends NativeDateAdapter {
 })
 export class SalaryStructureDialog {
   private readonly api = inject(SalaryStructuresApi);
+  private readonly templatesApi = inject(SalaryTemplatesApi);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialogRef = inject(MatDialogRef<SalaryStructureDialog, boolean>);
   protected readonly data = inject<SalaryStructureDialogData>(MAT_DIALOG_DATA);
@@ -126,6 +141,18 @@ export class SalaryStructureDialog {
   protected readonly effectiveTo = new FormControl<Date | null>(null);
   protected readonly fromDate = signal<Date | null>(null);
   protected readonly readOnly = this.data.mode === 'view';
+  protected readonly templates = signal<SalaryTemplateListItem[]>([]);
+  protected readonly usableTemplates = computed(() => {
+    const form = this.form();
+    return this.templates().filter((template) => {
+      if (!form) return true;
+      const designations = template.designationIds ?? [];
+      const grades = template.grades ?? [];
+      const designationOk = designations.length === 0 || designations.includes(form.designationId ?? -1);
+      const gradeOk = grades.length === 0 || grades.includes(form.grade ?? '');
+      return designationOk && gradeOk;
+    });
+  });
   protected readonly groups = computed(() => {
     const form = this.form();
     if (!form) return [];
@@ -136,6 +163,21 @@ export class SalaryStructureDialog {
   });
 
   constructor() {
+    this.templatesApi
+      .list({
+        search: '',
+        status: 'active',
+        departmentId: null,
+        designationId: null,
+        grade: null,
+        employeeCategory: null,
+        page: 1,
+        pageSize: 200,
+      })
+      .subscribe({
+        next: (page) => this.templates.set(page.items),
+        error: () => undefined,
+      });
     this.api.get(this.data.employeeId).subscribe({
       next: (detail) => {
         const savedFrom = parseIso(detail.effectiveFrom);
@@ -153,12 +195,16 @@ export class SalaryStructureDialog {
           fullName: detail.fullName,
           department: detail.department ?? '',
           designation: detail.designation ?? '',
+          designationId: detail.designationId ?? null,
+          grade: detail.grade ?? null,
           structureId: detail.structureId,
           rowVersion: detail.rowVersion,
           effectiveFrom: toIso(from),
           effectiveTo: toIso(to),
           annualCtc: detail.annualCtc ?? '',
           monthlyGross: detail.monthlyGross ?? '',
+          salaryTemplateId: detail.salaryTemplateId ?? null,
+          applyTemplate: false,
           lines: detail.lines.map(toDraft),
         });
         this.loading.set(false);
@@ -186,6 +232,36 @@ export class SalaryStructureDialog {
   protected nextDay(value: Date | null): Date | null {
     if (!value) return null;
     return new Date(value.getFullYear(), value.getMonth(), value.getDate() + 1);
+  }
+
+  protected applyTemplate(templateId: number | null): void {
+    this.patch({ salaryTemplateId: templateId, applyTemplate: true });
+    if (templateId == null) return;
+    this.templatesApi.get(templateId).subscribe({
+      next: (template) => {
+        const saved = new Map(template.lines.map((line) => [line.salaryComponentId, line]));
+        this.form.update((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            annualCtc: template.annualCtc,
+            monthlyGross: template.monthlyGross,
+            lines: current.lines.map((line) => {
+              const match = saved.get(line.salaryComponentId);
+              if (!match) return { ...line, included: false };
+              return {
+                ...line,
+                included: true,
+                monthlyAmount: match.monthlyAmount ?? '',
+                percentage: match.percentage ?? '',
+                formula: match.formula ?? '',
+              };
+            }),
+          };
+        });
+      },
+      error: () => this.error.set('The salary template could not be loaded.'),
+    });
   }
 
   protected patchLine(componentId: number, change: Partial<LineDraft>): void {
@@ -263,12 +339,14 @@ function validate(form: StructureForm): string {
   return '';
 }
 
-function toWrite(form: StructureForm): SalaryStructureWrite {
+function toWrite(form: StructureForm): SalaryStructureSave {
   return {
     effectiveFrom: form.effectiveFrom,
     effectiveTo: form.effectiveTo || null,
     annualCtc: form.annualCtc.trim(),
     monthlyGross: form.monthlyGross.trim(),
+    salaryTemplateId: form.applyTemplate ? form.salaryTemplateId : undefined,
+    applyTemplate: form.applyTemplate,
     lines: form.lines.map((line) => ({
       salaryComponentId: line.salaryComponentId,
       included: line.included,

@@ -1,0 +1,46 @@
+<h2 mat-dialog-title>Generate entitlement</h2>
+<mat-dialog-content>
+  @if (error()) { <p class="error">{{ error() }}</p> }
+  @if (step() === 1) {
+    <p>Choose the policy and year. Balances are not posted until you confirm the preview.</p>
+    <mat-form-field appearance="outline"><mat-label>Leave policy</mat-label>
+      <mat-select [ngModel]="policyId()" (ngModelChange)="policyId.set($event)" name="policy">
+        @for (policy of data.policies; track policy.id) { <mat-option [value]="policy.id">{{ policy.name }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Policy year</mat-label>
+      <mat-select [ngModel]="year()" (ngModelChange)="year.set($event)" name="year">
+        @for (value of years(); track value) { <mat-option [value]="value">{{ value }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Generation type</mat-label>
+      <mat-select [ngModel]="'Annual'" name="type"><mat-option value="Annual">Annual entitlement</mat-option></mat-select>
+    </mat-form-field>
+  }
+  @if (step() === 2) {
+    @if (preview()?.warning) { <p class="error">{{ preview()?.warning }}</p> }
+    <table>
+      <thead><tr><th>Employee</th><th>Leave</th><th>Worked</th><th>Qualifying</th><th>Credit</th><th>Review</th></tr></thead>
+      <tbody>
+        @for (person of preview()?.employees ?? []; track person.employeeId) {
+          @for (line of person.lines; track line.code) {
+            <tr>
+              <td>{{ person.employeeCode }} {{ person.employeeName }}</td>
+              <td>{{ line.code }}</td>
+              <td>{{ line.daysWorked || '—' }}</td>
+              <td>{{ line.eligibilityDays || '—' }}</td>
+              <td>{{ line.credited }}</td>
+              <td>{{ line.message || (person.requiresReview ? 'Review' : 'Ready') }}</td>
+            </tr>
+          }
+        } @empty { <tr><td colspan="6">No employees are assigned to this policy.</td></tr> }
+      </tbody>
+    </table>
+  }
+  @if (step() === 3) { <p>{{ result() }}</p> }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="close()">Close</button>
+  @if (step() === 1) { <button mat-flat-button color="primary" type="button" (click)="next()">Preview</button> }
+  @if (step() === 2) { <button mat-flat-button color="primary" type="button" (click)="generate()">Confirm and generate</button> }
+</mat-dialog-actions>

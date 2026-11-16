@@ -1,0 +1,296 @@
+<mat-drawer-container class="board" autosize>
+  <mat-drawer #drawer mode="over" position="end" class="detail">
+    @if (openRequest(); as request) {
+      <header class="detail-head">
+        <div>
+          <p>Leave request</p>
+          <h2>{{ request.id }}</h2>
+        </div>
+        <button mat-icon-button type="button" aria-label="Close" (click)="closeDrawer()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </header>
+      <div class="detail-body">
+        <section class="person">
+          <span class="avatar" [style.background]="request.employee.color">{{ request.employee.initials }}</span>
+          <div>
+            <strong>{{ request.employee.name }}</strong>
+            <span>{{ request.employee.code }}</span>
+          </div>
+          <trishul-status-badge [status]="request.status" [severities]="severities" />
+        </section>
+        <dl>
+          <div><dt>Department</dt><dd>{{ request.employee.department }}</dd></div>
+          <div><dt>Designation</dt><dd>{{ request.employee.designation }}</dd></div>
+          <div><dt>Reporting manager</dt><dd>{{ request.employee.manager }}</dd></div>
+          <div><dt>Leave type</dt><dd>{{ request.leaveType }}</dd></div>
+          <div><dt>From</dt><dd>{{ when(request.fromDate) }}</dd></div>
+          <div><dt>To</dt><dd>{{ when(request.toDate) }}</dd></div>
+          <div><dt>Total leave days</dt><dd>{{ request.days }}</dd></div>
+          <div><dt>Available balance</dt><dd>{{ request.balance == null ? '—' : request.balance + ' days' }}</dd></div>
+        </dl>
+        <h3>Reason</h3>
+        <p class="copy">{{ request.reason }}</p>
+        <h3>Attachments</h3>
+        @if (request.attachments.length) {
+          <ul class="files">
+            @for (file of request.attachments; track file.id) {
+              <li>
+                <button type="button" (click)="preview(file.name)">
+                  <mat-icon>attach_file</mat-icon>{{ file.name }}
+                </button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="copy muted">No attachment.</p>
+        }
+        <h3>Approval history</h3>
+        <ol class="history">
+          @for (item of request.history; track item.id) {
+            <li>
+              <strong>{{ item.action }}</strong>
+              <span>{{ item.actor }} · {{ when(item.at) }}</span>
+              <p>{{ item.remarks }}</p>
+            </li>
+          }
+        </ol>
+        <h3>Comments</h3>
+        @if (request.comments.length) {
+          <ul class="comments">
+            @for (comment of request.comments; track $index) {
+              <li>{{ comment }}</li>
+            }
+          </ul>
+        } @else {
+          <p class="copy muted">No comments yet.</p>
+        }
+        <label class="note">
+          Add a comment
+          <textarea [ngModel]="commentDraft()" (ngModelChange)="commentDraft.set($event)" rows="3"></textarea>
+        </label>
+        <button mat-stroked-button type="button" [disabled]="!commentDraft().trim()" (click)="addComment()">Add comment</button>
+      </div>
+      <footer class="detail-foot">
+        @if (request.canApprove) {
+          <button mat-flat-button type="button" class="approve" (click)="decide([request.requestId], 'Approved')">Approve</button>
+          <button mat-flat-button type="button" class="reject" (click)="decide([request.requestId], 'Rejected')">Reject</button>
+        }
+        <button mat-stroked-button type="button" (click)="closeDrawer()">Close</button>
+      </footer>
+    }
+  </mat-drawer>
+
+  <mat-drawer-content>
+    <nav class="crumb" aria-label="Breadcrumb">
+      <a routerLink="/hr/leave/dashboard">Leave Management</a>
+      <mat-icon>chevron_right</mat-icon>
+      <span>Leave Requests</span>
+    </nav>
+
+    <trishul-page-header title="Leave Requests" subtitle="Review, approve or reject employee leave applications.">
+      <mat-form-field class="month" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Month</mat-label>
+        <mat-select [value]="month()" (valueChange)="setMonth($event)" aria-label="Month">
+          @for (item of months; track item.id) {
+            <mat-option [value]="item.id">{{ item.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <a mat-flat-button class="apply" routerLink="/hr/leave/mine">
+        <mat-icon>add</mat-icon>
+        Apply Leave (My Leave)
+      </a>
+    </trishul-page-header>
+
+    @if (error()) { <p class="error">{{ error() }}</p> }
+    <section class="kpis">
+      <article class="kpi pending">
+        <mat-icon>schedule</mat-icon>
+        <div><strong>{{ counts().pending }}</strong><span>Pending Requests</span></div>
+      </article>
+      <article class="kpi approved">
+        <mat-icon>check_circle</mat-icon>
+        <div><strong>{{ counts().approved }}</strong><span>Approved (MTD)</span></div>
+      </article>
+      <article class="kpi rejected">
+        <mat-icon>cancel</mat-icon>
+        <div><strong>{{ counts().rejected }}</strong><span>Rejected (MTD)</span></div>
+      </article>
+      <article class="kpi total">
+        <mat-icon>event_note</mat-icon>
+        <div><strong>{{ counts().total }}</strong><span>Total Requests (MTD)</span></div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" [class.active]="tab() === 'Pending'" (click)="setTab('Pending')">
+          <mat-icon>schedule</mat-icon> Pending ({{ counts().pending }})
+        </button>
+        <button type="button" role="tab" [class.active]="tab() === 'Approved'" (click)="setTab('Approved')">
+          <mat-icon>check_circle</mat-icon> Approved ({{ counts().approved }})
+        </button>
+        <button type="button" role="tab" [class.active]="tab() === 'Rejected'" (click)="setTab('Rejected')">
+          <mat-icon>cancel</mat-icon> Rejected ({{ counts().rejected }})
+        </button>
+        <button type="button" role="tab" [class.active]="tab() === 'All'" (click)="setTab('All')">
+          <mat-icon>list</mat-icon> All Requests ({{ counts().total }})
+        </button>
+      </div>
+
+      <div class="filters">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Department</mat-label>
+          <mat-select [value]="department()" (valueChange)="setDepartment($event)" aria-label="Department">
+            <mat-option [value]="null">All departments</mat-option>
+            @for (item of departments(); track item.id) {
+              <mat-option [value]="item.id">{{ item.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Leave type</mat-label>
+          <mat-select [value]="leaveType()" (valueChange)="setLeaveType($event)" aria-label="Leave type">
+            <mat-option [value]="null">All leave types</mat-option>
+            @for (item of leaveTypes(); track item.id) {
+              <mat-option [value]="item.id">{{ item.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field class="range" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Date range</mat-label>
+          <mat-date-range-input [rangePicker]="picker">
+            <input matStartDate [ngModel]="rangeStart()" (ngModelChange)="setRangeStart($event)" aria-label="From date" />
+            <input matEndDate [ngModel]="rangeEnd()" (ngModelChange)="setRangeEnd($event)" aria-label="To date" />
+          </mat-date-range-input>
+          <mat-datepicker-toggle matIconSuffix [for]="picker" />
+          <mat-date-range-picker #picker />
+        </mat-form-field>
+        <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+          <mat-icon matPrefix>search</mat-icon>
+          <input
+            matInput
+            type="search"
+            [ngModel]="search()"
+            (ngModelChange)="setSearch($event)"
+            placeholder="Search by employee ID, name or request ID"
+            aria-label="Search by employee ID, name or request ID"
+          />
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="reset()"><mat-icon>refresh</mat-icon> Reset</button>
+        <button mat-flat-button type="button" class="apply" (click)="exportRows()"><mat-icon>download</mat-icon> Export</button>
+      </div>
+
+      @if (selected().length) {
+        <div class="bulk">
+          <mat-checkbox [checked]="pageAllSelected()" [indeterminate]="pagePartSelected()" (change)="togglePage($event.checked)">
+            {{ selected().length }} selected
+          </mat-checkbox>
+          <button mat-flat-button type="button" class="approve" (click)="decide(selected(), 'Approved')">
+            <mat-icon>check</mat-icon> Approve
+          </button>
+          <button mat-flat-button type="button" class="reject" (click)="decide(selected(), 'Rejected')">
+            <mat-icon>close</mat-icon> Reject
+          </button>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table>
+          <colgroup>
+            <col class="col-check" />
+            <col class="col-id" />
+            <col class="col-employee" />
+            <col class="col-dept" />
+            <col class="col-type" />
+            <col class="col-date" />
+            <col class="col-date" />
+            <col class="col-days" />
+            <col class="col-reason" />
+            <col class="col-date" />
+            <col class="col-status" />
+            <col class="col-actions" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="check">
+                <mat-checkbox [checked]="pageAllSelected()" [indeterminate]="pagePartSelected()" (change)="togglePage($event.checked)" aria-label="Select page" />
+              </th>
+              <th>Request ID</th>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>Leave Type</th>
+              <th>From Date</th>
+              <th>To Date</th>
+              <th class="num">Days</th>
+              <th>Reason</th>
+              <th>Applied On</th>
+              <th>Status</th>
+              <th class="actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              @for (row of [1, 2, 3, 4, 5]; track row) {
+                <tr class="skeleton"><td colspan="12"><span></span></td></tr>
+              }
+            } @else if (!pageRows().length) {
+              <tr class="empty"><td colspan="12">No leave requests match these filters.</td></tr>
+            } @else {
+              @for (row of pageRows(); track row.id) {
+                <tr [class.picked]="isSelected(row.requestId)">
+                  <td class="check">
+                    <mat-checkbox [checked]="isSelected(row.requestId)" (change)="toggleRow(row.requestId, $event.checked)" [attr.aria-label]="'Select ' + row.id" />
+                  </td>
+                  <td class="id">{{ row.id }}</td>
+                  <td>
+                    <div class="employee">
+                      <span class="avatar" [style.background]="row.employee.color">{{ row.employee.initials }}</span>
+                      <span><strong>{{ row.employee.name }}</strong><small>{{ row.employee.code }}</small></span>
+                    </div>
+                  </td>
+                  <td>{{ row.employee.department }}</td>
+                  <td><span class="pill" [attr.data-code]="row.leaveCode">{{ row.leaveType }}</span></td>
+                  <td class="date">{{ when(row.fromDate) }}</td>
+                  <td class="date">{{ when(row.toDate) }}</td>
+                  <td class="num">{{ row.days }}</td>
+                  <td class="reason" [attr.title]="row.reason">{{ row.reason }}</td>
+                  <td class="date">{{ when(row.appliedOn) }}</td>
+                  <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+                  <td class="actions">
+                    <button mat-icon-button type="button" matTooltip="View" aria-label="View" (click)="view(row)"><mat-icon>visibility</mat-icon></button>
+                    @if (row.canApprove) {
+                      <button mat-icon-button type="button" class="yes" matTooltip="Approve" aria-label="Approve" (click)="decide([row.requestId], 'Approved')"><mat-icon>check</mat-icon></button>
+                      <button mat-icon-button type="button" class="no" matTooltip="Reject" aria-label="Reject" (click)="decide([row.requestId], 'Rejected')"><mat-icon>close</mat-icon></button>
+                    }
+                    <button mat-icon-button type="button" matTooltip="More options" aria-label="More options" [matMenuTriggerFor]="more"><mat-icon>more_vert</mat-icon></button>
+                    <mat-menu #more="matMenu">
+                      <button mat-menu-item type="button" (click)="view(row)">View details</button>
+                      <button mat-menu-item type="button" (click)="copyId(row.id)">Copy request ID</button>
+                    </mat-menu>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pager">
+        <span>{{ showing() }}</span>
+        <div>
+          <button mat-icon-button type="button" aria-label="Previous page" [disabled]="pageIndex() === 0" (click)="goTo(pageIndex() - 1)">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          @for (page of pageNumbers(); track page) {
+            <button type="button" class="page" [class.on]="page === pageIndex()" (click)="goTo(page)">{{ page + 1 }}</button>
+          }
+          <button mat-icon-button type="button" aria-label="Next page" [disabled]="pageIndex() >= pageCount() - 1" (click)="goTo(pageIndex() + 1)">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+      </footer>
+    </section>
+  </mat-drawer-content>
+</mat-drawer-container>

@@ -1,0 +1,172 @@
+<h2 mat-dialog-title>{{ data.mode === 'view' ? (detail()?.name || 'Salary template') : (data.id ? 'Edit template' : 'Add template') }}</h2>
+<mat-dialog-content>
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+
+  @if (data.mode === 'view' && detail(); as template) {
+    <p class="status">{{ template.isActive ? 'Active' : 'Inactive' }}</p>
+    <section class="cards">
+      <article><span>Template type</span><strong>{{ template.templateType }}</strong></article>
+      <article><span>Total components</span><strong>{{ template.lines.length }}</strong></article>
+      <article><span>Assigned employees</span><strong>{{ template.assignedEmployees }}</strong></article>
+      <article><span>Status</span><strong>{{ template.isActive ? 'Active' : 'Inactive' }}</strong></article>
+    </section>
+    <div class="tabs" role="tablist">
+      @for (item of tabs; track item.id) {
+        <button type="button" role="tab" [class.selected]="tab() === item.id" (click)="tab.set(item.id)">{{ item.label }}</button>
+      }
+    </div>
+    @if (tab() === 'overview') {
+      <dl>
+        <dt>Code</dt><dd>{{ template.code }}</dd>
+        <dt>Description</dt><dd>{{ template.description || '—' }}</dd>
+        <dt>Category</dt><dd>{{ template.employeeCategory || '—' }}</dd>
+        <dt>Department</dt><dd>{{ template.department || '—' }}</dd>
+        <dt>Grade</dt><dd>{{ template.designation || '—' }}</dd>
+        <dt>Effective from</dt><dd>{{ template.effectiveFrom }}</dd>
+        <dt>Effective to</dt><dd>{{ template.effectiveTo || '—' }}</dd>
+        <dt>Monthly gross</dt><dd>{{ template.monthlyGross }}</dd>
+        <dt>Employee deductions</dt><dd>{{ template.employeeDeductions }}</dd>
+        <dt>Estimated net</dt><dd>{{ template.netSalary }}</dd>
+        <dt>Employer contributions</dt><dd>{{ template.employerContribution }}</dd>
+        <dt>Annual CTC</dt><dd>{{ template.annualCtc }}</dd>
+      </dl>
+    }
+    @if (tab() === 'earnings' || tab() === 'deductions' || tab() === 'employer') {
+      <table>
+        <tr><th>Component</th><th>Method</th><th>Value</th><th>Estimate</th></tr>
+        @for (line of detailLines(tab() === 'earnings' ? 'Earning' : tab() === 'deductions' ? 'Employee Deduction' : 'Employer Contribution'); track line.salaryComponentId) {
+          <tr>
+            <td>{{ line.name }}</td>
+            <td>{{ line.calculationMethod }}</td>
+            <td>{{ line.monthlyAmount || line.percentage || line.formula || '—' }}</td>
+            <td>{{ line.estimatedAmount || '—' }}</td>
+          </tr>
+        }
+      </table>
+    }
+    @if (tab() === 'employees') {
+      <table>
+        <tr><th>Employee</th><th>Department</th><th>Effective from</th><th>Monthly gross</th></tr>
+        @for (employee of template.employees; track employee.employeeId) {
+          <tr>
+            <td>{{ employee.fullName }} ({{ employee.employeeCode }})</td>
+            <td>{{ employee.department || '—' }}</td>
+            <td>{{ employee.effectiveFrom }}</td>
+            <td>{{ employee.monthlyGross }}</td>
+          </tr>
+        } @empty {
+          <tr><td colspan="4">No employee salary structure uses this template.</td></tr>
+        }
+      </table>
+    }
+    @if (tab() === 'history') {
+      <table>
+        <tr><th>When</th><th>Action</th><th>Change</th></tr>
+        @for (entry of template.history; track entry.changedAt + entry.action) {
+          <tr><td>{{ entry.changedAt }}</td><td>{{ entry.action }}</td><td>{{ entry.summary }}</td></tr>
+        } @empty {
+          <tr><td colspan="3">No template history is recorded.</td></tr>
+        }
+      </table>
+    }
+  }
+
+  @if (data.mode === 'edit' && !loading()) {
+    <p class="steps">Step {{ step() }} of 3</p>
+    @if (step() === 1) {
+      <div class="grid">
+        <mat-form-field appearance="outline"><mat-label>Template code</mat-label><input matInput [ngModel]="code()" (ngModelChange)="code.set($event)" /></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Template name</mat-label><input matInput [ngModel]="name()" (ngModelChange)="name.set($event)" /></mat-form-field>
+        <mat-form-field class="wide" appearance="outline"><mat-label>Description</mat-label><input matInput [ngModel]="description()" (ngModelChange)="description.set($event)" /></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Template type</mat-label><input matInput value="Monthly" readonly /></mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Employee category</mat-label>
+          <mat-select [ngModel]="employeeCategory()" (ngModelChange)="employeeCategory.set($event)">
+            <mat-option [value]="null">Any category</mat-option>
+            @for (category of categories; track category) { <mat-option [value]="category">{{ category }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Department</mat-label>
+          <mat-select [ngModel]="departmentId()" (ngModelChange)="departmentId.set($event)">
+            <mat-option [value]="null">Any department</mat-option>
+            @for (department of data.summary.departments; track department.id) { <mat-option [value]="department.id">{{ department.name }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Designations</mat-label>
+          <mat-select multiple [ngModel]="designationIds()" (ngModelChange)="designationIds.set($event)">
+            @for (designation of data.summary.designations; track designation.id) { <mat-option [value]="designation.id">{{ designation.name }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Grades</mat-label>
+          <mat-select multiple [ngModel]="selectedGrades()" (ngModelChange)="selectedGrades.set($event)">
+            @for (grade of grades; track grade) { <mat-option [value]="grade">{{ grade }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Effective from</mat-label><input matInput type="date" [ngModel]="effectiveFrom()" (ngModelChange)="effectiveFrom.set($event)" /></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Effective to</mat-label><input matInput type="date" [ngModel]="effectiveTo()" (ngModelChange)="effectiveTo.set($event)" /></mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select [ngModel]="isActive()" (ngModelChange)="isActive.set($event)">
+            <mat-option [value]="true">Active</mat-option>
+            <mat-option [value]="false">Inactive</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    }
+    @if (step() === 2) {
+      @for (group of groups; track group) {
+        <h3>{{ group }}</h3>
+        @for (line of linesFor(group); track line.salaryComponentId) {
+          <div class="line">
+            <mat-checkbox [ngModel]="line.included" (ngModelChange)="patch(line, { included: $event })">{{ line.name }} · {{ line.calculationMethod }}</mat-checkbox>
+            @if (line.included && line.calculationMethod === 'Fixed Amount') {
+              <input [ngModel]="line.monthlyAmount" (ngModelChange)="patch(line, { monthlyAmount: $event })" placeholder="Monthly amount" aria-label="Monthly amount" />
+            }
+            @if (line.included && line.calculationMethod === 'Percentage') {
+              <input [ngModel]="line.percentage" (ngModelChange)="patch(line, { percentage: $event })" placeholder="Percentage" aria-label="Percentage" />
+            }
+            @if (line.included && line.calculationMethod === 'Formula') {
+              <input [ngModel]="line.formula" (ngModelChange)="patch(line, { formula: $event })" placeholder="Formula" aria-label="Formula" />
+            }
+          </div>
+        }
+      }
+    }
+    @if (step() === 3) {
+      <table>
+        <tr><th>Component</th><th>Type</th><th>Estimate</th></tr>
+        @for (row of preview().rows; track row.line.salaryComponentId) {
+          <tr><td>{{ row.line.name }}</td><td>{{ row.line.componentType }}</td><td>{{ row.value == null ? '—' : row.value }}</td></tr>
+        }
+      </table>
+      <dl>
+        <dt>Monthly gross</dt><dd>{{ preview().gross }}</dd>
+        <dt>Estimated employee deductions</dt><dd>{{ preview().deductions }}</dd>
+        <dt>Estimated net salary</dt><dd>{{ preview().net }}</dd>
+        <dt>Employer contributions</dt><dd>{{ preview().employer }}</dd>
+        <dt>Annual CTC</dt><dd>{{ preview().annual }}</dd>
+      </dl>
+      <p>Statutory rates stay in statutory configuration. A later template edit does not change employees already assigned.</p>
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Close</button>
+  @if (data.mode === 'edit' && step() > 1) {
+    <button mat-button type="button" (click)="step.set(step() - 1)">Back</button>
+  }
+  @if (data.mode === 'edit' && step() < 3) {
+    <button mat-flat-button color="primary" type="button" (click)="next()">Next</button>
+  }
+  @if (data.mode === 'edit' && step() === 3) {
+    <button mat-flat-button color="primary" type="button" [disabled]="saving()" (click)="save()">Save template</button>
+  }
+</mat-dialog-actions>

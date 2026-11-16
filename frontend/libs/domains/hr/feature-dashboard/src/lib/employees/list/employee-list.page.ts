@@ -23,7 +23,7 @@ import { Subject, debounceTime, distinctUntilChanged, filter } from 'rxjs';
 import { AuthStore, HasPermission } from '@trishul/core-auth';
 import {
   DepartmentOption,
-  DesignationOption,
+  DesignationChoice,
   EMPLOYEE_MANAGE_PERMISSION,
   EMPLOYEE_TYPES,
   EmployeeCounts,
@@ -46,7 +46,7 @@ import { EmployeeHistoryDialog } from './employee-history.dialog';
 import { EmployeeViewNameDialog } from './employee-view-name.dialog';
 
 const STATUS_SEVERITY: Record<string, StatusSeverity> = {
-  Active: 'success',
+  Confirmed: 'success',
   Probation: 'warn',
   'Notice Period': 'info',
   Exited: 'danger',
@@ -105,7 +105,7 @@ export class EmployeeListPage {
   protected readonly columnsOpen = signal(false);
   protected readonly searchText = signal(this.prefs.filters().search);
   protected readonly departments = signal<DepartmentOption[]>([]);
-  protected readonly designations = signal<DesignationOption[]>([]);
+  protected readonly designations = signal<DesignationChoice[]>([]);
   protected readonly branches = computed(() => this.auth.user()?.branches ?? []);
   protected readonly activeView = computed(
     () => this.prefs.views().find((view) => view.id === this.prefs.activeViewId()) ?? null,
@@ -240,21 +240,29 @@ export class EmployeeListPage {
   }
 
   protected showHistory(employee: EmployeeRow): void {
-    this.dialog.open(EmployeeHistoryDialog, {
-      data: {
-        employeeId: employee.id,
-        fullName: employee.fullName,
-        employeeCode: employee.employeeCode,
-      },
-      width: '28rem',
-    });
+    this.dialog
+      .open(EmployeeHistoryDialog, {
+        data: {
+          employeeId: employee.id,
+          fullName: employee.fullName,
+          employeeCode: employee.employeeCode,
+          canManage: this.canManage,
+        },
+        width: '32rem',
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) this.store.reload();
+      });
   }
 
   protected statusLabel(employee: EmployeeRow): string {
     if (!employee.isActive) return 'Archived';
     if (employee.status === 'Notice') return 'Notice Period';
     if (employee.status === 'Exited') return 'Exited';
-    return 'Active';
+    const confirmed = employee.confirmationDate?.slice(0, 10);
+    if (!confirmed || confirmed > localToday()) return 'Probation';
+    return 'Confirmed';
   }
 
   protected text(value: string | null | undefined): string {
@@ -278,12 +286,19 @@ export class EmployeeListPage {
   }
 }
 
+function localToday(): string {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${today.getFullYear()}-${month}-${day}`;
+}
+
 function countFor(counts: EmployeeCounts, id: CardId): number {
   switch (id) {
     case 'all':
       return counts.allEmployees;
     case 'active':
-      return counts.active;
+      return counts.confirmed;
     case 'probation':
       return counts.probation;
     case 'notice':

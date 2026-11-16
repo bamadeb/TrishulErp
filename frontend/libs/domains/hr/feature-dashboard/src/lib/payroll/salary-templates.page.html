@@ -1,45 +1,60 @@
 <trishul-page-header
   title="Salary Templates"
-  subtitle="The company template is the salary components already saved, in display order. Rates stay in statutory configuration."
-/>
+  subtitle="Manage reusable salary packages for employees, grades and designations. Payroll uses the saved employee structure."
+>
+  <button mat-flat-button color="primary" type="button" *trishulHasPermission="manage" (click)="add()">
+    <mat-icon>add</mat-icon>
+    Add Template
+  </button>
+</trishul-page-header>
 
-<section class="cards" aria-label="Template component totals">
-  <button type="button" class="stat" data-tone="blue" [class.selected]="componentType() === null && !activeOnly() && !search()" (click)="selectCard('total')">
-    <span class="stat-icon"><mat-icon>layers</mat-icon></span>
-    <span><span class="stat-label">Components in template</span><strong>{{ summary().total }}</strong></span>
-  </button>
-  <button type="button" class="stat" data-tone="green" [class.selected]="componentType() === 'Earning'" (click)="selectCard('earning')">
-    <span class="stat-icon"><mat-icon>add_card</mat-icon></span>
-    <span><span class="stat-label">Earnings</span><strong>{{ summary().earning }}</strong></span>
-  </button>
-  <button type="button" class="stat" data-tone="orange" [class.selected]="componentType() === 'Employee Deduction'" (click)="selectCard('deduction')">
-    <span class="stat-icon"><mat-icon>remove_circle</mat-icon></span>
-    <span><span class="stat-label">Employee deductions</span><strong>{{ summary().deduction }}</strong></span>
-  </button>
-  <button type="button" class="stat" data-tone="violet" [class.selected]="activeOnly()" (click)="selectCard('active')">
-    <span class="stat-icon"><mat-icon>check_circle</mat-icon></span>
-    <span><span class="stat-label">Active components</span><strong>{{ summary().active }}</strong></span>
-  </button>
+<section class="cards" aria-label="Salary template totals">
+  <article class="stat"><span class="stat-label">Total templates</span><strong>{{ summary().total }}</strong></article>
+  <article class="stat"><span class="stat-label">Active templates</span><strong>{{ summary().active }}</strong></article>
+  <article class="stat"><span class="stat-label">Inactive templates</span><strong>{{ summary().inactive }}</strong></article>
+  <article class="stat"><span class="stat-label">Employees assigned</span><strong>{{ summary().assignedEmployees }}</strong></article>
 </section>
 
 <div class="filters">
   <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
     <mat-icon matPrefix>search</mat-icon>
-    <input matInput type="search" placeholder="Search by component name or code" aria-label="Search template components" [value]="search()" (input)="search.set($any($event.target).value)" />
+    <input matInput type="search" placeholder="Search by template name" aria-label="Search templates" [value]="query().search" (input)="onSearch($any($event.target).value)" />
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Component type</mat-label>
-    <mat-select [value]="componentType()" (valueChange)="componentType.set($event)">
-      <mat-option [value]="null">All types</mat-option>
-      @for (type of types; track type) {
-        <mat-option [value]="type">{{ type }}</mat-option>
+    <mat-label>Status</mat-label>
+    <mat-select [value]="query().status" (valueChange)="update({ status: $event, page: 1 })">
+      <mat-option value="all">All statuses</mat-option>
+      <mat-option value="active">Active</mat-option>
+      <mat-option value="inactive">Inactive</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Department</mat-label>
+    <mat-select [value]="query().departmentId" (valueChange)="update({ departmentId: $event, page: 1 })">
+      <mat-option [value]="null">All departments</mat-option>
+      @for (department of summary().departments; track department.id) {
+        <mat-option [value]="department.id">{{ department.name }}</mat-option>
       }
     </mat-select>
   </mat-form-field>
-  <button mat-button type="button" (click)="clearFilters()">
-    <mat-icon>filter_alt_off</mat-icon>
-    Clear
-  </button>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Grade</mat-label>
+    <mat-select [value]="query().grade" (valueChange)="update({ grade: $event, page: 1 })">
+      <mat-option [value]="null">All grades</mat-option>
+      @for (grade of grades; track grade) {
+        <mat-option [value]="grade">{{ grade }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Employee category</mat-label>
+    <mat-select [value]="query().employeeCategory" (valueChange)="update({ employeeCategory: $event, page: 1 })">
+      <mat-option [value]="null">All categories</mat-option>
+      @for (category of categories; track category) {
+        <mat-option [value]="category">{{ category }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
 </div>
 
 <section class="table-card">
@@ -48,53 +63,46 @@
       <mat-progress-bar mode="indeterminate" />
     }
   </div>
-  @if (error()) {
-    <p class="empty">{{ error() }}</p>
-  } @else if (!loading() && groups().every((group) => group.rows.length === 0)) {
-    <p class="empty">No saved components match these filters.</p>
-  } @else {
-    @for (group of groups(); track group.type) {
-      <h2>{{ group.type }} <span>{{ group.rows.length }}</span></h2>
-      @if (group.rows.length === 0) {
-        <p class="section-empty">No {{ group.type.toLowerCase() }} components are saved.</p>
-      } @else {
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Method</th>
-                <th>Basis</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of group.rows; track row.id) {
-                <tr>
-                  <td>{{ row.code }}</td>
-                  <td>{{ row.name }}</td>
-                  <td>{{ row.calculationMethod }}</td>
-                  <td class="basis">{{ row.calculationBasis || '—' }}</td>
-                  <td>{{ row.effectiveFrom | date: 'dd MMM yyyy' }}</td>
-                  <td>{{ row.effectiveTo ? (row.effectiveTo | date: 'dd MMM yyyy') : '—' }}</td>
-                  <td>
-                    <trishul-status-badge [status]="row.isActive ? 'Active' : 'Inactive'" [severities]="statusTones" />
-                  </td>
-                  <td class="actions">
-                    <button mat-icon-button type="button" aria-label="View {{ row.name }}" (click)="view(row)">
-                      <mat-icon>visibility</mat-icon>
-                    </button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    }
-  }
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Template code</th>
+          <th>Template name</th>
+          <th>Description</th>
+          <th>Employee category</th>
+          <th>Department / grade</th>
+          <th>Assigned employees</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (error()) {
+          <tr><td class="empty" colspan="8">{{ error() }}</td></tr>
+        } @else if (!loading() && rows().length === 0) {
+          <tr><td class="empty" colspan="8">No salary templates are saved.</td></tr>
+        }
+        @for (row of rows(); track row.id) {
+          <tr>
+            <td>{{ row.code }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.description || '—' }}</td>
+            <td>{{ row.employeeCategory || '—' }}</td>
+            <td>{{ row.department || '—' }}@if (row.designation) { · {{ row.designation }} }</td>
+            <td>{{ row.assignedEmployees }}</td>
+            <td><trishul-status-badge [status]="row.isActive ? 'Active' : 'Inactive'" [severities]="statusTones" /></td>
+            <td class="actions">
+              <button mat-icon-button type="button" aria-label="View template" (click)="open(row, 'view')"><mat-icon>visibility</mat-icon></button>
+              <button mat-icon-button type="button" aria-label="Edit template" *trishulHasPermission="manage" (click)="open(row, 'edit')"><mat-icon>edit</mat-icon></button>
+              <button mat-icon-button type="button" [attr.aria-label]="row.isActive ? 'Deactivate template' : 'Activate template'" *trishulHasPermission="manage" (click)="toggle(row)">
+                <mat-icon>{{ row.isActive ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <mat-paginator [length]="total()" [pageIndex]="query().page - 1" [pageSize]="query().pageSize" [pageSizeOptions]="[10, 20, 50]" (page)="onPage($event)" />
 </section>

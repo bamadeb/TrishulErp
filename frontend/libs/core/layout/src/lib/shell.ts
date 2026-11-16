@@ -31,8 +31,8 @@ import {
 } from '@angular/material/sidenav';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { map } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import {
   AuthService,
   AuthStore,
@@ -76,6 +76,7 @@ export class Shell {
   protected readonly auth = inject(AuthStore);
   private readonly authService = inject(AuthService);
   private readonly navItems = inject(NAV_ITEMS);
+  private readonly router = inject(Router);
 
   /** Below 900px the menu slides over the page instead of sitting beside it. */
   protected readonly isCompact = toSignal(
@@ -100,6 +101,16 @@ export class Shell {
     () => `${this.auth.branchId()}:${this.auth.principalId()}`,
   );
 
+  /** Current path, so an open group can stay highlighted on its child routes. */
+  private readonly currentPath = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects.split(/[?#]/)[0]),
+      startWith(this.router.url.split(/[?#]/)[0]),
+    ),
+    { initialValue: this.router.url.split(/[?#]/)[0] },
+  );
+
   /** The user's role beside their name: the only one, or the first and how many more. */
   protected readonly roleLabel = computed(() => {
     const roles = this.auth.user()?.roleNames ?? [];
@@ -115,6 +126,17 @@ export class Shell {
 
   protected isCollapsed(label: string): boolean {
     return this.collapsed().has(label);
+  }
+
+  /** True when this group, or one of its links, is the page on screen. */
+  protected sectionActive(item: NavItem): boolean {
+    const path = this.currentPath();
+    return this.routesOf(item).some((route) => path === route || path.startsWith(`${route}/`));
+  }
+
+  private routesOf(item: NavItem): string[] {
+    const own = item.route ? [item.route] : [];
+    return [...own, ...(item.children ?? []).flatMap((child) => this.routesOf(child))];
   }
 
   protected toggleGroup(label: string): void {

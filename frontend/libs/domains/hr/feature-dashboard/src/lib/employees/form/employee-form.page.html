@@ -256,9 +256,13 @@
             <mat-select formControlName="designationId">
               <mat-option [value]="NONE">None</mat-option>
               @for (d of designations(); track d.id) {
-                <mat-option [value]="d.id">{{ d.name }}</mat-option>
+                <mat-option [value]="d.id">{{ d.name }}@if (d.grade) { · {{ d.grade }} }</mat-option>
               }
             </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Grade</mat-label>
+            <input matInput readonly [value]="gradeFor(form.controls.designationId.value)" />
           </mat-form-field>
           <mat-form-field appearance="outline" class="wide" subscriptSizing="dynamic">
             <mat-label>Reports to</mat-label>
@@ -341,6 +345,12 @@
             </mat-select>
           </mat-form-field>
         </div>
+        @if (!isNew() && canManage) {
+          <div class="confirm-row">
+            <p>Confirmation is recorded as an employment event. Leave can be applied on or after that date.</p>
+            <button mat-stroked-button type="button" (click)="openConfirmation()">Record confirmation</button>
+          </div>
+        }
       </section>
     }
     @case (3) {

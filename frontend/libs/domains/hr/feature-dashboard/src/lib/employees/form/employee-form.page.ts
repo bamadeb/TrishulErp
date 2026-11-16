@@ -23,6 +23,7 @@ import {
   MatAutocompleteTrigger,
 } from '@angular/material/autocomplete';
 import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import {
@@ -56,6 +57,7 @@ import {
   switchMap,
 } from 'rxjs';
 import {
+  DesignationChoice,
   EMPLOYEE_MANAGE_PERMISSION,
   EMPLOYEE_TYPES,
   EmployeeDetail,
@@ -69,6 +71,7 @@ import { AuthStore } from '@trishul/core-auth';
 import { StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { TrishulValidators } from '@trishul/shared-util';
 import { EmployeeActions } from '../employee-actions';
+import { EmployeeHistoryDialog } from '../list/employee-history.dialog';
 
 /** A manager chosen from the picker (not just typed text). */
 type ManagerChoice = Pick<
@@ -154,6 +157,7 @@ function pickedOrEmpty(control: AbstractControl): ValidationErrors | null {
 export class EmployeeFormPage {
   private readonly api = inject(EmployeesApi);
   private readonly actions = inject(EmployeeActions);
+  private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly auth = inject(AuthStore);
@@ -203,8 +207,13 @@ export class EmployeeFormPage {
   );
   protected readonly designations = toSignal(
     this.api.designations().pipe(catchError(() => of([]))),
-    { initialValue: [] },
+    { initialValue: [] as DesignationChoice[] },
   );
+
+  protected gradeFor(designationId: number | null): string {
+    const rows = this.designations() ?? [];
+    return rows.find((row) => row.id === designationId)?.grade || '—';
+  }
 
   protected readonly form = this.fb.group({
     employeeCode: this.fb.control('', [
@@ -528,6 +537,21 @@ export class EmployeeFormPage {
     this.photoUrl.set(employee.photo);
     this.photoToSave.set(null);
     this.finishEditState();
+  }
+
+  protected openConfirmation(): void {
+    const current = this.employee();
+    const employeeId = Number(this.employeeId());
+    if (!current || !employeeId) return;
+    this.dialog.open(EmployeeHistoryDialog, {
+      data: {
+        employeeId,
+        fullName: current.fullName,
+        employeeCode: current.employeeCode,
+        canManage: this.canManage,
+      },
+      width: '32rem',
+    });
   }
 
   private markStep(index: number): boolean {

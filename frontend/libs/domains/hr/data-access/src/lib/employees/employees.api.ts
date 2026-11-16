@@ -1,7 +1,9 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   ApiClient,
+  ApiConfiguration,
   EmployeeDirectoryPage,
   activateEmployee,
   createEmployee,
@@ -18,7 +20,7 @@ import {
 import {
   CompanyOption,
   DepartmentOption,
-  DesignationOption,
+  DesignationChoice,
   EmployeeCreate,
   EmployeeDetail,
   EmployeeQuery,
@@ -30,6 +32,8 @@ import {
 @Injectable({ providedIn: 'root' })
 export class EmployeesApi {
   private readonly api = inject(ApiClient);
+  private readonly http = inject(HttpClient);
+  private readonly config = inject(ApiConfiguration);
 
   list(query: EmployeeQuery): Observable<EmployeeDirectoryPage> {
     return this.api.call(listEmployees, query);
@@ -41,6 +45,18 @@ export class EmployeesApi {
 
   employmentHistory(employeeId: number): Observable<EmploymentEvent[]> {
     return this.api.call(listEmploymentHistory, { employeeId });
+  }
+
+  /** Records one Confirmed employment event. Leave can be applied on or after this date. */
+  confirmEmployee(
+    employeeId: number,
+    effectiveDate: string,
+    remarks: string | null,
+  ): Observable<EmploymentEvent> {
+    return this.http.post<EmploymentEvent>(
+      `${this.config.rootUrl}/core/employees/${employeeId}/confirm`,
+      { effectiveDate, remarks },
+    );
   }
 
   create(body: EmployeeCreate): Observable<EmployeeDetail> {
@@ -76,7 +92,7 @@ export class EmployeesApi {
     return this.api.call(listDepartments);
   }
 
-  designations(): Observable<DesignationOption[]> {
-    return this.api.call(listDesignations);
+  designations(): Observable<DesignationChoice[]> {
+    return this.api.call(listDesignations) as Observable<DesignationChoice[]>;
   }
 }

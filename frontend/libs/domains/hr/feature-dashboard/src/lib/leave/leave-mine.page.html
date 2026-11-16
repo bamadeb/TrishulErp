@@ -1,0 +1,174 @@
+@if (error()) { <p class="empty">{{ error() }}</p> }
+<trishul-page-header title="My Leave" subtitle="Manage your leave applications, check balances and track approval status.">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Financial year</mat-label>
+    <mat-select [ngModel]="year()" (ngModelChange)="chooseYear($event)" name="year">
+      @for (item of years; track item) { <mat-option [value]="item">FY {{ item }} – {{ item + 1 }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <button mat-flat-button color="primary" type="button" (click)="apply()"><mat-icon>add</mat-icon> Apply leave</button>
+</trishul-page-header>
+
+<div class="board">
+  <div class="main">
+    <section>
+      <div class="section-head"><h2>My leave balance</h2></div>
+      <div class="balances">
+        @for (card of balances(); track card.code) {
+        <article [class]="card.tone">
+          <mat-icon>event_available</mat-icon>
+          <span>{{ card.code }} {{ card.name }}</span>
+          <strong>{{ card.available }} days</strong>
+          <small>Entitlement: {{ card.entitlement }} · Used: {{ card.used }}</small>
+        </article>
+        }
+      </div>
+    </section>
+
+    <section>
+      <h2>My leave summary <small>This financial year</small></h2>
+      <div class="summary">
+        <article><mat-icon>description</mat-icon><strong>{{ summary().total }}</strong><span>Total requests</span></article>
+        <article class="warn"><mat-icon>hourglass_empty</mat-icon><strong>{{ summary().pending }}</strong><span>Pending</span></article>
+        <article class="success"><mat-icon>check_circle</mat-icon><strong>{{ summary().approved }}</strong><span>Approved</span></article>
+        <article class="danger"><mat-icon>cancel</mat-icon><strong>{{ summary().rejected }}</strong><span>Rejected</span></article>
+        <article class="info"><mat-icon>event</mat-icon><strong>{{ summary().upcoming }}</strong><span>Upcoming leaves</span></article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <mat-tab-group (selectedIndexChange)="page.set(0)" animationDuration="0ms">
+        <mat-tab label="My requests">
+          <ng-container *ngTemplateOutlet="toolbar" />
+          <ng-container *ngTemplateOutlet="table; context: { rows: pageRows(), total: filtered().length }" />
+        </mat-tab>
+        <mat-tab label="Leave history">
+          <ng-container *ngTemplateOutlet="toolbar" />
+          <ng-container *ngTemplateOutlet="table; context: { rows: historyRows(), total: history().length }" />
+        </mat-tab>
+        <mat-tab label="Comp-Off">
+          <div class="summary comp">
+            <article><strong>{{ compOff().earned }}</strong><span>Earned</span></article>
+            <article class="success"><strong>{{ compOff().available }}</strong><span>Available</span></article>
+            <article><strong>{{ compOff().used }}</strong><span>Used</span></article>
+            <article class="warn"><strong>{{ compOff().expiring }}</strong><span>Expiring</span></article>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Earned on</th><th>Days</th><th>Note</th><th>Expires</th><th>Status</th></tr></thead>
+              <tbody>
+                @for (line of compOff().lines; track line.earnedOn) {
+                <tr>
+                  <td>{{ line.earnedOn | date:'dd-MMM-yyyy' }}</td>
+                  <td>{{ line.days }}</td>
+                  <td>{{ line.note }}</td>
+                  <td>{{ line.expires | date:'dd-MMM-yyyy' }}</td>
+                  <td><trishul-status-badge [status]="line.status" [severities]="severities" /></td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </section>
+  </div>
+
+  <aside class="rail">
+    <section class="panel">
+      <div class="section-head">
+        <h2>My leave calendar</h2>
+        <span class="month-nav">
+          <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)"><mat-icon>chevron_left</mat-icon></button>
+          <strong>{{ calendar() | date:'MMMM yyyy' }}</strong>
+          <button mat-icon-button type="button" aria-label="Next month" (click)="shiftMonth(1)"><mat-icon>chevron_right</mat-icon></button>
+        </span>
+      </div>
+      <div class="week"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div class="days">
+        @for (day of cells(); track day.toISOString()) {
+        <button type="button" class="day" [class.out]="!inMonth(day)" [class.today]="isToday(day)" [class.approved]="mark(day) === 'approved'" [class.pending]="mark(day) === 'pending'" [class.holiday]="mark(day) === 'holiday'" (click)="periodFrom.set(day); periodTo.set(day); page.set(0)">{{ day.getDate() }}</button>
+        }
+      </div>
+      <p class="legend"><i class="approved"></i> Approved <i class="pending"></i> Pending <i class="holiday"></i> Holiday</p>
+    </section>
+    <section class="panel">
+      <div class="section-head">
+        <h2>Upcoming holidays</h2>
+        <button mat-button type="button" (click)="showAllHolidays.set(!showAllHolidays())">{{ showAllHolidays() ? 'Show less' : 'View all' }}</button>
+      </div>
+      @for (holiday of upcomingHolidays(); track holiday.date) {
+      <p class="holiday"><mat-icon>event</mat-icon><span>{{ holiday.date | date:'dd MMM yyyy' }}</span><strong>{{ holiday.name }}</strong></p>
+      } @empty { <p class="empty">No upcoming holidays in this preview.</p> }
+    </section>
+  </aside>
+</div>
+
+<ng-template #toolbar>
+  <form class="filters" (ngSubmit)="page.set(0)">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Leave type</mat-label>
+      <mat-select [ngModel]="type()" (ngModelChange)="type.set($event); page.set(0)" name="type">
+        <mat-option value="">All leave types</mat-option>
+        @for (item of leaveTypes(); track item) { <mat-option [value]="item">{{ item }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Status</mat-label>
+      <mat-select [ngModel]="status()" (ngModelChange)="status.set($event); page.set(0)" name="status">
+        <mat-option value="">All statuses</mat-option>
+        <mat-option value="Pending">Pending</mat-option>
+        <mat-option value="Approved">Approved</mat-option>
+        <mat-option value="Rejected">Rejected</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>From</mat-label>
+      <input matInput [matDatepicker]="fromPicker" [ngModel]="periodFrom()" (ngModelChange)="periodFrom.set($event); page.set(0)" name="from" />
+      <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+      <mat-datepicker #fromPicker />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>To</mat-label>
+      <input matInput [matDatepicker]="toPicker" [ngModel]="periodTo()" (ngModelChange)="periodTo.set($event); page.set(0)" name="to" />
+      <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+      <mat-datepicker #toPicker />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+      <mat-label>Search</mat-label>
+      <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Request ID or reason" />
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="exportRows()"><mat-icon>download</mat-icon> Export</button>
+  </form>
+</ng-template>
+
+<ng-template #table let-rows="rows" let-total="total">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Request ID</th><th>Leave type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+        @for (row of rows; track row.id) {
+        <tr>
+          <td>{{ row.id }}</td>
+          <td>{{ row.leaveType }}</td>
+          <td>{{ row.from | date:'dd-MMM-yyyy' }}</td>
+          <td>{{ row.to | date:'dd-MMM-yyyy' }}</td>
+          <td>{{ row.days }}</td>
+          <td>{{ row.reason }}</td>
+          <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+          <td class="actions">
+            <button mat-icon-button type="button" aria-label="View" (click)="open(row, 'view')"><mat-icon>visibility</mat-icon></button>
+            @if (row.status === 'Pending') {
+            <button mat-icon-button type="button" aria-label="Edit" (click)="open(row, 'edit')"><mat-icon>edit</mat-icon></button>
+            <button mat-icon-button type="button" aria-label="Delete" (click)="remove(row)"><mat-icon>delete</mat-icon></button>
+            } @else {
+            <button mat-icon-button type="button" aria-label="Download" (click)="download(row)"><mat-icon>download</mat-icon></button>
+            }
+          </td>
+        </tr>
+        } @empty { <tr><td class="empty" colspan="8">No leave applications in this preview.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+  <mat-paginator [length]="total" [pageIndex]="page()" [pageSize]="pageSize()" [pageSizeOptions]="[5, 10]" (page)="onPage($event)" />
+</ng-template>

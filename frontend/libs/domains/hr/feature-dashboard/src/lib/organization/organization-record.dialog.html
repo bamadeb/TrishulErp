@@ -72,8 +72,21 @@
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Grade</mat-label>
-            <input matInput maxlength="10" [value]="form().grade" (input)="setText('grade', $event)" />
+            <mat-select [value]="form().grade" (selectionChange)="setTextValue('grade', $event.value)">
+              @for (grade of grades; track grade) {
+                <mat-option [value]="grade">{{ grade }}</mat-option>
+              }
+            </mat-select>
           </mat-form-field>
+          @if (data.mode === 'edit') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Status</mat-label>
+              <mat-select [value]="form().isActive" (selectionChange)="setActive($event.value)">
+                <mat-option [value]="true">Active</mat-option>
+                <mat-option [value]="false">Inactive</mat-option>
+              </mat-select>
+            </mat-form-field>
+          }
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Department</mat-label>
             <mat-select [value]="form().departmentId" (selectionChange)="setId('departmentId', $event)">
@@ -87,8 +100,15 @@
         @case ('grades') {
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>{{ data.mode === 'edit' ? 'New grade' : 'Grade' }}</mat-label>
-            <input matInput maxlength="10" [value]="form().grade" (input)="setText('grade', $event)" />
+            <mat-select [value]="form().grade" (selectionChange)="setTextValue('grade', $event.value)">
+              @for (grade of grades; track grade) {
+                <mat-option [value]="grade">{{ grade }}</mat-option>
+              }
+            </mat-select>
           </mat-form-field>
+          @if (data.mode === 'edit') {
+            <p>This changes the grade on every designation that currently uses it. Saved salary structures stay as they are.</p>
+          }
           @if (data.mode === 'create') {
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Designation</mat-label>

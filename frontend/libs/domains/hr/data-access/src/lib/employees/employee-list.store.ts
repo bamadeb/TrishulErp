@@ -16,6 +16,7 @@ interface EmployeeListState {
 const emptyCounts: EmployeeCounts = {
   allEmployees: 0,
   active: 0,
+  confirmed: 0,
   probation: 0,
   notice: 0,
   exited: 0,

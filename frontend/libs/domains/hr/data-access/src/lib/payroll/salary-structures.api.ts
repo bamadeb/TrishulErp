@@ -21,6 +21,18 @@ export const SALARY_STRUCTURE_MANAGE = [
 
 export type StructureAssignment = 'all' | 'assigned' | 'unassigned';
 
+/** The generated write plus the optional template link. Existing saves omit both. */
+export type SalaryStructureSave = SalaryStructureWrite & {
+  salaryTemplateId?: number | null;
+  applyTemplate?: boolean;
+};
+
+export interface SalaryStructureView extends SalaryStructureDetail {
+  salaryTemplateId?: number | null;
+  designationId?: number | null;
+  grade?: string | null;
+}
+
 export interface SalaryStructureQuery {
   search: string;
   assignment: StructureAssignment;
@@ -48,18 +60,18 @@ export class SalaryStructuresApi {
     });
   }
 
-  get(employeeId: number): Observable<SalaryStructureDetail> {
+  get(employeeId: number): Observable<SalaryStructureView> {
     return this.api.call(getSalaryStructure, { employeeId });
   }
 
-  create(employeeId: number, body: SalaryStructureWrite): Observable<SalaryStructureDetail> {
+  create(employeeId: number, body: SalaryStructureSave): Observable<SalaryStructureDetail> {
     return this.api.call(createSalaryStructure, { employeeId, body });
   }
 
   update(
     employeeId: number,
     rowVersion: string,
-    body: SalaryStructureWrite,
+    body: SalaryStructureSave,
   ): Observable<SalaryStructureDetail> {
     return this.api.call(updateSalaryStructure, { employeeId, body }, withRowVersion(rowVersion));
   }

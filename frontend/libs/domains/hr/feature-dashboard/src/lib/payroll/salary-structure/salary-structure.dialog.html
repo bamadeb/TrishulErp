@@ -16,6 +16,9 @@
       @if (current.designation) {
         · {{ current.designation }}
       }
+      @if (current.grade) {
+        · Grade {{ current.grade }}
+      }
     </p>
     <section>
       <h3>Structure</h3>
@@ -31,6 +34,15 @@
           <input matInput [matDatepicker]="toPicker" [formControl]="effectiveTo" [min]="nextDay(fromDate())" (dateChange)="onTo($event.value)" />
           <mat-datepicker-toggle matIconSuffix [for]="toPicker" aria-label="Choose effective to" />
           <mat-datepicker #toPicker />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Salary template</mat-label>
+          <mat-select [value]="current.salaryTemplateId" [disabled]="readOnly" (valueChange)="applyTemplate($event)">
+            <mat-option [value]="null">No template</mat-option>
+            @for (template of usableTemplates(); track template.id) {
+              <mat-option [value]="template.id">{{ template.code }} · {{ template.name }}</mat-option>
+            }
+          </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Annual CTC</mat-label>

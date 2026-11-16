@@ -12,6 +12,7 @@ from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
 from trishul_api.common.schemas import Page
 from trishul_api.db.models import Branch, Company, Department, Designation, District, Employee, Pincode, State
 from trishul_api.db.models.generated.acc import GstinRegistration
+from trishul_api.modules.hr.organization.grades import require_grade
 from trishul_api.modules.hr.organization.repository import OrganizationRepository
 from trishul_api.modules.hr.organization.schemas import (
     BranchCreate,
@@ -100,7 +101,9 @@ class OrganizationService:
         return DesignationDetail.model_validate(self._row(self._repo.designation(designation_id), "Designation"))
 
     def create_designation(self, actor: CurrentUser, data: DesignationCreate) -> DesignationDetail:
+        require_grade(data.grade)
         self._unique(self._repo.designation_code_owner(data.code), None, "Designation", data.code)
+        self._name_free(data.name, None)
         self._refs({"departmentId": (Department, data.department_id)})
         row = Designation(
             code=data.code,
@@ -118,6 +121,10 @@ class OrganizationService:
         check_row_version(row.row_version, expected)
         if "code" in data.model_fields_set and data.code:
             self._unique(self._repo.designation_code_owner(data.code), designation_id, "Designation", data.code)
+        if "name" in data.model_fields_set and data.name:
+            self._name_free(data.name, designation_id)
+        if "grade" in data.model_fields_set:
+            require_grade(data.grade)
         self._apply(row, data, ("code", "name", "grade", "department_id", "is_active"))
         self._refs({"departmentId": (Department, row.department_id)})
         self._touch(row, actor)
@@ -134,6 +141,7 @@ class OrganizationService:
         return found
 
     def create_grade(self, actor: CurrentUser, data: GradeCreate) -> GradeDetail:
+        require_grade(data.grade)
         row = self._model(Designation, data.designation_id, "Designation")
         row.grade = data.grade
         self._touch(row, actor)
@@ -141,6 +149,7 @@ class OrganizationService:
         return self.get_grade(data.grade)
 
     def rename_grade(self, actor: CurrentUser, grade: str, data: GradeUpdate) -> GradeDetail:
+        require_grade(data.grade)
         changed = self._repo.rename_grade(grade, data.grade, updated_at=_now(), updated_by_user_id=actor.id)
         if changed == 0:
             raise NotFound("Grade not found.")
@@ -287,6 +296,11 @@ class OrganizationService:
         if row is None:
             raise NotFound(f"{label} not found.")
         return row
+
+    def _name_free(self, name: str, current_id: int | None) -> None:
+        owner = self._repo.designation_name_owner(name)
+        if owner is not None and owner != current_id:
+            raise AlreadyExists(f"Designation name '{name.strip()}' is already in use.")
 
     def _unique(self, owner: int | None, current_id: int | None, label: str, code: str) -> None:
         if owner is not None and owner != current_id:

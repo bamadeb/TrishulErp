@@ -1,0 +1,64 @@
+<h2 mat-dialog-title>{{ title() }}</h2>
+<mat-dialog-content>
+  <p>{{ data.policy.name }} · {{ data.policy.yearBasis === 'CALENDAR' ? 'Calendar' : 'Financial' }} · {{ data.policy.assignmentMode === 'EXPLICIT' ? 'Explicit' : 'Automatic' }} · {{ data.policy.isActive ? 'Active' : 'Inactive' }}</p>
+  <p>Already assigned {{ assigned().length }}.</p>
+  @if (!data.policy.isActive) {
+    <p>This policy is inactive. The assignment request is sent only after you confirm a selection.</p>
+  }
+  @if (error()) { <p class="error">{{ error() }}</p> }
+  @if (data.mode === 'assign') {
+    <div class="filters">
+      <mat-form-field appearance="outline"><mat-label>Employee ID or name</mat-label><input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" /></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Department</mat-label><mat-select [ngModel]="departmentId()" (ngModelChange)="departmentId.set($event)" name="department"><mat-option value="">All</mat-option>@for (item of departments(); track item.id) { <mat-option [value]="'' + item.id">{{ item.name }}</mat-option> }</mat-select></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Designation</mat-label><mat-select [ngModel]="designationId()" (ngModelChange)="designationId.set($event)" name="designation"><mat-option value="">All</mat-option>@for (item of designations(); track item.id) { <mat-option [value]="'' + item.id">{{ item.name }}</mat-option> }</mat-select></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Location</mat-label><mat-select [ngModel]="branchId()" (ngModelChange)="branchId.set($event)" name="branch"><mat-option value="">All</mat-option>@for (item of branches; track item.id) { <mat-option [value]="'' + item.id">{{ item.name }}</mat-option> }</mat-select></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Employee group</mat-label><mat-select [ngModel]="employeeType()" (ngModelChange)="employeeType.set($event)" name="group"><mat-option value="">All</mat-option><mat-option value="Permanent">Permanent</mat-option><mat-option value="Contract">Contract</mat-option><mat-option value="Trainee">Trainee</mat-option><mat-option value="Consultant">Consultant</mat-option></mat-select></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Employment status</mat-label><mat-select [ngModel]="employmentStatus()" (ngModelChange)="employmentStatus.set($event)" name="status"><mat-option value="">All</mat-option><mat-option value="Active">Active</mat-option><mat-option value="Notice">Notice</mat-option><mat-option value="Exited">Exited</mat-option></mat-select></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Effective from</mat-label><input matInput [matDatepicker]="fromPicker" [ngModel]="dateValue(effectiveFrom())" (ngModelChange)="effectiveFrom.set(dateText($event))" name="from" readonly (click)="fromPicker.open()" /><mat-datepicker-toggle matIconSuffix [for]="fromPicker" aria-label="Choose effective from date" /><mat-datepicker #fromPicker /></mat-form-field>
+      <button mat-button type="button" (click)="load()">Search</button>
+    </div>
+    <table>
+      <thead><tr><th></th><th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Location</th><th>Joining</th><th>Status</th></tr></thead>
+      <tbody>
+        @for (row of available(); track row.id) {
+          <tr>
+            <td><mat-checkbox [checked]="selected().includes(row.id)" (change)="toggle(row.id, $event.checked)" /></td>
+            <td>{{ row.employeeCode }}</td>
+            <td>{{ row.fullName }}</td>
+            <td>{{ row.department || '—' }}</td>
+            <td>{{ row.designation || '—' }}</td>
+            <td>{{ row.branchName || '—' }}</td>
+            <td>{{ row.dateOfJoining || '—' }}</td>
+            <td>{{ row.status }}</td>
+          </tr>
+        } @empty {
+          <tr><td colspan="8">No available employees match these filters.</td></tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <table>
+      <thead><tr><th>Employee ID</th><th>Name</th><th>From</th><th>To</th><th>Status</th></tr></thead>
+      <tbody>
+        @for (row of assigned(); track row.id) {
+          <tr>
+            <td>{{ row.employeeCode }}</td>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.effectiveFrom }}</td>
+            <td>{{ row.effectiveTo || '—' }}</td>
+            <td>{{ row.isActive ? 'Active' : 'Ended' }}</td>
+          </tr>
+        } @empty {
+          <tr><td colspan="5">No employees are assigned.</td></tr>
+        }
+      </tbody>
+    </table>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="close()">Close</button>
+  @if (data.mode === 'assign') {
+    <button mat-button type="button" (click)="assignAll()" [disabled]="available().length === 0">Select all eligible</button>
+    <button mat-flat-button color="primary" type="button" (click)="assignSelected()" [disabled]="selected().length === 0">Assign selected</button>
+  }
+</mat-dialog-actions>

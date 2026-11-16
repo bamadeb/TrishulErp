@@ -64,12 +64,15 @@ class SalaryStructureDetail(ApiModel):
     full_name: str
     department: str | None
     designation: str | None
+    designation_id: int | None = None
+    grade: str | None = None
     structure_id: int | None
     effective_from: date | None
     effective_to: date | None
     annual_ctc: Decimal | None
     monthly_gross: Decimal | None
     row_version: RowVersion | None
+    salary_template_id: int | None = None
     lines: list[SalaryStructureLineItem]
 
 
@@ -95,6 +98,8 @@ class SalaryStructureWrite(InputModel):
     annual_ctc: Decimal = Field(ge=0, max_digits=18, decimal_places=2)
     monthly_gross: Decimal = Field(ge=0, max_digits=18, decimal_places=2)
     lines: list[SalaryStructureLineWrite]
+    salary_template_id: int | None = Field(None, gt=0)
+    apply_template: bool = False
 
     @model_validator(mode="after")
     def dates_in_order(self) -> "SalaryStructureWrite":

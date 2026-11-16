@@ -738,11 +738,13 @@ class TadaRepository:
             clauses.append(TrkTrip.status == query.status)
         if query.search:
             like = f"%{query.search.strip()}%"
+            full_name = func.concat(Employee.first_name, " ", func.coalesce(Employee.last_name, ""))
             clauses.append(
                 or_(
                     Employee.employee_code.ilike(like),
                     Employee.first_name.ilike(like),
                     Employee.last_name.ilike(like),
+                    full_name.ilike(like),
                 )
             )
         return clauses

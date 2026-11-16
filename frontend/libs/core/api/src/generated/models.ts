@@ -315,6 +315,7 @@ export type { PurchasePriceOut } from './models/purchase-price-out';
 export type { PurchasePriceUpdate } from './models/purchase-price-update';
 export type { QuotationCreate } from './models/quotation-create';
 export type { QuotationDetail } from './models/quotation-detail';
+export type { QuotationDownloadLink } from './models/quotation-download-link';
 export type { QuotationListItem } from './models/quotation-list-item';
 export type { QuotationNote } from './models/quotation-note';
 export type { QuotationVersionOut } from './models/quotation-version-out';

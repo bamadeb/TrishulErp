@@ -1,5 +1,6 @@
 """Service engineer TA/DA report over trk.trip. Shown in Swagger under the payroll tag."""
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, Response
@@ -59,8 +60,18 @@ def get_tada_employees(query: EmployeeQuery, tada: Tada) -> TadaEmployeeReport:
     dependencies=[CAN_VIEW],
     responses=NOT_FOUND_RESPONSE,
 )
-def list_tada_employee_trips(employee_id: EmployeeId, month: Month, tada: Tada) -> list[TadaTripItem]:
-    return tada.employee_trips(employee_id, month)
+def list_tada_employee_trips(
+    employee_id: EmployeeId,
+    month: Month,
+    tada: Tada,
+    from_date: Annotated[date | None, Query(alias="fromDate")] = None,
+    to_date: Annotated[date | None, Query(alias="toDate")] = None,
+    status: Annotated[str | None, Query(max_length=20)] = None,
+    search: Annotated[str | None, Query(max_length=100)] = None,
+) -> list[TadaTripItem]:
+    return tada.employee_trips(
+        employee_id, month, from_date=from_date, to_date=to_date, status=status, search=search
+    )
 
 
 @router.get(

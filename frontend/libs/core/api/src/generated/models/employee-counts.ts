@@ -9,6 +9,7 @@ export interface EmployeeCounts {
   active: number;
   allEmployees: number;
   archived: number;
+  confirmed: number;
   exited: number;
   notice: number;
   probation: number;

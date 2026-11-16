@@ -82,6 +82,11 @@ class OrganizationRepository:
     def designation_code_owner(self, code: str) -> int | None:
         return self._session.scalar(select(Designation.id).where(Designation.code == code).limit(1))
 
+    def designation_name_owner(self, name: str) -> int | None:
+        return self._session.scalar(
+            select(Designation.id).where(func.lower(Designation.name) == name.strip().lower()).limit(1)
+        )
+
     def search_grades(self, query: OrganizationQuery) -> Page[GradeListItem]:
         statement = self._grade_select()
         if (active := _active(query.status, Designation.is_active)) is not None:
