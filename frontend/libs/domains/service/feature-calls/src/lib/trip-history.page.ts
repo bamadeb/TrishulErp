@@ -43,20 +43,94 @@ interface DistanceRow {
   pct: number;
 }
 
-const MAP_W = 300;
-const MAP_H = 200;
-const MAP_PAD = 16;
+const MAP_W = 600;
+const MAP_H = 400;
+const MAP_PAD = 36;
+const TILE = 256;
+const MAX_ZOOM = 18;
 
 interface MapPoint {
   x: number;
   y: number;
 }
 
+interface MapTile {
+  href: string;
+  x: number;
+  y: number;
+}
+
 interface RouteMap {
-  path: string;
+  width: number;
+  height: number;
+  /** OpenStreetMap street tiles under the trail. */
+  tiles: MapTile[];
+  /** Runs of the cleaned trail where the good fixes are close together. */
+  paths: string[];
+  /** Straight jumps over stretches without a good fix (drawn dashed). */
+  gaps: { a: MapPoint; b: MapPoint }[];
+  /** Every fix as sent, weak ones included, for the "all points" view. */
+  rawPath: string;
   start: MapPoint;
   end: MapPoint;
   mock: MapPoint[];
+  /** Weak or impossible fixes left out of the line. */
+  hidden: number;
+}
+
+/** Web Mercator pixel position at a zoom level (the projection of the map tiles). */
+function worldPx(lat: number, lng: number, zoom: number): MapPoint {
+  const size = TILE * 2 ** zoom;
+  const s = Math.sin((Math.max(-85, Math.min(85, lat)) * Math.PI) / 180);
+  return {
+    x: ((lng + 180) / 360) * size,
+    y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * size,
+  };
+}
+
+type TrailPoint = TripRoute['points'][number];
+
+// Same cleaning as the distance on the server (backend trk/distance.py), so the line drawn is the
+// trail the kilometres were counted from.
+const MAX_ACCURACY_M = 30;
+const MAX_SPEED_KMPH = 120;
+const MIN_MOVE_M = 5;
+/** Good fixes further apart than this leave a stretch whose real path is unknown. */
+const GAP_M = 150;
+
+function metresBetween(a: TrailPoint, b: TrailPoint): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.latitude - a.latitude) * rad;
+  const dLng = (b.longitude - a.longitude) * rad;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371008.8 * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * The trail without weak fixes (worse than 30 m), fake GPS, jumps faster than 120 km/h and
+ * standing-still jitter. Network fixes of 50-500 m otherwise zig-zag the line off the road.
+ * Falls back to every point when fewer than two survive.
+ */
+function cleanTrail(points: readonly TrailPoint[]): TrailPoint[] {
+  const usable = points.filter(
+    (p) => !p.isMockLocation && (p.accuracyM == null || p.accuracyM <= MAX_ACCURACY_M),
+  );
+  if (usable.length < 2) return [...points];
+  const kept: TrailPoint[] = [usable[0]];
+  for (const p of usable.slice(1)) {
+    const anchor = kept[kept.length - 1];
+    const seconds = (Date.parse(p.recordedAt) - Date.parse(anchor.recordedAt)) / 1000;
+    if (seconds <= 0) continue;
+    const m = metresBetween(anchor, p);
+    if (m < MIN_MOVE_M || (m / 1000) / (seconds / 3600) > MAX_SPEED_KMPH) continue;
+    kept.push(p);
+  }
+  // Keep the real end point so the line finishes where the trip did.
+  const last = usable[usable.length - 1];
+  if (kept[kept.length - 1] !== last && kept.length > 1) kept.push(last);
+  return kept.length >= 2 ? kept : [...points];
 }
 
 /** Friendly names for the diagnostic event codes the phone sends; unknown codes are shown as sent. */
@@ -147,44 +221,100 @@ export class TripHistoryPage {
     if (callId) this.store.load(callId);
   }
 
-  /** The selected trip's trail projected onto a 300x200 canvas (equirectangular, aspect kept). */
+  /** Draw every fix as sent (dashed), not only the cleaned trail. */
+  protected readonly showAllPoints = signal(false);
+
+  /**
+   * The selected trip's trail on OpenStreetMap streets: the zoom is the closest at which the cleaned
+   * trail fits the 600x400 canvas, and the tiles are placed in the same Web Mercator pixels.
+   */
   protected readonly map = computed<RouteMap | null>(() => {
-    const points = this.store.route()?.points ?? [];
-    if (!points.length) return null;
+    const all = this.store.route()?.points ?? [];
+    if (!all.length) return null;
+    const points = cleanTrail(all);
     const lats = points.map((p) => p.latitude);
     const lngs = points.map((p) => p.longitude);
-    const minLat = Math.min(...lats);
-    const minLng = Math.min(...lngs);
-    const kx = Math.cos(((minLat + Math.max(...lats)) / 2) * (Math.PI / 180));
-    const w = Math.max((Math.max(...lngs) - minLng) * kx, 1e-6);
-    const h = Math.max(Math.max(...lats) - minLat, 1e-6);
-    const scale = Math.min((MAP_W - 2 * MAP_PAD) / w, (MAP_H - 2 * MAP_PAD) / h);
-    const offX = (MAP_W - w * scale) / 2;
-    const offY = (MAP_H - h * scale) / 2;
-    const at = (p: { latitude: number; longitude: number }): MapPoint => ({
-      x: offX + (p.longitude - minLng) * kx * scale,
-      y: MAP_H - (offY + (p.latitude - minLat) * scale),
-    });
+    const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)];
+    const [minLng, maxLng] = [Math.min(...lngs), Math.max(...lngs)];
+
+    let zoom = MAX_ZOOM;
+    for (; zoom > 1; zoom--) {
+      const a = worldPx(maxLat, minLng, zoom);
+      const b = worldPx(minLat, maxLng, zoom);
+      if (b.x - a.x <= MAP_W - 2 * MAP_PAD && b.y - a.y <= MAP_H - 2 * MAP_PAD) break;
+    }
+    const a = worldPx(maxLat, minLng, zoom);
+    const b = worldPx(minLat, maxLng, zoom);
+    const originX = (a.x + b.x) / 2 - MAP_W / 2;
+    const originY = (a.y + b.y) / 2 - MAP_H / 2;
+
+    const tiles: MapTile[] = [];
+    const count = 2 ** zoom;
+    for (let ty = Math.floor(originY / TILE); ty * TILE < originY + MAP_H; ty++) {
+      if (ty < 0 || ty >= count) continue;
+      for (let tx = Math.floor(originX / TILE); tx * TILE < originX + MAP_W; tx++) {
+        const wrapped = ((tx % count) + count) % count;
+        tiles.push({
+          href: `https://tile.openstreetmap.org/${zoom}/${wrapped}/${ty}.png`,
+          x: tx * TILE - originX,
+          y: ty * TILE - originY,
+        });
+      }
+    }
+
+    const at = (p: { latitude: number; longitude: number }): MapPoint => {
+      const w = worldPx(p.latitude, p.longitude, zoom);
+      return { x: w.x - originX, y: w.y - originY };
+    };
+    const line = (list: readonly TrailPoint[]): string =>
+      list
+        .map(at)
+        .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+        .join(' ');
     const xy = points.map(at);
+    const paths: string[] = [];
+    const gaps: { a: MapPoint; b: MapPoint }[] = [];
+    let run: TrailPoint[] = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+      if (metresBetween(points[i - 1], points[i]) > GAP_M) {
+        gaps.push({ a: xy[i - 1], b: xy[i] });
+        if (run.length > 1) paths.push(line(run));
+        run = [points[i]];
+      } else {
+        run.push(points[i]);
+      }
+    }
+    if (run.length > 1) paths.push(line(run));
     return {
-      path: xy.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '),
+      width: MAP_W,
+      height: MAP_H,
+      tiles,
+      paths,
+      gaps,
+      rawPath: line(all),
       start: xy[0],
       end: xy[xy.length - 1],
-      mock: xy.filter((_, i) => points[i].isMockLocation),
+      // Fake GPS points are marked wherever they were, even though the line leaves them out.
+      mock: all.filter((p) => p.isMockLocation).map(at),
+      hidden: all.length - points.length,
     };
   });
 
   protected mapsUrl(route: TripRoute): string {
-    const pts = route.points;
+    const pts = cleanTrail(route.points);
     if (!pts.length) return '#';
     const f = (p: { latitude: number; longitude: number }) =>
-      `${p.latitude},${p.longitude}`;
-    // Sample a few points in between so Google follows the real path, not the shortest road.
-    const mid = [0.25, 0.5, 0.75].map((r) => pts[Math.floor(pts.length * r)]);
+      `${p.latitude.toFixed(6)},${p.longitude.toFixed(6)}`;
+    // Good fixes spread along the trail, so Google follows the real path, not its own shortest road.
+    // A weak fix here snaps to a nearby place and sends Google on a detour.
+    const mid = [0.2, 0.4, 0.6, 0.8]
+      .map((r) => pts[Math.floor((pts.length - 1) * r)])
+      .filter((p, i, list) => i === 0 || p !== list[i - 1]);
+    const waypoints = pts.length > 2 ? `&waypoints=${mid.map(f).join('|')}` : '';
     return (
       'https://www.google.com/maps/dir/?api=1&travelmode=driving' +
       `&origin=${f(pts[0])}&destination=${f(pts[pts.length - 1])}` +
-      `&waypoints=${mid.map(f).join('|')}`
+      waypoints
     );
   }
 

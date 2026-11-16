@@ -394,24 +394,56 @@ td {
   background: var(--mat-sys-surface-container);
   border: 1px solid var(--mat-sys-outline-variant);
 
-  .line {
+  // Fixed colours: the street tiles are always light, whatever the app theme.
+  .line-halo {
     fill: none;
-    stroke: var(--mat-sys-primary);
-    stroke-width: 2.5;
+    stroke: #fff;
+    stroke-width: 7;
+    stroke-opacity: 0.85;
     stroke-linejoin: round;
     stroke-linecap: round;
+  }
+
+  .line {
+    fill: none;
+    stroke: #1d4ed8;
+    stroke-width: 4;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .gap-halo {
+    stroke: #fff;
+    stroke-width: 6;
+    stroke-opacity: 0.85;
+    stroke-linecap: round;
+  }
+
+  .gap {
+    stroke: #1d4ed8;
+    stroke-width: 3;
+    stroke-dasharray: 2 7;
+    stroke-linecap: round;
+  }
+
+  .raw-line {
+    fill: none;
+    stroke: #dc2626;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    stroke-opacity: 0.8;
   }
 
   .start {
     fill: #22c55e;
     stroke: #fff;
-    stroke-width: 1.5;
+    stroke-width: 2.5;
   }
 
   .end {
     fill: #ef4444;
     stroke: #fff;
-    stroke-width: 1.5;
+    stroke-width: 2.5;
   }
 
   .mock {
@@ -445,11 +477,48 @@ td {
     &.mock {
       background: #f59e0b;
     }
+
+    &.gap {
+      width: 1rem;
+      height: 0;
+      border-radius: 0;
+      border-top: 3px dotted #1d4ed8;
+      vertical-align: middle;
+    }
+
+    &.raw {
+      width: 1rem;
+      height: 0;
+      border-radius: 0;
+      border-top: 2px dashed #dc2626;
+      vertical-align: middle;
+    }
+  }
+
+  .hidden-fixes {
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 999px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &.on {
+      background: var(--mat-sys-surface-container-high);
+    }
   }
 
   a {
     margin-left: auto;
   }
+}
+
+.map-credit {
+  margin: 0.15rem 0 0;
+  font: var(--mat-sys-label-small);
+  color: var(--mat-sys-on-surface-variant);
+  text-align: right;
 }
 
 .chip {

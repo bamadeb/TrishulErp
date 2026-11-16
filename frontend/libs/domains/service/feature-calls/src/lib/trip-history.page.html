@@ -405,22 +405,69 @@
             @if (map(); as m) {
               <svg
                 class="route-map"
-                viewBox="0 0 300 200"
+                [attr.viewBox]="'0 0 ' + m.width + ' ' + m.height"
                 role="img"
                 [attr.aria-label]="'Route of trip #' + trip.id"
               >
-                <polyline class="line" [attr.points]="m.path" />
+                @for (t of m.tiles; track t.href) {
+                  <image
+                    [attr.href]="t.href"
+                    [attr.x]="t.x"
+                    [attr.y]="t.y"
+                    width="256"
+                    height="256"
+                  />
+                }
+                @if (showAllPoints()) {
+                  <polyline class="raw-line" [attr.points]="m.rawPath" />
+                }
+                @for (g of m.gaps; track $index) {
+                  <line class="gap-halo" [attr.x1]="g.a.x" [attr.y1]="g.a.y" [attr.x2]="g.b.x" [attr.y2]="g.b.y" />
+                  <line class="gap" [attr.x1]="g.a.x" [attr.y1]="g.a.y" [attr.x2]="g.b.x" [attr.y2]="g.b.y" />
+                }
+                @for (p of m.paths; track $index) {
+                  <polyline class="line-halo" [attr.points]="p" />
+                  <polyline class="line" [attr.points]="p" />
+                }
                 @for (p of m.mock; track $index) {
                   <circle class="mock" [attr.cx]="p.x" [attr.cy]="p.y" r="3" />
                 }
-                <circle class="start" [attr.cx]="m.start.x" [attr.cy]="m.start.y" r="5" />
-                <circle class="end" [attr.cx]="m.end.x" [attr.cy]="m.end.y" r="5" />
+                <circle class="start" [attr.cx]="m.start.x" [attr.cy]="m.start.y" r="7" />
+                <circle class="end" [attr.cx]="m.end.x" [attr.cy]="m.end.y" r="7" />
               </svg>
+              <p class="map-credit">
+                Map ©
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener"
+                  >OpenStreetMap</a
+                >
+                contributors
+              </p>
               <div class="map-legend">
                 <span><i class="start"></i> Start</span>
                 <span><i class="end"></i> {{ trip.endAt ? 'End' : 'Latest' }}</span>
                 @if (m.mock.length) {
                   <span><i class="mock"></i> Fake GPS</span>
+                }
+                @if (m.gaps.length) {
+                  <span
+                    matTooltip="No good GPS fix on this stretch (weak signal, e.g. indoors or just after starting), so the real path is unknown. The distance counts it as a straight line, so it can come out a little short."
+                    ><i class="gap"></i> No good GPS</span
+                  >
+                }
+                @if (m.hidden) {
+                  <button
+                    type="button"
+                    class="hidden-fixes"
+                    [class.on]="showAllPoints()"
+                    (click)="showAllPoints.set(!showAllPoints())"
+                    matTooltip="Fixes worse than 30 m, fake GPS, jumps faster than 120 km/h and standing-still jitter are left out of the line, the same as for the GPS distance. Click to show every point as sent (dashed)."
+                  >
+                    @if (showAllPoints()) {
+                      <i class="raw"></i> All points shown
+                    } @else {
+                      {{ m.hidden }} weak points hidden
+                    }
+                  </button>
                 }
                 <a [href]="mapsUrl(route)" target="_blank" rel="noopener">
                   Open in Google Maps
