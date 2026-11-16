@@ -10,8 +10,8 @@ import { PayrollRunItem, PayrollRunsApi, TadaApi } from '@trishul/hr-data-access
 import { PageHeader, StatusBadge } from '@trishul/shared-ui';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { openPayrollRecord } from '../payroll.dialog';
 import { PAYROLL_STATUS, inr } from '../payroll.format';
+import { PayrollRunDialog, PayrollRunDialogData } from './payroll-run.dialog';
 import { payrollPager } from '../payroll.pager';
 import { PayrollPagerBar } from '../payroll-pager.bar';
 
@@ -86,18 +86,25 @@ export class PayrollProcessingPage {
   }
 
   protected view(row: PayrollRunItem): void {
-    openPayrollRecord(this.dialog, {
-      title: this.monthText(row.periodMonth.slice(0, 7)),
-      mode: 'view',
-      fields: [
-        { key: 'month', label: 'Payroll month', value: this.monthText(row.periodMonth.slice(0, 7)) },
-        { key: 'employees', label: 'Total employees', value: String(row.employees) },
-        { key: 'gross', label: 'Gross salary', value: inr(Number(row.gross), 2) },
-        { key: 'deductions', label: 'Total deductions', value: inr(Number(row.deductions), 2) },
-        { key: 'net', label: 'Net payable', value: inr(Number(row.netPay), 2) },
-        { key: 'status', label: 'Processing status', value: row.status },
-      ],
-    }).subscribe();
+    this.openRun(row, false);
+  }
+
+  protected recalculate(row: PayrollRunItem): void {
+    this.openRun(row, true);
+  }
+
+  private openRun(row: PayrollRunItem, startWithPreview: boolean): void {
+    this.dialog
+      .open<PayrollRunDialog, PayrollRunDialogData, boolean>(PayrollRunDialog, {
+        data: { run: row, monthLabel: this.monthText(row.periodMonth.slice(0, 7)), startWithPreview },
+        width: '48rem',
+        maxHeight: '90vh',
+        autoFocus: 'dialog',
+      })
+      .afterClosed()
+      .subscribe((changed) => {
+        if (changed) this.loadRuns();
+      });
   }
 
   protected processMonth(): void {

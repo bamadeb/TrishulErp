@@ -8,7 +8,7 @@ import {
   WAREHOUSE_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
-import { EMPLOYEE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
+import { EMPLOYEE_VIEW_PERMISSIONS, LEAVE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
 import {
   INV_ADJUSTMENT_VIEW_PERMISSIONS,
   INV_ANY_PERMISSIONS,
@@ -357,6 +357,30 @@ export const navItems: NavItem[] = [
         icon: 'account_tree',
         route: '/hr/organization',
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Attendance Management',
+        icon: 'schedule',
+        route: '/hr/attendance',
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Leave Management',
+        icon: 'event_available',
+        route: '/hr/leave/dashboard',
+        permissions: [...LEAVE_VIEW_PERMISSIONS],
+        children: [
+          { label: 'Leave Dashboard', icon: 'insights', route: '/hr/leave/dashboard' },
+          { label: 'My Leave', icon: 'person', route: '/hr/leave/mine' },
+          { label: 'Employee Leaves', icon: 'groups', route: '/hr/leave/employees' },
+          { label: 'Leave Requests', icon: 'fact_check', route: '/hr/leave/requests' },
+          { label: 'Leave Balance', icon: 'account_balance_wallet', route: '/hr/leave/balances' },
+          { label: 'Leave Calendar', icon: 'calendar_month', route: '/hr/leave/calendar' },
+          { label: 'Leave Policies', icon: 'policy', route: '/hr/leave/policies' },
+          { label: 'Leave Types', icon: 'category', route: '/hr/leave/types' },
+          { label: 'Holiday Calendar', icon: 'celebration', route: '/hr/leave/holidays' },
+          { label: 'Leave Reports', icon: 'assessment', route: '/hr/leave/reports' },
+        ],
       },
       {
         label: 'Payroll Management',

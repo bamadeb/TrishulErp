@@ -20,6 +20,8 @@ from trishul_api.modules.hr.payroll.structure_schemas import (
     SalaryStructureSummary,
     SalaryStructureWrite,
 )
+from trishul_api.modules.hr.payroll.template_repository import SalaryTemplateRepository
+from trishul_api.modules.hr.payroll.template_service import record_template_assignment
 
 
 class SalaryStructureService:
@@ -37,7 +39,12 @@ class SalaryStructureService:
         detail = self._repo.detail(employee_id)
         if detail is None:
             raise NotFound("Employee not found.")
-        return detail
+        if detail.structure_id is None:
+            return detail
+        assignment = SalaryTemplateRepository(self._db).assignment_for_structure(detail.structure_id)
+        if assignment is None:
+            return detail
+        return detail.model_copy(update={"salary_template_id": int(assignment.salary_template_id)})
 
     def save_structure(
         self, actor: CurrentUser, employee_id: int, expected: bytes | None, data: SalaryStructureWrite
@@ -81,6 +88,10 @@ class SalaryStructureService:
             self._repo.replace_lines(int(current.id))
         for component_id, line in chosen:
             self._repo.add(_line(actor, int(current.id), components[component_id], line))
+        if data.apply_template:
+            record_template_assignment(
+                self._db, int(current.id), employee_id, data.salary_template_id, actor.id
+            )
         self._repo.commit()
         return self.get_structure(employee_id)
 

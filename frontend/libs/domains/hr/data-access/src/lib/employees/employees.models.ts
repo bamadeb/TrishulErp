@@ -1,4 +1,5 @@
 import {
+  DesignationOption,
   EmployeeDetail,
   EmployeeListItem,
   ListEmployees$Params,
@@ -17,6 +18,14 @@ export type {
   EmployeeUpdate,
   EmploymentEvent,
 } from '@trishul/core-api';
+
+export interface DesignationChoice {
+  id: number;
+  code: string;
+  name: string;
+  departmentId: number | null;
+  grade?: string | null;
+}
 
 export type EmployeeStatusFilter = NonNullable<ListEmployees$Params['status']>;
 export type EmployeeType = EmployeeDetail['employeeType'];

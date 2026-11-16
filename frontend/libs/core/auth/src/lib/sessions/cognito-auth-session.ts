@@ -58,15 +58,17 @@ export class CognitoAuthSession extends AuthSession {
   }
 
   signIn(username: string, password: string): Promise<SignInStep> {
-    return attempt(async () =>
-      nextStep(
-        await signIn({
-          username: username.trim(),
-          password,
-          options: { authFlowType: 'USER_SRP_AUTH' },
-        }),
-      ),
-    );
+    return attempt(async () => {
+      try {
+        return await startSignIn(username, password);
+      } catch (error) {
+        // Idle sign-out can leave Cognito's local session in place. A new sign-in then
+        // fails before the password is checked, and the page used to call that a connection error.
+        if (!alreadySignedIn(error)) throw error;
+        await signOut();
+        return await startSignIn(username, password);
+      }
+    });
   }
 
   completeNewPassword(newPassword: string): Promise<SignInStep> {
@@ -108,6 +110,18 @@ export class CognitoAuthSession extends AuthSession {
   async signOut(): Promise<void> {
     await signOut();
   }
+}
+
+function startSignIn(username: string, password: string): Promise<SignInStep> {
+  return signIn({
+    username: username.trim(),
+    password,
+    options: { authFlowType: 'USER_SRP_AUTH' },
+  }).then(nextStep);
+}
+
+function alreadySignedIn(error: unknown): boolean {
+  return (error as { name?: string }).name === 'UserAlreadyAuthenticatedException';
 }
 
 function nextStep(output: SignInOutput): SignInStep {
@@ -174,9 +188,15 @@ export function toAuthError(error: unknown): AuthError {
       return new AuthError(
         'Too many attempts. Wait a few minutes, then try again.',
       );
+    case 'UserAlreadyAuthenticatedException':
+      return new AuthError(
+        'A previous sign-in is still open in this browser. Sign in again.',
+      );
     default:
       return new AuthError(
-        'Sign-in failed. Check your connection and try again.',
+        message
+          ? `Sign-in failed. ${message}`
+          : 'Sign-in failed. Check your connection and try again.',
       );
   }
 }

@@ -1,0 +1,253 @@
+<trishul-page-header title="Leave Policies" subtitle="Configure leave entitlements, accrual rules and statutory policies for your organization.">
+  <button mat-flat-button color="primary" type="button" *trishulHasPermission="manage" (click)="addPolicy()">Add policy</button>
+</trishul-page-header>
+@if (error()) { <p class="error">{{ error() }}</p> }
+<div class="board" #policyForm>
+  @for (version of [formVersion()]; track version) {
+  <form class="card" *trishulHasPermission="manage" (ngSubmit)="save()">
+    <header class="card-head">
+      <h2>{{ editing() ? 'Edit policy' : 'Add policy' }}</h2>
+      <p>Set the policy year, who it covers, and how each leave type is calculated.</p>
+    </header>
+    <h3>Policy scope</h3>
+    <div class="grid">
+      <mat-form-field class="wide" appearance="outline" subscriptSizing="dynamic"><mat-label>Policy name</mat-label><input matInput [ngModel]="form().name" (ngModelChange)="patch({ name: $event })" name="name" required /></mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Policy year</mat-label>
+        <mat-select [ngModel]="form().yearBasis" (ngModelChange)="patch({ yearBasis: $event })" name="year">
+          <mat-option value="FINANCIAL">Financial (Apr–Mar)</mat-option>
+          <mat-option value="CALENDAR">Calendar (Jan–Dec)</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Assignment mode</mat-label>
+        <mat-select [ngModel]="form().assignmentMode" (ngModelChange)="patch({ assignmentMode: $event })" name="assignment">
+          <mat-option value="AUTOMATIC">Automatic</mat-option>
+          <mat-option value="EXPLICIT">Explicit</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Employee group</mat-label>
+        <mat-select [ngModel]="form().employeeType" (ngModelChange)="patch({ employeeType: $event })" name="group">
+          <mat-option [value]="null">All employees</mat-option>
+          @for (category of categories; track category) { <mat-option [value]="category">{{ category }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Department</mat-label>
+        <mat-select [ngModel]="form().departmentId" (ngModelChange)="patch({ departmentId: $event })" name="department">
+          <mat-option [value]="null">All departments</mat-option>
+          @for (department of departments(); track department.id) { <mat-option [value]="department.id">{{ department.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>State</mat-label>
+        <mat-select [ngModel]="form().stateId" (ngModelChange)="patch({ stateId: $event })" name="state">
+          <mat-option [value]="null">Any state</mat-option>
+          @for (state of states(); track state.id) { <mat-option [value]="state.id">{{ state.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Location</mat-label>
+        <mat-select [ngModel]="form().branchId" (ngModelChange)="patch({ branchId: $event })" name="branch">
+          <mat-option [value]="null">Any location</mat-option>
+          @for (branch of branches(); track branch.id) { <mat-option [value]="branch.id">{{ branch.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <h3>Effective period</h3>
+    <div class="grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Effective from</mat-label>
+        <input matInput [matDatepicker]="fromPicker" [ngModel]="dateValue(form().effectiveFrom)" (ngModelChange)="setEffective('effectiveFrom', $event)" name="from" required readonly (click)="fromPicker.open()" />
+        <mat-datepicker-toggle matIconSuffix [for]="fromPicker" aria-label="Choose effective from date" />
+        <mat-datepicker #fromPicker />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Effective to</mat-label>
+        <input matInput [matDatepicker]="toPicker" [ngModel]="dateValue(form().effectiveTo)" (ngModelChange)="setEffective('effectiveTo', $event)" name="to" readonly (click)="toPicker.open()" />
+        <mat-datepicker-toggle matIconSuffix [for]="toPicker" aria-label="Choose effective to date" />
+        <mat-datepicker #toPicker />
+      </mat-form-field>
+    </div>
+    <div class="checks">
+      <mat-checkbox [ngModel]="form().appliesDuringProbation" (ngModelChange)="patch({ appliesDuringProbation: $event })" name="probation">Applies during probation</mat-checkbox>
+      <mat-checkbox [ngModel]="form().negativeBalanceAllowed" (ngModelChange)="patch({ negativeBalanceAllowed: $event })" name="negative">Negative balance allowed</mat-checkbox>
+      <mat-slide-toggle [ngModel]="form().isActive" (ngModelChange)="patch({ isActive: $event })" name="active">Active</mat-slide-toggle>
+    </div>
+    @if (form().assignmentMode === 'EXPLICIT') {
+      <p class="note">An explicit policy matches only employees HR assigns. Saving it does not assign anyone.</p>
+    }
+    <div class="line-head">
+      <h3>Leave entitlements</h3>
+      <button mat-button type="button" (click)="addLine()">Add leave type</button>
+    </div>
+    @for (line of form().lines; track $index) {
+      <button class="choice" type="button" [class.on]="selected() === $index" (click)="selected.set($index)">
+        <span>{{ lineTitle(line) }}</span>
+        <span class="tag">{{ line.benefitClass === 'COMPANY' ? 'Company' : line.benefitClass === 'STATUTORY' ? 'Statutory' : 'Standard' }}</span>
+      </button>
+    }
+    @if (form().lines[selected()]; as line) {
+      <section class="editor">
+        <div class="line-head">
+          <h3>{{ lineTitle(line) }}</h3>
+          <button mat-button type="button" (click)="removeLine(selected())">Remove</button>
+        </div>
+        <div class="grid">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Leave type</mat-label>
+            <mat-select [ngModel]="line.leaveTypeId" (ngModelChange)="patchLine(selected(), { leaveTypeId: $event })" name="lineType">
+              @for (type of types(); track type.id) { <mat-option [value]="type.id">{{ type.code }} {{ type.name }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Calculation method</mat-label>
+            <mat-select [ngModel]="line.calculationMethod" (ngModelChange)="chooseMethod(selected(), $event)" name="method">
+              @for (method of methods; track method.value) { <mat-option [value]="method.value">{{ method.label }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Benefit</mat-label>
+            <mat-select [ngModel]="line.benefitClass" (ngModelChange)="patchLine(selected(), { benefitClass: $event })" name="benefit">
+              @for (benefit of benefits; track benefit.value) { <mat-option [value]="benefit.value">{{ benefit.label }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          @if (line.calculationMethod === 'FIXED' || line.calculationMethod === 'ELIGIBILITY') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ line.calculationMethod === 'ELIGIBILITY' ? 'Annual cap' : 'Annual entitlement' }}</mat-label>
+              <input matInput [ngModel]="line.annualEntitlement" (ngModelChange)="patchLine(selected(), { annualEntitlement: $event })" name="days" />
+            </mat-form-field>
+          }
+          @if (line.calculationMethod === 'FORMULA') {
+            <p class="note wide">Entitlement is {{ line.creditDays || 0 }} day for every {{ line.qualifyingDaysPerCredit || 0 }} days actually worked, after {{ line.minimumQualifyingDays || 0 }} qualifying days.</p>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Days credited</mat-label><input matInput [ngModel]="line.creditDays" (ngModelChange)="patchLine(selected(), { creditDays: $event })" name="credit" /></mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Per days worked</mat-label><input matInput type="number" [ngModel]="line.qualifyingDaysPerCredit" (ngModelChange)="patchLine(selected(), { qualifyingDaysPerCredit: +$event })" name="per" /></mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Minimum qualifying days</mat-label><input matInput type="number" [ngModel]="line.minimumQualifyingDays" (ngModelChange)="patchLine(selected(), { minimumQualifyingDays: +$event })" name="minimum" /></mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide">
+              <mat-label>Joining-year rule</mat-label>
+              <mat-select [ngModel]="line.joiningYearRule" (ngModelChange)="patchLine(selected(), { joiningYearRule: $event })" name="joining">
+                <mat-option value="NONE">Full-year minimum</mat-option>
+                <mat-option value="TWO_THIRDS_REMAINDER">Two-thirds of the remaining year</mat-option>
+              </mat-select>
+            </mat-form-field>
+          }
+          @if (line.calculationMethod === 'ELIGIBILITY') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Minimum service (months)</mat-label><input matInput type="number" [ngModel]="line.minimumServiceMonths" (ngModelChange)="patchLine(selected(), { minimumServiceMonths: $event === '' ? null : +$event })" name="service" /></mat-form-field>
+          }
+          @if (line.calculationMethod === 'FIXED') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Accrual</mat-label>
+              <mat-select [ngModel]="line.accrualFrequency" (ngModelChange)="patchLine(selected(), { accrualFrequency: $event })" name="accrual">
+                @for (frequency of frequencies; track frequency) { <mat-option [value]="frequency">{{ frequency }}</mat-option> }
+              </mat-select>
+            </mat-form-field>
+          }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Compensatory basis</mat-label>
+            <mat-select [ngModel]="line.compensatoryBasis" (ngModelChange)="patchLine(selected(), { compensatoryBasis: $event })" name="comp">
+              @for (item of compensatory; track item.value) { <mat-option [value]="item.value">{{ item.label }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          @if (line.compensatoryBasis !== 'NONE') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Expiry (calendar months)</mat-label><input matInput type="number" [ngModel]="line.compensatoryExpiryMonths" (ngModelChange)="patchLine(selected(), { compensatoryExpiryMonths: $event === '' ? null : +$event })" name="expiry" /></mat-form-field>
+          }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Past dates allowed (calendar days)</mat-label>
+            <input matInput type="number" min="0" [ngModel]="line.maxBackdateDays" (ngModelChange)="patchLine(selected(), { maxBackdateDays: backdateDays($event) })" name="backdate" />
+            <mat-hint>Empty means no limit. Zero means the leave cannot start before today.</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="checks">
+          <mat-slide-toggle [ngModel]="line.carryForward" (ngModelChange)="patchLine(selected(), { carryForward: $event })" name="carry">Carry forward</mat-slide-toggle>
+          <mat-slide-toggle [ngModel]="line.encashmentEligible" (ngModelChange)="patchLine(selected(), { encashmentEligible: $event })" name="encash">Encashable</mat-slide-toggle>
+          <mat-slide-toggle [ngModel]="line.documentRequired" (ngModelChange)="patchLine(selected(), { documentRequired: $event })" name="document">Document required</mat-slide-toggle>
+          <mat-slide-toggle [ngModel]="line.backdateRequiresAuthorization" (ngModelChange)="patchLine(selected(), { backdateRequiresAuthorization: $event })" name="backdateAuth">Past dates require HR authorization</mat-slide-toggle>
+          <mat-slide-toggle [ngModel]="line.excludeBoundaryHolidays" (ngModelChange)="patchLine(selected(), { excludeBoundaryHolidays: $event })" name="holidays">Exclude boundary holidays</mat-slide-toggle>
+        </div>
+        @if (line.carryForward) {
+          <div class="grid">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Adult carry-forward limit</mat-label><input matInput [ngModel]="line.maxAccumulation" (ngModelChange)="patchLine(selected(), { maxAccumulation: $event || null })" name="adult" /></mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Under-18 carry-forward limit</mat-label><input matInput [ngModel]="line.adolescentMaxAccumulation" (ngModelChange)="patchLine(selected(), { adolescentMaxAccumulation: $event || null })" name="young" /></mat-form-field>
+          </div>
+        }
+        @if (summary(line).length) {
+          <ul class="summary">
+            @for (sentence of summary(line); track sentence) { <li>{{ sentence }}</li> }
+          </ul>
+        }
+      </section>
+    }
+    <div class="form-actions">
+      <button mat-button type="button" (click)="reset()">Clear</button>
+      <button mat-flat-button color="primary" type="submit">Save policy</button>
+    </div>
+  </form>
+  }
+  <section class="card policies">
+    <header class="list-head">
+      <div>
+        <h2>Leave Policies</h2>
+        <p>{{ rows().length }} saved</p>
+      </div>
+      <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Search</mat-label>
+        <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="policySearch" />
+      </mat-form-field>
+      <mat-form-field class="status" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Status</mat-label>
+        <mat-select [ngModel]="statusFilter()" (ngModelChange)="filterStatus($event)" name="status">
+          <mat-option value="all">All status</mat-option>
+          <mat-option value="active">Active</mat-option>
+          <mat-option value="inactive">Inactive</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </header>
+    @if (rows().length === 0) {
+      <p class="empty-state">No leave policies are saved. Create a policy to configure statutory and company leave entitlements.</p>
+    } @else if (visible().length === 0) {
+      <p class="empty-state">No policies match this search.</p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Policy</th><th>Year</th><th>Assignment</th><th>Group</th><th>Department</th>
+              <th>Location</th><th>Effective From</th><th>Assigned Employees</th><th>Status</th><th class="actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of visible(); track row.id) {
+              <tr>
+                <td class="name">{{ row.name }}</td>
+                <td>{{ row.yearBasis === 'CALENDAR' ? 'Calendar' : 'Financial' }}</td>
+                <td>{{ row.assignmentMode === 'EXPLICIT' ? 'Explicit' : 'Automatic' }}</td>
+                <td>{{ row.employeeType || 'All' }}</td>
+                <td>{{ row.departmentName || 'All' }}</td>
+                <td>{{ row.stateName || row.branchName || 'Any' }}</td>
+                <td>{{ formatDate(row.effectiveFrom) }}</td>
+                <td>{{ counts()[row.id] ?? 0 }} Assigned</td>
+                <td><trishul-status-badge [status]="row.isActive ? 'Active' : 'Inactive'" [severities]="statusTone" /></td>
+                <td class="actions">
+                  <button mat-icon-button type="button" [matMenuTriggerFor]="policyMenu" [matMenuTriggerData]="{ policy: row }" [attr.aria-label]="'Actions for ' + row.name">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <mat-menu #policyMenu="matMenu" xPosition="before">
+      <ng-template matMenuContent let-policy="policy">
+        <button mat-menu-item type="button" (click)="viewDetails(policy)"><mat-icon>visibility</mat-icon>View Details</button>
+        <button mat-menu-item type="button" *trishulHasPermission="manage" (click)="editPolicy(policy)"><mat-icon>edit</mat-icon>Edit Policy</button>
+        <button mat-menu-item type="button" *trishulHasPermission="manage" (click)="openAssign(policy, 'assign')"><mat-icon>person_add</mat-icon>Assign Employees</button>
+        <button mat-menu-item type="button" (click)="openAssign(policy, 'assigned')"><mat-icon>groups</mat-icon>View Assigned Employees</button>
+        <button mat-menu-item type="button" *trishulHasPermission="manage" (click)="confirmStatus(policy)"><mat-icon>toggle_on</mat-icon>{{ policy.isActive ? 'Deactivate' : 'Activate' }}</button>
+        <button mat-menu-item type="button" (click)="openAssign(policy, 'history')"><mat-icon>history</mat-icon>Assignment History</button>
+      </ng-template>
+    </mat-menu>
+  </section>
+</div>

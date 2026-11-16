@@ -14,6 +14,49 @@ export interface PayrollRunItem {
   netPay: string;
 }
 
+export interface PayrollLine {
+  code: string;
+  name: string;
+  amount: string;
+  source: string;
+}
+
+export interface PayrollEmployeeDetail {
+  employeeId: number;
+  employeeCode: string;
+  fullName: string;
+  department: string | null;
+  designation: string | null;
+  paidDays: string;
+  lopDays: string;
+  gross: string;
+  deductions: string;
+  netPay: string;
+  lines: PayrollLine[];
+}
+
+export interface PayrollDifference {
+  employeeCode: string;
+  fullName: string;
+  previousNet: string | null;
+  nextNet: string | null;
+  change: string;
+}
+
+export interface PayrollPreview {
+  runId: number;
+  status: PayrollRunItem['status'];
+  previousEmployees: number;
+  nextEmployees: number;
+  previousGross: string;
+  nextGross: string;
+  previousDeductions: string;
+  nextDeductions: string;
+  previousNet: string;
+  nextNet: string;
+  differences: PayrollDifference[];
+}
+
 /** Payroll months calculated from saved salary structures. */
 @Injectable({ providedIn: 'root' })
 export class PayrollRunsApi {
@@ -26,5 +69,17 @@ export class PayrollRunsApi {
 
   process(month: string): Observable<PayrollRunItem[]> {
     return this.http.post<PayrollRunItem[]>(`${this.config.rootUrl}/hr/payroll-runs`, { month });
+  }
+
+  details(runId: number): Observable<PayrollEmployeeDetail[]> {
+    return this.http.get<PayrollEmployeeDetail[]>(`${this.config.rootUrl}/hr/payroll-runs/${runId}`);
+  }
+
+  preview(runId: number): Observable<PayrollPreview> {
+    return this.http.get<PayrollPreview>(`${this.config.rootUrl}/hr/payroll-runs/${runId}/preview`);
+  }
+
+  recalculate(runId: number): Observable<PayrollRunItem> {
+    return this.http.post<PayrollRunItem>(`${this.config.rootUrl}/hr/payroll-runs/${runId}/recalculate`, {});
   }
 }

@@ -1,0 +1,95 @@
+<h2 mat-dialog-title>{{ data.monthLabel }} payroll</h2>
+<mat-dialog-content>
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  @if (error()) {
+    <p class="warning">{{ error() }}</p>
+  }
+  <p class="summary">
+    {{ data.run.employees }} employees · Gross {{ money(data.run.gross) }} · Deductions {{ money(data.run.deductions) }} ·
+    Net {{ money(data.run.netPay) }} · {{ data.run.status }}
+  </p>
+
+  @if (preview(); as change) {
+    <section class="preview">
+      <h3>Recalculation preview</h3>
+      <p>
+        Gross {{ money(change.previousGross) }} to {{ money(change.nextGross) }}. Net {{ money(change.previousNet) }} to
+        {{ money(change.nextNet) }}. Employees {{ change.previousEmployees }} to {{ change.nextEmployees }}.
+      </p>
+      <ul>
+        @for (row of change.differences; track row.employeeCode) {
+          <li>
+            <strong>{{ row.fullName || row.employeeCode }}</strong> {{ row.employeeCode }} · {{ row.change }} ·
+            {{ money(row.previousNet) }} to {{ money(row.nextNet) }}
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @for (employee of employees(); track employee.employeeId) {
+    <article class="employee">
+      <header>
+        <div>
+          <h3>{{ employee.fullName }}</h3>
+          <p>{{ employee.employeeCode }} · {{ employee.department || 'No department' }} · {{ employee.designation || 'No designation' }}</p>
+        </div>
+        <strong>{{ money(employee.netPay) }}</strong>
+      </header>
+      <dl>
+        <div><dt>Payroll month</dt><dd>{{ data.monthLabel }}</dd></div>
+        <div><dt>Attendance days</dt><dd>{{ employee.paidDays }}</dd></div>
+        <div><dt>LOP</dt><dd>{{ employee.lopDays }}</dd></div>
+        <div><dt>Gross earnings</dt><dd>{{ money(employee.gross) }}</dd></div>
+        <div><dt>Total deductions</dt><dd>{{ money(employee.deductions) }}</dd></div>
+        <div><dt>Net payable</dt><dd>{{ money(employee.netPay) }}</dd></div>
+      </dl>
+      <h4>Earnings</h4>
+      <ul>
+        @for (field of earnings; track field[0]) {
+          <li>
+            <span>{{ field[1] }}</span>
+            <span>{{ amount(employee, field[0]) }}</span>
+            @if (line(employee, field[0]); as item) {
+              <small>{{ item.source }}</small>
+            }
+          </li>
+        }
+        @for (item of otherLines(employee); track item.code) {
+          <li>
+            <span>{{ item.name }}</span>
+            <span>{{ money(item.amount) }}</span>
+            <small>{{ item.source }}</small>
+          </li>
+        }
+      </ul>
+      <h4>Deductions</h4>
+      <ul>
+        @for (field of deductions; track field[0]) {
+          <li>
+            <span>{{ field[1] }}</span>
+            <span>{{ amount(employee, field[0]) }}</span>
+            @if (line(employee, field[0]); as item) {
+              <small>{{ item.source }}</small>
+            }
+          </li>
+        }
+      </ul>
+    </article>
+  } @empty {
+    @if (!loading()) {
+      <p>No employee payslips are saved for this month.</p>
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="close()">Close</button>
+  @if (canRecalculate() && !preview()) {
+    <button mat-flat-button color="primary" type="button" (click)="showPreview()" [disabled]="applying()">Recalculate</button>
+  }
+  @if (preview()) {
+    <button mat-flat-button color="primary" type="button" (click)="apply()" [disabled]="applying()">Apply recalculation</button>
+  }
+</mat-dialog-actions>

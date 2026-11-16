@@ -21,6 +21,7 @@ _CAR_RATE = Field(ge=Decimal("5"), le=Decimal("6"), max_digits=4, decimal_places
 
 class TadaReportQuery(PageQuery):
     month: str | None = Field(None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Payroll month, YYYY-MM.")
+    include_summary: bool = Field(True, description="When false, skip month-total and previous-month scans.")
     company_id: int | None = Field(None, gt=0)
     branch_id: int | None = Field(None, gt=0)
     employee_id: int | None = Field(None, gt=0)

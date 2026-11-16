@@ -8,7 +8,12 @@ from trishul_api.auth import CurrentUserDep, DbSession, require_permission
 from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
 from trishul_api.common.schemas import Page
-from trishul_api.modules.hr.payroll.run_schemas import PayrollRunItem, PayrollRunRequest
+from trishul_api.modules.hr.payroll.run_schemas import (
+    PayrollEmployeeDetail,
+    PayrollPreview,
+    PayrollRunItem,
+    PayrollRunRequest,
+)
 from trishul_api.modules.hr.payroll.run_service import PayrollRunService
 from trishul_api.modules.hr.payroll.schemas import (
     SalaryComponentDetail,
@@ -38,6 +43,15 @@ from trishul_api.modules.hr.payroll.structure_schemas import (
     SalaryStructureWrite,
 )
 from trishul_api.modules.hr.payroll.structure_service import SalaryStructureService
+from trishul_api.modules.hr.payroll.template_schemas import (
+    SalaryTemplateDetail,
+    SalaryTemplateListItem,
+    SalaryTemplateQuery,
+    SalaryTemplateStatusWrite,
+    SalaryTemplateSummary,
+    SalaryTemplateWrite,
+)
+from trishul_api.modules.hr.payroll.template_service import SalaryTemplateService
 
 router = APIRouter(prefix="/hr", tags=["payroll"])
 
@@ -187,6 +201,74 @@ def update_salary_structure(
     return structures.save_structure(actor, employee_id, row_version, data)
 
 
+def get_salary_template_service(db: DbSession) -> SalaryTemplateService:
+    return SalaryTemplateService(db)
+
+
+Templates = Annotated[SalaryTemplateService, Depends(get_salary_template_service)]
+TemplateQuery = Annotated[SalaryTemplateQuery, Query()]
+TemplateId = Annotated[int, Path(alias="templateId", gt=0)]
+
+
+@router.get("/salary-templates/summary", summary="Salary template counts", dependencies=[CAN_VIEW])
+def salary_template_summary(templates: Templates) -> SalaryTemplateSummary:
+    return templates.summary()
+
+
+@router.get("/salary-templates", summary="Salary templates", dependencies=[CAN_VIEW])
+def list_salary_templates(query: TemplateQuery, templates: Templates) -> Page[SalaryTemplateListItem]:
+    return templates.list_templates(query)
+
+
+@router.get(
+    "/salary-templates/{templateId}",
+    summary="One salary template",
+    dependencies=[CAN_VIEW],
+    responses=NOT_FOUND_RESPONSE,
+)
+def get_salary_template(template_id: TemplateId, templates: Templates) -> SalaryTemplateDetail:
+    return templates.get_template(template_id)
+
+
+@router.post("/salary-templates", summary="Add a salary template", status_code=201, dependencies=[CAN_MANAGE])
+def create_salary_template(
+    data: SalaryTemplateWrite, actor: CurrentUserDep, templates: Templates
+) -> SalaryTemplateDetail:
+    return templates.create(actor, data)
+
+
+@router.patch(
+    "/salary-templates/{templateId}",
+    summary="Change a salary template",
+    dependencies=[CAN_MANAGE],
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+)
+def update_salary_template(
+    template_id: TemplateId,
+    data: SalaryTemplateWrite,
+    actor: CurrentUserDep,
+    templates: Templates,
+    row_version: Match,
+) -> SalaryTemplateDetail:
+    return templates.update(actor, template_id, row_version, data)
+
+
+@router.patch(
+    "/salary-templates/{templateId}/status",
+    summary="Activate or deactivate a salary template",
+    dependencies=[CAN_MANAGE],
+    responses={**NOT_FOUND_RESPONSE, **CONCURRENCY_RESPONSES},
+)
+def set_salary_template_status(
+    template_id: TemplateId,
+    data: SalaryTemplateStatusWrite,
+    actor: CurrentUserDep,
+    templates: Templates,
+    row_version: Match,
+) -> SalaryTemplateDetail:
+    return templates.set_status(actor, template_id, row_version, data)
+
+
 def get_statutory_service(db: DbSession) -> StatutoryService:
     return StatutoryService(db)
 
@@ -250,3 +332,36 @@ def list_payroll_runs(runs: Runs) -> list[PayrollRunItem]:
 @router.post("/payroll-runs", summary="Process a payroll month", status_code=201, dependencies=[CAN_MANAGE])
 def process_payroll_run(data: PayrollRunRequest, actor: CurrentUserDep, runs: Runs) -> list[PayrollRunItem]:
     return runs.process(actor, data)
+
+
+RunId = Annotated[int, Path(alias="runId", gt=0)]
+
+
+@router.get(
+    "/payroll-runs/{runId}",
+    summary="Employee payslips in a payroll month",
+    dependencies=[CAN_VIEW],
+    responses=NOT_FOUND_RESPONSE,
+)
+def get_payroll_run(run_id: RunId, runs: Runs) -> list[PayrollEmployeeDetail]:
+    return runs.details(run_id)
+
+
+@router.get(
+    "/payroll-runs/{runId}/preview",
+    summary="Show what recalculation would change",
+    dependencies=[CAN_VIEW],
+    responses=NOT_FOUND_RESPONSE,
+)
+def preview_payroll_run(run_id: RunId, runs: Runs) -> PayrollPreview:
+    return runs.preview(run_id)
+
+
+@router.post(
+    "/payroll-runs/{runId}/recalculate",
+    summary="Recalculate a draft or processed payroll month",
+    dependencies=[CAN_MANAGE],
+    responses=NOT_FOUND_RESPONSE,
+)
+def recalculate_payroll_run(run_id: RunId, actor: CurrentUserDep, runs: Runs) -> PayrollRunItem:
+    return runs.recalculate(actor, run_id)

@@ -27,7 +27,7 @@ export const EMPLOYEE_COLUMNS: readonly EmployeeColumnDef[] = [
   { id: 'branch', header: 'Branch', label: 'Branch', sort: 'branch', defaultVisible: true },
   { id: 'department', header: 'Department', label: 'Department', sort: 'department', defaultVisible: true },
   { id: 'designation', header: 'Designation', label: 'Designation', sort: 'designation', defaultVisible: true },
-  { id: 'grade', header: 'Grade', label: 'Grade', sort: 'grade', defaultVisible: false },
+  { id: 'grade', header: 'Grade', label: 'Grade', sort: 'grade', defaultVisible: true },
   { id: 'dateOfJoining', header: 'Date of joining', label: 'Date of Joining', sort: 'dateOfJoining', defaultVisible: false },
   { id: 'confirmationDate', header: 'Confirmation', label: 'Confirmation Date', defaultVisible: false },
   { id: 'employeeType', header: 'Type', label: 'Employment Type', sort: 'employeeType', defaultVisible: true },
@@ -71,7 +71,13 @@ const EMPTY_FILTERS: EmployeeViewFilters = {
 };
 
 function columnsOf(ids: string[]): string[] {
-  return ids.filter((id) => COLUMN_IDS.has(id));
+  const columns = ids.filter((id) => COLUMN_IDS.has(id) && id !== 'grade');
+  const designation = columns.indexOf('designation');
+  if (designation === -1) {
+    return columns;
+  }
+  columns.splice(designation + 1, 0, 'grade');
+  return columns;
 }
 
 const DEFAULT_COLUMNS = columnsOf(
@@ -116,6 +122,7 @@ export const BUILTIN_VIEWS: readonly EmployeeSavedView[] = [
     'dateOfJoining',
     'confirmationDate',
     'designation',
+    'grade',
     'department',
     'reportingManager',
     'yearsInService',

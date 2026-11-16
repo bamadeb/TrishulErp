@@ -5,7 +5,7 @@ Employee code and mobile are unique in the database; this checks them up front f
 catches a concurrent duplicate on commit.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,7 +13,16 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import CurrentUser
 from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
-from trishul_api.db.models import Branch, Company, Department, Designation, Employee, EmployeeProfile, Attachment
+from trishul_api.db.models import (
+    Attachment,
+    Branch,
+    Company,
+    Department,
+    Designation,
+    Employee,
+    EmployeeProfile,
+    EmploymentHistory,
+)
 from trishul_api.modules.core.employees.photos import data_url, decode_photo, read_photo, store_photo
 from trishul_api.modules.core.employees.repository import EmployeeRepository
 from trishul_api.modules.core.employees.schemas import (
@@ -98,9 +107,12 @@ class EmployeeService:
         if "email" in changed:
             employee.email = str(data.email) if data.email else None
         self._check_references(data, employee_id=employee.id)
+        previous_designation = employee.designation_id
         for field in _PLAIN_FIELDS:
             if field in changed:
                 setattr(employee, field, getattr(data, field))
+        if "designation_id" in changed and employee.designation_id != previous_designation:
+            self._record_designation(employee.id, previous_designation, employee.designation_id, actor)
 
         self._write_profile(employee.id, data, actor, create=False)
         if "photo" in changed and data.photo:
@@ -221,6 +233,25 @@ class EmployeeService:
     def _touch(employee: Employee, actor: CurrentUser) -> None:
         employee.updated_at = datetime.now(UTC).replace(tzinfo=None)
         employee.updated_by_user_id = actor.id
+
+    def _record_designation(
+        self, employee_id: int, previous_id: int | None, next_id: int | None, actor: CurrentUser
+    ) -> None:
+        """Keep the previous designation on hr.employment_history. Salary rows are left as saved."""
+        previous_grade = self._repo.designation_grade(previous_id) or "none"
+        next_grade = self._repo.designation_grade(next_id) or "none"
+        self._repo.add(
+            EmploymentHistory(
+                employee_id=employee_id,
+                event_type="Promoted",
+                effective_date=date.today(),
+                from_designation_id=previous_id,
+                to_designation_id=next_id,
+                remarks=f"Grade {previous_grade} to {next_grade}.",
+                created_by_user_id=actor.id,
+                is_active=True,
+            )
+        )
 
     def _write_profile(
         self, employee_id: int, data: EmployeeCreate | EmployeeUpdate, actor: CurrentUser, *, create: bool

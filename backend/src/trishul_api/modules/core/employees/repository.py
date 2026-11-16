@@ -277,11 +277,22 @@ class EmployeeRepository:
 
     def designations(self) -> list[DesignationOption]:
         rows = self._session.execute(
-            select(Designation.id, Designation.code, Designation.name, Designation.department_id)
+            select(
+                Designation.id,
+                Designation.code,
+                Designation.name,
+                Designation.department_id,
+                Designation.grade,
+            )
             .where(Designation.is_active)
             .order_by(Designation.name)
         ).mappings()
         return [DesignationOption.model_validate(row) for row in rows]
+
+    def designation_grade(self, designation_id: int | None) -> str | None:
+        if designation_id is None:
+            return None
+        return self._session.scalar(select(Designation.grade).where(Designation.id == designation_id))
 
     # ------------------------------------------------------------------ checks
 

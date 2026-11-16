@@ -225,6 +225,9 @@ def test_update_changes_fields_with_a_row_version_check(client: TestClient) -> N
     assert body["branchName"] == "Mumbai"
     assert body["designation"] is None
     assert body["employeeCode"] == "E010"  # not sent, unchanged
+    history = client.get(f"{URL}/{RAHUL}/employment-history").json()
+    assert history[0]["eventType"] == "Promoted"
+    assert history[0]["remarks"] == "Grade none to none."
 
 
 def test_update_rejects_duplicate_code_and_self_manager(client: TestClient) -> None:

@@ -159,6 +159,7 @@ class DesignationOption(ApiModel):
     code: str
     name: str
     department_id: int | None
+    grade: str | None = None
 
 
 class EmploymentEvent(ApiModel):

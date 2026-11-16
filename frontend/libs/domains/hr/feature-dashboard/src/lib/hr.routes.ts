@@ -7,6 +7,7 @@ import {
 import { HrDashboardPage } from './dashboard/hr-dashboard.page';
 import { HrPlaceholderPage } from './dashboard/hr-placeholder.page';
 import { OrganizationPage } from './organization/organization.page';
+import { leaveRoutes } from './leave/leave.routes';
 import { payrollRoutes } from './payroll/payroll.routes';
 import { EmployeeFormPage } from './employees/form/employee-form.page';
 import { EmployeeListPage } from './employees/list/employee-list.page';
@@ -54,10 +55,7 @@ export const hrRoutes: Route[] = [
   },
   {
     path: 'leave',
-    title: 'Leave requests',
-    data: { screenTitle: 'Leave requests' },
-    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
-    component: HrPlaceholderPage,
+    children: leaveRoutes,
   },
   {
     path: 'payroll',

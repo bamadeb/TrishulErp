@@ -56,6 +56,7 @@ import {
   switchMap,
 } from 'rxjs';
 import {
+  DesignationChoice,
   EMPLOYEE_MANAGE_PERMISSION,
   EMPLOYEE_TYPES,
   EmployeeDetail,
@@ -203,8 +204,13 @@ export class EmployeeFormPage {
   );
   protected readonly designations = toSignal(
     this.api.designations().pipe(catchError(() => of([]))),
-    { initialValue: [] },
+    { initialValue: [] as DesignationChoice[] },
   );
+
+  protected gradeFor(designationId: number | null): string {
+    const rows = this.designations() ?? [];
+    return rows.find((row) => row.id === designationId)?.grade || '—';
+  }
 
   protected readonly form = this.fb.group({
     employeeCode: this.fb.control('', [

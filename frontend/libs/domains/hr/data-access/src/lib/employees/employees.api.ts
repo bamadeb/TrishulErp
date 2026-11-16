@@ -18,7 +18,7 @@ import {
 import {
   CompanyOption,
   DepartmentOption,
-  DesignationOption,
+  DesignationChoice,
   EmployeeCreate,
   EmployeeDetail,
   EmployeeQuery,
@@ -76,7 +76,7 @@ export class EmployeesApi {
     return this.api.call(listDepartments);
   }
 
-  designations(): Observable<DesignationOption[]> {
-    return this.api.call(listDesignations);
+  designations(): Observable<DesignationChoice[]> {
+    return this.api.call(listDesignations) as Observable<DesignationChoice[]>;
   }
 }

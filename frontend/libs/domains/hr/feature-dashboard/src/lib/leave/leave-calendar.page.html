@@ -1,0 +1,247 @@
+<mat-drawer-container class="board" autosize>
+  <mat-drawer #drawer mode="over" position="end" class="detail">
+    @if (active(); as entry) {
+      <header class="detail-head">
+        <div>
+          <p>Leave details</p>
+          <h2>{{ entry.employee.name }}</h2>
+        </div>
+        <button mat-icon-button type="button" aria-label="Close" (click)="close()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </header>
+      <div class="detail-body">
+        <section class="person">
+          <span class="avatar" [style.background]="entry.employee.color">{{ entry.employee.initials }}</span>
+          <div>
+            <strong>{{ entry.id }}</strong>
+            <span>{{ entry.employee.code }}</span>
+          </div>
+          <trishul-status-badge [status]="entry.status" [severities]="severities" />
+        </section>
+        <dl>
+          <div><dt>Department</dt><dd>{{ entry.employee.department }}</dd></div>
+          <div><dt>Designation</dt><dd>{{ entry.employee.designation }}</dd></div>
+          <div><dt>Leave type</dt><dd>{{ entry.leaveType }}</dd></div>
+          <div><dt>Leave dates</dt><dd>{{ span(entry) }}</dd></div>
+          <div><dt>Days</dt><dd>{{ dayLabel(entry.days) }}</dd></div>
+          <div><dt>Reason</dt><dd>{{ entry.reason }}</dd></div>
+          <div><dt>Approval status</dt><dd>{{ entry.status }}</dd></div>
+          <div><dt>Approved by</dt><dd>{{ entry.approvedBy || '—' }}</dd></div>
+        </dl>
+      </div>
+    }
+  </mat-drawer>
+
+  <mat-drawer-content>
+    <nav class="crumb" aria-label="Breadcrumb">
+      <a routerLink="/hr/leave/dashboard">Leave Management</a>
+      <mat-icon>chevron_right</mat-icon>
+      <span>Leave Calendar</span>
+    </nav>
+
+    <trishul-page-header title="Leave Calendar" subtitle="View employee leave, holidays and team availability in a calendar view.">
+      <div class="header-tools">
+        <mat-form-field class="month" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Month</mat-label>
+          <mat-select [value]="monthKey()" (valueChange)="setMonth($event)" aria-label="Month">
+            @for (item of months(); track item.id) {
+              <mat-option [value]="item.id">{{ item.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <button mat-icon-button type="button" [attr.aria-label]="stepLabel(-1)" (click)="step(-1)">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <button mat-stroked-button type="button" (click)="goToday()">Today</button>
+        <button mat-icon-button type="button" [attr.aria-label]="stepLabel(1)" (click)="step(1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        <div class="segment" role="tablist" aria-label="Calendar view">
+          @for (mode of modes; track mode.id) {
+            <button type="button" role="tab" [class.active]="view() === mode.id" [attr.aria-selected]="view() === mode.id" (click)="view.set(mode.id)">
+              {{ mode.label }}
+            </button>
+          }
+        </div>
+      </div>
+    </trishul-page-header>
+
+    @if (error()) { <p class="error">{{ error() }}</p> }
+
+    <section class="kpis" aria-label="Leave calendar summary">
+      <article class="kpi employees">
+        <mat-icon>groups</mat-icon>
+        <div><strong>{{ summary().totalEmployees }}</strong><span>Total Employees</span></div>
+      </article>
+      <article class="kpi today">
+        <mat-icon>event_busy</mat-icon>
+        <div>
+          <strong>{{ summary().onLeaveToday }} <small>({{ summary().onLeavePercent | number:'1.0-2' }}%)</small></strong>
+          <span>On Leave Today</span>
+        </div>
+      </article>
+      <article class="kpi pending">
+        <mat-icon>pending_actions</mat-icon>
+        <div><strong>{{ summary().pendingApproval }}</strong><span>Pending Approval</span></div>
+      </article>
+      <article class="kpi approved">
+        <mat-icon>check_circle</mat-icon>
+        <div><strong>{{ summary().approvedMtd }}</strong><span>Approved (MTD)</span></div>
+      </article>
+      <article class="kpi rejected">
+        <mat-icon>cancel</mat-icon>
+        <div><strong>{{ summary().rejectedMtd }}</strong><span>Rejected (MTD)</span></div>
+      </article>
+      <article class="kpi upcoming">
+        <mat-icon>event</mat-icon>
+        <div><strong>{{ summary().upcomingLeaves }}</strong><span>Upcoming Leaves</span></div>
+      </article>
+    </section>
+
+    <section class="card filters">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Department</mat-label>
+        <mat-select [value]="department()" (valueChange)="setDepartment($event)" aria-label="Department">
+          <mat-option [value]="null">All Departments</mat-option>
+          @for (item of departments(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Designation</mat-label>
+        <mat-select [value]="designation()" (valueChange)="setDesignation($event)" aria-label="Designation">
+          <mat-option [value]="null">All Designations</mat-option>
+          @for (item of designations(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Location</mat-label>
+        <mat-select [value]="location()" (valueChange)="setLocation($event)" aria-label="Location">
+          <mat-option [value]="null">All Locations</mat-option>
+          @for (item of locations(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Leave Type</mat-label>
+        <mat-select [value]="leaveType()" (valueChange)="setLeaveType($event)" aria-label="Leave type">
+          <mat-option [value]="null">All leave types</mat-option>
+          @for (item of leaveTypes(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          type="search"
+          [ngModel]="search()"
+          (ngModelChange)="setSearch($event)"
+          placeholder="Search by Employee ID or Name"
+          aria-label="Search by Employee ID or Name"
+        />
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="reset()"><mat-icon>refresh</mat-icon> Reset</button>
+      <button mat-flat-button type="button" class="export" (click)="exportRows()"><mat-icon>download</mat-icon> Export</button>
+    </section>
+
+    <div class="workspace">
+      <section class="card calendar" aria-label="Leave calendar">
+        <ul class="legend">
+          @for (item of legend; track item.tone) {
+            <li><i [class]="item.tone"></i>{{ item.label }}</li>
+          }
+        </ul>
+
+        @if (view() === 'day') {
+          <div class="day-board">
+            <h2>{{ when(selected()) }}</h2>
+            @if (selectedHoliday(); as holiday) {
+              <p class="holiday-line"><i class="holiday"></i>{{ holiday.name }}</p>
+            }
+            <div class="people">
+              @for (entry of selectedEntries(); track entry.id) {
+                <button type="button" class="person-row" (click)="open(entry)">
+                  <span class="avatar" [style.background]="entry.employee.color">{{ entry.employee.initials }}</span>
+                  <span class="who">
+                    <strong>{{ entry.employee.name }}</strong>
+                    <small>{{ entry.employee.code }}</small>
+                  </span>
+                  <span class="pill" [class]="'pill ' + tone(entry)">{{ entry.leaveCode }}</span>
+                  <span class="days">{{ dayLabel(entry.days) }}</span>
+                </button>
+              } @empty {
+                <p class="empty">No leave is scheduled for this date.</p>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="weekdays">
+            @for (day of weekdays; track day) { <span>{{ day.slice(0, 3) }}</span> }
+          </div>
+          <div class="grid" [class.week]="view() === 'week'">
+            @for (cell of cells(); track cell.iso) {
+              <div class="day" [class.out]="!cell.inMonth" [class.selected]="cell.isSelected" (click)="selectDate(cell.date)">
+                <span class="num" [class.today]="cell.isToday">{{ cell.date.getDate() }}</span>
+                @if (cell.holiday) { <span class="chip holiday">{{ cell.holiday.name }}</span> }
+                @for (entry of cell.entries.slice(0, chipLimit()); track entry.id) {
+                  <button type="button" class="chip" [class]="'chip ' + tone(entry)" [title]="entry.employee.name + ' · ' + entry.leaveType" (click)="choose(entry, cell.date, $event)">
+                    {{ entry.employee.name }} · {{ entry.leaveCode }}
+                  </button>
+                }
+                @if (cell.entries.length > chipLimit()) {
+                  <button type="button" class="more" (click)="$event.stopPropagation(); selectDate(cell.date)">
+                    +{{ cell.entries.length - chipLimit() }} more
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <aside class="rail">
+        <section class="card side">
+          <h2>Selected Date: {{ when(selected()) }}</h2>
+          <p class="count">
+            {{ selectedConfirmed().length }} {{ selectedConfirmed().length === 1 ? 'employee' : 'employees' }} on leave
+            @if (selectedPending().length) { <span>· {{ selectedPending().length }} pending</span> }
+          </p>
+          <div class="people">
+            @for (entry of selectedEntries(); track entry.id) {
+              <button type="button" class="person-row" (click)="open(entry)">
+                <span class="avatar" [style.background]="entry.employee.color">{{ entry.employee.initials }}</span>
+                <span class="who">
+                  <strong>{{ entry.employee.name }}</strong>
+                  <small>{{ entry.employee.code }}</small>
+                </span>
+                <span class="pill" [class]="'pill ' + tone(entry)">{{ entry.leaveCode }}</span>
+                <span class="days">{{ dayLabel(entry.days) }}</span>
+              </button>
+            } @empty {
+              <p class="empty">No employees are on leave for this date.</p>
+            }
+          </div>
+        </section>
+
+        <section class="card side">
+          <h2>Upcoming Leaves (Next 7 Days)</h2>
+          <div class="people">
+            @for (entry of upcoming(); track entry.id) {
+              <button type="button" class="person-row" (click)="open(entry)">
+                <span class="avatar" [style.background]="entry.employee.color">{{ entry.employee.initials }}</span>
+                <span class="who">
+                  <strong>{{ entry.employee.name }}</strong>
+                  <small>{{ entry.employee.code }}</small>
+                </span>
+                <span class="pill" [class]="'pill ' + tone(entry)">{{ entry.leaveCode }}</span>
+                <span class="days">{{ when(entry.fromDate) }}</span>
+              </button>
+            } @empty {
+              <p class="empty">No upcoming leave in the next 7 days.</p>
+            }
+          </div>
+          <a mat-stroked-button routerLink="/hr/leave/requests">View Full Leave List</a>
+        </section>
+      </aside>
+    </div>
+  </mat-drawer-content>
+</mat-drawer-container>

@@ -123,6 +123,8 @@ class SalaryStructureRepository:
                 _full_name(),
                 Department.name.label("department"),
                 Designation.name.label("designation"),
+                Designation.id.label("designation_id"),
+                Designation.grade.label("grade"),
             )
             .select_from(Employee)
             .outerjoin(Department, Department.id == Employee.department_id)

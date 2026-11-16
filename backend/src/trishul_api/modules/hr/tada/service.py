@@ -1,7 +1,7 @@
 """TA/DA report: distance priority, vehicle rates and payable totals. Trip rows are not modified."""
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -73,14 +73,10 @@ class TadaService:
         start, end, month = _month_window(query.month)
         rates = self.rates()
         rows, total = self._trips.list_rows(query, start, end, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km)
-        engineers, trips, kilometres, grouped = self._trips.summary(query, start, end)
-        bike, car = _allowances(grouped, rates)
-        return TadaReport(
-            items=self._items(rows, rates),
-            total=total,
-            page=query.page,
-            page_size=query.page_size,
-            summary=TadaSummary(
+        if query.include_summary:
+            engineers, trips, kilometres, grouped = self._trips.summary(query, start, end)
+            bike, car = _allowances(grouped, rates)
+            summary = TadaSummary(
                 service_engineers=engineers,
                 trips=trips,
                 travel_km=kilometres.quantize(Decimal("0.001")),
@@ -89,7 +85,24 @@ class TadaService:
                 total_ta_payable=(bike + car).quantize(Decimal("0.01")),
                 month=month,
                 note=_NOTE,
-            ),
+            )
+        else:
+            summary = TadaSummary(
+                service_engineers=0,
+                trips=total,
+                travel_km=Decimal("0.000"),
+                bike_allowance=Decimal("0.00"),
+                car_allowance=Decimal("0.00"),
+                total_ta_payable=Decimal("0.00"),
+                month=month,
+                note=_NOTE,
+            )
+        return TadaReport(
+            items=self._items(rows, rates),
+            total=total,
+            page=query.page,
+            page_size=query.page_size,
+            summary=summary,
             rates=rates,
         )
 
@@ -97,27 +110,37 @@ class TadaService:
         start, end, month = _month_window(query.month)
         rates = self.rates()
         rows, engineers, trips, bike_km, car_km, travel_km = self._trips.employee_page(query, start, end, month)
-        previous = _shift_month(month, -1)
-        previous_start, previous_end, _ = _month_window(previous)
-        _, previous_engineers, previous_trips, previous_bike, previous_car, previous_travel = self._trips.employee_page(
-            query, previous_start, previous_end, previous
-        )
-        bike_pay, car_pay, ta = money_for_km(
-            bike_km, car_km, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km
-        )
-        previous_bike_pay, previous_car_pay, previous_ta = money_for_km(
-            previous_bike, previous_car, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km
-        )
         page_ids = [int(row["employee_id"]) for row in rows]
         allowances = self._trips.allowance_amounts(page_ids, start)
         counts = self._trips.review_counts(page_ids, start, end)
-        filtered_ids = self._trips.filtered_employee_ids(query, start, end, month)
-        extra = _allowance_total(self._trips.allowance_amounts(filtered_ids, start))
-        previous_extra = _allowance_total(
-            self._trips.allowance_amounts(
-                self._trips.filtered_employee_ids(query, previous_start, previous_end, previous), previous_start
-            )
+        bike_pay, car_pay, ta = money_for_km(
+            bike_km, car_km, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km
         )
+        if query.include_summary:
+            previous = _shift_month(month, -1)
+            previous_start, previous_end, _ = _month_window(previous)
+            _, previous_engineers, previous_trips, previous_bike, previous_car, previous_travel = (
+                self._trips.employee_page(query, previous_start, previous_end, previous)
+            )
+            previous_bike_pay, previous_car_pay, previous_ta = money_for_km(
+                previous_bike, previous_car, bike_rate=rates.bike_per_km, car_rate=rates.car_per_km
+            )
+            extra = _allowance_total(
+                self._trips.allowance_amounts(self._trips.filtered_employee_ids(query, start, end, month), start)
+            )
+            previous_extra = _allowance_total(
+                self._trips.allowance_amounts(
+                    self._trips.filtered_employee_ids(query, previous_start, previous_end, previous),
+                    previous_start,
+                )
+            )
+            previous_payable = (previous_ta + previous_extra).quantize(Decimal("0.01"))
+        else:
+            previous_engineers = previous_trips = 0
+            previous_travel = Decimal("0")
+            previous_bike_pay = previous_car_pay = Decimal("0.00")
+            extra = Decimal("0.00")
+            previous_payable = Decimal("0.00")
         return TadaEmployeeReport(
             items=[
                 self._employee(row, rates, allowances, counts.get(int(row["employee_id"]), (0, 0, 0, 0)))
@@ -140,15 +163,45 @@ class TadaService:
                 previous_travel_km=previous_travel.quantize(Decimal("0.001")),
                 previous_bike_allowance=previous_bike_pay,
                 previous_car_allowance=previous_car_pay,
-                previous_total_payable=(previous_ta + previous_extra).quantize(Decimal("0.01")),
+                previous_total_payable=previous_payable,
             ),
             rates=rates,
         )
 
-    def employee_trips(self, employee_id: int, month: str) -> list[TadaTripItem]:
-        return self.report(
-            TadaReportQuery(employee_id=employee_id, month=month, page=1, page_size=200, sort="startAt")
+    def employee_trips(
+        self,
+        employee_id: int,
+        month: str,
+        *,
+        from_date: date | None = None,
+        to_date: date | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[TadaTripItem]:
+        items = self.report(
+            TadaReportQuery(
+                employee_id=employee_id, month=month, page=1, page_size=200, sort="startAt", include_summary=False
+            )
         ).items
+        start, end, _month = _month_window(month)
+        first = start.date()
+        last = (end - timedelta(days=1)).date()
+        start_on = first if from_date is None or from_date < first else from_date
+        end_on = last if to_date is None or to_date > last else to_date
+        if start_on > end_on:
+            return []
+        review = (status or "").strip()
+        term = (search or "").strip().lower()
+        matched: list[TadaTripItem] = []
+        for item in items:
+            if item.trip_date < start_on.isoformat() or item.trip_date > end_on.isoformat():
+                continue
+            if review and review != "All" and item.review_status != review:
+                continue
+            if term and term not in _trip_search_text(item):
+                continue
+            matched.append(item)
+        return matched
 
     def decide(self, data: TadaDecisionCreate, actor: CurrentUser) -> TadaBulkResult:
         remarks = (data.remarks or "").strip() or None
@@ -650,6 +703,21 @@ def _places(trip_type: str, branch_name: str, site_name: str) -> tuple[str, str]
     if trip_type == "Return":
         return site, office
     return office, site
+
+
+def _trip_search_text(item: TadaTripItem) -> str:
+    return " ".join(
+        part
+        for part in (
+            item.call_no,
+            item.complaint_description,
+            item.travel_from,
+            item.travel_to,
+            item.trip_type,
+            item.vehicle_type,
+        )
+        if part
+    ).lower()
 
 
 def _month_window(month: str | None) -> tuple[datetime, datetime, str]:

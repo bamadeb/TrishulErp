@@ -69,7 +69,9 @@
           type="button"
           class="nav-group nav-subgroup"
           [class.collapsed]="isCollapsed(child.label)"
+          [class.active]="sectionActive(child)"
           [attr.aria-expanded]="!isCollapsed(child.label)"
+          [attr.aria-current]="sectionActive(child) ? 'true' : null"
           (click)="toggleGroup(child.label)"
         >
           @if (child.icon) {

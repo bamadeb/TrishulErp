@@ -12,6 +12,23 @@ from trishul_api.db.models.generated import *  # noqa: F403
 from trishul_api.db.models.generated import __all__ as _generated
 
 # Hand-written until the generator is re-run against the migrated DB (see trk.py).
+from trishul_api.db.models.leave import (
+    LeaveAttendanceClass,
+    LeaveBalanceTransaction,
+    LeaveEntitlementRun,
+    LeavePolicy,
+    LeavePolicyAssignment,
+    LeavePolicyLine,
+    LeaveTypeSetting,
+    LeaveWeeklyRestGrant,
+)
+from trishul_api.db.models.salary_template import (
+    SalaryTemplate,
+    SalaryTemplateAssignment,
+    SalaryTemplateDesignation,
+    SalaryTemplateGrade,
+    SalaryTemplateLine,
+)
 from trishul_api.db.models.trk import (
     TrackableActivity,
     TrackableActivityModule,
@@ -30,6 +47,19 @@ from trishul_api.db.models.trk import (
 __all__ = [
     "Audited",
     "Base",
+    "LeaveAttendanceClass",
+    "LeaveBalanceTransaction",
+    "LeaveEntitlementRun",
+    "LeavePolicy",
+    "LeavePolicyAssignment",
+    "LeavePolicyLine",
+    "LeaveTypeSetting",
+    "LeaveWeeklyRestGrant",
+    "SalaryTemplate",
+    "SalaryTemplateAssignment",
+    "SalaryTemplateDesignation",
+    "SalaryTemplateGrade",
+    "SalaryTemplateLine",
     "TrackableActivity",
     "TrackableActivityModule",
     "TrkGpsDiagnosticEventType",

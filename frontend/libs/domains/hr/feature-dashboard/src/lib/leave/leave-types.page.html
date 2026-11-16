@@ -1,0 +1,47 @@
+<trishul-page-header title="Leave Types" subtitle="Configurable leave codes. Entitlements for a group of employees are set on a leave policy." />
+@if (error()) { <p class="error">{{ error() }}</p> }
+<div class="panel">
+  <form class="card" *trishulHasPermission="manage" (ngSubmit)="save()">
+    <h2>{{ editing() ? 'Edit leave type' : 'Add leave type' }}</h2>
+    <div class="grid">
+      <mat-form-field appearance="outline"><mat-label>Code</mat-label><input matInput [ngModel]="form().code" (ngModelChange)="patch({ code: $event })" name="code" required /></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput [ngModel]="form().name" (ngModelChange)="patch({ name: $event })" name="name" required /></mat-form-field>
+      <mat-form-field class="wide" appearance="outline"><mat-label>Description</mat-label><input matInput [ngModel]="form().description" (ngModelChange)="patch({ description: $event })" name="description" /></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Annual entitlement</mat-label><input matInput [ngModel]="form().annualQuota" (ngModelChange)="patch({ annualQuota: $event || null })" name="quota" /></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Max carry forward</mat-label><input matInput [ngModel]="form().carryForwardMax" (ngModelChange)="patch({ carryForwardMax: $event || null })" name="carry" /></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Max consecutive days</mat-label><input matInput type="number" [ngModel]="form().maxConsecutiveDays" (ngModelChange)="patch({ maxConsecutiveDays: $event })" name="maxDays" /></mat-form-field>
+    </div>
+    <mat-checkbox [ngModel]="form().isPaid" (ngModelChange)="patch({ isPaid: $event })" name="paid">Paid</mat-checkbox>
+    <mat-checkbox [ngModel]="form().isEncashable" (ngModelChange)="patch({ isEncashable: $event })" name="encash">Encashment</mat-checkbox>
+    <mat-checkbox [ngModel]="form().accrualApplicable" (ngModelChange)="patch({ accrualApplicable: $event })" name="accrual">Accrual</mat-checkbox>
+    <mat-checkbox [ngModel]="form().halfDayAllowed" (ngModelChange)="patch({ halfDayAllowed: $event })" name="half">Half day</mat-checkbox>
+    <mat-checkbox [ngModel]="form().attachmentRequired" (ngModelChange)="patch({ attachmentRequired: $event })" name="file">Attachment required</mat-checkbox>
+    <mat-checkbox [ngModel]="form().isActive" (ngModelChange)="patch({ isActive: $event })" name="active">Active</mat-checkbox>
+    <div class="actions">
+      <button mat-button type="button" (click)="reset()">Clear</button>
+      <button mat-flat-button color="primary" type="submit">Save</button>
+    </div>
+  </form>
+  <section class="card">
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Name</th><th>Paid</th><th>Quota</th><th>Half day</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            <td>{{ row.code }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.isPaid ? 'Paid' : 'Unpaid' }}</td>
+            <td>{{ row.annualQuota || '—' }}</td>
+            <td>{{ row.halfDayAllowed ? 'Yes' : 'No' }}</td>
+            <td>{{ row.isActive ? 'Active' : 'Inactive' }}</td>
+            <td><button mat-icon-button type="button" aria-label="Edit leave type" (click)="edit(row)"><mat-icon>edit</mat-icon></button></td>
+          </tr>
+        } @empty {
+          <tr><td class="empty" colspan="7">No leave types are saved.</td></tr>
+        }
+      </tbody>
+    </table>
+  </section>
+</div>

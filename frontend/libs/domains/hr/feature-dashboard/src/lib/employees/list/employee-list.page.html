@@ -84,7 +84,7 @@
     <mat-select [value]="prefs.filters().designationId" (valueChange)="onDesignation($event)">
       <mat-option [value]="null">Any designation</mat-option>
       @for (designation of designations(); track designation.id) {
-        <mat-option [value]="designation.id">{{ designation.name }}</mat-option>
+        <mat-option [value]="designation.id">{{ designation.name }}@if (designation.grade) { · {{ designation.grade }} }</mat-option>
       }
     </mat-select>
   </mat-form-field>

@@ -140,6 +140,11 @@
   letter-spacing: 0;
   text-transform: none;
   color: var(--mat-sys-on-surface);
+
+  &.active {
+    background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    color: var(--mat-sys-primary);
+  }
 }
 
 .sidebar .nav-children .nav-children {

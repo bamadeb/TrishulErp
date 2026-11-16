@@ -1,0 +1,110 @@
+<trishul-page-header title="Leave Balance" subtitle="View and manage employee leave balances, entitlements and adjustments.">
+  <button mat-stroked-button type="button" (click)="load()"><mat-icon>refresh</mat-icon>Recalculate</button>
+  <button mat-flat-button color="primary" type="button" *trishulHasPermission="manage" (click)="generate()"><mat-icon>auto_awesome</mat-icon>Generate Entitlement</button>
+</trishul-page-header>
+@if (error()) { <p class="error">{{ error() }}</p> }
+@if (board()?.warning) { <p class="warn">{{ board()?.warning }}</p> }
+<section class="summary">
+  <article><mat-icon>groups</mat-icon><div><strong>{{ board()?.summary?.totalEmployees ?? 0 }}</strong><span>Total Employees</span></div></article>
+  <article class="success"><mat-icon>fact_check</mat-icon><div><strong>{{ board()?.summary?.withAssignedPolicy ?? 0 }}</strong><span>With Assigned Policy</span></div></article>
+  <article class="info"><mat-icon>layers</mat-icon><div><strong>{{ board()?.summary?.entitlementGenerated ?? 0 }}</strong><span>Entitlement Generated</span></div></article>
+  <article class="warn"><mat-icon>warning</mat-icon><div><strong>{{ board()?.summary?.requiresReview ?? 0 }}</strong><span>Requires Review</span></div></article>
+</section>
+<section class="card filters">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Leave Policy</mat-label>
+    <mat-select [ngModel]="policyId()" (ngModelChange)="policyId.set($event)" name="policy">
+      <mat-option [value]="null">All policies</mat-option>
+      @for (policy of policies(); track policy.id) { <mat-option [value]="policy.id">{{ policy.name }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Policy Year</mat-label>
+    <mat-select [ngModel]="year()" (ngModelChange)="year.set($event)" name="year">
+      @for (value of years(); track value) { <mat-option [value]="value">{{ value }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Department</mat-label>
+    <mat-select [ngModel]="departmentId()" (ngModelChange)="departmentId.set($event)" name="department">
+      <mat-option [value]="null">All Departments</mat-option>
+      @for (department of departments(); track department.id) { <mat-option [value]="department.id">{{ department.name }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Location</mat-label>
+    <mat-select [ngModel]="branchId()" (ngModelChange)="branchId.set($event)" name="location">
+      <mat-option [value]="null">All Locations</mat-option>
+      @for (branch of branches(); track branch.id) { <mat-option [value]="branch.id">{{ branch.name }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Search employee</mat-label>
+    <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" />
+  </mat-form-field>
+  <button mat-flat-button color="primary" type="button" (click)="searchNow()">Search</button>
+  <button mat-stroked-button type="button" (click)="clear()">Clear</button>
+  <button mat-button type="button" (click)="exportCsv()">Export</button>
+</section>
+<section class="card">
+  <div class="table-wrap">
+    <table>
+      <colgroup>
+        <col class="col-check" />
+        <col class="col-id" />
+        <col class="col-name" />
+        <col class="col-dept" />
+        <col class="col-desig" />
+        <col class="col-num" span="12" />
+        <col class="col-co" />
+        <col class="col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th rowspan="2"></th>
+          <th rowspan="2"><button type="button" (click)="toggleSort('employeeCode')">Emp ID</button></th>
+          <th rowspan="2"><button type="button" (click)="toggleSort('employeeName')">Employee Name</button></th>
+          <th rowspan="2"><button type="button" (click)="toggleSort('department')">Department</button></th>
+          <th rowspan="2" class="group-end">Designation</th>
+          <th colspan="4" class="group-end">Earned Leave (EL)</th>
+          <th colspan="4" class="group-end">Sick Leave (SL)</th>
+          <th colspan="4" class="group-end">Casual Leave (CL)</th>
+          <th rowspan="2">Company Comp-Off</th>
+          <th rowspan="2" class="actions">Actions</th>
+        </tr>
+        <tr>
+          <th>Op.</th><th>Cred.</th><th>Used</th><th class="group-end">Bal.</th>
+          <th>Op.</th><th>Cred.</th><th>Used</th><th class="group-end">Bal.</th>
+          <th>Op.</th><th>Cred.</th><th>Used</th><th class="group-end">Bal.</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of board()?.items ?? []; track row.employeeId) {
+          <tr>
+            <td><mat-checkbox [checked]="selected().includes(row.employeeId)" (change)="toggle(row.employeeId, $event.checked)" /></td>
+            <td>{{ row.employeeCode }}</td>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.department || '—' }}</td>
+            <td class="group-end">{{ row.designation || '—' }}</td>
+            <td>{{ row.el.opening }}</td><td>{{ row.el.credited }}</td><td>{{ row.el.used }}</td>
+            <td class="group-end"><span [class]="'bal ' + tone(row.el.balance)">{{ row.el.balance }}</span></td>
+            <td>{{ row.sl.opening }}</td><td>{{ row.sl.credited }}</td><td>{{ row.sl.used }}</td>
+            <td class="group-end"><span [class]="'bal ' + tone(row.sl.balance)">{{ row.sl.balance }}</span></td>
+            <td>{{ row.cl.opening }}</td><td>{{ row.cl.credited }}</td><td>{{ row.cl.used }}</td>
+            <td class="group-end"><span [class]="'bal ' + tone(row.cl.balance)">{{ row.cl.balance }}</span></td>
+            <td><span [class]="'bal ' + tone(row.compOffBalance)">{{ row.compOffBalance }}</span></td>
+            <td class="actions">
+              <button mat-icon-button type="button" [matMenuTriggerFor]="menu" [matMenuTriggerData]="{ row: row }" [attr.aria-label]="'Actions for ' + row.employeeCode">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+            </td>
+          </tr>
+        } @empty { <tr><td colspan="19">No employees match these filters.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+  <mat-paginator [length]="board()?.total ?? 0" [pageIndex]="pageIndex()" [pageSize]="pageSize()" [pageSizeOptions]="[10, 25, 50]" (page)="page($event)" />
+  <mat-menu #menu="matMenu" xPosition="before">
+    <ng-template matMenuContent let-row="row">
+      <button mat-menu-item type="button" (click)="open(row, 'details')">View Balance Details</button>
+      <button mat-menu-item type="button" (click)="open(row, 'transactions')">View Leave Transactions</button>
+      <button mat-menu-item type="button" *trishulHasPermission="manage" (click)="open(row, 'adjust')">Adjust Balance</button>
+      <button mat-menu-item type="button" (click)="open(row, 'history')">View Leave History</button>
+    </ng-template>
+  </mat-menu>
+</section>

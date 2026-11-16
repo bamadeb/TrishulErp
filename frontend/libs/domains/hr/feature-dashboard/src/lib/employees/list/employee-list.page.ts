@@ -23,7 +23,7 @@ import { Subject, debounceTime, distinctUntilChanged, filter } from 'rxjs';
 import { AuthStore, HasPermission } from '@trishul/core-auth';
 import {
   DepartmentOption,
-  DesignationOption,
+  DesignationChoice,
   EMPLOYEE_MANAGE_PERMISSION,
   EMPLOYEE_TYPES,
   EmployeeCounts,
@@ -105,7 +105,7 @@ export class EmployeeListPage {
   protected readonly columnsOpen = signal(false);
   protected readonly searchText = signal(this.prefs.filters().search);
   protected readonly departments = signal<DepartmentOption[]>([]);
-  protected readonly designations = signal<DesignationOption[]>([]);
+  protected readonly designations = signal<DesignationChoice[]>([]);
   protected readonly branches = computed(() => this.auth.user()?.branches ?? []);
   protected readonly activeView = computed(
     () => this.prefs.views().find((view) => view.id === this.prefs.activeViewId()) ?? null,

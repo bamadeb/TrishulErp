@@ -1,4 +1,4 @@
-<trishul-page-header title="Payroll Processing" subtitle="Run the monthly payroll from each employee's saved salary structure. Employees without a structure are left out. Settled service-engineer TA/DA stays listed below." />
+<trishul-page-header title="Payroll Processing" subtitle="Run the monthly payroll from each employee's saved salary structure. A Payroll TA/DA settlement is included even when that employee has no structure. Settled service-engineer TA/DA stays listed below." />
 
 <section class="table-card">
   <div class="section-head">
@@ -33,6 +33,9 @@
             <td><trishul-status-badge [status]="row.status" [severities]="status" /></td>
             <td>
               <button mat-button type="button" (click)="view(row)">View details</button>
+              @if (row.status === 'Draft' || row.status === 'Processed') {
+                <button mat-button type="button" (click)="recalculate(row)">Recalculate</button>
+              }
             </td>
           </tr>
         } @empty { <tr><td class="empty" colspan="8">No payroll has been processed.</td></tr> }

@@ -39,6 +39,7 @@ interface OrgForm {
   parentDepartmentId: number | null;
   headEmployeeId: number | null;
   grade: string;
+  isActive: boolean;
   departmentId: number | null;
   designationId: number | null;
   branchType: '' | 'Head office' | 'Warehouse' | 'Branch' | 'Service point';
@@ -64,6 +65,7 @@ interface ViewLine {
 }
 
 const BRANCH_TYPES = ['Head office', 'Warehouse', 'Branch', 'Service point'] as const;
+const GRADES = ['E1', 'E2', 'E3', 'E4', 'E5', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6'] as const;
 
 const NOUN: Record<OrgTabId, string> = {
   departments: 'department',
@@ -81,6 +83,7 @@ function blankForm(): OrgForm {
     parentDepartmentId: null,
     headEmployeeId: null,
     grade: '',
+    isActive: true,
     departmentId: null,
     designationId: null,
     branchType: '',
@@ -138,6 +141,7 @@ export class OrganizationRecordDialog {
   private readonly snackBar = inject(MatSnackBar);
 
   protected readonly branchTypes = BRANCH_TYPES;
+  protected readonly grades = GRADES;
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly form = signal<OrgForm>(blankForm());
@@ -165,9 +169,9 @@ export class OrganizationRecordDialog {
       case 'departments':
         return form.code.trim().length > 0 && form.name.trim().length > 0;
       case 'designations':
-        return form.code.trim().length > 0 && form.name.trim().length > 0;
+        return form.code.trim().length > 0 && form.name.trim().length > 0 && this.grades.includes(form.grade as (typeof GRADES)[number]);
       case 'grades':
-        return form.grade.trim().length > 0 && (this.data.mode === 'edit' || form.designationId !== null);
+        return this.grades.includes(form.grade as (typeof GRADES)[number]) && (this.data.mode === 'edit' || form.designationId !== null);
       case 'locations':
         return (
           form.code.trim().length > 0 &&
@@ -190,6 +194,14 @@ export class OrganizationRecordDialog {
       next: () => this.loading.set(false),
       error: () => this.dialogRef.close(false),
     });
+  }
+
+  protected setTextValue(field: 'grade', value: string): void {
+    this.form.update((form) => ({ ...form, [field]: value }));
+  }
+
+  protected setActive(value: boolean): void {
+    this.form.update((form) => ({ ...form, isActive: value }));
   }
 
   protected setText<K extends 'code' | 'name' | 'grade' | 'address' | 'phone' | 'email' | 'legalName' | 'tradeName' | 'pan' | 'cin' | 'logoUrl'>(
@@ -277,6 +289,7 @@ export class OrganizationRecordDialog {
               code: row.code,
               name: row.name,
               grade: row.grade ?? '',
+              isActive: row.isActive,
               departmentId: row.departmentId,
             }));
             this.lines.set([
@@ -437,6 +450,7 @@ export class OrganizationRecordDialog {
           name: form.name.trim(),
           grade: text(form.grade),
           departmentId: form.departmentId,
+          ...(this.data.mode === 'edit' ? { isActive: form.isActive } : {}),
         };
         return this.data.mode === 'create'
           ? this.api.createDesignation(body)
