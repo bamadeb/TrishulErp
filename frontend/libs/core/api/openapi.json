@@ -6798,6 +6798,7 @@
                   "In progress",
                   "Report submitted",
                   "Awaiting parts",
+                  "Quotation sent",
                   "Parts ready",
                   "Revisit scheduled",
                   "Closed",
@@ -7753,6 +7754,7 @@
                   "In progress",
                   "Report submitted",
                   "Awaiting parts",
+                  "Quotation sent",
                   "Parts ready",
                   "Revisit scheduled",
                   "Closed",
@@ -39007,6 +39009,7 @@
               "In progress",
               "Report submitted",
               "Awaiting parts",
+              "Quotation sent",
               "Parts ready",
               "Revisit scheduled",
               "Closed",
@@ -39918,8 +39921,7 @@
           },
           "qtyAvailable": {
             "type": "string",
-            "title": "Qtyavailable",
-            "description": "0 when the branch holds none."
+            "title": "Qtyavailable"
           },
           "isCallBranch": {
             "type": "boolean",
@@ -45902,6 +45904,7 @@
               "In progress",
               "Report submitted",
               "Awaiting parts",
+              "Quotation sent",
               "Parts ready",
               "Revisit scheduled",
               "Closed",
@@ -58952,7 +58955,7 @@
             },
             "type": "array",
             "title": "Branches",
-            "description": "Every active branch with its stock of the part (0 included): the call's branch first, then its supplying warehouse, then the most stock first, then by name."
+            "description": "Every active branch holding the part (branches with none are left out): the call's branch first, then its supplying warehouse, then the most stock first, then by name."
           }
         },
         "type": "object",
@@ -67695,6 +67698,7 @@
               "In progress",
               "Report submitted",
               "Awaiting parts",
+              "Quotation sent",
               "Parts ready",
               "Revisit scheduled",
               "Closed",
@@ -67858,6 +67862,7 @@
                 "In progress",
                 "Report submitted",
                 "Awaiting parts",
+                "Quotation sent",
                 "Parts ready",
                 "Revisit scheduled",
                 "Closed",
@@ -68036,6 +68041,7 @@
               "In progress",
               "Report submitted",
               "Awaiting parts",
+              "Quotation sent",
               "Parts ready",
               "Revisit scheduled",
               "Closed",
@@ -68166,6 +68172,7 @@
               "In progress",
               "Report submitted",
               "Awaiting parts",
+              "Quotation sent",
               "Parts ready",
               "Revisit scheduled",
               "Closed",
@@ -70214,6 +70221,7 @@
               "In progress",
               "Report submitted",
               "Awaiting parts",
+              "Quotation sent",
               "Parts ready",
               "Revisit scheduled",
               "Closed",

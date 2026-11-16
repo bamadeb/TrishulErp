@@ -14,10 +14,6 @@ export interface BranchStock {
    * The call's own branch.
    */
   isCallBranch: boolean;
-
-  /**
-   * 0 when the branch holds none.
-   */
   qtyAvailable: string;
 
   /**

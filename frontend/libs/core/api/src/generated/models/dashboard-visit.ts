@@ -8,7 +8,7 @@
 export interface DashboardVisit {
   callNo: string;
   complaintDescription: string;
-  currentStatus: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
+  currentStatus: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Quotation sent' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
   customerName: string;
 
   /**

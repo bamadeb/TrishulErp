@@ -3,5 +3,5 @@
 
 export interface StatusCount {
   count: number;
-  status: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
+  status: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Quotation sent' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
 }

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import get_current_user, get_db
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import Alert, AlertRecipient, Quotation, QuotationLine
+from trishul_api.db.models import Alert, AlertRecipient, CallStatusLog, Quotation, QuotationLine, ServiceCall
 from trishul_api.main import create_app
 
 from .conftest import make_user
@@ -38,7 +38,8 @@ CUSTOMER, OTHER_CUSTOMER = 51, 52
 FILTER, OIL = 41, 42
 CALL, OTHER_CALL = 24, 25
 REVIEW = {"svc.part_request.review", "sal.quotation.manage", "sal.quotation.view", "svc.call.view"}
-ENGINEER_PERMISSIONS = {"svc.call.view.assigned", "svc.part_request.create"}
+# sal.quotation.view as the live SERVICE_ENGINEER role has it, so the app can open the call's quotation.
+ENGINEER_PERMISSIONS = {"svc.call.view.assigned", "svc.part_request.create", "sal.quotation.view"}
 SVC = "/api/v1/svc"
 
 
@@ -221,16 +222,11 @@ def test_engineer_sees_stock_in_their_warehouse_and_the_others(engineer: TestCli
     assert places == [("Bhubaneswar", Decimal(3), True), ("Barbil", Decimal(7), False)]
     branches = [(b["branchName"], Decimal(b["qtyAvailable"]), b["isCallBranch"], b["suppliesCallBranch"])
                 for b in filter_part["branches"]]  # fmt: skip
-    assert branches == [
-        ("Bhadrak", Decimal(0), True, False),
-        ("Bhubaneswar", Decimal(3), False, True),
-        ("Barbil", Decimal(7), False, False),
-    ]
+    # Bhadrak holds none, so it is left out.
+    assert branches == [("Bhubaneswar", Decimal(3), False, True), ("Barbil", Decimal(7), False, False)]
     assert Decimal(oil["totalAvailable"]) == Decimal(0)
     assert oil["warehouses"] == []
-    assert [(b["branchName"], Decimal(b["qtyAvailable"])) for b in oil["branches"]] == [
-        ("Bhadrak", Decimal(0)), ("Bhubaneswar", Decimal(0)), ("Barbil", Decimal(0)),
-    ]  # fmt: skip
+    assert oil["branches"] == []
     assert "standardCost" not in filter_part and "unitCost" not in filter_part
 
     bad = engineer.get(f"{SVC}/service-calls/26/part-availability", params={"itemIds": [999]})
@@ -245,19 +241,23 @@ def test_stock_of_a_supplying_warehouse_under_another_company_counts(engineer: T
                parent_warehouse_id=BRANCH, state_id=ODISHA)  # fmt: skip
     insert_row(db, "core.branch", id=4, company_id=9, code="FAR", name="Far away", branch_type="Warehouse",
                state_id=ODISHA)  # fmt: skip
-    for location, branch in ((71, BRANCH), (72, 4)):
+    for location, branch in ((71, BRANCH), (72, 4), (73, 3)):
         insert_row(db, "core.location", id=location, branch_id=branch, code=f"L{location}", name=f"Store {location}",
                    location_type="Main store", is_stock_location=True, is_active=True)  # fmt: skip
     stock(db, 1, FILTER, 71, 10)
     stock(db, 2, FILTER, 72, 5)  # an unrelated company's stock is not offered
+    stock(db, 3, FILTER, 73, 2)  # a little in the call's own branch
     insert_row(db, "svc.service_call", id=27, company_id=8, branch_id=3, principal_id=BRAND,
                call_no="BHADRAK/SC/00027", customer_id=CUSTOMER, assigned_engineer_id=ENGINEER,
                call_type_lookup_id=30, current_status="In progress", priority="Normal")  # fmt: skip
 
     (part,) = ok(engineer.get(f"{SVC}/service-calls/27/part-availability", params={"itemIds": [FILTER]}))
-    assert (part["supplyingWarehouseName"], Decimal(part["qtyInSupplyingWarehouse"])) == ("Bhubaneswar", Decimal(10))
-    assert Decimal(part["totalAvailable"]) == Decimal(10)
-    assert [b["branchName"] for b in part["branches"]] == ["Bhadrak", "Bhubaneswar"]  # not the other company's
+    assert (part["supplyingWarehouseName"], Decimal(part["qtyInSupplyingWarehouse"])) == ("Bhubaneswar", Decimal(12))
+    assert Decimal(part["totalAvailable"]) == Decimal(12)
+    # The call's branch first even with less stock; not the other company's.
+    branches = [(b["branchName"], Decimal(b["qtyAvailable"]), b["isCallBranch"], b["suppliesCallBranch"])
+                for b in part["branches"]]  # fmt: skip
+    assert branches == [("Bhadrak", Decimal(2), True, False), ("Bhubaneswar", Decimal(10), False, True)]
 
 
 def draft(client: TestClient, ids: list[int]) -> Any:
@@ -313,6 +313,20 @@ def test_the_draft_is_filled_in_and_nothing_is_saved_until_the_user_saves(
         lines = s.scalars(select(QuotationLine).order_by(QuotationLine.line_no)).all()
         assert [Decimal(ln.unit_price) for ln in lines] == [Decimal(1200), Decimal(450)]
     assert open_alerts(db) == []
+    # The call moves on, with a history entry, and the engineer's app sees the quotation.
+    with Session(db) as s:
+        call = s.get(ServiceCall, CALL)
+        assert call is not None and call.current_status == "Quotation sent"
+        logs = s.scalars(select(CallStatusLog).where(CallStatusLog.service_call_id == CALL)).all()
+        assert [(log.from_status, log.to_status, log.remarks) for log in logs] == [
+            ("In progress", "Quotation sent", "Quotation QT/001 for the requested parts"),
+        ]  # fmt: skip
+    seen = ok(engineer.get(f"{SVC}/service-calls/{CALL}/part-requests"))
+    assert {(p["callStatus"], p["quotationId"], p["quotationNo"]) for p in seen} == {
+        ("Quotation sent", result["quotationId"], "QT/001"),
+    }  # fmt: skip
+    quotation_seen = ok(engineer.get(f"/api/v1/sal/quotations/{result['quotationId']}"))
+    assert quotation_seen["quotationNo"] == "QT/001"
     # The parts are no longer waiting: no second draft or quotation.
     assert draft_status(admin, [parts[0]["id"]]) == 409
     assert save(admin, d).status_code == 409
@@ -325,6 +339,20 @@ def test_alert_stays_open_until_every_part_is_reviewed(engineer: TestClient, adm
     assert len(open_alerts(db)) == 1  # the filter is still waiting
     ok(save(admin, draft(admin, [filter_part["id"]])), 201)
     assert open_alerts(db) == []
+
+
+def test_a_finished_call_keeps_its_status_when_quoted(engineer: TestClient, admin: TestClient, db: Engine) -> None:
+    parts = request_parts(engineer, parts=[{"itemId": FILTER, "quantity": 1}])
+    with Session(db) as s:
+        call = s.get(ServiceCall, CALL)
+        assert call is not None
+        call.current_status = "Completed"
+        s.commit()
+    ok(save(admin, draft(admin, [parts[0]["id"]])), 201)
+    with Session(db) as s:
+        call = s.get(ServiceCall, CALL)
+        assert call is not None and call.current_status == "Completed"
+        assert s.scalars(select(CallStatusLog)).all() == []
 
 
 def test_one_quotation_is_for_one_customer(engineer: TestClient, admin: TestClient) -> None:

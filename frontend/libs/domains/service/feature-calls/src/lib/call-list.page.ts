@@ -82,6 +82,7 @@ const STATUS_SEVERITY: Record<CallStatus, StatusSeverity> = {
   'In progress': 'warn',
   'Report submitted': 'warn',
   'Awaiting parts': 'danger',
+  'Quotation sent': 'warn',
   'Parts ready': 'warn',
   'Revisit scheduled': 'warn',
   Closed: 'success',

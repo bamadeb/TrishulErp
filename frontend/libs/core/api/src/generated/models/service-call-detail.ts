@@ -12,7 +12,7 @@ export interface ServiceCallDetail {
   /**
    * Statuses the signed-in user may move this call to.
    */
-  allowedStatuses: Array<'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled'>;
+  allowedStatuses: Array<'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Quotation sent' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled'>;
 
   /**
    * The machine's ASC today; null without a machine or ASC.
@@ -33,7 +33,7 @@ export interface ServiceCallDetail {
   closedAt: (string | null);
   complaintDescription: string;
   coverageType: ('Warranty' | 'Contract' | 'Chargeable' | 'Goodwill' | null);
-  currentStatus: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
+  currentStatus: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Quotation sent' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
   customerId: number;
   customerName: string;
   customerPhone: (string | null);

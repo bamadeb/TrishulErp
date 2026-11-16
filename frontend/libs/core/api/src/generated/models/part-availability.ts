@@ -11,7 +11,7 @@ import { WarehouseStock } from '../models/warehouse-stock';
 export interface PartAvailability {
 
   /**
-   * Every active branch with its stock of the part (0 included): the call's branch first, then its supplying warehouse, then the most stock first, then by name.
+   * Every active branch holding the part (branches with none are left out): the call's branch first, then its supplying warehouse, then the most stock first, then by name.
    */
   branches: Array<BranchStock>;
   description: string;
