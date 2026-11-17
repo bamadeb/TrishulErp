@@ -84,6 +84,7 @@ export class MachineListPage {
     'serialNumber',
     'modelName',
     'customerName',
+    'engineerName',
     'warrantyEndDate',
     'hmr',
     'status',

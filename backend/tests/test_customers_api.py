@@ -23,6 +23,7 @@ TABLES = [
     "core.state",
     "core.machine_model",
     "core.machine_unit",
+    "svc.machine_engineer",
     "core.audit_log",
 ]
 COMPANY = 1

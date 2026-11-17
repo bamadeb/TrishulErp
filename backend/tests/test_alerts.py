@@ -34,6 +34,7 @@ TABLES = [
     "core.user_principal_access",
     "core.machine_model",
     "core.machine_unit",
+    "svc.machine_engineer",
     "core.lookup_type",
     "core.lookup_value",
     "core.audit_log",

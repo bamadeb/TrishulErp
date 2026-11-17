@@ -133,6 +133,15 @@ export class MachineFormPage {
     { initialValue: null },
   );
   protected readonly models = computed(() => this.options()?.models ?? []);
+  protected readonly engineers = computed(() => this.options()?.engineers ?? []);
+  /** The machine's engineer when not on offer (another branch, or no longer a service engineer). */
+  protected readonly missingEngineer = computed(() => {
+    const m = this.machine();
+    if (!m?.engineerEmployeeId) return null;
+    return this.engineers().some((e) => e.id === m.engineerEmployeeId)
+      ? null
+      : { id: m.engineerEmployeeId, name: m.engineerName ?? `#${m.engineerEmployeeId}` };
+  });
 
   protected readonly form = this.fb.group({
     serialNumber: this.fb.control('', [
@@ -162,6 +171,7 @@ export class MachineFormPage {
       null,
       Validators.maxLength(40),
     ),
+    engineerEmployeeId: new FormControl<number | null>(null),
   });
 
   protected readonly customerOptions = toSignal(
@@ -207,6 +217,7 @@ export class MachineFormPage {
       warrantyStartDate: v.warrantyStartDate || null,
       warrantyEndDate: v.warrantyEndDate || null,
       oemRegisteredProductId: text(v.oemRegisteredProductId),
+      engineerEmployeeId: v.engineerEmployeeId,
     };
     this.saving.set(true);
     const current = this.machine();
@@ -252,6 +263,7 @@ export class MachineFormPage {
       warrantyStartDate: null,
       warrantyEndDate: null,
       oemRegisteredProductId: null,
+      engineerEmployeeId: null,
     });
     this.form.markAsPristine();
   }
@@ -293,6 +305,7 @@ export class MachineFormPage {
       warrantyStartDate: machine.warrantyStartDate,
       warrantyEndDate: machine.warrantyEndDate,
       oemRegisteredProductId: machine.oemRegisteredProductId,
+      engineerEmployeeId: machine.engineerEmployeeId ?? null,
     });
     if (!this.canManage) this.form.disable();
     this.form.markAsPristine();

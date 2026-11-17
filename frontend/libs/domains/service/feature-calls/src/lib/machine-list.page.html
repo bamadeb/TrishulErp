@@ -91,6 +91,17 @@
         </td>
       </ng-container>
 
+      <ng-container matColumnDef="engineerName">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Engineer</th>
+        <td mat-cell *matCellDef="let m">
+          @if (m.engineerName) {
+          {{ m.engineerName }}
+          } @else {
+          <span class="muted">Not attached</span>
+          }
+        </td>
+      </ng-container>
+
       <ng-container matColumnDef="warrantyEndDate">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Warranty till</th>
         <td mat-cell *matCellDef="let m">

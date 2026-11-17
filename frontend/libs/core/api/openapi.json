@@ -11480,6 +11480,36 @@
               ],
               "title": "Modelid"
             }
+          },
+          {
+            "name": "engineerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only machines attached to this engineer.",
+              "title": "Engineerid"
+            },
+            "description": "Only machines attached to this engineer."
+          },
+          {
+            "name": "withoutEngineer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only machines with no engineer attached.",
+              "default": false,
+              "title": "Withoutengineer"
+            },
+            "description": "Only machines with no engineer attached."
           }
         ],
         "responses": {
@@ -46603,6 +46633,11 @@
             "format": "date-time",
             "title": "Countedat"
           },
+          "usesVisit": {
+            "type": "boolean",
+            "title": "Usesvisit",
+            "description": "True for the call that used the day's visit; false for another call of the ASC on the same day (no extra visit)."
+          },
           "engineers": {
             "items": {
               "$ref": "#/components/schemas/AscVisitEngineer"
@@ -46620,10 +46655,11 @@
           "callStatus",
           "complaintDescription",
           "countedAt",
+          "usesVisit",
           "engineers"
         ],
         "title": "AscVisitDay",
-        "description": "One day engineers worked on site for an ASC service call: it used one visit of the ASC."
+        "description": "One day engineers worked on site for an ASC service call. A day uses one visit of the ASC, however\nmany of its calls were worked on."
       },
       "AscVisitEngineer": {
         "properties": {
@@ -65925,6 +65961,18 @@
               }
             ],
             "title": "Oemregisteredproductid"
+          },
+          "engineerEmployeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineeremployeeid",
+            "description": "Service engineer attached to the machine: new service calls are assigned to them."
           }
         },
         "additionalProperties": false,
@@ -66040,6 +66088,29 @@
               }
             ],
             "title": "Currenthmr"
+          },
+          "engineerEmployeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineeremployeeid",
+            "description": "Service engineer attached: new calls go to them."
+          },
+          "engineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineername"
           },
           "isActive": {
             "type": "boolean",
@@ -66157,6 +66228,8 @@
           "status",
           "warrantyEndDate",
           "currentHmr",
+          "engineerEmployeeId",
+          "engineerName",
           "isActive",
           "createdAt",
           "principalId",
@@ -66172,6 +66245,41 @@
         ],
         "title": "MachineDetail"
       },
+      "MachineEngineerOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "employeeCode",
+          "branchName"
+        ],
+        "title": "MachineEngineerOption"
+      },
       "MachineFormOptions": {
         "properties": {
           "models": {
@@ -66180,14 +66288,22 @@
             },
             "type": "array",
             "title": "Models"
+          },
+          "engineers": {
+            "items": {
+              "$ref": "#/components/schemas/MachineEngineerOption"
+            },
+            "type": "array",
+            "title": "Engineers"
           }
         },
         "type": "object",
         "required": [
-          "models"
+          "models",
+          "engineers"
         ],
         "title": "MachineFormOptions",
-        "description": "Everything the add/edit machine form needs: the active models of the selected brand."
+        "description": "Everything the add/edit machine form needs: the active models of the selected brand and the service\nengineers that can be attached."
       },
       "MachineListItem": {
         "properties": {
@@ -66294,6 +66410,29 @@
             ],
             "title": "Currenthmr"
           },
+          "engineerEmployeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineeremployeeid",
+            "description": "Service engineer attached: new calls go to them."
+          },
+          "engineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineername"
+          },
           "isActive": {
             "type": "boolean",
             "title": "Isactive"
@@ -66318,6 +66457,8 @@
           "status",
           "warrantyEndDate",
           "currentHmr",
+          "engineerEmployeeId",
+          "engineerName",
           "isActive",
           "createdAt"
         ],
@@ -66396,6 +66537,18 @@
             ],
             "title": "Customername"
           },
+          "engineerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineername",
+            "description": "Engineer attached to the machine: a new call goes to them."
+          },
           "asc": {
             "anyOf": [
               {
@@ -66414,6 +66567,7 @@
           "serialNumber",
           "modelName",
           "customerName",
+          "engineerName",
           "asc"
         ],
         "title": "MachineUnitOption"
@@ -66568,6 +66722,18 @@
               }
             ],
             "title": "Oemregisteredproductid"
+          },
+          "engineerEmployeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engineeremployeeid",
+            "description": "null takes the attached engineer off."
           }
         },
         "additionalProperties": false,

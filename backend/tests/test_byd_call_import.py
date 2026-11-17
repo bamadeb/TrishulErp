@@ -33,6 +33,7 @@ TABLES = [
     "core.customer",
     "core.machine_model",
     "core.machine_unit",
+    "svc.machine_engineer",
     "core.employee",
     "core.lookup_type",
     "core.lookup_value",
@@ -243,6 +244,22 @@ def test_apply_inserts_and_maps_fields(client: TestClient, db: Engine) -> None:
         batch = s.scalars(select(BydCallImport)).one()
         assert (batch.inserted_count, batch.updated_count, batch.failed_count, batch.unlinked_count) == (2, 0, 1, 1)
         assert s.scalar(select(func.count()).where(Customer.code == "BYD-UNLINKED")) == 1
+
+
+def test_a_new_call_without_a_known_engineer_goes_to_the_machines_engineer(client: TestClient, db: Engine) -> None:
+    insert_row(db, "core.employee", id=310, company_id=COMPANY, branch_id=BRANCH, employee_code="E310",
+               first_name="Rakesh", last_name="Das", employee_type="Permanent", status="Active")
+    insert_row(db, "svc.machine_engineer", machine_unit_id=MACHINE_ID, engineer_employee_id=310)
+    rows = order_rows()[:1]
+    rows[0]["Engineer Name"] = "Someone Unknown"
+    assert post_file(client, IMPORT, make_xlsx(ORDER_HEADERS, rows)).status_code == 201
+    (call,) = calls(db)
+    assert (call.assigned_engineer_id, call.current_status) == (310, "Assigned")
+
+    # An engineer BYD names (and Trishul knows) wins over the machine's.
+    rows[0] |= {"C4C Ticket ID": "T9", "Engineer Name": ENGINEER_NAME}
+    post_file(client, IMPORT, make_xlsx(ORDER_HEADERS, rows))
+    assert calls(db)[1].assigned_engineer_id == ENGINEER_ID
 
 
 def test_reimporting_the_same_file_updates_and_never_duplicates(client: TestClient, db: Engine) -> None:

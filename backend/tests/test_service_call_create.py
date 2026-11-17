@@ -14,7 +14,7 @@ from trishul_api.auth import get_current_user, get_db
 from trishul_api.common.errors import NotFound
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import CallAssignment, MachineUnit, ServiceCall, ServiceVisit
+from trishul_api.db.models import CallAssignment, Employee, MachineUnit, ServiceCall, ServiceVisit
 from trishul_api.main import create_app
 from trishul_api.modules.trk import handlers
 
@@ -28,6 +28,7 @@ TABLES = [
     "core.customer",
     "core.machine_model",
     "core.machine_unit",
+    "svc.machine_engineer",
     "core.customer_site",
     "core.employee",
     "core.lookup_type",
@@ -54,6 +55,7 @@ TABLES = [
     "svc.service_contract",
     "svc.contract_coverage",
     "svc.contract_visit",
+    "svc.contract_visit_day",
     "svc.sla_rule",
     "svc.sla_event",
     "core.alert_rule",
@@ -268,6 +270,43 @@ def test_new_call_starts_its_history(client: TestClient) -> None:
     call = create(client).json()
     rows = history(client, call["id"])
     assert [(r["fromStatus"], r["toStatus"]) for r in rows] == [(None, "Logged")]
+
+
+def attach_engineer(db: Engine, employee_id: int = ENGINEER_ID) -> None:
+    insert_row(db, "svc.machine_engineer", machine_unit_id=MACHINE_ID, engineer_employee_id=employee_id)
+
+
+def test_a_new_call_goes_to_the_engineer_attached_to_its_machine(client: TestClient, db: Engine) -> None:
+    attach_engineer(db)
+    options = client.get(f"{URL}/machine-options", params={"customerId": CUSTOMER_ID}).json()
+    assert options[0]["engineerName"] == "Satyajit Tung"  # the form can say who the call will go to
+
+    call = create(client).json()
+    assert (call["assignedEngineerId"], call["currentStatus"]) == (ENGINEER_ID, "Assigned")
+    rows = history(client, call["id"])
+    assert [(r["fromStatus"], r["toStatus"], r["remarks"]) for r in rows] == [
+        ("Logged", "Assigned", "Assigned to the machine's engineer"),
+        (None, "Logged", "Call logged"),
+    ]
+    # The team lead can still give it to someone else.
+    add_engineer(db, 302, "Rakesh")
+    moved = client.patch(f"{URL}/{call['id']}", json={"engineerId": 302}, headers=if_match(call))
+    assert moved.json()["assignedEngineerId"] == 302
+
+
+def test_a_call_without_a_machine_or_engineer_stays_unassigned(client: TestClient, db: Engine) -> None:
+    assert create(client).json()["currentStatus"] == "Logged"  # machine has no engineer
+    attach_engineer(db)
+    assert create(client, machineUnitId=None).json()["currentStatus"] == "Logged"
+
+
+def test_an_inactive_attached_engineer_is_skipped(client: TestClient, db: Engine) -> None:
+    add_engineer(db, 303, "Left")
+    with db.begin() as conn:
+        conn.execute(update(Employee).where(Employee.id == 303).values(is_active=False))
+    attach_engineer(db, 303)
+    call = create(client).json()
+    assert (call["assignedEngineerId"], call["currentStatus"]) == (None, "Logged")
 
 
 def test_team_lead_changes_status_and_it_is_recorded(client: TestClient) -> None:

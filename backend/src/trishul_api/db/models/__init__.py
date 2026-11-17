@@ -13,6 +13,7 @@ from trishul_api.db.models.generated import __all__ as _generated
 
 # Hand-written until the generator is re-run against the migrated DB (see trk.py).
 from trishul_api.db.models.asc import ContractVisitDay
+from trishul_api.db.models.machine import MachineEngineer
 from trishul_api.db.models.leave import (
     LeaveAttendanceClass,
     LeaveBalanceTransaction,
@@ -57,6 +58,7 @@ __all__ = [
     "LeavePolicyLine",
     "LeaveTypeSetting",
     "LeaveWeeklyRestGrant",
+    "MachineEngineer",
     "SalaryTemplate",
     "SalaryTemplateAssignment",
     "SalaryTemplateDesignation",

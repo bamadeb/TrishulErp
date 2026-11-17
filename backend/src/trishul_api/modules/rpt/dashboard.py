@@ -26,6 +26,7 @@ from trishul_api.auth import CurrentUser, RequestScope
 from trishul_api.db.models import (
     CallAssignment,
     ContractVisit,
+    ContractVisitDay,
     Customer,
     Employee,
     MachineModel,
@@ -322,6 +323,8 @@ class _Figures:
                     ServiceCall.is_active,
                     ServiceCall.current_status.in_(COUNTABLE_STATUSES),
                     ContractVisit.id.is_(None),
+                    # A call worked on the same day as another call of its ASC used no visit of its own.
+                    ~select(ContractVisitDay.id).where(ContractVisitDay.service_call_id == ServiceCall.id).exists(),
                 )
             )
             or 0

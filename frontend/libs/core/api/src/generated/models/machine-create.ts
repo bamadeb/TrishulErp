@@ -11,6 +11,11 @@ export interface MachineCreate {
   engineNumber?: (string | null);
 
   /**
+   * Service engineer attached to the machine: new service calls are assigned to them.
+   */
+  engineerEmployeeId?: (number | null);
+
+  /**
    * The brand is taken from the model.
    */
   modelId: number;

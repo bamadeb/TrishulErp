@@ -237,7 +237,8 @@ class AscVisitEngineer(ApiModel):
 
 
 class AscVisitDay(ApiModel):
-    """One day engineers worked on site for an ASC service call: it used one visit of the ASC."""
+    """One day engineers worked on site for an ASC service call. A day uses one visit of the ASC, however
+    many of its calls were worked on."""
 
     visit_date: dt.date = Field(description="The day, India date.")
     service_call_id: int
@@ -245,6 +246,10 @@ class AscVisitDay(ApiModel):
     call_status: str
     complaint_description: str
     counted_at: UtcDateTime
+    uses_visit: bool = Field(
+        description="True for the call that used the day's visit; false for another call "
+        "of the ASC on the same day (no extra visit)."
+    )
     engineers: list[AscVisitEngineer] = Field(description="Everyone who reached the site that day.")
 
 

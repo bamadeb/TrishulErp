@@ -7,6 +7,12 @@ export interface MachineListItem {
   customerCode: (string | null);
   customerId: (number | null);
   customerName: (string | null);
+
+  /**
+   * Service engineer attached: new calls go to them.
+   */
+  engineerEmployeeId: (number | null);
+  engineerName: (string | null);
   id: number;
   isActive: boolean;
   modelCode: string;

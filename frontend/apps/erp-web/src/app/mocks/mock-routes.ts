@@ -61,6 +61,7 @@ const MOCK_MACHINES: MachineUnitOption[] = [
     serialNumber: 'THX600123',
     modelName: 'EX 200LC',
     customerName: 'Shree Ganesh Infra',
+    engineerName: 'Satyajit Tung',
     asc: {
       contractId: 1,
       contractNo: 'ANGUL/ASC/00001',
@@ -73,8 +74,8 @@ const MOCK_MACHINES: MachineUnitOption[] = [
       visitsRemaining: 7,
     },
   },
-  { id: 2, serialNumber: 'THB700456', modelName: 'SHINRAI BX80', customerName: 'Deccan Fabricators', asc: null },
-  { id: 3, serialNumber: 'API300789', modelName: 'GA 37 VSD+', customerName: 'Sahyadri Pharma', asc: null },
+  { id: 2, serialNumber: 'THB700456', modelName: 'SHINRAI BX80', customerName: 'Deccan Fabricators', engineerName: null, asc: null },
+  { id: 3, serialNumber: 'API300789', modelName: 'GA 37 VSD+', customerName: 'Sahyadri Pharma', engineerName: null, asc: null },
 ];
 
 /** Fixtures used when config.json has "useMockApi": true. They mirror the API contract, not real data. */

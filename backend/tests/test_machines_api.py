@@ -24,6 +24,10 @@ TABLES = [
     "core.customer",
     "core.machine_model",
     "core.machine_unit",
+    "svc.machine_engineer",
+    "core.employee",
+    "core.branch",
+    "hr.designation",
     "core.machine_ownership",
     "core.audit_log",
 ]
@@ -237,6 +241,31 @@ def test_unknown_machine_is_404(client: TestClient) -> None:
 def test_form_options_list_the_models_of_the_selected_brand(client: TestClient) -> None:
     options = client.get(f"{URL}/form-options", headers={"X-Principal-Id": str(HITACHI)}).json()
     assert [m["modelCode"] for m in options["models"]] == ["EX200"]
+
+
+def test_attach_change_and_remove_the_service_engineer(client: TestClient, db: Engine) -> None:
+    insert_row(db, "hr.designation", id=1, code="SERVICE_ENG", name="Service Engineer")
+    for emp_id, first in ((300, "Satyajit"), (301, "Rakesh")):
+        insert_row(db, "core.employee", id=emp_id, company_id=COMPANY, employee_code=f"E{emp_id}",
+                   first_name=first, last_name="Das", designation_id=1, employee_type="Permanent", status="Active")
+    engineers = client.get(f"{URL}/form-options").json()["engineers"]
+    assert [e["name"] for e in engineers] == ["Rakesh Das", "Satyajit Das"]
+
+    created = create(client, engineerEmployeeId=300)
+    assert created.status_code == 201, created.text
+    machine = created.json()
+    assert (machine["engineerEmployeeId"], machine["engineerName"]) == (300, "Satyajit Das")
+
+    changed = client.patch(f"{URL}/{machine['id']}", json={"engineerEmployeeId": 301}, headers=if_match(machine))
+    assert changed.json()["engineerName"] == "Rakesh Das"
+    assert [m["serialNumber"] for m in client.get(URL, params={"engineerId": 301}).json()["items"]] == ["SN-200"]
+    assert [m["serialNumber"] for m in client.get(URL, params={"withoutEngineer": True}).json()["items"]] == ["SN-100"]
+
+    removed = client.patch(
+        f"{URL}/{machine['id']}", json={"engineerEmployeeId": None}, headers=if_match(changed.json())
+    ).json()
+    assert removed["engineerEmployeeId"] is None
+    assert create(client, serialNumber="SN-300", engineerEmployeeId=999).status_code == 400
 
 
 def test_view_only_user_cannot_change_machines(settings: Settings, db: Engine) -> None:

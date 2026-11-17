@@ -42,6 +42,7 @@ from trishul_api.modules.service.imports.schemas import (
     BydImportSummary,
     FieldChange,
 )
+from trishul_api.modules.service.machine_engineer import assign_machine_engineer
 from trishul_api.modules.service.status_log import record_status_change
 
 # Legal-form and connective words dropped when matching a customer name, so
@@ -183,6 +184,15 @@ class BydImportService:
         self._db.flush()  # so a repeated ticket later in the file updates this call
         if call.current_status != previous_status:  # a new call's first status, or a status the import moved
             record_status_change(self._db, call.id, previous_status, call.current_status, self._actor.id, "BYD import")
+        # A new call BYD gave no known engineer for goes to the engineer attached to its machine.
+        if (
+            previous_status is None
+            and call.current_status == "Logged"
+            and assign_machine_engineer(self._db, call, self._actor.id, _now())
+        ):
+            record_status_change(
+                self._db, call.id, "Logged", call.current_status, self._actor.id, "Assigned to the machine's engineer"
+            )
         outcome = _outcome(row, res, call.call_no, needs)
         outcome.service_call_id = call.id
         outcome.changes = changes

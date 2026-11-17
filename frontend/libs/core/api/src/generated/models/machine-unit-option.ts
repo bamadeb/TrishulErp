@@ -9,6 +9,11 @@ export interface MachineUnitOption {
    */
   asc: (MachineAsc | null);
   customerName: (string | null);
+
+  /**
+   * Engineer attached to the machine: a new call goes to them.
+   */
+  engineerName: (string | null);
   id: number;
   modelName: (string | null);
   serialNumber: string;

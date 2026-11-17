@@ -4,7 +4,8 @@
 import { AscVisitEngineer } from '../models/asc-visit-engineer';
 
 /**
- * One day engineers worked on site for an ASC service call: it used one visit of the ASC.
+ * One day engineers worked on site for an ASC service call. A day uses one visit of the ASC, however
+ * many of its calls were worked on.
  */
 export interface AscVisitDay {
   callNo: string;
@@ -17,6 +18,11 @@ export interface AscVisitDay {
    */
   engineers: Array<AscVisitEngineer>;
   serviceCallId: number;
+
+  /**
+   * True for the call that used the day's visit; false for another call of the ASC on the same day (no extra visit).
+   */
+  usesVisit: boolean;
 
   /**
    * The day, India date.

@@ -9,6 +9,11 @@ export interface MachineUpdate {
   commissioningDate?: (string | null);
   customerId?: (number | null);
   engineNumber?: (string | null);
+
+  /**
+   * null takes the attached engineer off.
+   */
+  engineerEmployeeId?: (number | null);
   modelId?: (number | null);
   oemRegisteredProductId?: (string | null);
   registrationNumber?: (string | null);

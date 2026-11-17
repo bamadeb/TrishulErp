@@ -2,7 +2,7 @@ import builtins
 from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, case, exists, false, func, or_, select, true
+from sqlalchemy import ColumnElement, Select, and_, case, exists, false, func, or_, select, true
 from sqlalchemy.orm import InstrumentedAttribute, Session, aliased
 
 from trishul_api.auth import RequestScope
@@ -17,6 +17,7 @@ from trishul_api.db.models import (
     Designation,
     Employee,
     LookupValue,
+    MachineEngineer,
     MachineModel,
     MachineUnit,
     Principal,
@@ -299,9 +300,13 @@ class ServiceCallRepository:
                 MachineUnit.serial_number,
                 MachineModel.model_name,
                 Customer.name.label("customer_name"),
+                func.concat_ws(" ", Employee.first_name, Employee.last_name).label("engineer_name"),
             )
             .outerjoin(MachineModel, MachineModel.id == MachineUnit.model_id)
             .outerjoin(Customer, Customer.id == MachineUnit.customer_id)
+            # The engineer attached to the machine, who a new call goes to (only while still active).
+            .outerjoin(MachineEngineer, MachineEngineer.machine_unit_id == MachineUnit.id)
+            .outerjoin(Employee, and_(Employee.id == MachineEngineer.engineer_employee_id, Employee.is_active))
             .where(MachineUnit.is_active)
         )
         if scope.principal_id is not None:

@@ -1,12 +1,13 @@
-"""ASC visits counted by day: each day one or more engineers reach the site of an ASC service call uses one
-visit of the ASC, however many engineers went or how many times.
+"""ASC visits counted by day: one day uses one visit of the ASC, however many engineers went, how many
+times, or for how many of its service calls.
 
 An engineer "reaches the site" when their trip to the call ends (trk.handlers sets
 svc.service_visit.service_started_at); that moment calls count_visit_day. The day is the India date.
-Each day is a svc.contract_visit_day row, the history the ASC page shows; the call's total in
-svc.contract_visit and the contract's visits_used go up with it, so the ASC Manager can still correct a
-call's count by hand afterwards. Counting never refuses a visit: the engineer already went, so an ASC
-can go past its visits_included (the remaining count shows 0).
+Each call's day is a svc.contract_visit_day row, the history the ASC page shows. Only the ASC's first row
+of a day uses a visit: that call's total in svc.contract_visit and the contract's visits_used go up by one,
+and the ASC Manager can still correct a call's count by hand afterwards. Other calls of the ASC on that
+day are listed as "same day" and use nothing. Counting never refuses a visit: the engineer already went,
+so an ASC can go past its visits_included (the remaining count shows 0).
 """
 
 import datetime as dt
@@ -58,6 +59,17 @@ def count_visit_day(db: Session, visit: ServiceVisit, user_id: int | None) -> No
     if contract_id is None or not _live(db, contract_id):
         return
 
+    # Held until commit, so two calls of the ASC reaching site together can't both take the day's visit.
+    ContractRepository(db).lock(contract_id)
+    day_used = (
+        db.scalar(
+            select(ContractVisitDay.id).where(
+                ContractVisitDay.service_contract_id == contract_id, ContractVisitDay.visit_date == day
+            )
+        )
+        is not None
+    )
+
     now = datetime.now(UTC).replace(tzinfo=None)
     try:
         with db.begin_nested():
@@ -73,6 +85,8 @@ def count_visit_day(db: Session, visit: ServiceVisit, user_id: int | None) -> No
             db.flush()
     except IntegrityError:
         return  # another engineer on the call counted this day at the same moment
+    if day_used:
+        return  # another call of this ASC already used the day's visit
 
     if record is None:
         db.add(
@@ -118,9 +132,11 @@ def _live(db: Session, contract_id: int) -> bool:
 
 
 def visit_days(db: Session, contract_id: int) -> list[AscVisitDay]:
-    """The ASC's visit days, newest first, each with the engineers who reached the site that day."""
+    """The ASC's visit days, newest first, each with the engineers who reached the site that day. The day's
+    first call uses the visit; any other call of the ASC that day is marked as the same day."""
     rows = db.execute(
         select(
+            ContractVisitDay.id,
             ContractVisitDay.visit_date,
             ContractVisitDay.service_call_id,
             ServiceCall.call_no,
@@ -134,6 +150,9 @@ def visit_days(db: Session, contract_id: int) -> list[AscVisitDay]:
     ).all()
     if not rows:
         return []
+    first_of_day: dict[dt.date, int] = {}
+    for row in rows:
+        first_of_day[row.visit_date] = min(row.id, first_of_day.get(row.visit_date, row.id))
 
     # Who was on site, per call and India day. The visits of those calls are few, so they are read
     # whole and grouped here rather than converting time zones in SQL.
@@ -177,6 +196,7 @@ def visit_days(db: Session, contract_id: int) -> list[AscVisitDay]:
             call_status=row.current_status,
             complaint_description=row.complaint_description,
             counted_at=row.created_at,
+            uses_visit=first_of_day[row.visit_date] == row.id,
             engineers=list(on_site.get((row.service_call_id, row.visit_date), {}).values()),
         )
         for row in rows

@@ -39,8 +39,8 @@ def list_machines(query: Annotated[MachineQuery, Query()], scope: ScopeDep, repo
 
 # Declared before /machines/{machineId} so "form-options" is not parsed as a machine id.
 @router.get("/machines/form-options", summary="Dropdown values for the machine form", dependencies=[CAN_MANAGE])
-def get_machine_form_options(scope: ScopeDep, repo: MachineRepo) -> MachineFormOptions:
-    return MachineFormOptions(models=repo.models(scope))
+def get_machine_form_options(actor: CurrentUserDep, scope: ScopeDep, repo: MachineRepo) -> MachineFormOptions:
+    return MachineFormOptions(models=repo.models(scope), engineers=repo.engineers(actor.branch_ids))
 
 
 @router.get("/machines/{machineId}", summary="One machine", dependencies=[CAN_VIEW], responses=NOT_FOUND_RESPONSE)

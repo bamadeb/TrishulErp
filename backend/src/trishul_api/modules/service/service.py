@@ -31,6 +31,7 @@ from trishul_api.modules.service import sla
 from trishul_api.modules.service.access import CallVisibility, allowed_statuses, call_visibility
 from trishul_api.modules.service.assignment import assignees, plan_visit, set_engineers, support_ids
 from trishul_api.modules.service.contracts.repository import ContractRepository
+from trishul_api.modules.service.machine_engineer import assign_machine_engineer
 from trishul_api.modules.service.repository import ServiceCallRepository
 from trishul_api.modules.service.schemas import (
     CallStatusLogItem,
@@ -113,6 +114,11 @@ class ServiceCallService:
         self._db.flush()
         call_id = call.id
         record_status_change(self._db, call_id, None, "Logged", self._actor.id, "Call logged")
+        # By default the call goes to the engineer attached to its machine.
+        if assign_machine_engineer(self._db, call, self._actor.id, _now()):
+            record_status_change(
+                self._db, call_id, "Logged", call.current_status, self._actor.id, "Assigned to the machine's engineer"
+            )
         self._db.commit()
         return self._repo.get_list_item(call_id)
 

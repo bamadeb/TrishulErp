@@ -30,10 +30,11 @@ import {
   template: `
     <h2>ASC visit history</h2>
     <p class="muted">
-      Each day one or more engineers reach the site of a service call uses one
-      visit, counted automatically when the engineer ends the trip to the site.
+      One day uses one ASC visit, however many engineers went, how many times,
+      or for how many calls. It is counted when an engineer ends the trip to the
+      site.
       @if (days().length) {
-        {{ days().length }} {{ days().length === 1 ? 'day' : 'days' }} on
+        {{ visitsUsed() }} {{ visitsUsed() === 1 ? 'visit' : 'visits' }} used on
         {{ callCount() }} {{ callCount() === 1 ? 'call' : 'calls' }}.
       }
     </p>
@@ -89,7 +90,13 @@ import {
 
         <ng-container matColumnDef="visits">
           <th mat-header-cell *matHeaderCellDef class="num">Visit used</th>
-          <td mat-cell *matCellDef="let d" class="num">1</td>
+          <td mat-cell *matCellDef="let d" class="num">
+            @if (d.usesVisit) {
+              <b>1</b>
+            } @else {
+              <span class="muted">Same day, no extra visit</span>
+            }
+          </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
@@ -163,6 +170,9 @@ export class AscVisitDays {
   protected readonly days = signal<AscVisitDay[]>([]);
   protected readonly loading = signal(false);
   protected readonly columns = ['date', 'call', 'engineers', 'visits'];
+  protected readonly visitsUsed = computed(
+    () => this.days().filter((d) => d.usesVisit).length,
+  );
   protected readonly callCount = computed(
     () => new Set(this.days().map((d) => d.serviceCallId)).size,
   );

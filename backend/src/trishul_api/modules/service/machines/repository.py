@@ -1,25 +1,44 @@
+from collections.abc import Collection
 from typing import Any
 
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import RequestScope
 from trishul_api.common.paging import SortColumns, order_by_sort, paginate
 from trishul_api.common.schemas import Page
-from trishul_api.db.models import Customer, MachineModel, MachineUnit, Principal
-from trishul_api.modules.service.machines.schemas import MachineListItem, MachineModelOption, MachineQuery
+from trishul_api.db.models import (
+    Branch,
+    Customer,
+    Designation,
+    Employee,
+    MachineEngineer,
+    MachineModel,
+    MachineUnit,
+    Principal,
+)
+from trishul_api.modules.service.machines.schemas import (
+    MachineEngineerOption,
+    MachineListItem,
+    MachineModelOption,
+    MachineQuery,
+)
+
+_SERVICE_ENGINEER_DESIGNATION = "SERVICE_ENG"  # as in the service-call engineer picker
+_ENGINEER_NAME = func.concat_ws(" ", Employee.first_name, Employee.last_name)
 
 _SORT_COLUMNS: SortColumns = {
     "serialNumber": MachineUnit.serial_number,
     "modelName": MachineModel.model_name,
     "customerName": Customer.name,
+    "engineerName": _ENGINEER_NAME,
     "warrantyEndDate": MachineUnit.warranty_end_date,
     "createdAt": MachineUnit.created_at,
 }
 
 
 def _list_select() -> Select[*tuple[Any, ...]]:
-    """Columns of MachineListItem: the machine with its model and owner."""
+    """Columns of MachineListItem: the machine with its model, owner and attached engineer."""
     return (
         select(
             MachineUnit.id,
@@ -34,11 +53,15 @@ def _list_select() -> Select[*tuple[Any, ...]]:
             MachineUnit.status,
             MachineUnit.warranty_end_date,
             MachineUnit.current_hmr,
+            MachineEngineer.engineer_employee_id,
+            _ENGINEER_NAME.label("engineer_name"),
             MachineUnit.is_active,
             MachineUnit.created_at,
         )
         .join(MachineModel, MachineModel.id == MachineUnit.model_id)
         .outerjoin(Customer, Customer.id == MachineUnit.customer_id)
+        .outerjoin(MachineEngineer, MachineEngineer.machine_unit_id == MachineUnit.id)
+        .outerjoin(Employee, Employee.id == MachineEngineer.engineer_employee_id)
     )
 
 
@@ -59,6 +82,10 @@ class MachineRepository:
             statement = statement.where(MachineUnit.customer_id == query.customer_id)
         if query.model_id is not None:
             statement = statement.where(MachineUnit.model_id == query.model_id)
+        if query.engineer_id is not None:
+            statement = statement.where(MachineEngineer.engineer_employee_id == query.engineer_id)
+        if query.without_engineer:
+            statement = statement.where(MachineEngineer.id.is_(None))
         if query.search:
             term = query.search.strip()
             statement = statement.where(
@@ -109,6 +136,25 @@ class MachineRepository:
             statement = statement.where(MachineModel.principal_id == scope.principal_id)
         rows = self._session.execute(statement.order_by(MachineModel.model_name)).mappings()
         return [MachineModelOption.model_validate(row) for row in rows]
+
+    def engineers(self, branch_ids: Collection[int] | None) -> list[MachineEngineerOption]:
+        """Active service engineers of the user's branches (all branches when the user has no limit)."""
+        statement = (
+            select(Employee.id, _ENGINEER_NAME.label("name"), Employee.employee_code, Branch.name.label("branch_name"))
+            .join(Designation, Designation.id == Employee.designation_id)
+            .outerjoin(Branch, Branch.id == Employee.branch_id)
+            .where(Employee.is_active, Designation.code == _SERVICE_ENGINEER_DESIGNATION)
+        )
+        if branch_ids is not None:
+            statement = statement.where(Employee.branch_id.in_(sorted(branch_ids) or [0]))
+        rows = self._session.execute(statement.order_by(_ENGINEER_NAME)).mappings()
+        return [MachineEngineerOption.model_validate(row) for row in rows]
+
+    def active_engineer(self, employee_id: int) -> bool:
+        return (
+            self._session.scalar(select(Employee.id).where(Employee.id == employee_id, Employee.is_active).limit(1))
+            is not None
+        )
 
     # ------------------------------------------------------------------ checks
 

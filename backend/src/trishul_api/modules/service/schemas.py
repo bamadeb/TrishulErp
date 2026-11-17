@@ -172,6 +172,7 @@ class MachineUnitOption(ApiModel):
     serial_number: str
     model_name: str | None
     customer_name: str | None
+    engineer_name: str | None = Field(None, description="Engineer attached to the machine: a new call goes to them.")
     asc: MachineAsc | None = Field(None, description="The machine's ASC today; null when it has never had one.")
 
 

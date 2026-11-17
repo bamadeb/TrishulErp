@@ -13,6 +13,8 @@ class MachineQuery(PageQuery):
     status: MachineStatusFilter = "active"
     customer_id: int | None = None
     model_id: int | None = None
+    engineer_id: int | None = Field(None, description="Only machines attached to this engineer.")
+    without_engineer: bool = Field(False, description="Only machines with no engineer attached.")
 
 
 class MachineListItem(ApiModel):
@@ -28,6 +30,8 @@ class MachineListItem(ApiModel):
     status: MachineUnitStatus
     warranty_end_date: dt.date | None
     current_hmr: float | None
+    engineer_employee_id: int | None = Field(description="Service engineer attached: new calls go to them.")
+    engineer_name: str | None
     is_active: bool
     created_at: UtcDateTime
 
@@ -58,6 +62,9 @@ class MachineCreate(InputModel):
     warranty_start_date: dt.date | None = None
     warranty_end_date: dt.date | None = None
     oem_registered_product_id: str | None = Field(None, max_length=40)
+    engineer_employee_id: int | None = Field(
+        None, description="Service engineer attached to the machine: new service calls are assigned to them."
+    )
 
 
 class MachineUpdate(InputModel):
@@ -75,6 +82,7 @@ class MachineUpdate(InputModel):
     warranty_start_date: dt.date | None = None
     warranty_end_date: dt.date | None = None
     oem_registered_product_id: str | None = Field(None, max_length=40)
+    engineer_employee_id: int | None = Field(None, description="null takes the attached engineer off.")
 
 
 class MachineModelOption(ApiModel):
@@ -84,7 +92,16 @@ class MachineModelOption(ApiModel):
     product_line: MachineModelProductLine
 
 
+class MachineEngineerOption(ApiModel):
+    id: int
+    name: str
+    employee_code: str
+    branch_name: str | None
+
+
 class MachineFormOptions(ApiModel):
-    """Everything the add/edit machine form needs: the active models of the selected brand."""
+    """Everything the add/edit machine form needs: the active models of the selected brand and the service
+    engineers that can be attached."""
 
     models: list[MachineModelOption]
+    engineers: list[MachineEngineerOption]

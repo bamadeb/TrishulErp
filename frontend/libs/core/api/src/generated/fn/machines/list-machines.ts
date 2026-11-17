@@ -21,6 +21,16 @@ export interface ListMachines$Params {
   status?: 'active' | 'inactive' | 'all';
   customerId?: (number | null);
   modelId?: (number | null);
+
+/**
+ * Only machines attached to this engineer.
+ */
+  engineerId?: (number | null);
+
+/**
+ * Only machines with no engineer attached.
+ */
+  withoutEngineer?: boolean;
 }
 
 export function listMachines(http: HttpClient, rootUrl: string, params?: ListMachines$Params, context?: HttpContext): Observable<StrictHttpResponse<PageMachineListItem>> {
@@ -33,6 +43,8 @@ export function listMachines(http: HttpClient, rootUrl: string, params?: ListMac
     rb.query('status', params.status, {});
     rb.query('customerId', params.customerId, {});
     rb.query('modelId', params.modelId, {});
+    rb.query('engineerId', params.engineerId, {});
+    rb.query('withoutEngineer', params.withoutEngineer, {});
   }
 
   return http.request(

@@ -39,6 +39,7 @@ TABLES = [
     "core.customer",
     "core.machine_model",
     "core.machine_unit",
+    "svc.machine_engineer",
     "core.machine_ownership",
     "core.customer_site",
     "core.employee",
@@ -477,6 +478,22 @@ def test_two_engineers_on_one_day_use_one_visit_and_the_next_day_another(client:
     assert [e["name"] for e in days[1]["engineers"]] == ["Bidyadhar Jena", "Sanjay Das"]
     assert days[1]["engineers"][0]["reachedAt"].startswith(MORNING.isoformat())  # first arrival
     assert days[1]["serviceCallId"] == call_id
+
+
+def test_two_calls_of_one_asc_on_the_same_day_use_one_visit(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    first, second = log_call(client), log_call(client)
+    reach_site(db, first, ENGINEER, MORNING)
+    reach_site(db, second, ENGINEER, MORNING + dt.timedelta(hours=3))
+    assert used(client, asc["id"]) == (1, 5)
+    with Session(db) as s:
+        assert s.scalars(select(ContractVisit.service_call_id)).all() == [first]  # the call that used it
+
+    days = client.get(f"{URL}/{asc['id']}/visit-days").json()
+    assert [(d["serviceCallId"], d["usesVisit"]) for d in days] == [(second, False), (first, True)]
+
+    reach_site(db, second, ENGINEER, MORNING + dt.timedelta(days=1))  # next day: a visit again
+    assert used(client, asc["id"]) == (2, 4)
 
 
 def test_a_call_without_an_asc_uses_no_visit(client: TestClient, db: Engine) -> None:

@@ -96,6 +96,20 @@
         >
         }
       </div>
+      <div class="wide asc-line">
+        <mat-icon>engineering</mat-icon>
+        @if (m.engineerName) {
+        <span
+          >The call will be assigned to <b>{{ m.engineerName }}</b>, the
+          machine's engineer.</span
+        >
+        } @else {
+        <span class="muted"
+          >No engineer is attached to this machine: the call stays unassigned
+          for the team lead.</span
+        >
+        }
+      </div>
       }
     </div>
   </section>

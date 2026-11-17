@@ -109,6 +109,29 @@
     </section>
 
     <section>
+      <h2>Service engineer</h2>
+      <div class="fields">
+        <mat-form-field appearance="outline" class="wide">
+          <mat-label>Attached engineer</mat-label>
+          <mat-icon matPrefix>engineering</mat-icon>
+          <mat-select formControlName="engineerEmployeeId">
+            <mat-option [value]="null">— None —</mat-option>
+            @for (e of engineers(); track e.id) {
+            <mat-option [value]="e.id">
+              {{ e.name }}
+              <span class="muted">· {{ e.employeeCode }}@if (e.branchName) { · {{ e.branchName }}}</span>
+            </mat-option>
+            }
+            @if (missingEngineer(); as missing) {
+            <mat-option [value]="missing.id">{{ missing.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>New service calls on this machine are assigned to this engineer.</mat-hint>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section>
       <h2>Sale &amp; warranty</h2>
       <div class="fields">
         <mat-form-field appearance="outline">

@@ -205,6 +205,7 @@ export type { LotListItem } from './models/lot-list-item';
 export type { MachineAsc } from './models/machine-asc';
 export type { MachineCreate } from './models/machine-create';
 export type { MachineDetail } from './models/machine-detail';
+export type { MachineEngineerOption } from './models/machine-engineer-option';
 export type { MachineFormOptions } from './models/machine-form-options';
 export type { MachineListItem } from './models/machine-list-item';
 export type { MachineModelOption } from './models/machine-model-option';

@@ -7,6 +7,9 @@ owner is also kept in core.machine_ownership, so the machine's history of owners
 Serial number is unique across all machines (UX_core_machine_unit_serial_number); this checks it up front
 for a clear error and still catches a concurrent duplicate on commit. A deactivated machine can no longer
 be picked for a new call, but the calls already logged against it still show it.
+
+A machine can have a service engineer attached (svc.machine_engineer): new service calls on it are assigned
+to that engineer by default (see modules/service/machine_engineer.py).
 """
 
 from datetime import UTC, date, datetime
@@ -19,6 +22,7 @@ from trishul_api.auth import CurrentUser
 from trishul_api.common.concurrency import check_row_version
 from trishul_api.common.errors import AlreadyExists, ApiError, NotFound
 from trishul_api.db.models import MachineOwnership, MachineUnit
+from trishul_api.modules.service.machine_engineer import set_machine_engineer
 from trishul_api.modules.service.machines.repository import MachineRepository
 from trishul_api.modules.service.machines.schemas import MachineCreate, MachineDetail, MachineUpdate
 
@@ -53,6 +57,8 @@ class MachineService:
         principal_id = self._check_model(data.model_id)
         self._check_customer(data.customer_id)
 
+        self._check_engineer(data.engineer_employee_id)
+
         machine = MachineUnit(
             serial_number=serial,
             model_id=data.model_id,
@@ -62,7 +68,7 @@ class MachineService:
             **{field: getattr(data, field) for field in _PLAIN_FIELDS},
         )
         self._repo.add(machine)
-        new_id = self._save(machine, owner_changed=True)
+        new_id = self._save(machine, owner_changed=True, engineer=(True, data.engineer_employee_id))
         return self._detail(new_id)
 
     def update(self, machine_id: int, expected_row_version: bytes, data: MachineUpdate) -> MachineDetail:
@@ -94,9 +100,12 @@ class MachineService:
                 if field == "status" and data.status is None:
                     continue
                 setattr(machine, field, getattr(data, field))
+        engineer_changed = "engineer_employee_id" in changed
+        if engineer_changed:
+            self._check_engineer(data.engineer_employee_id)
 
         self._touch(machine)
-        self._save(machine, owner_changed=owner_changed)
+        self._save(machine, owner_changed=owner_changed, engineer=(engineer_changed, data.engineer_employee_id))
         return self._detail(machine_id)
 
     def deactivate(self, machine_id: int) -> MachineDetail:
@@ -126,12 +135,17 @@ class MachineService:
     def _detail(self, machine_id: int) -> MachineDetail:
         return MachineDetail.model_validate(self._repo.detail_row(machine_id))
 
-    def _save(self, machine: MachineUnit, *, owner_changed: bool) -> int:
+    def _save(
+        self, machine: MachineUnit, *, owner_changed: bool, engineer: tuple[bool, int | None] = (False, None)
+    ) -> int:
+        """Flush and commit. engineer = (whether it was sent, the engineer to attach or None to take off)."""
         try:
             self._repo.flush()
             machine_id = machine.id
             if owner_changed and machine.customer_id is not None:
                 self._record_owner(machine_id, machine.customer_id)
+            if engineer[0]:
+                set_machine_engineer(self._db, machine_id, engineer[1], self._actor.id, _now())
             self._db.commit()
         except IntegrityError as error:
             self._db.rollback()
@@ -179,6 +193,13 @@ class MachineService:
         if not self._repo.active_customer(customer_id):
             raise ApiError(
                 "That customer doesn't exist.", errors={"customerId": [f"Unknown or inactive customer {customer_id}"]}
+            )
+
+    def _check_engineer(self, employee_id: int | None) -> None:
+        if employee_id is not None and not self._repo.active_engineer(employee_id):
+            raise ApiError(
+                "That engineer doesn't exist.",
+                errors={"engineerEmployeeId": [f"Unknown or inactive employee {employee_id}"]},
             )
 
     def _touch(self, machine: MachineUnit) -> None:
