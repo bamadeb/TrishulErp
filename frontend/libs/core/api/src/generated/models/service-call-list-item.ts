@@ -19,6 +19,11 @@ export interface ServiceCallListItem {
   currentStatus: 'Logged' | 'Assigned' | 'Call ID linked' | 'Customer contacted' | 'Trip started' | 'Reached site' | 'In progress' | 'Report submitted' | 'Awaiting parts' | 'Quotation sent' | 'Parts ready' | 'Revisit scheduled' | 'Closed' | 'Pending OEM closure' | 'Completed' | 'Reopened' | 'Cancelled';
   customerId: number;
   customerName: string;
+
+  /**
+   * The customer's primary phone.
+   */
+  customerPhone: (string | null);
   id: number;
   isAscPriority: boolean;
   isMachineDown: boolean;

@@ -117,6 +117,10 @@
           >
             <mat-icon>edit</mat-icon>
           </button>
+          } @if (call.customerPhone && call.customerPhone !== '0000000000') {
+          <div class="muted">
+            <a [href]="'tel:' + call.customerPhone">{{ call.customerPhone }}</a>
+          </div>
           }
         </td>
       </ng-container>

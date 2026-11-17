@@ -40,6 +40,7 @@ class ServiceCallListItem(ApiModel):
     principal_code: str
     customer_id: int
     customer_name: str
+    customer_phone: str | None = Field(None, description="The customer's primary phone.")
     machine_unit_id: int | None
     machine_serial_no: str | None
     machine_model: str | None

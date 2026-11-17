@@ -373,6 +373,7 @@ class ServiceCallRepository:
                 Principal.code.label("principal_code"),
                 ServiceCall.customer_id,
                 Customer.name.label("customer_name"),
+                Customer.primary_phone.label("customer_phone"),
                 ServiceCall.machine_unit_id,
                 MachineUnit.serial_number.label("machine_serial_no"),
                 MachineModel.model_name.label("machine_model"),

@@ -81779,6 +81779,18 @@
             "type": "string",
             "title": "Customername"
           },
+          "customerPhone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customerphone",
+            "description": "The customer's primary phone."
+          },
           "machineUnitId": {
             "anyOf": [
               {
@@ -81959,6 +81971,7 @@
           "principalCode",
           "customerId",
           "customerName",
+          "customerPhone",
           "machineUnitId",
           "machineSerialNo",
           "machineModel",
