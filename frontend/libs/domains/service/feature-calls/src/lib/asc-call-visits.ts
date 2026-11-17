@@ -48,7 +48,8 @@ export function countBlocked(
   template: `
     <h2>Visits from service calls</h2>
     <p class="muted">
-      One completed call counts as one visit unless more were needed.
+      Each call's visits are counted automatically from the days on site
+      (history above). Correct a finished call's count here if needed.
       @if (fromRegister() > 0) {
         {{ fromRegister() }} of the {{ contract().visitsUsed }} visits used
         came from the register or the form above.

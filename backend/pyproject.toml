@@ -69,7 +69,7 @@ disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
 # Hand-written mirror of a generated module (see trk.py); same SQL Server type calls.
-module = "trishul_api.db.models.trk"
+module = ["trishul_api.db.models.trk", "trishul_api.db.models.asc"]
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]

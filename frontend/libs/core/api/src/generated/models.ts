@@ -30,6 +30,8 @@ export type { AscCallVisitSet } from './models/asc-call-visit-set';
 export type { AscImportResult } from './models/asc-import-result';
 export type { AscImportRow } from './models/asc-import-row';
 export type { AscImportSummary } from './models/asc-import-summary';
+export type { AscVisitDay } from './models/asc-visit-day';
+export type { AscVisitEngineer } from './models/asc-visit-engineer';
 export type { AscOverview } from './models/asc-overview';
 export type { AssignedSalesActivityListItem } from './models/assigned-sales-activity-list-item';
 export type { AssignedServiceCallListItem } from './models/assigned-service-call-list-item';

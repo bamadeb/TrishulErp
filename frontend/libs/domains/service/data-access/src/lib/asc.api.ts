@@ -13,6 +13,7 @@ import {
   getServiceContractFormOptions,
   listContractCallVisits,
   listContractPlans,
+  listContractVisitDays,
   listServiceContracts,
   previewServiceContractImport,
   renewServiceContract,
@@ -26,6 +27,7 @@ import {
   AscCallVisitSet,
   AscImportResult,
   AscQuery,
+  AscVisitDay,
   ContractFormOptions,
   ContractPlanCreate,
   ContractPlanItem,
@@ -80,6 +82,11 @@ export class AscApi {
   /** Finished service calls under the ASC and the visits counted for each. */
   callVisits(contractId: number): Observable<AscCallVisit[]> {
     return this.api.call(listContractCallVisits, { contractId });
+  }
+
+  /** Visit history: each day engineers were on site for a call (one ASC visit), newest first. */
+  visitDays(contractId: number): Observable<AscVisitDay[]> {
+    return this.api.call(listContractVisitDays, { contractId });
   }
 
   /** Records the actual visits of a completed call (0 takes it off the count). */

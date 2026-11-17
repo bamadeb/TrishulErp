@@ -67,6 +67,7 @@ import {
 } from '@trishul/shared-ui';
 import { AscBadge } from './asc-badge';
 import { AscCallVisits } from './asc-call-visits';
+import { AscVisitDays } from './asc-visit-days';
 import { ASC_STATE_SEVERITY } from './asc-list.page';
 
 type MachineValue = MachineUnitOption | string;
@@ -133,6 +134,7 @@ export function amount(value: string | null): number | null {
     StatusBadge,
     AscBadge,
     AscCallVisits,
+    AscVisitDays,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './asc-form.page.html',

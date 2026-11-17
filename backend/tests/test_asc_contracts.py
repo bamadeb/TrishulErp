@@ -15,9 +15,19 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import get_current_user, get_db
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import ContractVisit, Customer, MachineModel, MachineUnit, ServiceCall, ServiceContract
+from trishul_api.db.models import (
+    ContractVisit,
+    ContractVisitDay,
+    Customer,
+    MachineModel,
+    MachineUnit,
+    ServiceCall,
+    ServiceContract,
+    ServiceVisit,
+)
 from trishul_api.main import create_app
 from trishul_api.modules.service.contracts.service import add_months, plan_end_date
+from trishul_api.modules.service.contracts.visit_days import count_visit_day, india_date
 
 from .conftest import make_user
 from .sqlite_db import insert_row, sqlite_engine
@@ -53,6 +63,7 @@ TABLES = [
     "svc.service_contract",
     "svc.contract_coverage",
     "svc.contract_visit",
+    "svc.contract_visit_day",
     "svc.sla_rule",
     "svc.sla_event",
     "core.alert_rule",
@@ -409,6 +420,110 @@ def test_counting_needs_its_own_permission(settings: Settings, db: Engine, clien
         assert manager.get(f"{URL}/{asc['id']}/call-visits").status_code == 200
         assert count_visits(manager, asc["id"], call_id, 1).status_code == 403
         assert count_visits(asc_manager, asc["id"], call_id, 1).status_code == 200
+
+
+# ------------------------------------------------------------------------- visits counted by day on site
+
+ENGINEER, HELPER = 300, 301
+# 05:00 UTC is 10:30 in India: the same date either way, so the tests don't depend on the clock.
+MORNING = dt.datetime.combine(TODAY, dt.time(5, 0))
+
+
+def add_helper(db: Engine) -> None:
+    insert_row(db, "core.employee", id=HELPER, company_id=COMPANY, branch_id=BRANCH, employee_code="E301",
+               first_name="Sanjay", last_name="Das", designation_id=1, employee_type="Permanent", status="Active")
+
+
+def reach_site(db: Engine, call_id: int, engineer: int, at: dt.datetime) -> None:
+    """What ending a trip to the site does: the visit gets its start time, then the day is counted."""
+    with Session(db) as s:
+        visit = ServiceVisit(service_call_id=call_id, visit_no=1, visit_purpose="Inspection",
+                             engineer_employee_id=engineer, status="On site", service_started_at=at,
+                             created_by_user_id=ACTOR_ID)
+        s.add(visit)
+        s.flush()
+        count_visit_day(s, visit, ACTOR_ID)
+        s.commit()
+
+
+def used(client: TestClient, contract_id: int) -> tuple[int, int | None]:
+    detail = client.get(f"{URL}/{contract_id}").json()
+    return detail["visitsUsed"], detail["visitsRemaining"]
+
+
+def test_india_date_is_utc_plus_five_thirty() -> None:
+    assert india_date(dt.datetime(2026, 11, 16, 18, 29)) == dt.date(2026, 11, 16)
+    assert india_date(dt.datetime(2026, 11, 16, 18, 30)) == dt.date(2026, 11, 17)
+
+
+def test_two_engineers_on_one_day_use_one_visit_and_the_next_day_another(client: TestClient, db: Engine) -> None:
+    add_helper(db)
+    asc = add_asc(client).json()
+    call_id = log_call(client)
+
+    reach_site(db, call_id, ENGINEER, MORNING)
+    reach_site(db, call_id, HELPER, MORNING + dt.timedelta(hours=2))
+    reach_site(db, call_id, ENGINEER, MORNING + dt.timedelta(hours=4))  # back again the same day
+    assert used(client, asc["id"]) == (1, 5)
+
+    reach_site(db, call_id, HELPER, MORNING + dt.timedelta(days=1))
+    assert used(client, asc["id"]) == (2, 4)
+    with Session(db) as s:
+        assert s.scalars(select(ContractVisit.visits).where(ContractVisit.service_call_id == call_id)).one() == 2
+
+    days = client.get(f"{URL}/{asc['id']}/visit-days").json()
+    assert [d["visitDate"] for d in days] == [str(TODAY + dt.timedelta(days=1)), str(TODAY)]
+    assert [e["name"] for e in days[0]["engineers"]] == ["Sanjay Das"]
+    assert [e["name"] for e in days[1]["engineers"]] == ["Bidyadhar Jena", "Sanjay Das"]
+    assert days[1]["engineers"][0]["reachedAt"].startswith(MORNING.isoformat())  # first arrival
+    assert days[1]["serviceCallId"] == call_id
+
+
+def test_a_call_without_an_asc_uses_no_visit(client: TestClient, db: Engine) -> None:
+    reach_site(db, log_call(client), ENGINEER, MORNING)  # no ASC on the machine
+    assert count(db, ContractVisitDay) == 0
+
+
+def test_a_call_logged_before_the_asc_uses_the_machines_asc(client: TestClient, db: Engine) -> None:
+    call_id = log_call(client)  # not linked to an ASC
+    asc = add_asc(client).json()
+    reach_site(db, call_id, ENGINEER, MORNING)
+    assert used(client, asc["id"]) == (1, 5)
+
+
+def test_a_call_logged_before_the_asc_started_is_not_an_asc_call(client: TestClient, db: Engine) -> None:
+    call_id = log_call(client)
+    set_call(db, call_id, "Assigned", received_at=MORNING - dt.timedelta(days=40))
+    asc = add_asc(client).json()  # starts today, so it didn't cover the machine when the call came in
+    reach_site(db, call_id, ENGINEER, MORNING)
+    assert used(client, asc["id"]) == (0, 6)
+
+
+def test_a_day_outside_the_asc_or_on_a_cancelled_asc_uses_no_visit(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    call_id = log_call(client)
+    reach_site(db, call_id, ENGINEER, MORNING - dt.timedelta(days=3))  # before the ASC started
+    assert used(client, asc["id"]) == (0, 6)
+    client.post(f"{URL}/{asc['id']}/cancel")
+    reach_site(db, call_id, ENGINEER, MORNING)
+    assert used(client, asc["id"])[0] == 0
+
+
+def test_visits_past_the_limit_are_still_counted(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client, visitsUsed=6).json()  # all 6 used before Trishul
+    reach_site(db, log_call(client), ENGINEER, MORNING)
+    assert used(client, asc["id"]) == (7, 0)
+
+
+def test_a_hand_correction_still_works_and_new_days_add_to_it(client: TestClient, db: Engine) -> None:
+    asc = add_asc(client).json()
+    call_id = log_call(client)
+    reach_site(db, call_id, ENGINEER, MORNING)
+    set_call(db, call_id, "Completed", completed_at=dt.datetime.now())
+    assert count_visits(client, asc["id"], call_id, 3).json()["visitsUsed"] == 3  # the ASC Manager says 3
+    set_call(db, call_id, "Reopened")
+    reach_site(db, call_id, ENGINEER, MORNING + dt.timedelta(days=1))
+    assert used(client, asc["id"]) == (4, 2)
 
 
 # ------------------------------------------------------------------------------------------- import

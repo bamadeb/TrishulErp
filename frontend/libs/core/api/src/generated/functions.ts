@@ -237,6 +237,8 @@ export type { ActivateMachine$Params as ActivateMachine$Params } from './fn/mach
 export { activateMachine as activateMachine } from './fn/machines/activate-machine';
 export type { ListContractPlans$Params as ListContractPlans$Params } from './fn/contracts/list-contract-plans';
 export { listContractPlans as listContractPlans } from './fn/contracts/list-contract-plans';
+export type { ListContractVisitDays$Params as ListContractVisitDays$Params } from './fn/contracts/list-contract-visit-days';
+export { listContractVisitDays as listContractVisitDays } from './fn/contracts/list-contract-visit-days';
 export type { CreateContractPlan$Params as CreateContractPlan$Params } from './fn/contracts/create-contract-plan';
 export { createContractPlan as createContractPlan } from './fn/contracts/create-contract-plan';
 export type { UpdateContractPlan$Params as UpdateContractPlan$Params } from './fn/contracts/update-contract-plan';

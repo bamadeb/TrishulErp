@@ -226,6 +226,28 @@ class AscCallVisit(ApiModel):
     countable: bool = Field(description="False when a counted call was reopened: finish it to change the count.")
 
 
+class AscVisitEngineer(ApiModel):
+    """An engineer who reached the site on a visit day."""
+
+    employee_id: int
+    name: str
+    employee_code: str | None
+    reached_at: UtcDateTime = Field(description="First arrival at the site that day.")
+    left_at: UtcDateTime | None
+
+
+class AscVisitDay(ApiModel):
+    """One day engineers worked on site for an ASC service call: it used one visit of the ASC."""
+
+    visit_date: dt.date = Field(description="The day, India date.")
+    service_call_id: int
+    call_no: str
+    call_status: str
+    complaint_description: str
+    counted_at: UtcDateTime
+    engineers: list[AscVisitEngineer] = Field(description="Everyone who reached the site that day.")
+
+
 class AscCallVisitSet(InputModel):
     """The actual visits a completed call took; replaces what was recorded for it."""
 

@@ -11,6 +11,8 @@ export type {
   AscImportResult,
   AscImportRow,
   AscImportSummary,
+  AscVisitDay,
+  AscVisitEngineer,
   ContractEngineerOption,
   ContractFormOptions,
   ContractPlanCreate,

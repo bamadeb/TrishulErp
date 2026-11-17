@@ -5,9 +5,10 @@ given: end date (start + the plan's months - 1 day), visits and value (plan pric
 ASCs on one machine may not overlap. Renewing makes a new contract linked to the old one; cancelling
 keeps the record (status Cancelled) so the history stays.
 
-visits_used is the contract's total. It starts from what the register or the form says, and the ASC
-Manager adds to it from completed service calls (svc.contract_visit, one row per call). It never goes
-past visits_included, and a contract with no visits_included has no limit to check.
+visits_used is the contract's total. It starts from what the register or the form says, and each day
+engineers reach the site of one of its calls adds one (visit_days.py; svc.contract_visit keeps each call's
+total). The ASC Manager can still correct a completed call's count by hand, which never goes past
+visits_included; a contract with no visits_included has no limit to check.
 """
 
 import calendar
@@ -42,6 +43,7 @@ from trishul_api.modules.service.contracts.repository import (
 from trishul_api.modules.service.contracts.schemas import (
     AscCallVisit,
     AscCallVisitSet,
+    AscVisitDay,
     ContractPlanCreate,
     ContractPlanItem,
     ContractPlanUpdate,
@@ -50,6 +52,7 @@ from trishul_api.modules.service.contracts.schemas import (
     ServiceContractRenew,
     ServiceContractUpdate,
 )
+from trishul_api.modules.service.contracts.visit_days import visit_days
 
 DOCUMENT_TYPE = "SERVICE_CONTRACT"
 DEFAULT_PRINCIPAL_CODE = "TATA_HITACHI"
@@ -193,6 +196,9 @@ class ContractService:
 
     def call_visits(self, contract_id: int) -> list[AscCallVisit]:
         return self._repo.call_visits(self._require(contract_id))
+
+    def visit_days(self, contract_id: int) -> list[AscVisitDay]:
+        return visit_days(self._db, self._require(contract_id).id)
 
     def set_call_visits(
         self, contract_id: int, call_id: int, expected_row_version: bytes, data: AscCallVisitSet

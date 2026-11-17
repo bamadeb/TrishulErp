@@ -24,6 +24,7 @@ from trishul_api.db.models import (
     TrackableActivity,
 )
 from trishul_api.modules.service.assignment import assignees
+from trishul_api.modules.service.contracts.visit_days import count_visit_day
 from trishul_api.modules.trk.schemas import ModuleCode
 
 _WORK_UNDER_WAY = ("Trip started", "Reached site", "In progress")
@@ -183,6 +184,7 @@ class ServiceActivityHandler:
             if visit.service_started_at is None:
                 visit.service_started_at = now
             _touch(visit, user_id, now)
+            count_visit_day(session, visit, user_id)  # one ASC visit per call per day on site
             call = session.get(ServiceCall, visit.service_call_id)
             if call is not None and call.current_status == "Trip started":
                 _advance_call(session, call, "Reached site", user_id, lat, lon, now)

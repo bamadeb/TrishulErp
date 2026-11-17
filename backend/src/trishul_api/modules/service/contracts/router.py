@@ -13,6 +13,7 @@ from trishul_api.modules.service.contracts.schemas import (
     AscCallVisit,
     AscCallVisitSet,
     AscImportResult,
+    AscVisitDay,
     ContractFormOptions,
     ContractPlanCreate,
     ContractPlanItem,
@@ -227,6 +228,16 @@ def cancel_service_contract(contract_id: ContractId, actor: CurrentUserDep, db: 
 )
 def list_contract_call_visits(contract_id: ContractId, actor: CurrentUserDep, db: DbSession) -> list[AscCallVisit]:
     return ContractService(db, actor).call_visits(contract_id)
+
+
+@router.get(
+    "/service-contracts/{contractId}/visit-days",
+    summary="ASC visit history: each day engineers were on site for a call, and who went (one visit per day)",
+    dependencies=[CAN_VIEW],
+    responses=NOT_FOUND_RESPONSE,
+)
+def list_contract_visit_days(contract_id: ContractId, actor: CurrentUserDep, db: DbSession) -> list[AscVisitDay]:
+    return ContractService(db, actor).visit_days(contract_id)
 
 
 @router.put(
