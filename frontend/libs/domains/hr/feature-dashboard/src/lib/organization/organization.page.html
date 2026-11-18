@@ -1,7 +1,19 @@
 <trishul-page-header
   title="Organization Management"
-  subtitle="Manage company structure, departments, designations, grades, locations and reporting hierarchy."
+  subtitle="Manage company structure, departments, designations, grades, locations and companies."
 />
+
+<section class="cards" aria-label="Organization totals">
+  @for (card of cards(); track card.label) {
+    <article class="stat" [attr.data-tone]="card.tone">
+      <span class="stat-icon"><mat-icon>{{ card.icon }}</mat-icon></span>
+      <span>
+        <span class="stat-label">{{ card.label }}</span>
+        <strong>{{ card.count }}</strong>
+      </span>
+    </article>
+  }
+</section>
 
 <nav class="tabs" aria-label="Organization sections">
   @for (item of tabs; track item.id) {
@@ -16,18 +28,6 @@
     </button>
   }
 </nav>
-
-<section class="cards" aria-label="Organization totals">
-  @for (card of cards(); track card.label) {
-    <article class="stat" [attr.data-tone]="card.tone">
-      <span class="stat-icon"><mat-icon>{{ card.icon }}</mat-icon></span>
-      <span>
-        <span class="stat-label">{{ card.label }}</span>
-        <strong>{{ card.count }}</strong>
-      </span>
-    </article>
-  }
-</section>
 
 <section class="table-card">
   <div class="section-head">
@@ -73,11 +73,8 @@
           <th>#</th>
           <th>{{ tab() === 'departments' ? 'Department Code' : 'Code' }}</th>
           <th>{{ nameHeading() }}</th>
-          @if (tab() !== 'grades' && tab() !== 'hierarchy') {
+          @if (tab() !== 'grades') {
             <th>{{ headHeading() }}</th>
-          }
-          @if (tab() === 'hierarchy') {
-            <th>Reports to</th>
           }
           @if (tab() === 'designations' || tab() === 'locations') {
             <th>{{ extraHeading() }}</th>

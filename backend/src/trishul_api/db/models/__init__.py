@@ -24,6 +24,7 @@ from trishul_api.db.models.leave import (
     LeaveTypeSetting,
     LeaveWeeklyRestGrant,
 )
+from trishul_api.db.models.reporting import ReportingAssignment
 from trishul_api.db.models.salary_template import (
     SalaryTemplate,
     SalaryTemplateAssignment,
@@ -59,6 +60,7 @@ __all__ = [
     "LeaveTypeSetting",
     "LeaveWeeklyRestGrant",
     "MachineEngineer",
+    "ReportingAssignment",
     "SalaryTemplate",
     "SalaryTemplateAssignment",
     "SalaryTemplateDesignation",

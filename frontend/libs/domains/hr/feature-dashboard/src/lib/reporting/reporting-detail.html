@@ -1,0 +1,141 @@
+<header>
+  <span class="avatar lg">{{ initials(person().name) }}</span>
+  <span class="copy">
+    <strong>{{ shown(person().name) }}</strong>
+    <small>{{ person().code }} · {{ person().designation }}</small>
+    <em [class.off]="person().status !== 'Active'">{{ person().status }}</em>
+  </span>
+  <button mat-icon-button type="button" class="close" aria-label="Close details" (click)="close($event)"><mat-icon>close</mat-icon></button>
+</header>
+
+<nav class="tabs">
+  <button type="button" [class.on]="tab() === 'overview'" (click)="show('overview')">Overview</button>
+  <button type="button" [class.on]="tab() === 'reporting'" (click)="show('reporting')">Reporting</button>
+  <button type="button" [class.on]="tab() === 'history'" (click)="show('history')">History</button>
+</nav>
+
+<div class="body">
+  @if (tab() === 'overview') {
+    <dl>
+      <div><dt><mat-icon>apartment</mat-icon>Department</dt><dd>{{ person().department }}</dd></div>
+      <div><dt><mat-icon>location_on</mat-icon>Location</dt><dd>{{ person().location }}</dd></div>
+      <div><dt><mat-icon>person</mat-icon>Reporting Manager</dt><dd>{{ manager() ? shown(manager()!.name) : 'Not assigned' }}</dd></div>
+      @if (startsLater()) {
+        <div><dt><mat-icon>event</mat-icon>Change starts</dt><dd>{{ day(person().managerEffectiveFrom ?? null) }}</dd></div>
+      }
+      <div><dt><mat-icon>account_tree</mat-icon>Hierarchy Level</dt><dd>Level {{ depth() }}</dd></div>
+      <div><dt><mat-icon>groups</mat-icon>Direct Reports</dt><dd>{{ direct() }}</dd></div>
+      @if (team() > 0) {
+        <div><dt><mat-icon>groups</mat-icon>Total Team</dt><dd>{{ team() }}</dd></div>
+      }
+    </dl>
+    <ng-container [ngTemplateOutlet]="directList" />
+  } @else if (tab() === 'reporting') {
+    <section>
+      <h3>Current reporting manager</h3>
+      @if (manager(); as lead) {
+        <button type="button" class="who" (click)="picked.emit(lead.id)">
+          <span class="avatar sm">{{ initials(lead.name) }}</span>
+          <span>
+            <strong>{{ shown(lead.name) }}</strong>
+            <small>{{ lead.code }} · {{ lead.designation }}</small>
+          </span>
+        </button>
+      } @else {
+        <p class="muted">Not assigned</p>
+      }
+    </section>
+    <section>
+      <h3>Reporting path</h3>
+      <ol class="path">
+        @for (row of path(); track row.id) {
+          <li><button type="button" (click)="picked.emit(row.id)">{{ shown(row.name) }}</button></li>
+        }
+        <li class="self">{{ shown(person().name) }}</li>
+      </ol>
+    </section>
+    <ng-container [ngTemplateOutlet]="directList" />
+    <section>
+      <p class="quiet">Indirect reports: {{ indirect() }}</p>
+      <button mat-stroked-button type="button" (click)="focusTree.emit()">View Organization Tree</button>
+    </section>
+  } @else {
+    <section>
+      <h3>Current hierarchy</h3>
+      <ol class="path">
+        @for (row of path(); track row.id) {
+          <li><button type="button" (click)="picked.emit(row.id)">{{ shown(row.name) }}</button></li>
+        }
+        @if (!path().length) {
+          <li>No manager above</li>
+        }
+        <li class="self">{{ shown(person().name) }}</li>
+      </ol>
+    </section>
+    <section>
+      <h3>Manager changes</h3>
+      @if (historyError()) { <p class="error">{{ historyError() }}</p> }
+      @if (history() === null) {
+        <p class="muted">Loading history…</p>
+      } @else if (!history()!.length) {
+        <p class="muted">No manager changes have been recorded.</p>
+      } @else {
+        <ol class="timeline">
+          @for (row of history()!; track row.id) {
+            <li>
+              <strong>{{ row.previousManagerName ? shown(row.previousManagerName) : 'Not assigned' }} → {{ row.managerName ? shown(row.managerName) : 'Unassigned' }}</strong>
+              <small>From {{ day(row.effectiveFrom) }} · To {{ day(row.effectiveTo) }}</small>
+              <small>Changed by {{ row.changedBy || '—' }} · {{ day(row.createdAt) }}</small>
+              <small>{{ row.remarks || 'No reason recorded' }}</small>
+              <em [class.later]="scheduled(row)" [class.off]="row.status !== 'Active' && !scheduled(row)">{{ scheduled(row) ? 'Scheduled' : row.status }}</em>
+            </li>
+          }
+        </ol>
+      }
+    </section>
+  }
+</div>
+
+<ng-template #directList>
+  <section class="direct">
+    <div class="head">
+      <h3>Direct Reports <span>{{ reports().length }}</span></h3>
+      @if (reports().length) {
+        <button type="button" (click)="openReports()">View All</button>
+      }
+    </div>
+    @if (wideSpan()) { <p class="wide">Wide span of control</p> }
+    @if (!reports().length) {
+      <p class="muted">No direct reports assigned.</p>
+    } @else {
+      <ul>
+        @for (row of reports().slice(0, 3); track row.id) {
+          <li>
+            <button type="button" class="who" (click)="picked.emit(row.id)">
+              <span class="avatar sm">{{ initials(row.name) }}</span>
+              <span>
+                <strong>{{ shown(row.name) }}</strong>
+                <small>{{ row.code }} · {{ row.designation }}</small>
+              </span>
+              <em [class.off]="row.status !== 'Active'">{{ row.status }}</em>
+            </button>
+          </li>
+        }
+      </ul>
+      <p class="quiet">Showing {{ previewCount() }} of {{ reports().length }} direct reports</p>
+      @if (reports().length) {
+        <button type="button" class="team" (click)="focusTeam.emit(person().id)">Show this team</button>
+      }
+    }
+  </section>
+</ng-template>
+
+<footer>
+  <a mat-flat-button color="primary" [routerLink]="['/hr/employees', person().id]"><mat-icon>person</mat-icon>View Employee</a>
+  @if (canManage()) {
+    <button mat-stroked-button type="button" (click)="changed.emit()"><mat-icon>edit</mat-icon>Change Manager</button>
+    @if (manager()) {
+      <button mat-stroked-button type="button" class="danger" (click)="removed.emit()"><mat-icon>person_remove</mat-icon>Remove Manager</button>
+    }
+  }
+</footer>

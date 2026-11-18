@@ -12,3 +12,4 @@ export * from './lib/payroll/salary-templates.api';
 export * from './lib/payroll/statutory.api';
 export * from './lib/payroll/payroll-runs.api';
 export * from './lib/leave/leave.api';
+export * from './lib/reporting/reporting.api';

@@ -39,7 +39,7 @@ interface OrgTab {
 interface OrgCard {
   label: string;
   icon: string;
-  tone: 'violet' | 'green' | 'orange' | 'blue' | 'cyan';
+  tone: 'violet' | 'green' | 'orange' | 'blue';
   count: number;
 }
 
@@ -83,14 +83,6 @@ const TABS: readonly OrgTab[] = [
     noun: 'Companies',
     addLabel: 'Add Company',
     search: 'Search by company name or code',
-  },
-  {
-    id: 'hierarchy',
-    label: 'Reporting Hierarchy',
-    icon: 'account_tree',
-    noun: 'Reporting levels',
-    addLabel: 'Add Level',
-    search: 'Search by employee or manager',
   },
 ];
 
@@ -147,7 +139,6 @@ export class OrganizationPage {
       { label: 'Total Designations', icon: 'groups', tone: 'green', count: counts.designations },
       { label: 'Total Grades', icon: 'layers', tone: 'orange', count: counts.grades },
       { label: 'Total Locations', icon: 'location_on', tone: 'blue', count: counts.locations },
-      { label: 'Reporting Levels', icon: 'account_tree', tone: 'cyan', count: counts.hierarchy },
     ];
   });
 

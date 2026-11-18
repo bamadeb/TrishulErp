@@ -82,6 +82,21 @@ class MineStatusEvent(ApiModel):
     remarks: str | None
 
 
+ApprovalStepStatus = Literal["Submitted", "Pending", "Approved", "Rejected", "Upcoming", "Cancelled"]
+
+
+class MineApprovalStep(ApiModel):
+    """One step on the approval timeline for a submitted request."""
+
+    title: str
+    approver_name: str | None
+    approver_role: str | None
+    level: str | None
+    status: ApprovalStepStatus
+    acted_at: datetime | None
+    comments: str | None
+
+
 class MineRequestItem(ApiModel):
     request_id: int
     display_id: str
@@ -97,10 +112,14 @@ class MineRequestItem(ApiModel):
     approver_user_id: int | None
     acted_at: datetime | None
     current_approval_level: str | None
+    pending_with_name: str | None = None
+    pending_with_role: str | None = None
+    needs_hr_attention: bool = False
 
 
 class MineRequestDetail(MineRequestItem):
     history: list[MineStatusEvent]
+    approval_steps: list[MineApprovalStep] = Field(default_factory=list)
 
 
 class MineRequestPage(Page[MineRequestItem]):

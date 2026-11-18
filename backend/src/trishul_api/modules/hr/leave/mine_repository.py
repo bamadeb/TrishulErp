@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import CurrentUser
 from trishul_api.common.errors import ApiError, Forbidden, NotFound
 from trishul_api.db.models import (
+    ApprovalRequest,
+    AppUser,
     Branch,
     Department,
     Designation,
@@ -33,6 +35,7 @@ from trishul_api.modules.hr.leave.calculation import backdate_rejection
 from trishul_api.modules.hr.leave.holiday_ops import applies_to_branch
 from trishul_api.modules.hr.leave.mine_schemas import (
     MineApply,
+    MineApprovalStep,
     MineBalance,
     MineBalances,
     MineCompOff,
@@ -49,6 +52,7 @@ from trishul_api.modules.hr.leave.mine_schemas import (
 
 _ZERO = Decimal("0.0")
 _HALF = Decimal("0.5")
+_DOCUMENT = "LEAVE_REQUEST"
 _WEEKDAY = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
 
 
@@ -159,8 +163,10 @@ class LeaveMineRepository:
         rows = [row for row in self._own_requests(employee.id, query.financial_year) if _matches(row, query)]
         start = (query.page - 1) * query.page_size
         page = rows[start : start + query.page_size]
+        steps = self._ensure_steps(page)
+        people = self._approver_people({step.approver_user_id for group in steps.values() for step in group})
         return MineRequestPage(
-            items=[self._item(row) for row in page],
+            items=[self._item(row, steps.get(row.id, []), people) for row in page],
             total=len(rows),
             page=query.page,
             page_size=query.page_size,
@@ -191,6 +197,7 @@ class LeaveMineRepository:
         self._db.add(row)
         self._db.flush()
         self._history(row.id, None, "Pending", _note("Applied", data.contact), actor.id)
+        self._snapshot_approvers(employee, row.id, actor.id)
         self._db.commit()
         self._db.refresh(row)
         return self._detail(row)
@@ -247,6 +254,7 @@ class LeaveMineRepository:
         if previous == "Approved":
             self._restore(employee.id, row)
         row.status = "Cancelled"
+        self.settle_approval(row.id, actor, "Cancelled", "Cancelled")
         self._history(row.id, previous, "Cancelled", "Cancelled", actor.id)
         self._db.commit()
         self._db.refresh(row)
@@ -519,7 +527,7 @@ class LeaveMineRepository:
                     LeaveRequest.from_date >= start,
                     LeaveRequest.from_date <= end,
                 )
-                .order_by(LeaveRequest.from_date.desc(), LeaveRequest.id.desc())
+                .order_by(LeaveRequest.id.desc())
             ).scalars().all()
         )
 
@@ -542,9 +550,15 @@ class LeaveMineRepository:
             )
         )
 
-    def _item(self, row: LeaveRequest) -> MineRequestItem:
+    def _item(
+        self,
+        row: LeaveRequest,
+        steps: list[ApprovalRequest] | None = None,
+        people: dict[int, tuple[str, str]] | None = None,
+    ) -> MineRequestItem:
         leave_type = self._db.get(LeaveType, row.leave_type_id)
         label = f"{leave_type.name} ({leave_type.code})" if leave_type else "Leave"
+        pending_name, pending_role, needs_hr, level = _pending_with(row, steps or [], people or {})
         return MineRequestItem(
             request_id=row.id,
             display_id=f"LV-{row.id:04d}",
@@ -559,7 +573,10 @@ class LeaveMineRepository:
             is_half_day=row.is_half_day,
             approver_user_id=row.approver_user_id,
             acted_at=row.acted_at,
-            current_approval_level=None,
+            current_approval_level=level,
+            pending_with_name=pending_name,
+            pending_with_role=pending_role,
+            needs_hr_attention=needs_hr,
         )
 
     def _detail(self, row: LeaveRequest) -> MineRequestDetail:
@@ -588,7 +605,157 @@ class LeaveMineRepository:
                     remarks=None,
                 )
             )
-        return MineRequestDetail(**self._item(row).model_dump(), history=history)
+        steps = self._ensure_steps([row]).get(row.id, [])
+        people = self._approver_people({step.approver_user_id for step in steps})
+        return MineRequestDetail(
+            **self._item(row, steps, people).model_dump(),
+            history=history,
+            approval_steps=_timeline(row, steps, people),
+        )
+
+    def open_approval(self, request_id: int) -> ApprovalRequest | None:
+        return next((step for step in self._steps(request_id) if step.status == "Pending"), None)
+
+    def has_approval(self, request_id: int) -> bool:
+        return bool(self._steps(request_id))
+
+    def advance_approval(self, request_id: int, actor: CurrentUser, remarks: str) -> bool:
+        """Mark the current stored level approved. True when a later level is still pending."""
+        steps = self._steps(request_id)
+        current = next((step for step in steps if step.status == "Pending"), None)
+        if current is None:
+            return False
+        now = datetime.now(UTC).replace(tzinfo=None)
+        current.status = "Approved"
+        if current.approver_user_id is None:
+            current.approver_user_id = actor.id
+        current.acted_at = now
+        current.remarks = remarks[:500]
+        current.updated_by_user_id = actor.id
+        self._history(request_id, "Pending", "Pending", f"Approved at level {current.approval_level}.", actor.id)
+        return any(step.status == "Pending" for step in steps)
+
+    def settle_approval(self, request_id: int, actor: CurrentUser, status: str, remarks: str) -> None:
+        """Close the open level and cancel every later level. No stored steps is a no-op."""
+        now = datetime.now(UTC).replace(tzinfo=None)
+        closed_current = False
+        for step in self._steps(request_id):
+            if step.status != "Pending":
+                continue
+            step.acted_at = now
+            step.updated_by_user_id = actor.id
+            if not closed_current:
+                step.status = status
+                step.remarks = remarks[:500]
+                if step.approver_user_id is None and status == "Rejected":
+                    step.approver_user_id = actor.id
+                closed_current = True
+            else:
+                step.status = "Cancelled"
+
+    def _ensure_steps(self, rows: list[LeaveRequest]) -> dict[int, list[ApprovalRequest]]:
+        """Read the approvers stored on each request. A pending request with none is stored once."""
+        steps = self._steps_for([row.id for row in rows])
+        added = False
+        for row in rows:
+            if row.status != "Pending" or steps.get(row.id):
+                continue
+            employee = self._db.get(Employee, row.employee_id)
+            user_id = self._requester_id(row, employee)
+            if employee is None or user_id is None:
+                continue
+            if self._snapshot_approvers(employee, row.id, user_id):
+                added = True
+        if added:
+            self._db.commit()
+            steps = self._steps_for([row.id for row in rows])
+        return steps
+
+    def _requester_id(self, row: LeaveRequest, employee: Employee | None) -> int | None:
+        if row.created_by_user_id is not None:
+            return row.created_by_user_id
+        if employee is None:
+            return None
+        return self._db.scalar(
+            select(AppUser.id)
+            .where(AppUser.employee_id == employee.id, AppUser.is_active == True)  # noqa: E712
+            .order_by(AppUser.id)
+        )
+
+    def _snapshot_approvers(self, employee: Employee, request_id: int, user_id: int) -> bool:
+        """Store the reporting chain as it stands when the approver is first recorded."""
+        now = datetime.now(UTC).replace(tzinfo=None)
+        seen = {employee.id}
+        manager_id = employee.reporting_manager_id
+        level = 1
+        added = False
+        while manager_id is not None and manager_id not in seen and level <= 8:
+            seen.add(manager_id)
+            manager = self._db.get(Employee, manager_id)
+            if manager is None or not manager.is_active:
+                break
+            user = self._db.scalar(
+                select(AppUser)
+                .where(AppUser.employee_id == manager.id, AppUser.is_active == True)  # noqa: E712
+                .order_by(AppUser.id)
+            )
+            self._db.add(
+                ApprovalRequest(
+                    document_type=_DOCUMENT,
+                    document_id=request_id,
+                    approval_level=level,
+                    requested_by_user_id=user_id,
+                    requested_at=now,
+                    approver_user_id=user.id if user is not None else None,
+                    status="Pending",
+                    created_at=now,
+                    created_by_user_id=user_id,
+                    is_active=True,
+                )
+            )
+            added = True
+            level += 1
+            manager_id = manager.reporting_manager_id
+        return added
+
+    def _steps(self, request_id: int) -> list[ApprovalRequest]:
+        return self._steps_for([request_id]).get(request_id, [])
+
+    def _steps_for(self, request_ids: list[int]) -> dict[int, list[ApprovalRequest]]:
+        if not request_ids:
+            return {}
+        rows = self._db.scalars(
+            select(ApprovalRequest)
+            .where(
+                ApprovalRequest.document_type == _DOCUMENT,
+                ApprovalRequest.document_id.in_(request_ids),
+                ApprovalRequest.is_active == True,  # noqa: E712
+            )
+            .order_by(ApprovalRequest.approval_level, ApprovalRequest.id)
+        ).all()
+        grouped: dict[int, list[ApprovalRequest]] = {}
+        for step in rows:
+            grouped.setdefault(step.document_id, []).append(step)
+        return grouped
+
+    def _approver_people(self, user_ids: set[int | None]) -> dict[int, tuple[str, str]]:
+        ids = {user_id for user_id in user_ids if user_id is not None}
+        if not ids:
+            return {}
+        rows = self._db.execute(
+            select(AppUser, Employee, Designation.name)
+            .outerjoin(Employee, Employee.id == AppUser.employee_id)
+            .outerjoin(Designation, Designation.id == Employee.designation_id)
+            .where(AppUser.id.in_(ids))
+        ).all()
+        people: dict[int, tuple[str, str]] = {}
+        for user, employee, designation in rows:
+            if employee is None:
+                name = user.username
+            else:
+                name = " ".join(part for part in (employee.first_name, employee.last_name) if part) or user.username
+            people[user.id] = (name, designation or "Reporting manager")
+        return people
 
     def _name(self, model: type[Department] | type[Designation] | type[Branch], row_id: int | None) -> str | None:
         if row_id is None:
@@ -637,6 +804,57 @@ def _policy_score(policy: LeavePolicy) -> int:
     return int(policy.employee_type is not None) + int(policy.department_id is not None) * 2 + int(
         policy.branch_id is not None
     ) * 4
+
+
+def _pending_with(
+    row: LeaveRequest, steps: list[ApprovalRequest], people: dict[int, tuple[str, str]]
+) -> tuple[str | None, str | None, bool, str | None]:
+    if row.status != "Pending":
+        return None, None, False, None
+    current = next((step for step in steps if step.status == "Pending"), None)
+    if current is None or current.approver_user_id is None or current.approver_user_id not in people:
+        level = None if current is None else f"Level {current.approval_level}"
+        return "Awaiting Assignment", None, True, level
+    name, role = people[current.approver_user_id]
+    return name, role, False, f"Level {current.approval_level}"
+
+
+def _timeline(
+    row: LeaveRequest, steps: list[ApprovalRequest], people: dict[int, tuple[str, str]]
+) -> list[MineApprovalStep]:
+    items = [
+        MineApprovalStep(
+            title="Request Submitted",
+            approver_name=None,
+            approver_role=None,
+            level=None,
+            status="Submitted",
+            acted_at=row.created_at,
+            comments=row.reason,
+        )
+    ]
+    seen_current = False
+    for step in steps:
+        person = people.get(step.approver_user_id) if step.approver_user_id is not None else None
+        if step.status == "Pending" and not seen_current:
+            status = "Pending"
+            seen_current = True
+        elif step.status == "Pending":
+            status = "Upcoming"
+        else:
+            status = step.status
+        items.append(
+            MineApprovalStep(
+                title=person[0] if person else "Awaiting Assignment",
+                approver_name=person[0] if person else None,
+                approver_role=person[1] if person else None,
+                level=f"Level {step.approval_level}",
+                status=status,
+                acted_at=step.acted_at,
+                comments=step.remarks,
+            )
+        )
+    return items
 
 
 def _matches(row: LeaveRequest, query: MineRequestQuery) -> bool:

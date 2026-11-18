@@ -1,0 +1,24 @@
+<h2 mat-dialog-title>Reporting history</h2>
+<mat-dialog-content>
+  <p class="who">{{ data.name }}</p>
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (rows() === null) {
+    <p class="muted">Loading…</p>
+  } @else if (rows()!.length === 0) {
+    <p class="muted">No reporting-manager changes have been saved for this employee.</p>
+  } @else {
+    <ul>
+      @for (row of rows(); track row.id) {
+        <li>
+          <strong>{{ day(row.effectiveFrom) }}</strong>
+          <span>{{ row.previousManagerName || 'Not assigned' }} → {{ row.managerName }}</span>
+          @if (row.remarks) { <small>{{ row.remarks }}</small> }
+        </li>
+      }
+    </ul>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Close</button>
+</mat-dialog-actions>

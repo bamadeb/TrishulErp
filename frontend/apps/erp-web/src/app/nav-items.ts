@@ -359,6 +359,12 @@ export const navItems: NavItem[] = [
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
       },
       {
+        label: 'Reporting Structure',
+        icon: 'schema',
+        route: '/hr/reporting',
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+      },
+      {
         label: 'Attendance Management',
         icon: 'schedule',
         route: '/hr/attendance',

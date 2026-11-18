@@ -1,0 +1,1 @@
+"""Reporting Structure assignments."""

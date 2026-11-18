@@ -1,0 +1,56 @@
+<header>
+  <div class="copy">
+    <div class="title">
+      <strong>{{ request().id }}</strong>
+      <trishul-status-badge [status]="request().status" [severities]="severities" />
+    </div>
+    <small>{{ request().leaveType }} · {{ amount(request().days) }} Days</small>
+  </div>
+  <button mat-icon-button type="button" aria-label="Close" (click)="closed.emit()"><mat-icon>close</mat-icon></button>
+</header>
+<div class="body">
+  <h3>Leave Details</h3>
+  <dl>
+    <div><dt><mat-icon>calendar_today</mat-icon> From</dt><dd>{{ request().from | date:'dd-MMM-yyyy' }}</dd></div>
+    <div><dt><mat-icon>event</mat-icon> To</dt><dd>{{ request().to | date:'dd-MMM-yyyy' }}</dd></div>
+    <div><dt><mat-icon>timelapse</mat-icon> Days</dt><dd>{{ amount(request().days) }}</dd></div>
+    <div><dt><mat-icon>notes</mat-icon> Reason</dt><dd>{{ request().reason || '—' }}</dd></div>
+    <div><dt><mat-icon>schedule</mat-icon> Applied on</dt><dd>{{ request().appliedAt | date:'dd-MMM-yyyy' }}</dd></div>
+  </dl>
+
+  <h3>Approval Progress</h3>
+  @if (stepsError()) {
+  <p class="error">{{ stepsError() }}</p>
+  } @else if (loading()) {
+  <p class="muted">Loading approval details…</p>
+  } @else {
+  <ol class="timeline">
+    @for (step of steps(); track $index) {
+    <li [class]="step.status.toLowerCase()">
+      <div class="head">
+        <strong>{{ heading(step) }}</strong>
+        <span [class]="step.status.toLowerCase()">{{ stateLabel(step) }}</span>
+      </div>
+      <small [class.wait]="person(step) === 'Awaiting Assignment'">{{ person(step) }}</small>
+      @if (step.approverRole) { <small>{{ step.approverRole }}</small> }
+      @if (step.level) { <small>{{ step.level }}</small> }
+      @if (step.actedAt) { <small>{{ step.actedAt | date:'dd-MMM-yyyy h:mm a' }}</small> }
+      @if (step.comments) { <em>{{ step.comments }}</em> }
+    </li>
+    }
+  </ol>
+  }
+
+  <h3>Leave Summary</h3>
+  <dl class="summary">
+    <div><dt>Leave type</dt><dd>{{ request().leaveType }}</dd></div>
+    <div><dt>Available balance</dt><dd>{{ availableLabel() }}</dd></div>
+    <div><dt>Requested days</dt><dd>{{ amount(request().days) }}</dd></div>
+    <div><dt>Balance after approval</dt><dd>{{ afterLabel() }}</dd></div>
+  </dl>
+</div>
+@if (request().status === 'Pending') {
+<footer>
+  <button mat-stroked-button type="button" (click)="withdraw.emit(request())"><mat-icon>delete_outline</mat-icon> Withdraw Request</button>
+</footer>
+}

@@ -8,7 +8,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
-import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
@@ -16,7 +16,10 @@ import { AuthStore } from '@trishul/core-auth';
 import { LeaveApi, MineBalance, MineCompOff, MineHoliday, MineRequestItem } from '@trishul/hr-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { LeaveApplyDialog, LeaveApplyDialogData, LeaveConfirmDialog, LeaveTypeChoice } from './leave-apply.dialog';
+import { LeaveDrawerBalance, LeaveRequestDrawer } from './leave-mine.drawer';
 import { MineLeaveRequest, MineLeaveStatus } from './leave-mine.models';
+
+type Kpi = '' | 'balance' | 'approved' | 'pending' | 'rejected' | 'upcoming';
 
 @Component({
   selector: 'trishul-leave-mine-page',
@@ -33,13 +36,16 @@ import { MineLeaveRequest, MineLeaveStatus } from './leave-mine.models';
     MatIconButton,
     MatInput,
     MatLabel,
+    MatMenu,
+    MatMenuItem,
+    MatMenuTrigger,
     MatOption,
-    MatPaginator,
     MatSelect,
     MatTab,
     MatTabGroup,
     PageHeader,
     StatusBadge,
+    LeaveRequestDrawer,
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,6 +56,7 @@ export class LeaveMinePage {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly leaveApi = inject(LeaveApi);
+  private readonly auth = inject(AuthStore);
 
   protected readonly severities: Partial<Record<string, StatusSeverity>> = {
     Pending: 'warn',
@@ -59,11 +66,12 @@ export class LeaveMinePage {
     Available: 'success',
     Used: 'neutral',
     Expiring: 'warn',
-    Confirmed: 'success',
-    Active: 'success',
   };
   protected readonly years = [2026, 2025];
   protected readonly year = signal(2026);
+  protected readonly tab = signal(0);
+  protected readonly kpi = signal<Kpi>('');
+  protected readonly focusUpcoming = signal(false);
   protected readonly type = signal('');
   protected readonly status = signal<MineLeaveStatus | ''>('');
   protected readonly search = signal('');
@@ -76,11 +84,13 @@ export class LeaveMinePage {
   protected readonly error = signal('');
   protected readonly balances = signal<BalanceCard[]>([]);
   protected readonly leaveTypes = signal<string[]>([]);
-  private readonly auth = inject(AuthStore);
   protected readonly leaveChoices = signal<LeaveTypeChoice[]>([]);
   protected readonly requests = signal<MineLeaveRequest[]>([]);
   protected readonly holidays = signal<{ date: string; name: string }[]>([]);
   protected readonly compOff = signal<CompOffView>({ earned: 0, available: 0, used: 0, expiring: '—', lines: [] });
+  protected readonly detail = signal<MineLeaveRequest | null>(null);
+  protected readonly menuRow = signal<MineLeaveRequest | null>(null);
+  protected readonly employeeName = signal('');
 
   constructor() {
     this.reload();
@@ -90,33 +100,35 @@ export class LeaveMinePage {
     const from = this.periodFrom();
     const to = this.periodTo();
     const term = this.search().trim().toLowerCase();
-    return this.requests().filter((row) => {
-      const start = new Date(`${row.from}T00:00:00`);
-      if (from && start < strip(from)) return false;
-      if (to && start > strip(to)) return false;
-      if (this.type() && row.leaveType !== this.type()) return false;
-      if (this.status() && row.status !== this.status()) return false;
-      if (term && !`${row.id} ${row.reason}`.toLowerCase().includes(term)) return false;
-      return true;
-    });
+    const today = strip(new Date());
+    return this.requests()
+      .filter((row) => {
+        const start = new Date(`${row.from}T00:00:00`);
+        if (from && start < strip(from)) return false;
+        if (to && start > strip(to)) return false;
+        if (this.type() && row.leaveType !== this.type()) return false;
+        if (this.status() && row.status !== this.status()) return false;
+        if (this.focusUpcoming() && (row.status === 'Rejected' || row.status === 'Cancelled' || start < today)) return false;
+        if (term && !`${row.id} ${row.reason}`.toLowerCase().includes(term)) return false;
+        return true;
+      })
+      .sort((left, right) => right.requestId - left.requestId);
   });
 
   protected readonly history = computed(() => this.filtered().filter((row) => row.status !== 'Pending'));
-
   protected readonly summary = computed(() => {
     const rows = this.requests();
     const today = strip(new Date());
     return {
-      total: rows.length,
       pending: rows.filter((row) => row.status === 'Pending').length,
       approved: rows.filter((row) => row.status === 'Approved').length,
       rejected: rows.filter((row) => row.status === 'Rejected').length,
       upcoming: rows.filter((row) => row.status !== 'Rejected' && row.status !== 'Cancelled' && new Date(`${row.from}T00:00:00`) >= today).length,
     };
   });
-
-  protected readonly pageRows = computed(() => slice(this.filtered(), this.page(), this.pageSize()));
-  protected readonly historyRows = computed(() => slice(this.history(), this.page(), this.pageSize()));
+  protected readonly totalDays = computed(() => this.balances().reduce((sum, card) => sum + card.available, 0));
+  protected readonly requestPage = computed(() => slice(this.filtered(), this.page(), this.pageSize()));
+  protected readonly historyPage = computed(() => slice(this.history(), this.page(), this.pageSize()));
   protected readonly cells = computed(() => monthCells(this.calendar()));
   protected readonly upcomingHolidays = computed(() => {
     const today = iso(new Date());
@@ -132,14 +144,62 @@ export class LeaveMinePage {
     this.reload();
   }
 
-  protected onPage(event: PageEvent): void {
-    this.page.set(event.pageIndex);
-    this.pageSize.set(event.pageSize);
+  protected chooseTab(index: number): void {
+    if (index === this.tab()) return;
+    this.tab.set(index);
+    this.page.set(0);
+  }
+
+  protected pickKpi(kind: Kpi): void {
+    this.kpi.set(kind);
+    this.page.set(0);
+    if (kind === 'balance') {
+      this.tab.set(2);
+      return;
+    }
+    this.tab.set(0);
+    this.focusUpcoming.set(kind === 'upcoming');
+    this.status.set(kind === 'approved' ? 'Approved' : kind === 'pending' ? 'Pending' : kind === 'rejected' ? 'Rejected' : '');
+  }
+
+  protected chooseStatus(value: MineLeaveStatus | ''): void {
+    this.status.set(value);
+    this.focusUpcoming.set(false);
+    this.kpi.set('');
+    this.page.set(0);
+  }
+
+  protected setPageSize(size: number): void {
+    this.pageSize.set(Number(size));
+    this.page.set(0);
+  }
+
+  protected stepPage(offset: number): void {
+    this.page.update((value) => value + offset);
+  }
+
+  protected fromIndex(total: number): number {
+    return total ? this.page() * this.pageSize() + 1 : 0;
+  }
+
+  protected toIndex(total: number): number {
+    return Math.min(total, (this.page() + 1) * this.pageSize());
+  }
+
+  protected lastPage(total: number): number {
+    return Math.max(0, Math.ceil(total / this.pageSize()) - 1);
   }
 
   protected shiftMonth(offset: number): void {
     const current = this.calendar();
     this.calendar.set(new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  }
+
+  protected pickDay(day: Date): void {
+    this.periodFrom.set(day);
+    this.periodTo.set(day);
+    this.page.set(0);
+    this.tab.set(0);
   }
 
   protected mark(day: Date): string {
@@ -155,6 +215,25 @@ export class LeaveMinePage {
 
   protected inMonth(day: Date): boolean {
     return day.getMonth() === this.calendar().getMonth();
+  }
+
+  protected amount(value: number): string {
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  }
+
+  protected pendingTitle(row: MineLeaveRequest): string {
+    if (row.status !== 'Pending') return 'No approval is pending.';
+    if (row.needsHrAttention || !row.pendingWithName) return 'Awaiting Assignment. HR attention required.';
+    return row.pendingWithRole ? `${row.pendingWithName}, ${row.pendingWithRole}` : row.pendingWithName;
+  }
+
+  protected balanceFor(row: MineLeaveRequest): LeaveDrawerBalance | null {
+    const card = this.balances().find((item) => item.leaveTypeId === row.leaveTypeId);
+    return card ? { leaveTypeId: card.leaveTypeId, available: card.available } : null;
+  }
+
+  protected show(row: MineLeaveRequest): void {
+    this.detail.set(row);
   }
 
   protected apply(): void {
@@ -188,16 +267,39 @@ export class LeaveMinePage {
         if (!confirmed) return;
         this.leaveApi.cancelMineRequest(row.requestId).subscribe({
           next: () => {
-            this.snackBar.open(`${row.id} cancelled.`, 'Close', { duration: 2500 });
+            this.snackBar.open(`${row.id} withdrawn.`, 'Close', { duration: 2500 });
+            if (this.detail()?.requestId === row.requestId) this.detail.set(null);
             this.reload();
           },
-          error: (error: unknown) => this.snackBar.open(problemDetail(error, 'The leave request could not be cancelled.'), 'Close', { duration: 4000 }),
+          error: (error: unknown) => this.snackBar.open(problemDetail(error, 'The leave request could not be withdrawn.'), 'Close', { duration: 4000 }),
         });
       });
   }
 
+  protected exportRows(): void {
+    const header = ['Request ID', 'Leave type', 'From', 'To', 'Days', 'Reason', 'Pending With', 'Status'];
+    const lines = this.filtered().map((row) => [
+      row.id, row.leaveType, row.from, row.to, String(row.days), row.reason, pendingExport(row), row.status,
+    ]);
+    const csv = [header, ...lines].map((line) => line.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'my-leave.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  protected download(_row: MineLeaveRequest): void {
+    this.snackBar.open('No document is stored for this request.', 'Close', { duration: 2500 });
+  }
+
   private reload(): void {
     const year = this.year();
+    this.leaveApi.mineProfile().subscribe({
+      next: (profile) => this.employeeName.set(profile.employeeName),
+      error: () => this.employeeName.set(''),
+    });
     this.leaveApi.mineBalances(year).subscribe({
       next: (board) => {
         this.balances.set(board.items.map(mapBalance));
@@ -212,7 +314,12 @@ export class LeaveMinePage {
       error: (error: unknown) => this.error.set(problemDetail(error, 'Leave balances could not be loaded.')),
     });
     this.leaveApi.mineRequests(year).subscribe({
-      next: (page) => this.requests.set(page.items.map(mapRequest)),
+      next: (page) => {
+        const rows = page.items.map(mapRequest);
+        this.requests.set(rows);
+        const open = this.detail();
+        if (open) this.detail.set(rows.find((row) => row.requestId === open.requestId) ?? null);
+      },
       error: (error: unknown) => this.error.set(problemDetail(error, 'Leave requests could not be loaded.')),
     });
     this.leaveApi.mineHolidays(year).subscribe({
@@ -224,30 +331,16 @@ export class LeaveMinePage {
       error: (error: unknown) => this.error.set(problemDetail(error, 'Comp-Off could not be loaded.')),
     });
   }
-
-  protected exportRows(): void {
-    const header = ['Request ID', 'Leave type', 'From', 'To', 'Days', 'Reason', 'Status'];
-    const lines = this.filtered().map((row) => [row.id, row.leaveType, row.from, row.to, String(row.days), row.reason, row.status]);
-    const csv = [header, ...lines].map((line) => line.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'my-leave.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  protected download(row: MineLeaveRequest): void {
-    this.snackBar.open('No document is stored for this request.', 'Close', { duration: 2500 });
-  }
 }
 
 interface BalanceCard {
+  leaveTypeId: number;
   code: string;
   name: string;
   available: number;
   entitlement: number;
   used: number;
+  pending: number;
   tone: string;
 }
 
@@ -263,11 +356,13 @@ const TONES: Record<string, string> = { CL: 'info', EL: 'success', SL: 'warn', C
 
 function mapBalance(row: MineBalance): BalanceCard {
   return {
+    leaveTypeId: row.leaveTypeId,
     code: row.code,
     name: row.name,
     available: Number(row.available),
     entitlement: Number(row.opening) + Number(row.credited),
     used: Number(row.availed),
+    pending: Number(row.pending),
     tone: TONES[row.code] ?? 'info',
   };
 }
@@ -286,7 +381,17 @@ function mapRequest(row: MineRequestItem): MineLeaveRequest {
     part: row.isHalfDay ? 'First half' : 'Full day',
     contact: '',
     fileName: null,
+    appliedAt: row.appliedAt,
+    pendingWithName: row.pendingWithName,
+    pendingWithRole: row.pendingWithRole,
+    needsHrAttention: row.needsHrAttention,
   };
+}
+
+function pendingExport(row: MineLeaveRequest): string {
+  if (row.status !== 'Pending') return '—';
+  if (row.needsHrAttention || !row.pendingWithName) return 'Awaiting Assignment';
+  return row.pendingWithRole ? `${row.pendingWithName} (${row.pendingWithRole})` : row.pendingWithName;
 }
 
 function mapHoliday(row: MineHoliday): { date: string; name: string } {

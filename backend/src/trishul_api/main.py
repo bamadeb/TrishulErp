@@ -29,6 +29,7 @@ from trishul_api.modules.core.warehouses.router import router as warehouses_rout
 from trishul_api.modules.hr.leave.router import router as leave_router
 from trishul_api.modules.hr.organization.router import router as organization_router
 from trishul_api.modules.hr.payroll.router import router as salary_component_router
+from trishul_api.modules.hr.reporting.router import router as reporting_router
 from trishul_api.modules.hr.tada.router import router as tada_router
 from trishul_api.modules.inv.item_router import router as inv_items_router
 from trishul_api.modules.inv.masters_router import router as inv_masters_router
@@ -64,6 +65,7 @@ V1_ROUTERS: list[APIRouter] = [
     contracts_router,
     presales_router,
     organization_router,
+    reporting_router,
     leave_router,
     salary_component_router,
     tada_router,
