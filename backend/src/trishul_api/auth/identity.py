@@ -1,4 +1,5 @@
-"""Administration of sign-in accounts (create, disable, reset password) in the identity provider.
+"""Administration of sign-in accounts (create, disable, reset password) in the identity provider, and a
+signed-in user changing their own password.
 
 The ERP keeps users in core.app_user; the identity provider (Cognito) keeps their passwords. User
 management changes both, through this interface.
@@ -67,6 +68,10 @@ class IdentityProvider(Protocol):
 
     def reset_password(self, email: str, delivery: Delivery) -> str | None:
         """Returns the temporary password when delivery is "show"."""
+        ...
+
+    def change_own_password(self, access_token: str, current_password: str, new_password: str) -> None:
+        """The signed-in user changes their own password; the access token proves who they are."""
         ...
 
 
@@ -166,6 +171,30 @@ class CognitoIdentityProvider:
             self._call(lambda: self._client.admin_reset_user_password(UserPoolId=self._pool, Username=email))
         return None
 
+    def change_own_password(self, access_token: str, current_password: str, new_password: str) -> None:
+        # Not an admin call: Cognito checks the user's own access token and current password.
+        try:
+            self._client.change_password(
+                PreviousPassword=current_password, ProposedPassword=new_password, AccessToken=access_token
+            )
+        except ClientError as error:
+            code = _code(error)
+            if code == "NotAuthorizedException":
+                if "attempts exceeded" in str(error.response.get("Error", {}).get("Message", "")).lower():
+                    raise ApiError("Too many failed attempts. Wait a few minutes, then try again.") from error
+                raise ApiError(
+                    "The current password is not correct.", errors={"currentPassword": ["Not correct."]}
+                ) from error
+            if code == "InvalidPasswordException":
+                rules = str(error.response.get("Error", {}).get("Message", "")).split(":", 1)[-1].strip()
+                raise ApiError(
+                    "The new password does not meet the password rules.",
+                    errors={"newPassword": [rules or "Does not meet the password rules."]},
+                ) from error
+            if code in ("LimitExceededException", "TooManyRequestsException"):
+                raise ApiError("Too many attempts. Wait a few minutes, then try again.") from error
+            raise _provider_error(error) from error
+
     def _get(self, email: str) -> "AdminGetUserResponseTypeDef | None":
         try:
             return self._client.admin_get_user(UserPoolId=self._pool, Username=email)
@@ -205,6 +234,9 @@ class DevIdentityProvider:
 
     def reset_password(self, email: str, delivery: Delivery) -> str | None:
         raise ApiError("Development sign-in has no passwords to reset.")
+
+    def change_own_password(self, access_token: str, current_password: str, new_password: str) -> None:
+        raise ApiError("Development sign-in has no passwords to change.")
 
 
 def create_identity_provider(settings: Settings) -> IdentityProvider:

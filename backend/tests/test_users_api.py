@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx2 as httpx
 import pytest
+from botocore.exceptions import ClientError
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.dialects import mssql
@@ -13,7 +14,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import get_current_user, get_db
-from trishul_api.auth.identity import AccountExists, CreatedAccount, Delivery, SignInStatus
+from trishul_api.auth.identity import (
+    AccountExists,
+    CognitoIdentityProvider,
+    CreatedAccount,
+    Delivery,
+    SignInStatus,
+)
+from trishul_api.common.errors import ApiError
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
 from trishul_api.db.models import AppUser, AuditLog, Employee
@@ -83,6 +91,57 @@ class FakeIdentity:
     def reset_password(self, email: str, delivery: Delivery) -> str | None:
         self.calls.append(("reset", email, delivery))
         return "Temp#Reset12345" if delivery == "show" else None
+
+    def change_own_password(self, access_token: str, current_password: str, new_password: str) -> None:
+        self.calls.append(("change-own", access_token, current_password, new_password))
+        if current_password != "Old#Pass12345":
+            raise ApiError("The current password is not correct.", errors={"currentPassword": ["Not correct."]})
+
+
+# ------------------------------------------------------------------------------ own password
+
+
+def test_a_user_changes_their_own_password(client: TestClient, identity: FakeIdentity) -> None:
+    url = "/api/v1/me/password"
+    headers = {"Authorization": "Bearer token-abc"}
+    body = {"currentPassword": "Old#Pass12345", "newPassword": "New#Pass67890"}
+    assert client.post(url, json=body, headers=headers).status_code == 204
+    assert identity.calls[-1] == ("change-own", "token-abc", "Old#Pass12345", "New#Pass67890")
+
+    wrong = client.post(url, json=body | {"currentPassword": "nope"}, headers=headers)
+    assert wrong.status_code == 400 and "currentPassword" in wrong.json()["errors"]
+    same = client.post(url, json=body | {"newPassword": "Old#Pass12345"}, headers=headers)
+    assert same.status_code == 400 and "newPassword" in same.json()["errors"]
+    assert client.post(url, json=body | {"newPassword": "short"}, headers=headers).status_code == 422
+
+
+class StubCognito:
+    """Stands in for the boto3 client: records change_password and fails with the given Cognito code."""
+
+    def __init__(self, code: str | None = None, message: str = "") -> None:
+        self.code = code
+        self.message = message
+        self.sent: dict[str, str] | None = None
+
+    def change_password(self, **kwargs: str) -> None:
+        self.sent = kwargs
+        if self.code:
+            raise ClientError({"Error": {"Code": self.code, "Message": self.message}}, "ChangePassword")
+
+
+def test_cognito_change_password_sends_the_token_and_maps_errors(settings: Settings) -> None:
+    ok = StubCognito()
+    CognitoIdentityProvider(settings, client=ok).change_own_password("tok", "Old#1", "New#2")  # type: ignore[arg-type]
+    assert ok.sent == {"PreviousPassword": "Old#1", "ProposedPassword": "New#2", "AccessToken": "tok"}
+
+    for code, message, field in (
+        ("NotAuthorizedException", "Incorrect username or password.", "currentPassword"),
+        ("InvalidPasswordException", "Password does not conform to policy: Password not long enough", "newPassword"),
+    ):
+        provider = CognitoIdentityProvider(settings, client=StubCognito(code, message))  # type: ignore[arg-type]
+        with pytest.raises(ApiError) as raised:
+            provider.change_own_password("tok", "a", "b")
+        assert raised.value.status == 400 and field in (raised.value.errors or {})
 
 
 @pytest.fixture

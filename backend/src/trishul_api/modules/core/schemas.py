@@ -1,4 +1,14 @@
-from trishul_api.common.schemas import ApiModel
+from pydantic import Field
+
+from trishul_api.common.schemas import ApiModel, InputModel
+
+
+class OwnPasswordChange(InputModel):
+    """The signed-in user's current password and the one to change it to. The pool's password rules
+    (length, characters) are checked by the sign-in service."""
+
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=12, max_length=256, description="At least 12 characters (the pool's rule).")
 
 
 class BranchRef(ApiModel):

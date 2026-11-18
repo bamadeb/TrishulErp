@@ -3,6 +3,8 @@
 
 export type { GetMe$Params as GetMe$Params } from './fn/core/get-me';
 export { getMe as getMe } from './fn/core/get-me';
+export type { ChangeMyPassword$Params as ChangeMyPassword$Params } from './fn/core/change-my-password';
+export { changeMyPassword as changeMyPassword } from './fn/core/change-my-password';
 export type { ListLookupValues$Params as ListLookupValues$Params } from './fn/core/list-lookup-values';
 export { listLookupValues as listLookupValues } from './fn/core/list-lookup-values';
 export type { CreateUserDevice$Params as CreateUserDevice$Params } from './fn/core/create-user-device';

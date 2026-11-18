@@ -33,13 +33,17 @@ import { MatToolbar } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   AuthService,
+  AuthSession,
   AuthStore,
   IdleTimeout,
   branchGroups,
 } from '@trishul/core-auth';
 import { AlertBell } from './alerts/alert-bell';
+import { ChangePasswordDialog } from './change-password.dialog';
 import { NAV_ITEMS, NavItem } from './nav';
 
 /** Application frame: top bar with branch / brand context, permission-aware side menu, page outlet. */
@@ -153,6 +157,26 @@ export class Shell {
 
   protected logout(): void {
     void this.authService.signOut();
+  }
+
+  /** Development sign-in has no passwords, so the button only shows with Cognito. */
+  protected readonly canChangePassword = inject(AuthSession).usesPassword;
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
+
+  protected changePassword(): void {
+    this.dialog
+      .open(ChangePasswordDialog, { autoFocus: 'dialog', maxWidth: '95vw' })
+      .afterClosed()
+      .subscribe((changed?: boolean) => {
+        if (changed) {
+          this.snackBar.open(
+            'Password changed. Use the new password next time you sign in.',
+            'OK',
+            { duration: 6000 },
+          );
+        }
+      });
   }
 
   constructor() {

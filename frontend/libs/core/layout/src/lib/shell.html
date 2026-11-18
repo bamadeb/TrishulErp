@@ -26,6 +26,16 @@
     }
   </span>
   }
+  @if (canChangePassword) {
+  <button
+    mat-icon-button
+    aria-label="Change password"
+    matTooltip="Change password"
+    (click)="changePassword()"
+  >
+    <mat-icon>lock_reset</mat-icon>
+  </button>
+  }
   <button
     mat-icon-button
     aria-label="Sign out"

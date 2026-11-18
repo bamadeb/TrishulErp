@@ -1,11 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Request, Response
 
 from trishul_api.auth import SIGNED_IN_USERS, CurrentUserDep, DbSession
-from trishul_api.common.errors import NOT_FOUND_RESPONSE, NotFound
+from trishul_api.auth.deps import get_identity_provider
+from trishul_api.auth.identity import IdentityProvider
+from trishul_api.common.errors import NOT_FOUND_RESPONSE, ApiError, NotFound
 from trishul_api.modules.core.repository import CoreRepository
-from trishul_api.modules.core.schemas import LookupValueOut, Me
+from trishul_api.modules.core.schemas import LookupValueOut, Me, OwnPasswordChange
 
 router = APIRouter(tags=["core"])
 
@@ -34,6 +36,33 @@ def get_me(user: CurrentUserDep, repo: CoreRepo) -> Me:
         branches=repo.branches(user.branch_ids),
         principals=repo.principals(user.principal_ids),
     )
+
+
+@router.post(
+    "/me/password",
+    summary="Change my own password (needs the current password)",
+    status_code=204,
+    response_class=Response,
+    openapi_extra=SIGNED_IN_USERS,
+)
+def change_my_password(
+    data: OwnPasswordChange,
+    request: Request,
+    _: CurrentUserDep,  # a valid signed-in session
+    identity: Annotated[IdentityProvider, Depends(get_identity_provider)],
+) -> Response:
+    """Changes the password of whoever the access token belongs to. Other devices stay signed in until
+    their session ends; the new password is needed at the next sign-in."""
+    if data.new_password == data.current_password:
+        raise ApiError(
+            "The new password must be different from the current one.",
+            errors={"newPassword": ["Same as the current password."]},
+        )
+    scheme, _sep, token = request.headers.get("Authorization", "").partition(" ")
+    identity.change_own_password(
+        token.strip() if scheme.lower() == "bearer" else "", data.current_password, data.new_password
+    )
+    return Response(status_code=204)
 
 
 @router.get(

@@ -211,6 +211,7 @@ export type { MachineListItem } from './models/machine-list-item';
 export type { MachineModelOption } from './models/machine-model-option';
 export type { MachineUnitOption } from './models/machine-unit-option';
 export type { MachineUpdate } from './models/machine-update';
+export type { OwnPasswordChange } from './models/own-password-change';
 export type { ManualTravelDocument } from './models/manual-travel-document';
 export type { ManualTravelInput } from './models/manual-travel-input';
 export type { ManualTravelOut } from './models/manual-travel-out';
@@ -468,6 +469,8 @@ export type { WarehouseUpdate } from './models/warehouse-update';
 
 export type { GetMe$Params as GetMe$Params } from './fn/core/get-me';
 export { getMe as getMe } from './fn/core/get-me';
+export type { ChangeMyPassword$Params as ChangeMyPassword$Params } from './fn/core/change-my-password';
+export { changeMyPassword as changeMyPassword } from './fn/core/change-my-password';
 export type { ListLookupValues$Params as ListLookupValues$Params } from './fn/core/list-lookup-values';
 export { listLookupValues as listLookupValues } from './fn/core/list-lookup-values';
 export type { CreateUserDevice$Params as CreateUserDevice$Params } from './fn/core/create-user-device';

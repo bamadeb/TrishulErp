@@ -72,6 +72,77 @@
         "x-access": "Any signed-in user"
       }
     },
+    "/me/password": {
+      "post": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Change my own password (needs the current password)",
+        "description": "Changes the password of whoever the access token belongs to. Other devices stay signed in until\ntheir session ends; the new password is needed at the next sign-in.",
+        "operationId": "change_my_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnPasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-access": "Any signed-in user"
+      }
+    },
     "/core/lookups/{typeCode}/values": {
       "get": {
         "tags": [
@@ -69952,6 +70023,31 @@
           "pending"
         ],
         "title": "Overview"
+      },
+      "OwnPasswordChange": {
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Currentpassword"
+          },
+          "newPassword": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "Newpassword",
+            "description": "At least 12 characters (the pool's rule)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "title": "OwnPasswordChange",
+        "description": "The signed-in user's current password and the one to change it to. The pool's password rules\n(length, characters) are checked by the sign-in service."
       },
       "Page_AdjustmentListItem_": {
         "properties": {
