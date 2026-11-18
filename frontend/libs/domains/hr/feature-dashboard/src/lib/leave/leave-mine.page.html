@@ -1,56 +1,66 @@
 @if (error()) { <p class="empty">{{ error() }}</p> }
-<trishul-page-header title="My Leave" subtitle="Manage your leave applications, check balances and track approval status.">
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Financial year</mat-label>
-    <mat-select [ngModel]="year()" (ngModelChange)="chooseYear($event)" name="year">
-      @for (item of years; track item) { <mat-option [value]="item">FY {{ item }} – {{ item + 1 }}</mat-option> }
-    </mat-select>
-  </mat-form-field>
-  <button mat-flat-button color="primary" type="button" (click)="apply()"><mat-icon>add</mat-icon> Apply leave</button>
-</trishul-page-header>
+<div class="shell">
+  <div class="content">
+    <trishul-page-header title="My Leave" subtitle="Apply, track and manage your leave requests.">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Financial year</mat-label>
+        <mat-select [ngModel]="year()" (ngModelChange)="chooseYear($event)" name="year">
+          @for (item of years; track item) { <mat-option [value]="item">FY {{ item }} – {{ item + 1 }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <button mat-flat-button color="primary" class="apply" type="button" (click)="apply()"><mat-icon>add</mat-icon> Apply Leave</button>
+    </trishul-page-header>
 
-<div class="board">
-  <div class="main">
-    <section>
-      <div class="section-head"><h2>My leave balance</h2></div>
-      <div class="balances">
-        @for (card of balances(); track card.code) {
-        <article [class]="card.tone">
-          <mat-icon>event_available</mat-icon>
-          <span>{{ card.code }} {{ card.name }}</span>
-          <strong>{{ card.available }} days</strong>
-          <small>Entitlement: {{ card.entitlement }} · Used: {{ card.used }}</small>
-        </article>
-        }
-      </div>
-    </section>
-
-    <section>
-      <h2>My leave summary <small>This financial year</small></h2>
-      <div class="summary">
-        <article><mat-icon>description</mat-icon><strong>{{ summary().total }}</strong><span>Total requests</span></article>
-        <article class="warn"><mat-icon>hourglass_empty</mat-icon><strong>{{ summary().pending }}</strong><span>Pending</span></article>
-        <article class="success"><mat-icon>check_circle</mat-icon><strong>{{ summary().approved }}</strong><span>Approved</span></article>
-        <article class="danger"><mat-icon>cancel</mat-icon><strong>{{ summary().rejected }}</strong><span>Rejected</span></article>
-        <article class="info"><mat-icon>event</mat-icon><strong>{{ summary().upcoming }}</strong><span>Upcoming leaves</span></article>
-      </div>
-    </section>
+    <div class="kpis">
+      <button type="button" class="balance" [class.on]="kpi() === 'balance'" (click)="pickKpi('balance')">
+        <span class="mark"><mat-icon>account_balance_wallet</mat-icon></span>
+        <span><strong>{{ amount(totalDays()) }} Days</strong><small>Leave Balance</small></span>
+        <mat-icon class="go">chevron_right</mat-icon>
+      </button>
+      <button type="button" class="approved" [class.on]="kpi() === 'approved'" (click)="pickKpi('approved')">
+        <span class="mark"><mat-icon>check_circle</mat-icon></span>
+        <span><strong>{{ summary().approved }}</strong><small>Approved</small></span>
+      </button>
+      <button type="button" class="pending" [class.on]="kpi() === 'pending'" (click)="pickKpi('pending')">
+        <span class="mark"><mat-icon>hourglass_empty</mat-icon></span>
+        <span><strong>{{ summary().pending }}</strong><small>Pending</small></span>
+      </button>
+      <button type="button" class="rejected" [class.on]="kpi() === 'rejected'" (click)="pickKpi('rejected')">
+        <span class="mark"><mat-icon>cancel</mat-icon></span>
+        <span><strong>{{ summary().rejected }}</strong><small>Rejected</small></span>
+      </button>
+      <button type="button" class="upcoming" [class.on]="kpi() === 'upcoming'" (click)="pickKpi('upcoming')">
+        <span class="mark"><mat-icon>event</mat-icon></span>
+        <span><strong>{{ summary().upcoming }}</strong><small>Upcoming</small></span>
+      </button>
+    </div>
 
     <section class="panel">
-      <mat-tab-group (selectedIndexChange)="page.set(0)" animationDuration="0ms">
-        <mat-tab label="My requests">
+      <mat-tab-group [selectedIndex]="tab()" (selectedIndexChange)="chooseTab($event)" animationDuration="0ms">
+        <mat-tab label="My Requests">
           <ng-container *ngTemplateOutlet="toolbar" />
-          <ng-container *ngTemplateOutlet="table; context: { rows: pageRows(), total: filtered().length }" />
+          <ng-container *ngTemplateOutlet="table; context: { rows: requestPage(), total: filtered().length }" />
         </mat-tab>
-        <mat-tab label="Leave history">
+        <mat-tab label="Leave History">
           <ng-container *ngTemplateOutlet="toolbar" />
-          <ng-container *ngTemplateOutlet="table; context: { rows: historyRows(), total: history().length }" />
+          <ng-container *ngTemplateOutlet="table; context: { rows: historyPage(), total: history().length }" />
+        </mat-tab>
+        <mat-tab label="Leave Balance">
+          <div class="types">
+            @for (card of balances(); track card.code) {
+            <article [class]="card.tone">
+              <span>{{ card.code }} {{ card.name }}</span>
+              <strong>{{ amount(card.available) }} days</strong>
+              <small>Entitlement: {{ amount(card.entitlement) }} · Used: {{ amount(card.used) }} · Pending: {{ amount(card.pending) }}</small>
+            </article>
+            } @empty { <p class="empty">No leave balances for this financial year.</p> }
+          </div>
         </mat-tab>
         <mat-tab label="Comp-Off">
-          <div class="summary comp">
-            <article><strong>{{ compOff().earned }}</strong><span>Earned</span></article>
-            <article class="success"><strong>{{ compOff().available }}</strong><span>Available</span></article>
-            <article><strong>{{ compOff().used }}</strong><span>Used</span></article>
+          <div class="types comp">
+            <article><strong>{{ amount(compOff().earned) }}</strong><span>Earned</span></article>
+            <article class="success"><strong>{{ amount(compOff().available) }}</strong><span>Available</span></article>
+            <article><strong>{{ amount(compOff().used) }}</strong><span>Used</span></article>
             <article class="warn"><strong>{{ compOff().expiring }}</strong><span>Expiring</span></article>
           </div>
           <div class="table-wrap">
@@ -65,61 +75,71 @@
                   <td>{{ line.expires | date:'dd-MMM-yyyy' }}</td>
                   <td><trishul-status-badge [status]="line.status" [severities]="severities" /></td>
                 </tr>
-                }
+                } @empty { <tr><td class="empty" colspan="5">No compensatory off records.</td></tr> }
               </tbody>
             </table>
+          </div>
+        </mat-tab>
+        <mat-tab label="Leave Calendar">
+          <div class="calendar">
+            <section>
+              <div class="section-head">
+                <h2>My leave calendar</h2>
+                <span class="month-nav">
+                  <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)"><mat-icon>chevron_left</mat-icon></button>
+                  <strong>{{ calendar() | date:'MMMM yyyy' }}</strong>
+                  <button mat-icon-button type="button" aria-label="Next month" (click)="shiftMonth(1)"><mat-icon>chevron_right</mat-icon></button>
+                </span>
+              </div>
+              <div class="week"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+              <div class="days">
+                @for (day of cells(); track day.toISOString()) {
+                <button type="button" class="day" [class.out]="!inMonth(day)" [class.today]="isToday(day)" [class.approved]="mark(day) === 'approved'" [class.pending]="mark(day) === 'pending'" [class.holiday]="mark(day) === 'holiday'" (click)="pickDay(day)">{{ day.getDate() }}</button>
+                }
+              </div>
+              <p class="legend"><i class="approved"></i> Approved <i class="pending"></i> Pending <i class="holiday"></i> Holiday</p>
+            </section>
+            <section>
+              <div class="section-head">
+                <h2>Upcoming holidays</h2>
+                <button mat-button type="button" (click)="showAllHolidays.set(!showAllHolidays())">{{ showAllHolidays() ? 'Show less' : 'View all' }}</button>
+              </div>
+              @for (holiday of upcomingHolidays(); track holiday.date) {
+              <p class="holiday"><mat-icon>event</mat-icon><span>{{ holiday.date | date:'dd MMM yyyy' }}</span><strong>{{ holiday.name }}</strong></p>
+              } @empty { <p class="empty">No upcoming holidays in this preview.</p> }
+            </section>
           </div>
         </mat-tab>
       </mat-tab-group>
     </section>
   </div>
-
-  <aside class="rail">
-    <section class="panel">
-      <div class="section-head">
-        <h2>My leave calendar</h2>
-        <span class="month-nav">
-          <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)"><mat-icon>chevron_left</mat-icon></button>
-          <strong>{{ calendar() | date:'MMMM yyyy' }}</strong>
-          <button mat-icon-button type="button" aria-label="Next month" (click)="shiftMonth(1)"><mat-icon>chevron_right</mat-icon></button>
-        </span>
-      </div>
-      <div class="week"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
-      <div class="days">
-        @for (day of cells(); track day.toISOString()) {
-        <button type="button" class="day" [class.out]="!inMonth(day)" [class.today]="isToday(day)" [class.approved]="mark(day) === 'approved'" [class.pending]="mark(day) === 'pending'" [class.holiday]="mark(day) === 'holiday'" (click)="periodFrom.set(day); periodTo.set(day); page.set(0)">{{ day.getDate() }}</button>
-        }
-      </div>
-      <p class="legend"><i class="approved"></i> Approved <i class="pending"></i> Pending <i class="holiday"></i> Holiday</p>
-    </section>
-    <section class="panel">
-      <div class="section-head">
-        <h2>Upcoming holidays</h2>
-        <button mat-button type="button" (click)="showAllHolidays.set(!showAllHolidays())">{{ showAllHolidays() ? 'Show less' : 'View all' }}</button>
-      </div>
-      @for (holiday of upcomingHolidays(); track holiday.date) {
-      <p class="holiday"><mat-icon>event</mat-icon><span>{{ holiday.date | date:'dd MMM yyyy' }}</span><strong>{{ holiday.name }}</strong></p>
-      } @empty { <p class="empty">No upcoming holidays in this preview.</p> }
-    </section>
-  </aside>
+  @if (detail(); as row) {
+  <trishul-leave-request-drawer
+    [request]="row"
+    [employeeName]="employeeName()"
+    [balance]="balanceFor(row)"
+    (closed)="detail.set(null)"
+    (withdraw)="remove($event)" />
+  }
 </div>
 
 <ng-template #toolbar>
   <form class="filters" (ngSubmit)="page.set(0)">
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Leave type</mat-label>
-      <mat-select [ngModel]="type()" (ngModelChange)="type.set($event); page.set(0)" name="type">
+      <mat-select panelClass="leave-filter-panel" [ngModel]="type()" (ngModelChange)="type.set($event); page.set(0)" name="type">
         <mat-option value="">All leave types</mat-option>
         @for (item of leaveTypes(); track item) { <mat-option [value]="item">{{ item }}</mat-option> }
       </mat-select>
     </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Status</mat-label>
-      <mat-select [ngModel]="status()" (ngModelChange)="status.set($event); page.set(0)" name="status">
+      <mat-select panelClass="leave-filter-panel" [ngModel]="status()" (ngModelChange)="chooseStatus($event)" name="status">
         <mat-option value="">All statuses</mat-option>
         <mat-option value="Pending">Pending</mat-option>
         <mat-option value="Approved">Approved</mat-option>
         <mat-option value="Rejected">Rejected</mat-option>
+        <mat-option value="Cancelled">Cancelled</mat-option>
       </mat-select>
     </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -136,7 +156,7 @@
     </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
       <mat-label>Search</mat-label>
-      <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Request ID or reason" />
+      <input matInput [ngModel]="search()" (ngModelChange)="search.set($event); page.set(0)" name="search" placeholder="Request ID or reason" />
     </mat-form-field>
     <button mat-stroked-button type="button" (click)="exportRows()"><mat-icon>download</mat-icon> Export</button>
   </form>
@@ -145,30 +165,60 @@
 <ng-template #table let-rows="rows" let-total="total">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Request ID</th><th>Leave type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Request ID</th><th>Leave type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Pending With</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
-        @for (row of rows; track row.id) {
-        <tr>
+        @for (row of rows; track row.requestId) {
+        <tr [class.on]="detail()?.requestId === row.requestId" (click)="show(row)">
           <td>{{ row.id }}</td>
           <td>{{ row.leaveType }}</td>
           <td>{{ row.from | date:'dd-MMM-yyyy' }}</td>
           <td>{{ row.to | date:'dd-MMM-yyyy' }}</td>
-          <td>{{ row.days }}</td>
-          <td>{{ row.reason }}</td>
-          <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
-          <td class="actions">
-            <button mat-icon-button type="button" aria-label="View" (click)="open(row, 'view')"><mat-icon>visibility</mat-icon></button>
-            @if (row.status === 'Pending') {
-            <button mat-icon-button type="button" aria-label="Edit" (click)="open(row, 'edit')"><mat-icon>edit</mat-icon></button>
-            <button mat-icon-button type="button" aria-label="Delete" (click)="remove(row)"><mat-icon>delete</mat-icon></button>
+          <td>{{ amount(row.days) }}</td>
+          <td class="reason" [title]="row.reason">{{ row.reason }}</td>
+          <td class="pending" [attr.title]="pendingTitle(row)">
+            @if (row.status !== 'Pending') {
+            <span class="dash">—</span>
+            } @else if (row.needsHrAttention || !row.pendingWithName) {
+            <span class="wait"><i></i>Awaiting Assignment</span>
             } @else {
-            <button mat-icon-button type="button" aria-label="Download" (click)="download(row)"><mat-icon>download</mat-icon></button>
+            <span class="who">
+              <strong>{{ row.pendingWithName }}</strong>
+              @if (row.pendingWithRole) { <small>{{ row.pendingWithRole }}</small> }
+            </span>
             }
           </td>
+          <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+          <td class="actions" (click)="$event.stopPropagation()">
+            <button mat-icon-button type="button" aria-label="View details" title="View details" (click)="show(row)"><mat-icon>visibility</mat-icon></button>
+            <button mat-icon-button type="button" aria-label="More actions" [matMenuTriggerFor]="rowMenu" (click)="menuRow.set(row)"><mat-icon>more_vert</mat-icon></button>
+          </td>
         </tr>
-        } @empty { <tr><td class="empty" colspan="8">No leave applications in this preview.</td></tr> }
+        } @empty { <tr><td class="empty" colspan="9">No leave applications in this preview.</td></tr> }
       </tbody>
     </table>
   </div>
-  <mat-paginator [length]="total" [pageIndex]="page()" [pageSize]="pageSize()" [pageSizeOptions]="[5, 10]" (page)="onPage($event)" />
+  <div class="pager">
+    <span>Showing {{ fromIndex(total) }}–{{ toIndex(total) }} of {{ total }} requests</span>
+    <label>Items per page
+      <select [ngModel]="pageSize()" (ngModelChange)="setPageSize($event)" name="pageSize">
+        <option [ngValue]="5">5</option>
+        <option [ngValue]="10">10</option>
+      </select>
+    </label>
+    <button mat-icon-button type="button" aria-label="Previous page" (click)="stepPage(-1)" [disabled]="page() === 0"><mat-icon>chevron_left</mat-icon></button>
+    <strong>{{ page() + 1 }}</strong>
+    <button mat-icon-button type="button" aria-label="Next page" (click)="stepPage(1)" [disabled]="page() >= lastPage(total)"><mat-icon>chevron_right</mat-icon></button>
+  </div>
 </ng-template>
+
+<mat-menu #rowMenu="matMenu">
+  @if (menuRow(); as item) {
+  <button mat-menu-item type="button" (click)="show(item)"><mat-icon>visibility</mat-icon> View details</button>
+  @if (item.status === 'Pending') {
+  <button mat-menu-item type="button" (click)="open(item, 'edit')"><mat-icon>edit</mat-icon> Edit</button>
+  <button mat-menu-item type="button" (click)="remove(item)"><mat-icon>delete</mat-icon> Withdraw</button>
+  } @else {
+  <button mat-menu-item type="button" (click)="download(item)"><mat-icon>download</mat-icon> Download</button>
+  }
+  }
+</mat-menu>

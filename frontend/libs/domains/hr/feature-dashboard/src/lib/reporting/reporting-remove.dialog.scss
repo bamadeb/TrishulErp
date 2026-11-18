@@ -1,0 +1,10 @@
+:host { display: block; }
+h2 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font: 600 1.05rem/1.3 Inter, sans-serif; }
+h2 .mat-icon { color: #c62828; }
+.ask { margin: 0; font: 400 13px/1.45 Inter, sans-serif; }
+.note { display: flex; gap: 0.45rem; margin-top: 0.75rem; padding: 0.65rem 0.7rem; border-radius: 8px; background: #fff8e8; }
+.note .mat-icon { flex: none; color: #8a5300; }
+.note ul { margin: 0; padding-left: 1rem; }
+.note li { margin: 0.15rem 0; font: 400 12px/1.4 Inter, sans-serif; }
+.error { margin: 0.6rem 0 0; color: var(--mat-sys-error); font-size: 12px; }
+.danger { background: #c62828; color: #fff; --mdc-filled-button-container-color: #c62828; --mdc-filled-button-label-text-color: #fff; }

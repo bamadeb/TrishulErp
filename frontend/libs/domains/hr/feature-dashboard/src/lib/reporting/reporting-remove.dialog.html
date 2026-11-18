@@ -1,0 +1,25 @@
+<h2 mat-dialog-title><mat-icon>person_remove</mat-icon>Remove Reporting Manager?</h2>
+<mat-dialog-content>
+  <p class="ask">
+    Are you sure you want to remove <strong>{{ data.managerName }}</strong> as the reporting manager of
+    <strong>{{ data.employeeName }} ({{ data.employeeCode }})</strong>?
+  </p>
+  <div class="note">
+    <mat-icon>info</mat-icon>
+    <ul>
+      <li>The employee record will remain active.</li>
+      <li>The reporting relationship will be closed and moved to history.</li>
+      @if (data.hasTeam) {
+        <li>People who report to this employee stay with them, so they become a top-level manager.</li>
+      } @else {
+        <li>The employee will appear in the Unassigned Employees list.</li>
+      }
+      <li>Approval routing will follow the configured fallback rules.</li>
+    </ul>
+  </div>
+  @if (error()) { <p class="error">{{ error() }}</p> }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Cancel</button>
+  <button mat-flat-button type="button" class="danger" [disabled]="saving()" (click)="confirm()">Remove Manager</button>
+</mat-dialog-actions>

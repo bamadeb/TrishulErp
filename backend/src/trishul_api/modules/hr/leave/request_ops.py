@@ -105,7 +105,10 @@ class LeaveRequestRepository:
 
     def approve(self, actor: CurrentUser, request_id: int) -> LeaveRequestDetail:
         row, employee = self._pending(actor, request_id, "approved")
-        days = self._checked_days(employee, row)
+        if self._mine.advance_approval(row.id, actor, "Approved."):
+            self._db.commit()
+            return self.detail(actor, request_id)
+        days = self._checked_days(actor, employee, row)
         leave_type = self._db.get(LeaveType, row.leave_type_id)
         if leave_type is not None and leave_type.is_paid:
             self._deduct(employee.id, row.leave_type_id, row.from_date, days, actor.id)
@@ -116,6 +119,7 @@ class LeaveRequestRepository:
 
     def reject(self, actor: CurrentUser, request_id: int, remarks: str) -> LeaveRequestDetail:
         row, _employee = self._pending(actor, request_id, "rejected")
+        self._mine.settle_approval(row.id, actor, "Rejected", remarks.strip())
         self._finish(row, "Rejected", remarks.strip(), actor)
         self._db.commit()
         return self.detail(actor, request_id)
@@ -133,13 +137,13 @@ class LeaveRequestRepository:
             raise NotFound("Leave request not found.")
         if row.status != "Pending":
             raise LeaveRuleError(f"Only a pending request can be {action}.")
-        if not self._can_decide(actor, employee):
+        if not self._can_decide(actor, employee, row):
             if actor.employee_id == employee.id:
                 raise LeaveRuleError("You cannot decide your own leave.")
             raise Forbidden("You can only decide leave for employees who report to you.")
         return row, employee
 
-    def _checked_days(self, employee: Employee, row: LeaveRequest) -> Decimal:
+    def _checked_days(self, actor: CurrentUser, employee: Employee, row: LeaveRequest) -> Decimal:
         data = MineApply(
             leave_type_id=row.leave_type_id,
             from_date=row.from_date,
@@ -148,7 +152,7 @@ class LeaveRequestRepository:
             half_day_part="First half" if row.is_half_day else None,
             reason=row.reason or "Leave",
         )
-        return self._mine._validated_days(employee, data, current_id=row.id)
+        return self._mine._validated_days(actor, employee, data, current_id=row.id)
 
     def _deduct(self, employee_id: int, leave_type_id: int, start: date, days: Decimal, user_id: int) -> None:
         year = _financial_year(start)
@@ -216,11 +220,20 @@ class LeaveRequestRepository:
     def _visible(self, actor: CurrentUser, employee_id: int) -> bool:
         return employee_id in set(self._db.scalars(self._scope(actor)).all())
 
-    def _can_decide(self, actor: CurrentUser, employee: Employee) -> bool:
+    def _can_decide(self, actor: CurrentUser, employee: Employee, row: LeaveRequest) -> bool:
         if actor.employee_id is not None and actor.employee_id == employee.id:
             return False
         if actor.can("hr.leave.manage"):
             return True
+        current = self._mine.open_approval(row.id)
+        if current is not None:
+            return bool(
+                actor.can("hr.leave.approve")
+                and current.approver_user_id is not None
+                and current.approver_user_id == actor.id
+            )
+        if self._mine.has_approval(row.id):
+            return False
         return bool(
             actor.can("hr.leave.approve")
             and actor.employee_id is not None
@@ -309,7 +322,7 @@ class LeaveRequestRepository:
             applied_on=applied,
             status=row.status,
             balance=balances.get((employee.id, leave_type.id, year)),
-            can_approve=row.status == "Pending" and self._can_decide(actor, employee),
+            can_approve=row.status == "Pending" and self._can_decide(actor, employee, row),
         )
 
     def _balances(self, rows: list[LeaveRequest]) -> dict[tuple[int, int, int], Decimal]:

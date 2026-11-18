@@ -7,6 +7,7 @@ import {
 import { HrDashboardPage } from './dashboard/hr-dashboard.page';
 import { HrPlaceholderPage } from './dashboard/hr-placeholder.page';
 import { OrganizationPage } from './organization/organization.page';
+import { ReportingStructurePage } from './reporting/reporting-structure.page';
 import { leaveRoutes } from './leave/leave.routes';
 import { payrollRoutes } from './payroll/payroll.routes';
 import { EmployeeFormPage } from './employees/form/employee-form.page';
@@ -45,6 +46,12 @@ export const hrRoutes: Route[] = [
     data: { screenTitle: 'Organization Management' },
     canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
     component: OrganizationPage,
+  },
+  {
+    path: 'reporting',
+    title: 'Reporting Structure',
+    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+    component: ReportingStructurePage,
   },
   {
     path: 'attendance',

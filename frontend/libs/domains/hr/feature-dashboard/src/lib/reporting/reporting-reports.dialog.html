@@ -1,0 +1,60 @@
+<h2 mat-dialog-title>Direct Reports</h2>
+<mat-dialog-content>
+  <p class="lead">Employees reporting directly to {{ shown(data.managerName) }}</p>
+  <div class="bar">
+    <strong>{{ data.reports.length }} employees</strong>
+    <input type="search" placeholder="Search by name or ID" [value]="query()" (input)="onQuery($event)" />
+    <select [value]="department()" (change)="onDepartment($event)" aria-label="Department">
+      <option value="All">All departments</option>
+      @for (item of departments; track item) { <option [value]="item">{{ item }}</option> }
+    </select>
+    <select [value]="status()" (change)="onStatus($event)" aria-label="Status">
+      <option value="All">All statuses</option>
+      <option value="Active">Active</option>
+      <option value="Inactive">Inactive</option>
+    </select>
+  </div>
+  @if (!data.reports.length) {
+    <p class="empty">No direct reports assigned.</p>
+  } @else if (!filtered().length) {
+    <p class="empty">No direct reports match these filters.</p>
+  } @else {
+    <div class="sheet">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Employee ID</th>
+            <th>Designation</th>
+            <th>Department</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.id) {
+            <tr (click)="choose(row.id)">
+              <td>
+                <span class="who">
+                  <span class="avatar">{{ initials(row.name) }}</span>
+                  <span>{{ shown(row.name) }}</span>
+                </span>
+              </td>
+              <td>{{ row.code }}</td>
+              <td>{{ row.designation }}</td>
+              <td>{{ row.department }}</td>
+              <td>{{ row.location }}</td>
+              <td><em [class.off]="row.status !== 'Active'">{{ row.status }}</em></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <span class="range">{{ range().start }}–{{ range().end }} of {{ range().total }}</span>
+  <button mat-stroked-button type="button" [disabled]="page() === 0" (click)="shift(-1)">Previous</button>
+  <button mat-stroked-button type="button" [disabled]="range().end >= range().total" (click)="shift(1)">Next</button>
+  <button mat-button type="button" (click)="close()">Close</button>
+</mat-dialog-actions>

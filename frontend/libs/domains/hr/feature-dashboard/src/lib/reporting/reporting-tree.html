@@ -1,0 +1,167 @@
+<div class="tools">
+  <div class="heading">
+    <mat-icon>account_tree</mat-icon>
+    <span>
+      <strong>Organization Tree</strong>
+      <small>Reporting lines from each manager to their team</small>
+    </span>
+  </div>
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix>search</mat-icon>
+    <input matInput placeholder="Search by employee ID or name" [value]="search()" (input)="search.set($any($event.target).value)" />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Department</mat-label>
+    <mat-select panelClass="reporting-filter-panel" [value]="department()" (valueChange)="department.set($event)">
+      <mat-option value="All">All</mat-option>
+      @for (item of departments(); track item) { <mat-option [value]="item">{{ item }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Location</mat-label>
+    <mat-select panelClass="reporting-filter-panel" [value]="location()" (valueChange)="location.set($event)">
+      <mat-option value="All">All</mat-option>
+      @for (item of locations(); track item) { <mat-option [value]="item">{{ item }}</mat-option> }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select panelClass="reporting-filter-panel" [value]="status()" (valueChange)="status.set($event)">
+      <mat-option value="All">All</mat-option>
+      <mat-option value="Active">Active</mat-option>
+      <mat-option value="Inactive">Inactive</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <span class="actions">
+    <button mat-icon-button type="button" title="Expand all" aria-label="Expand all" (click)="expandAll()"><mat-icon>unfold_more</mat-icon></button>
+    <button mat-icon-button type="button" title="Collapse all" aria-label="Collapse all" (click)="collapseAll()"><mat-icon>unfold_less</mat-icon></button>
+    <button mat-icon-button type="button" title="Zoom in" aria-label="Zoom in" (click)="zoomBy(0.1)"><mat-icon>zoom_in</mat-icon></button>
+    <button mat-icon-button type="button" title="Zoom out" aria-label="Zoom out" (click)="zoomBy(-0.1)"><mat-icon>zoom_out</mat-icon></button>
+    <button mat-icon-button type="button" title="Fit to screen" aria-label="Fit to screen" (click)="fit()"><mat-icon>fit_screen</mat-icon></button>
+    @if (canFocusTeam()) {
+      <button mat-icon-button type="button" title="Show this team" aria-label="Show this team" (click)="showTeam(selectedId()!)"><mat-icon>account_tree</mat-icon></button>
+    }
+    <button mat-icon-button type="button" title="Export" aria-label="Export" (click)="exportBranch()"><mat-icon>download</mat-icon></button>
+    <button mat-icon-button type="button" title="Refresh" aria-label="Refresh" (click)="refresh()"><mat-icon>refresh</mat-icon></button>
+  </span>
+</div>
+
+@if (teamRoot(); as id) {
+  <p class="focus">
+    Showing the team of {{ teamName(id) }}
+    <button type="button" (click)="clearTeam()">Show full tree</button>
+  </p>
+}
+
+<div class="workspace">
+  <div class="canvas" #canvas>
+    <div class="stage" #stage [style.transform]="'scale(' + zoom() + ')'" [style.--card.px]="cardWidth()">
+      @if (board().w > 0) {
+        <svg class="wires" aria-hidden="true" [attr.width]="board().w" [attr.height]="board().h" [attr.viewBox]="'0 0 ' + board().w + ' ' + board().h">
+          @for (path of links(); track path) { <path [attr.d]="path" /> }
+        </svg>
+      }
+      @if (view().roots.length) {
+        <ul class="tree">
+          @for (node of view().roots; track node.person.id) {
+            <ng-container [ngTemplateOutlet]="branch" [ngTemplateOutletContext]="{ $implicit: node, parentId: null }" />
+          }
+        </ul>
+      } @else {
+        <p class="empty">No reporting lines match these filters.</p>
+      }
+    </div>
+  </div>
+
+  @if (detail(); as row) {
+    <trishul-reporting-detail
+      [person]="row.person"
+      [manager]="row.manager"
+      [depth]="row.node?.depth ?? 1"
+      [direct]="row.node?.direct ?? 0"
+      [team]="row.node?.team ?? 0"
+      [reports]="reportsOf(row.node)"
+      [path]="chain(row.person)"
+      (closed)="closePanel()"
+      (picked)="pick($event)"
+      (changed)="assign(row.person)"
+      (removed)="remove(row.person)"
+      (focusTree)="focusCard(row.person.id)"
+      (focusTeam)="showTeam($event)"
+    />
+  }
+</div>
+
+@if (view().unassigned.length) {
+  <section class="unassigned">
+    <button type="button" class="fold" (click)="unassignedOpen.set(!unassignedOpen())">
+      <mat-icon>{{ unassignedOpen() ? 'expand_more' : 'chevron_right' }}</mat-icon>
+      Unassigned ({{ view().unassigned.length }})
+    </button>
+    @if (unassignedOpen()) {
+      <ul>
+        @for (person of view().unassigned; track person.id) {
+          <li [class.hit]="hit(person)" [class.picked]="selectedId() === person.id">
+            <button type="button" class="who" (click)="pick(person.id)">
+              <span class="avatar sm">{{ initials(person.name) }}</span>
+              <span>
+                <strong>{{ shown(person.name) }}</strong>
+                <small>{{ person.code }} · {{ person.designation }}</small>
+              </span>
+            </button>
+            <button type="button" class="assign" (click)="$event.stopPropagation(); assign(person)">Assign Manager</button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+}
+
+<ng-template #branch let-node let-parentId="parentId">
+  <li class="branch">
+    <div class="node">
+      <div
+        class="card"
+        [attr.data-id]="node.person.id"
+        [attr.data-parent]="parentId"
+        [class.manager]="node.direct > 0"
+        [class.root]="node.depth === 1 && node.direct > 0"
+        [class.hit]="hit(node.person)"
+        [class.picked]="selectedId() === node.person.id"
+        [class.wide]="node.direct >= wideSpan"
+        [class.later]="later(node.person)"
+      >
+        <button type="button" class="face" [attr.title]="cardTitle(node)" (click)="pick(node.person.id)">
+          <span class="head">
+            <span class="avatar">{{ initials(node.person.name) }}</span>
+            <span class="id">
+              <strong>{{ shown(node.person.name) }}</strong>
+              <em>{{ node.person.designation }}</em>
+            </span>
+            <span class="level">L{{ node.depth }}</span>
+          </span>
+          <span class="meta">
+            <span class="code">{{ node.person.code }}</span>
+            <span class="dept">{{ node.person.department }}</span>
+            @if (node.direct > 0) {
+              <span class="count"><mat-icon>groups</mat-icon>{{ node.direct }}</span>
+            }
+            <span class="state" [class.off]="node.person.status !== 'Active'">{{ node.person.status }}</span>
+          </span>
+        </button>
+        @if (node.direct > 0) {
+          <button type="button" class="chevron" [class.open]="opened(node)" [attr.aria-label]="opened(node) ? 'Collapse team' : 'Expand team'" (click)="toggle($event, node.person.id)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+        }
+      </div>
+    </div>
+    @if (node.direct > 0 && opened(node)) {
+      <ul>
+        @for (child of node.children; track child.person.id) {
+          <ng-container [ngTemplateOutlet]="branch" [ngTemplateOutletContext]="{ $implicit: child, parentId: node.person.id }" />
+        }
+      </ul>
+    }
+  </li>
+</ng-template>

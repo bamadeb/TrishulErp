@@ -379,6 +379,10 @@ export class LeaveApi {
     });
   }
 
+  mineRequest(requestId: number): Observable<MineRequestDetail> {
+    return this.http.get<MineRequestDetail>(`${this.config.rootUrl}/hr/leave/mine/requests/${requestId}`);
+  }
+
   applyLeave(body: MineApply): Observable<MineRequestDetail> {
     return this.http.post<MineRequestDetail>(`${this.config.rootUrl}/hr/leave/mine/requests`, body);
   }
@@ -604,6 +608,9 @@ export interface MineRequestItem {
   approverUserId: number | null;
   actedAt: string | null;
   currentApprovalLevel: string | null;
+  pendingWithName: string | null;
+  pendingWithRole: string | null;
+  needsHrAttention: boolean;
 }
 
 export interface MineRequestPage {
@@ -613,8 +620,19 @@ export interface MineRequestPage {
   pageSize: number;
 }
 
+export interface MineApprovalStep {
+  title: string;
+  approverName: string | null;
+  approverRole: string | null;
+  level: string | null;
+  status: 'Submitted' | 'Pending' | 'Approved' | 'Rejected' | 'Upcoming' | 'Cancelled';
+  actedAt: string | null;
+  comments: string | null;
+}
+
 export interface MineRequestDetail extends MineRequestItem {
   history: { fromStatus: string | null; toStatus: string; changedAt: string; remarks: string | null }[];
+  approvalSteps: MineApprovalStep[];
 }
 
 export interface MineApply {

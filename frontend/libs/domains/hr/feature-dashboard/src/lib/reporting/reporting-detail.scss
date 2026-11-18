@@ -1,0 +1,57 @@
+:host {
+  display: flex; flex: none; flex-direction: column; align-self: flex-start; width: 22rem; max-width: 100%;
+  max-height: calc(100vh - 10.5rem); min-height: 0; box-sizing: border-box; overflow: hidden;
+  background: #fff; border-left: 1px solid var(--mat-sys-outline-variant);
+}
+header { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.85rem 0.35rem 0.55rem 0.85rem; }
+.copy { flex: 1; min-width: 0; }
+strong, small, em { display: block; }
+header strong { font: 600 14px/1.3 Inter, sans-serif; }
+header small, .who small { color: var(--mat-sys-on-surface-variant); font-size: 11px; }
+header em { width: fit-content; margin-top: 0.2rem; padding: 1px 6px; border-radius: 999px; background: #d7f5df; color: #1b7a3d; font: 600 11px/1.4 Inter, sans-serif; font-style: normal; }
+header em.off { background: #eef2f6; color: #64748b; }
+.avatar { display: grid; flex: none; place-items: center; border-radius: 999px; background: #e8f3fc; color: #0066cc; font: 600 11px/1 Inter, sans-serif; }
+.avatar.lg { width: 2.4rem; height: 2.4rem; font-size: 12px; }
+.avatar.sm { width: 1.6rem; height: 1.6rem; }
+.tabs { display: flex; gap: 0.15rem; padding: 0 0.7rem; border-bottom: 1px solid #e6edf5; }
+.tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 0.4rem 0.45rem; color: #64748b; font: 600 12px/1.3 Inter, sans-serif; cursor: pointer; }
+.tabs button.on { border-color: #0066cc; color: #0066cc; }
+.body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0.35rem 0.85rem 0.35rem; }
+dl { margin: 0; }
+dl div { display: grid; grid-template-columns: 9.2rem 1fr; gap: 0.35rem; align-items: center; padding: 0.42rem 0; border-bottom: 1px solid #eef2f6; font-size: 12px; }
+dt { display: flex; align-items: center; gap: 0.25rem; color: var(--mat-sys-on-surface-variant); }
+dt .mat-icon { width: 15px; height: 15px; font-size: 15px; color: #64748b; }
+dd { margin: 0; font-weight: 600; }
+h3 { margin: 0.7rem 0 0.35rem; font: 600 12px/1.3 Inter, sans-serif; }
+.who, .path button { display: flex; align-items: center; gap: 0.45rem; width: 100%; border: 0; background: transparent; padding: 0.2rem 0; text-align: left; cursor: pointer; }
+.who strong, .path button { font: 600 12px/1.3 Inter, sans-serif; }
+.path { margin: 0; padding: 0 0 0 0.9rem; }
+.path li { margin: 0.15rem 0; font-size: 12px; }
+.path .self { font-weight: 600; }
+.reports { margin: 0; padding: 0; list-style: none; }
+.muted, .quiet, .error { margin: 0.35rem 0; font-size: 12px; }
+.muted, .quiet { color: var(--mat-sys-on-surface-variant); }
+.error { color: var(--mat-sys-error); }
+.timeline { margin: 0.4rem 0 0; padding: 0 0 0 0.8rem; }
+.timeline li { margin: 0 0 0.7rem; }
+.timeline strong { font: 600 12px/1.35 Inter, sans-serif; }
+.timeline small { color: var(--mat-sys-on-surface-variant); font-size: 11px; }
+.timeline em { width: fit-content; margin-top: 0.15rem; color: #1b7a3d; font: 600 10px/1.3 Inter, sans-serif; font-style: normal; }
+.timeline em.off { color: #64748b; }
+.timeline em.later { color: #b45309; }
+.direct { margin-top: 0.75rem; }
+.direct .head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.direct h3 { margin: 0; }
+.direct h3 span { color: #0066cc; }
+.direct .head button, .direct .team { border: 0; background: transparent; color: #0066cc; font: 600 12px/1 Inter, sans-serif; cursor: pointer; }
+.direct ul { margin: 0.3rem 0 0; padding: 0; list-style: none; }
+.direct .who { padding: 0.25rem 0; }
+.direct .who > span:not(.avatar) { flex: 1; min-width: 0; }
+.direct em { display: inline; margin-left: auto; color: #1b7a3d; font: 600 10px/1.3 Inter, sans-serif; font-style: normal; }
+.direct em.off { color: #64748b; }
+.direct .wide { margin: 0.2rem 0 0; color: #b45309; font: 600 11px/1.3 Inter, sans-serif; }
+.direct .team { margin-top: 0.25rem; padding: 0; }
+footer { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.55rem 0.7rem 0.7rem; border-top: 1px solid #eef2f6; }
+footer a, footer button { width: 100%; }
+footer .mat-icon { width: 16px; height: 16px; font-size: 16px; margin-right: 0.25rem; }
+.danger { color: #c62828; --mdc-outlined-button-outline-color: #e57373; --mdc-outlined-button-label-text-color: #c62828; --mat-button-outlined-label-text-color: #c62828; }

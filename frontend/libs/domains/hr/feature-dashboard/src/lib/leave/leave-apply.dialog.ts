@@ -16,7 +16,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { LeaveApi, MineApply } from '@trishul/hr-data-access';
+import { LeaveApi, MineApply, MineApprovalStep } from '@trishul/hr-data-access';
 import { MineDayPart, MineLeaveRequest } from './leave-mine.models';
 
 export interface LeaveTypeChoice {
@@ -117,11 +117,20 @@ export class LeaveApplyDialog {
   protected readonly counting = signal(false);
   protected readonly saving = signal(false);
   protected readonly viewing = this.data.mode === 'view';
+  protected readonly steps = signal<MineApprovalStep[]>([]);
+  protected readonly stepsError = signal('');
 
   constructor() {
     this.dialogRef.updateSize('680px');
     this.dialogRef.disableClose = false;
     this.refreshDays();
+    const requestId = this.data.request?.requestId;
+    if (this.viewing && requestId != null) {
+      this.api.mineRequest(requestId).subscribe({
+        next: (detail) => this.steps.set(detail.approvalSteps ?? []),
+        error: () => this.stepsError.set('Approval details could not be loaded.'),
+      });
+    }
   }
 
   protected title(): string {
@@ -347,11 +356,11 @@ function problemDetail(error: unknown, fallback: string): string {
   imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>Cancel request</h2>
-    <mat-dialog-content>Cancel leave request {{ data }}? A pending request is not deducted from the balance.</mat-dialog-content>
+    <h2 mat-dialog-title>Withdraw request</h2>
+    <mat-dialog-content>Withdraw leave request {{ data }}? A pending request is not deducted from the balance.</mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Cancel</button>
-      <button mat-flat-button color="primary" type="button" [mat-dialog-close]="true">Cancel request</button>
+      <button mat-button type="button" mat-dialog-close>Keep request</button>
+      <button mat-flat-button color="primary" type="button" [mat-dialog-close]="true">Withdraw request</button>
     </mat-dialog-actions>
   `,
 })

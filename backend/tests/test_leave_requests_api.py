@@ -25,6 +25,7 @@ TABLES = [
     "core.region",
     "core.employee",
     "core.app_user",
+    "core.approval_request",
     "core.status_history",
     "hr.department",
     "hr.designation",

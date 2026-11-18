@@ -15,4 +15,8 @@ export interface MineLeaveRequest {
   part: MineDayPart;
   contact: string;
   fileName: string | null;
+  appliedAt: string;
+  pendingWithName: string | null;
+  pendingWithRole: string | null;
+  needsHrAttention: boolean;
 }

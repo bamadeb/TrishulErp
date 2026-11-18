@@ -1,0 +1,70 @@
+<h2 mat-dialog-title>Assign Reporting Manager</h2>
+<mat-dialog-content>
+  @if (employees().length) {
+    @if (employees().length === 1) {
+      <article class="person">
+        <span class="avatar">{{ initials(employees()[0].name) }}</span>
+        <span class="copy">
+          <strong>{{ shown(employees()[0].name) }}</strong>
+          <small>{{ employees()[0].code }} · {{ employees()[0].designation }} · {{ employees()[0].department }}</small>
+        </span>
+      </article>
+      <section class="section">
+        <p class="eyebrow">Current reporting manager</p>
+        <div class="current">
+          @if (currentManager(); as lead) {
+            <span class="avatar quiet">{{ initials(lead.name) }}</span>
+            <span class="copy">
+              <strong>{{ shown(lead.name) }}</strong>
+              <small>{{ lead.code }} · {{ lead.designation }}</small>
+            </span>
+          } @else {
+            <span class="muted">Not assigned</span>
+          }
+        </div>
+      </section>
+    } @else {
+      <section class="section">
+        <p class="eyebrow">{{ employees().length }} employees</p>
+        <ul class="bulk">
+          @for (person of employees(); track person.id) {
+            <li>{{ shown(person.name) }} · {{ person.code }} · {{ person.designation }}</li>
+          }
+        </ul>
+      </section>
+    }
+
+    <div class="fields">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" floatLabel="always">
+        <mat-label>New reporting manager</mat-label>
+        <input matInput placeholder="Search by name, ID or designation" [matAutocomplete]="auto" (input)="onQuery($event)" />
+        <mat-autocomplete #auto="matAutocomplete" [displayWith]="managerLabel" (optionSelected)="managerId.set($event.option.value)">
+          @for (person of filtered(); track person.id) {
+            <mat-option [value]="person.id">{{ shown(person.name) }} · {{ person.code }} · {{ person.designation }}</mat-option>
+          }
+          @if (!filtered().length) { <mat-option disabled>No matching manager</mat-option> }
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" floatLabel="always">
+        <mat-label>Effective from</mat-label>
+        <input matInput [matDatepicker]="picker" [formControl]="effective" placeholder="DD-MM-YYYY" />
+        <mat-datepicker-toggle matIconSuffix [for]="picker" />
+        <mat-datepicker #picker />
+      </mat-form-field>
+
+      <label class="note">
+        <span class="eyebrow">Reason for change</span>
+        <textarea rows="2" [value]="remarks()" (input)="onRemarks($event)" maxlength="300" placeholder="Enter the reason for changing the manager"></textarea>
+      </label>
+    </div>
+
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Cancel</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="saving()" (click)="save()">Save Changes</button>
+</mat-dialog-actions>

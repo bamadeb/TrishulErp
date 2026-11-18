@@ -1,0 +1,144 @@
+<trishul-page-header
+  title="Reporting Structure"
+  subtitle="See who reports to whom, and which employees still need a manager."
+>
+  <button mat-stroked-button type="button" (click)="assignBulk()">
+    <mat-icon>group_add</mat-icon>
+    Bulk Assign
+  </button>
+  <button mat-flat-button color="primary" type="button" (click)="assignOne()">
+    <mat-icon>person_add</mat-icon>
+    Assign Manager
+  </button>
+</trishul-page-header>
+
+<section class="cards" aria-label="Reporting totals">
+  @for (card of cards(); track card.label) {
+    <article class="stat" [attr.data-tone]="card.tone">
+      <span class="stat-icon"><mat-icon>{{ card.icon }}</mat-icon></span>
+      <span>
+        <span class="stat-label">{{ card.label }}</span>
+        <strong>{{ card.count }}</strong>
+      </span>
+    </article>
+  }
+</section>
+
+<section class="table-card">
+  <div class="toolbar">
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" [class.selected]="tab() === 'employees'" (click)="setTab('employees')">Employee List</button>
+      <button type="button" class="tab" [class.selected]="tab() === 'managers'" (click)="setTab('managers')">Manager List</button>
+      <button type="button" class="tab" [class.selected]="tab() === 'tree'" (click)="setTab('tree')">Organization Tree</button>
+    </div>
+    <span class="spacer"></span>
+    @if (tab() !== 'tree') {
+    <button mat-button type="button" (click)="exportRows()">
+      <mat-icon>download</mat-icon>
+      Export
+    </button>
+    }
+  </div>
+
+  @if (tab() === 'tree') {
+    <trishul-reporting-tree />
+  } @else {
+  <form class="filters">
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput placeholder="Search by employee ID or name" [value]="search()" (input)="onSearch($any($event.target).value)" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Department</mat-label>
+      <mat-select panelClass="reporting-filter-panel" [value]="department()" (valueChange)="department.set($event)">
+        <mat-option value="All">All</mat-option>
+        @for (item of departments(); track item) { <mat-option [value]="item">{{ item }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Designation</mat-label>
+      <mat-select panelClass="reporting-filter-panel" [value]="designation()" (valueChange)="designation.set($event)">
+        <mat-option value="All">All</mat-option>
+        @for (item of designations(); track item) { <mat-option [value]="item">{{ item }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Location</mat-label>
+      <mat-select panelClass="reporting-filter-panel" [value]="location()" (valueChange)="location.set($event)">
+        <mat-option value="All">All</mat-option>
+        @for (item of locations(); track item) { <mat-option [value]="item">{{ item }}</mat-option> }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Status</mat-label>
+      <mat-select panelClass="reporting-filter-panel" [value]="status()" (valueChange)="status.set($event)">
+        <mat-option value="All">All</mat-option>
+        <mat-option value="Active">Active</mat-option>
+        <mat-option value="Inactive">Inactive</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-button type="button" class="clear" (click)="clearFilters()">Clear</button>
+  </form>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          @if (tab() === 'employees') {
+            <th class="check">
+              <mat-checkbox [checked]="allSelected()" (change)="toggleAll($event.checked)" aria-label="Select all employees" />
+            </th>
+          }
+          <th>Emp ID</th>
+          <th>Employee Name</th>
+          <th>Designation</th>
+          <th>Department</th>
+          @if (tab() === 'employees') {
+            <th>Reporting Manager</th>
+          } @else {
+            <th>Direct Reports</th>
+          }
+          <th>Level</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of visibleRows(); track row.id) {
+          <tr>
+            @if (tab() === 'employees') {
+              <td class="check">
+                <mat-checkbox [checked]="isSelected(row.id)" (change)="toggle(row.id, $event.checked)" [attr.aria-label]="'Select ' + row.name" />
+              </td>
+            }
+            <td>{{ row.code }}</td>
+            <td class="name">{{ row.name }}</td>
+            <td>{{ row.designation }}</td>
+            <td>{{ row.department }}</td>
+            @if (tab() === 'employees') {
+              <td [class.muted]="row.managerId === null">{{ managerName(row.managerId) }}</td>
+            } @else {
+              <td>{{ directReports(row.id) }}</td>
+            }
+            <td><span class="level">{{ row.level }}</span></td>
+            <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+          </tr>
+        } @empty {
+          <tr><td class="empty" [attr.colspan]="tab() === 'employees' ? 8 : 7">No employees match these filters.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (tab() === 'employees' && selected().length) {
+    <div class="selection">
+      <strong>{{ selected().length }} selected</strong>
+      <button mat-flat-button color="primary" type="button" (click)="selected().length === 1 ? assignOne() : assignBulk()">
+        Assign Manager
+      </button>
+      <button mat-button type="button" (click)="clearSelection()">Clear Selection</button>
+      <span class="spacer"></span>
+      <button mat-button type="button" (click)="exportRows()">Export</button>
+    </div>
+  }
+  }
+</section>
