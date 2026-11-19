@@ -52,6 +52,13 @@ def _naive_utc(value: datetime) -> datetime:
     return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo is not None else value
 
 
+def _unknown_position(latitude: object, longitude: object) -> bool:
+    """The app sends 0,0 when the phone had no GPS fix (it is in the Gulf of Guinea, never a real site)."""
+    if latitude is None or longitude is None:
+        return True
+    return float(latitude) == 0.0 and float(longitude) == 0.0  # type: ignore[arg-type]
+
+
 class TripService:
     def __init__(self, db: Session) -> None:
         self._db = db
@@ -70,7 +77,8 @@ class TripService:
         if existing is not None:  # idempotent: a retried start returns the same trip
             return self._to_out(existing)
 
-        if self._repo.active_trip_for_employee(employee_id) is not None:
+        active = self._repo.active_trip_for_employee(employee_id)
+        if active is not None and not self._is_earlier_offline_trip(data, active):
             raise Conflict("You already have a trip in progress. Stop it before starting another.")
 
         # Master values are checked after the idempotent replay above, so a retry still returns the
@@ -131,6 +139,11 @@ class TripService:
                 )
             )
             accepted += 1
+        if accepted and (
+            _unknown_position(trip.start_latitude, trip.start_longitude)
+            or (trip.status != IN_PROGRESS and _unknown_position(trip.end_latitude, trip.end_longitude))
+        ):
+            self._fill_unknown_positions(trip)
         if accepted and trip.status != IN_PROGRESS:
             # Points that arrive after the stop (device was offline) change the route: recompute.
             self._refresh_gps_distance(trip, user.id)
@@ -213,6 +226,11 @@ class TripService:
         trip.end_at = now
         trip.end_latitude = Decimal(str(data.end_latitude))
         trip.end_longitude = Decimal(str(data.end_longitude))
+        if _unknown_position(trip.end_latitude, trip.end_longitude) or _unknown_position(
+            trip.start_latitude, trip.start_longitude
+        ):
+            # The phone had no fix to send (0,0): use the trail's first/last recorded point instead.
+            self._fill_unknown_positions(trip)
         trip.duration_minutes = int((now - trip.start_at).total_seconds() // 60)
         trip.gps_distance_km = Decimal(str(distance)) if distance is not None else None
         trip.remarks = (data.remarks or "").strip() or None
@@ -310,6 +328,28 @@ class TripService:
         if trip is None or not trip.is_active or trip.employee_id != employee_id:
             raise NotFound("Trip not found.")
         return trip
+
+    @staticmethod
+    def _is_earlier_offline_trip(data: StartTripInput, active: TrkTrip) -> bool:
+        """A trip the phone recorded without internet is created on the server only once it is back online,
+        possibly while a newer trip is already running. It began before that trip, so it is not a second trip
+        at the same time; the phone syncs its points and stop right after. A start without a time, or one
+        that is not earlier than the running trip, is a real second trip."""
+        return data.started_at is not None and _naive_utc(data.started_at) < active.start_at
+
+    def _fill_unknown_positions(self, trip: TrkTrip) -> None:
+        """Replace a start or end place the phone could not fix (sent as 0,0) with the first or last GPS
+        point of the trip's trail. A stopped trip's end only; a running trip has no end yet."""
+        self._repo.flush()  # include the points added in this request
+        fixes = [f for f in self._repo.gps_fixes(trip.id) if not _unknown_position(f.latitude, f.longitude)]
+        if not fixes:
+            return
+        if _unknown_position(trip.start_latitude, trip.start_longitude):
+            trip.start_latitude = Decimal(str(fixes[0].latitude))
+            trip.start_longitude = Decimal(str(fixes[0].longitude))
+        if trip.end_at is not None and _unknown_position(trip.end_latitude, trip.end_longitude):
+            trip.end_latitude = Decimal(str(fixes[-1].latitude))
+            trip.end_longitude = Decimal(str(fixes[-1].longitude))
 
     @staticmethod
     def _require_open_for_upload(trip: TrkTrip, what: str) -> None:

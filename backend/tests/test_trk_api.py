@@ -540,6 +540,75 @@ def new_trip_path(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(TripService, "_to_out", lambda _self, trip, _activity=None: trip)
 
 
+def _start_at(started_at: datetime) -> StartTripInput:
+    body = _start_input().model_dump(by_alias=True)
+    body["startedAt"] = started_at.replace(tzinfo=UTC).isoformat()
+    return StartTripInput.model_validate(body)
+
+
+def test_start_accepts_an_earlier_offline_trip_while_a_newer_one_runs(new_trip_path: None) -> None:
+    # The running trip started 06:35; the phone uploads a trip it recorded offline from 05:10.
+    repo = _FakeRepo(active=_existing_trip())
+    _service_with(repo).start(make_user(employee_id=5), _start_at(datetime(2026, 10, 28, 5, 10)))
+    assert repo.added[0].start_at == datetime(2026, 10, 28, 5, 10)
+
+
+def test_start_still_rejects_a_newer_trip_while_one_runs() -> None:
+    repo = _FakeRepo(active=_existing_trip())
+    with pytest.raises(Conflict):
+        _service_with(repo).start(make_user(employee_id=5), _start_at(datetime(2026, 10, 28, 7, 0)))
+    assert repo.added == []
+
+
+def test_unknown_start_place_is_taken_from_the_first_gps_point() -> None:
+    trip = _existing_trip()
+    trip.start_latitude, trip.start_longitude = Decimal("0"), Decimal("0")  # the phone had no fix
+    repo = _FakeRepo(
+        trip=trip,
+        fixes=[
+            GpsFix(datetime(2026, 10, 28, 6, 36), 20.1000, 85.1000, accuracy_m=5.0),
+            GpsFix(datetime(2026, 10, 28, 6, 40), 20.1100, 85.1000, accuracy_m=5.0),
+        ],
+    )
+    _service_with(repo).upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+    assert (trip.start_latitude, trip.start_longitude) == (Decimal("20.1"), Decimal("85.1"))
+    assert trip.end_latitude is None  # still running: no end yet
+
+
+def test_known_start_place_is_never_overwritten() -> None:
+    trip = _existing_trip()
+    repo = _FakeRepo(trip=trip, fixes=[GpsFix(datetime(2026, 10, 28, 6, 36), 20.1, 85.1, accuracy_m=5.0)])
+    _service_with(repo).upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+    assert (trip.start_latitude, trip.start_longitude) == (20.2961, 85.8245)
+    assert not repo.flushed  # no extra work for a normal trip
+
+
+def test_unknown_end_place_on_stop_is_taken_from_the_last_gps_point(monkeypatch: pytest.MonkeyPatch) -> None:
+    trip = _existing_trip()
+    service = _stop_service(monkeypatch, trip)
+    service._repo._fixes = [  # type: ignore[attr-defined]
+        GpsFix(datetime(2026, 10, 28, 6, 36), 20.30, 85.80, accuracy_m=5.0),
+        GpsFix(datetime(2026, 10, 28, 7, 5), 20.35, 85.82, accuracy_m=5.0),
+    ]
+    service.stop(make_user(employee_id=5), 5501, StopTripInput(end_latitude=0, end_longitude=0))
+    assert (trip.end_latitude, trip.end_longitude) == (Decimal("20.35"), Decimal("85.82"))
+    assert (trip.start_latitude, trip.start_longitude) == (20.2961, 85.8245)
+
+
+def test_unknown_end_place_is_filled_when_late_points_arrive() -> None:
+    trip = _ended_trip(timedelta(hours=2))
+    trip.end_latitude, trip.end_longitude = Decimal("0"), Decimal("0")
+    repo = _FakeRepo(
+        trip=trip,
+        fixes=[
+            GpsFix(datetime(2026, 10, 28, 6, 36), 20.30, 85.80, accuracy_m=5.0),
+            GpsFix(datetime(2026, 10, 28, 7, 5), 20.35, 85.82, accuracy_m=5.0),
+        ],
+    )
+    _service_with(repo).upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+    assert (trip.end_latitude, trip.end_longitude) == (Decimal("20.35"), Decimal("85.82"))
+
+
 def test_start_uses_the_default_trip_type_when_none_is_sent(new_trip_path: None) -> None:
     repo = _FakeRepo()
     service = _service_with(repo)
