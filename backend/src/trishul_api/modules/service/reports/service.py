@@ -29,6 +29,7 @@ from trishul_api.db.models import (
     LookupType,
     LookupValue,
     MachineUnit,
+    Principal,
     ReportChecklistItem,
     ServiceCall,
     ServiceCallCurrentStatus,
@@ -54,6 +55,8 @@ from trishul_api.modules.service.status_log import record_status_change
 ENTITY_TYPE = "svc.service_report"
 SIGN_PERMISSIONS = ("svc.report.submit", "svc.call.assign")
 MAX_SIGNATURE_BYTES = 1024 * 1024
+# Brands whose service report is only notes (findings) and attachments - no checklist, root cause or sign-off.
+NOTE_ATTACHMENT_ONLY_BRANDS = frozenset({"TATA_HITACHI"})
 _NEXT_STATUS: dict[str, ServiceCallCurrentStatus] = {
     "None": "Report submitted",
     "Escalate": "Report submitted",
@@ -88,6 +91,7 @@ class ServiceReportService:
 
     def visits_of_call(self, call_id: int) -> list[CallVisit]:
         call = self._call(call_id)
+        brand = self._brand(call)
         writer = can_write(self._db, self._actor, call)
         rows = self._db.execute(
             select(ServiceVisit, func.concat_ws(" ", Employee.first_name, Employee.last_name).label("engineer"))
@@ -128,6 +132,7 @@ class ServiceReportService:
                         else None
                     ),
                     can_start_report=writer and report is None and visit.status == "On site",
+                    **brand,
                 )
             )
         return out
@@ -312,7 +317,7 @@ class ServiceReportService:
     def submit(self, report_id: int, expected: bytes, data: ServiceReportSubmit) -> ServiceReportOut:
         report, visit, call = self._editable(report_id)
         check_row_version(report.row_version, expected)
-        self._check_complete(report, data)
+        self._check_complete(report, data, call)
         now = _now()
 
         report.submitted_at = now
@@ -370,7 +375,42 @@ class ServiceReportService:
 
     # ------------------------------------------------------------------ rules
 
-    def _check_complete(self, report: ServiceReport, data: ServiceReportSubmit) -> None:
+    def _brand(self, call: ServiceCall) -> dict[str, object]:
+        principal = self._db.get(Principal, call.principal_id)
+        code = principal.code if principal else None
+        return {
+            "principal_id": call.principal_id,
+            "principal_code": code,
+            "principal_name": principal.name if principal else None,
+            "is_note_attachment_only": code in NOTE_ATTACHMENT_ONLY_BRANDS,
+        }
+
+    def _check_note_attachment_only(self, report: ServiceReport, data: ServiceReportSubmit) -> None:
+        """Notes-and-attachments brands: a note or a file is enough; the next-visit rules still apply."""
+        problems: dict[str, list[str]] = {}
+        has_file = self._db.scalar(
+            select(func.count())
+            .select_from(Attachment)
+            .where(
+                Attachment.entity_type == ENTITY_TYPE,
+                Attachment.entity_id == report.id,
+                Attachment.is_active,
+                Attachment.category != "Signature",
+            )
+        )
+        if not report.findings and not has_file:
+            problems["findings"] = ["Write a note or attach a file."]
+        if data.next_action == "Revisit":
+            if data.next_visit_date is None:
+                problems["nextVisitDate"] = ["Choose the date of the next visit."]
+            elif data.next_visit_date < date.today():
+                problems["nextVisitDate"] = ["The next visit cannot be in the past."]
+        if problems:
+            raise ApiError("The service report is not complete.", errors=problems)
+
+    def _check_complete(self, report: ServiceReport, data: ServiceReportSubmit, call: ServiceCall) -> None:
+        if self._brand(call)["is_note_attachment_only"]:
+            return self._check_note_attachment_only(report, data)
         problems: dict[str, list[str]] = {}
         if report.machine_condition_lookup_id is None:
             problems["machineConditionLookupId"] = ["Say what condition the machine is in."]
@@ -559,6 +599,7 @@ class ServiceReportService:
             next_action=visit.next_action if report.submitted_at else None,
             submitted_at=report.submitted_at,
             can_edit=report.submitted_at is None and can_write(self._db, self._actor, call),
+            **self._brand(call),
             checklist=[
                 ChecklistAnswer(
                     id=row.answer.id,

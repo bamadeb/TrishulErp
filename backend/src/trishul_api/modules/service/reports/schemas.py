@@ -96,6 +96,12 @@ class ServiceReportOut(ApiModel):
     next_action: NextAction | None
     submitted_at: UtcDateTime | None
     can_edit: bool = Field(description="False once submitted, or for someone who is not on the call.")
+    principal_id: int | None = Field(None, description="The call's brand (core.principal).")
+    principal_code: str | None = Field(None, description="Brand code, e.g. TATA_HITACHI.")
+    principal_name: str | None = None
+    is_note_attachment_only: bool = Field(
+        False, description="True for brands whose report is only notes (findings) and attachments (Tata Hitachi)."
+    )
     checklist: list[ChecklistAnswer]
     row_version: RowVersion
 
@@ -169,6 +175,12 @@ class CallVisit(ApiModel):
     next_action: NextAction | None
     report: ReportSummary | None
     can_start_report: bool = Field(description="On site, no report yet, and the user may write it.")
+    principal_id: int | None = Field(None, description="The call's brand (core.principal).")
+    principal_code: str | None = Field(None, description="Brand code, e.g. TATA_HITACHI.")
+    principal_name: str | None = None
+    is_note_attachment_only: bool = Field(
+        False, description="True for brands whose report is only notes (findings) and attachments (Tata Hitachi)."
+    )
 
 
 # ---------------------------------------------------------------- checklist templates

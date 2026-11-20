@@ -20,6 +20,8 @@ from .conftest import make_user
 from .sqlite_db import insert_row, sqlite_engine
 from .test_manual_travel import BRANCH, COMPANY, CUSTOMER, ENGINEER, OTHER_ENGINEER, PNG, PRINCIPAL, client_for
 
+BYD = 2  # the call under test is a BYD call; Tata Hitachi (PRINCIPAL) reports are notes and files only
+
 TABLES = [
     "core.company",
     "core.branch",
@@ -58,7 +60,7 @@ def db() -> Engine:
     insert_row(engine, "core.company", id=COMPANY, code="TRISHUL", legal_name="Trishul", trade_name="Trishul")
     insert_row(engine, "core.branch", id=BRANCH, company_id=COMPANY, code="BBSR", name="Bhubaneswar")
     insert_row(engine, "core.principal", id=PRINCIPAL, code="TATA_HITACHI", name="Tata Hitachi")
-    insert_row(engine, "core.principal", id=2, code="BYD", name="BYD")
+    insert_row(engine, "core.principal", id=BYD, code="BYD", name="BYD")
     insert_row(
         engine,
         "core.customer",
@@ -103,7 +105,7 @@ def db() -> Engine:
         id=CALL,
         company_id=COMPANY,
         branch_id=BRANCH,
-        principal_id=PRINCIPAL,
+        principal_id=BYD,
         call_no="BHADRAK/SC/00024",
         customer_id=CUSTOMER,
         assigned_engineer_id=ENGINEER,
@@ -199,14 +201,14 @@ def answer_all(client: TestClient, report: dict[str, Any]) -> dict[str, Any]:
 
 def test_start_report_copies_the_best_matching_checklist(engineer: TestClient, db: Engine) -> None:
     make_template(db, "Generic", 1, None)
-    make_template(db, "Hitachi", 2, PRINCIPAL, questions=3)
-    make_template(db, "BYD", 3, 2)
+    make_template(db, "BYD", 2, BYD, questions=3)
+    make_template(db, "Hitachi", 3, PRINCIPAL)
     response = start(engineer)
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["reportNo"] == "BHADRAK/SC/00024/R1"
     assert body["status"] == "Draft" and body["canEdit"] is True
-    assert [q["itemText"] for q in body["checklist"]] == [f"Hitachi question {n}" for n in (1, 2, 3)]
+    assert [q["itemText"] for q in body["checklist"]] == [f"BYD question {n}" for n in (1, 2, 3)]
     assert [q["isMandatory"] for q in body["checklist"]] == [True, False, False]
     with Session(db) as s:
         assert s.get(ServiceCall, CALL).current_status == "In progress"  # type: ignore[union-attr]
@@ -395,7 +397,7 @@ def test_checklists_are_managed_with_a_stable_question_history(
         CHECKLIST,
         json={
             "name": "Excavator inspection",
-            "principalId": PRINCIPAL,
+            "principalId": BYD,
             "callTypeLookupId": 30,
             "items": [
                 {"itemText": "Hydraulic oil level", "responseType": "OK Not OK", "isMandatory": True},
@@ -406,7 +408,7 @@ def test_checklists_are_managed_with_a_stable_question_history(
     assert created.status_code == 201, created.text
     template = created.json()
     assert [i["itemText"] for i in template["items"]] == ["Hydraulic oil level", "Engine hours"]
-    assert template["principalName"] == "Tata Hitachi" and template["callType"] == "Breakdown"
+    assert template["principalName"] == "BYD" and template["callType"] == "Breakdown"
 
     report = start(engineer).json()  # copies the new checklist
     assert [q["itemText"] for q in report["checklist"]] == ["Hydraulic oil level", "Engine hours"]
@@ -417,7 +419,7 @@ def test_checklists_are_managed_with_a_stable_question_history(
         f"{CHECKLIST}/{template['id']}",
         json={
             "name": "Excavator inspection v2",
-            "principalId": PRINCIPAL,
+            "principalId": BYD,
             "callTypeLookupId": 30,
             "items": [{"id": keep["id"], "itemText": "Hydraulic oil level and colour"}, {"itemText": "Track tension"}],
         },
@@ -541,3 +543,35 @@ def test_report_outcome_options(lead: TestClient, engineer: TestClient) -> None:
         assert [o["value"] for o in outcomes] == ["None", "Parts required", "Revisit", "Escalate"]
         assert outcomes[0]["label"] == "Work done"
         assert [o["requiresVisitDate"] for o in outcomes] == [False, False, True, False]
+
+
+# ---------------------------------------------------------------- notes-and-files-only brands (Tata Hitachi)
+
+
+def make_hitachi(db: Engine) -> None:
+    with Session(db) as s:
+        s.get(ServiceCall, CALL).principal_id = PRINCIPAL  # type: ignore[union-attr]
+        s.commit()
+
+
+def test_brand_flag_on_visits_and_report(engineer: TestClient, db: Engine) -> None:
+    visits = engineer.get(f"/api/v1/svc/service-calls/{CALL}/visits").json()
+    assert visits[0]["isNoteAttachmentOnly"] is False and visits[0]["principalCode"] == "BYD"
+    assert start(engineer).json()["isNoteAttachmentOnly"] is False
+    other_report = engineer.get(f"/api/v1/svc/service-visits/{VISIT}/report").json()
+    assert other_report["principalName"] == "BYD"
+
+
+def test_tata_hitachi_report_is_flagged_and_needs_only_a_note_or_file(engineer: TestClient, db: Engine) -> None:
+    make_hitachi(db)
+    make_template(db, "Hitachi", 2, PRINCIPAL)
+    visits = engineer.get(f"/api/v1/svc/service-calls/{CALL}/visits").json()
+    assert visits[0]["isNoteAttachmentOnly"] is True and visits[0]["principalCode"] == "TATA_HITACHI"
+    report = start(engineer).json()
+    assert report["isNoteAttachmentOnly"] is True and report["principalId"] == PRINCIPAL
+    empty = submit(engineer, report)
+    assert empty.status_code == 400 and set(empty.json()["errors"]) == {"findings"}
+    report = fill(engineer, report, findings="Inspected, all fine")
+    done = submit(engineer, report)
+    assert done.status_code == 200, done.text
+    assert done.json()["status"] == "Submitted"
