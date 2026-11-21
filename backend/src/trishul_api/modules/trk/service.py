@@ -16,10 +16,10 @@ from trishul_api.db.models import (
     TrkTripGpsPoint,
 )
 from trishul_api.modules.trk.constants import COMPLETED, IN_PROGRESS, LATE_UPLOAD_GRACE_DAYS
-from trishul_api.modules.trk.distance import route_distance_km
+from trishul_api.modules.trk.distance import REVIEW_UNTRACKED_KM, gps_gaps, route_distance_km
 from trishul_api.modules.trk.handlers import handler_for
 from trishul_api.modules.trk.master_service import TripMasterService
-from trishul_api.modules.trk.repository import TripRepository
+from trishul_api.modules.trk.repository import TripRepository, untracked_km
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
     CallTripHistoryItem,
@@ -303,7 +303,21 @@ class TripService:
         call = self._db.get(ServiceCall, call_id)
         if call is None or not call.is_active or not user.can_use_branch(call.branch_id):
             raise NotFound("Service call not found.")
-        return self._repo.trips_for_service_call(call_id)
+        return [self._with_gps_gaps(item) for item in self._repo.trips_for_service_call(call_id)]
+
+    def _with_gps_gaps(self, item: CallTripHistoryItem) -> CallTripHistoryItem:
+        """Add how much of the trip had no GPS, and whether its kilometres need a Team Lead's check."""
+        if not item.is_gps_tracked:
+            return item
+        untracked = untracked_km(gps_gaps(self._repo.gps_fixes(item.id)))
+        return item.model_copy(
+            update={
+                "untracked_km": untracked,
+                "needs_review": item.status == COMPLETED
+                and not item.is_distance_adjusted
+                and untracked >= REVIEW_UNTRACKED_KM,
+            }
+        )
 
     # ------------------------------------------------------------------ helpers
 

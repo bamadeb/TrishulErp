@@ -67,8 +67,11 @@ interface RouteMap {
   tiles: MapTile[];
   /** Runs of the cleaned trail where the good fixes are close together. */
   paths: string[];
-  /** Straight jumps over stretches without a good fix (drawn dashed). */
-  gaps: { a: MapPoint; b: MapPoint }[];
+  /**
+   * Straight jumps over stretches without a good fix (drawn dashed). `label` (e.g. "21 min no GPS")
+   * is set when the phone recorded nothing for 2+ minutes there, placed at the jump's middle.
+   */
+  gaps: { a: MapPoint; b: MapPoint; label: string | null; mid: MapPoint }[];
   /** Every fix as sent, weak ones included, for the "all points" view. */
   rawPath: string;
   start: MapPoint;
@@ -97,6 +100,8 @@ const MAX_SPEED_KMPH = 120;
 const MIN_MOVE_M = 5;
 /** Good fixes further apart than this leave a stretch whose real path is unknown. */
 const GAP_M = 150;
+/** A stretch this long without a fix is labelled on the map (the server's GPS gap uses the same 2 minutes). */
+const GAP_LABEL_MINUTES = 2;
 
 function metresBetween(a: TrailPoint, b: TrailPoint): number {
   const rad = Math.PI / 180;
@@ -273,11 +278,18 @@ export class TripHistoryPage {
         .join(' ');
     const xy = points.map(at);
     const paths: string[] = [];
-    const gaps: { a: MapPoint; b: MapPoint }[] = [];
+    const gaps: RouteMap['gaps'] = [];
     let run: TrailPoint[] = [points[0]];
     for (let i = 1; i < points.length; i++) {
       if (metresBetween(points[i - 1], points[i]) > GAP_M) {
-        gaps.push({ a: xy[i - 1], b: xy[i] });
+        const minutes =
+          (Date.parse(points[i].recordedAt) - Date.parse(points[i - 1].recordedAt)) / 60000;
+        gaps.push({
+          a: xy[i - 1],
+          b: xy[i],
+          label: minutes >= GAP_LABEL_MINUTES ? `${Math.round(minutes)} min no GPS` : null,
+          mid: { x: (xy[i - 1].x + xy[i].x) / 2, y: (xy[i - 1].y + xy[i].y) / 2 },
+        });
         if (run.length > 1) paths.push(line(run));
         run = [points[i]];
       } else {

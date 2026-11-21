@@ -20,6 +20,7 @@ from trishul_api.modules.trk.repository import TripRepository
 from trishul_api.modules.trk.router import get_trip_master_service, get_trip_service
 from trishul_api.modules.trk.schemas import (
     AdjustDistanceInput,
+    CallTripHistoryItem,
     GpsBatchInput,
     GpsDiagnosticBatchInput,
     GpsDiagnosticUploadResult,
@@ -1229,3 +1230,71 @@ def test_remarks_over_500_characters_are_refused(api: FastAPI, client: TestClien
         "/api/v1/trk/trips/5501/stop", json={"endLatitude": 22.1, "endLongitude": 85.38, "remarks": "x" * 501}
     )
     assert too_long.status_code == 422
+
+
+# ---------------------------------------------------------------- GPS gaps (trip 297)
+
+
+def _history_item(**overrides: Any) -> CallTripHistoryItem:
+    data: dict[str, Any] = {
+        "id": 297,
+        "visit_no": 1,
+        "trip_type": "To site",
+        "status": "Completed",
+        "engineer_employee_id": 5,
+        "engineer_name": "Jyoti Ranjan",
+        "start_at": datetime(2026, 11, 21, 5, 27),
+        "end_at": None,
+        "duration_minutes": 27,
+        "remarks": None,
+        "vehicle_type": "Own bike",
+        "is_gps_tracked": True,
+        "start_latitude": 20.28,
+        "start_longitude": 85.84,
+        "end_latitude": None,
+        "end_longitude": None,
+        "gps_distance_km": 9.49,
+        "map_distance_km": None,
+        "adjusted_distance_km": None,
+        "is_distance_adjusted": False,
+        "effective_distance_km": 9.49,
+        "adjustment_count": 0,
+        "row_version": b"\x00\x00\x00\x00\x00\x00\x07\xd1",
+    }
+    return CallTripHistoryItem.model_validate({**data, **overrides})
+
+
+def _silent_trail() -> list[GpsFix]:
+    t0 = datetime(2026, 11, 21, 5, 27, 35)
+    start = [GpsFix(t0 + timedelta(seconds=i * 3), 20.2865 + i * 0.0001, 85.8452, 5.0) for i in range(20)]
+    end = [GpsFix(t0 + timedelta(minutes=27, seconds=i * 3), 20.3625 + i * 0.0001, 85.8167, 5.0) for i in range(5)]
+    return start + end
+
+
+def test_a_trip_with_a_long_gps_gap_needs_review() -> None:
+    service = _service_with(_FakeRepo(fixes=_silent_trail()))
+    item = service._with_gps_gaps(_history_item())
+    assert item.untracked_km is not None and item.untracked_km > 8
+    assert item.needs_review
+
+
+def test_an_adjusted_or_running_trip_does_not_need_review() -> None:
+    service = _service_with(_FakeRepo(fixes=_silent_trail()))
+    assert not service._with_gps_gaps(_history_item(is_distance_adjusted=True)).needs_review
+    assert not service._with_gps_gaps(_history_item(status="In progress")).needs_review
+
+
+def test_a_continuous_trail_does_not_need_review() -> None:
+    t0 = datetime(2026, 11, 21, 5, 0)
+    trail = [GpsFix(t0 + timedelta(seconds=i * 5), 20.28 + i * 0.0003, 85.84, 5.0) for i in range(200)]
+    item = _service_with(_FakeRepo(fixes=trail))._with_gps_gaps(_history_item())
+    assert item.untracked_km == 0.0
+    assert not item.needs_review
+
+
+def test_a_trip_without_gps_is_left_alone() -> None:
+    item = _service_with(_FakeRepo(fixes=_silent_trail()))._with_gps_gaps(
+        _history_item(is_gps_tracked=False, vehicle_type="Bus")
+    )
+    assert item.untracked_km is None
+    assert not item.needs_review

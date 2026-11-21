@@ -21,10 +21,11 @@ from trishul_api.db.models import (
     UserDevice,
 )
 from trishul_api.modules.trk.constants import IN_PROGRESS
-from trishul_api.modules.trk.distance import GpsFix
+from trishul_api.modules.trk.distance import GpsFix, GpsGap, gps_gaps
 from trishul_api.modules.trk.schemas import (
     CallTripHistoryItem,
     GpsDiagnosticItem,
+    GpsGapItem,
     GpsQuality,
     RoutePoint,
     TripAdjustmentItem,
@@ -36,6 +37,30 @@ from trishul_api.modules.trk.schemas import (
 POOR_ACCURACY_M = 50
 MAX_ROUTE_POINTS = 1000
 _EFFECTIVE_DISTANCE_KM = func.coalesce(TrkTrip.adjusted_distance_km, TrkTrip.map_distance_km, TrkTrip.gps_distance_km)
+
+
+def _fix(row: Any) -> GpsFix:
+    return GpsFix(
+        recorded_at=row["recorded_at"],
+        latitude=float(row["latitude"]),
+        longitude=float(row["longitude"]),
+        accuracy_m=float(row["accuracy_m"]) if row["accuracy_m"] is not None else None,
+        is_mock_location=bool(row["is_mock_location"]),
+    )
+
+
+def gap_item(gap: GpsGap) -> GpsGapItem:
+    return GpsGapItem(
+        started_at=gap.started_at,
+        ended_at=gap.ended_at,
+        minutes=int((gap.ended_at - gap.started_at).total_seconds() // 60),
+        straight_km=gap.straight_km,
+    )
+
+
+def untracked_km(gaps: list[GpsGap]) -> float:
+    return round(sum(g.straight_km for g in gaps), 2)
+
 
 _SORT_COLUMNS: SortColumns = {
     "startAt": TrkTrip.start_at,
@@ -247,6 +272,7 @@ class TripRepository:
             .all()
         )
         accuracies = [float(r["accuracy_m"]) for r in rows if r["accuracy_m"] is not None]
+        gaps = gps_gaps([_fix(r) for r in rows])
         quality = GpsQuality(
             point_count=len(rows),
             avg_accuracy_m=round(sum(accuracies) / len(accuracies), 1) if accuracies else None,
@@ -255,6 +281,8 @@ class TripRepository:
             mock_location_count=sum(1 for r in rows if r["is_mock_location"]),
             first_recorded_at=rows[0]["recorded_at"] if rows else None,
             last_recorded_at=rows[-1]["recorded_at"] if rows else None,
+            gaps=[gap_item(g) for g in gaps],
+            untracked_km=untracked_km(gaps),
         )
         # Thin long trails evenly for drawing, always keeping the first and last point.
         step = max(1, -(-len(rows) // MAX_ROUTE_POINTS))
