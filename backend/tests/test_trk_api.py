@@ -576,6 +576,22 @@ def test_unknown_start_place_is_taken_from_the_first_gps_point() -> None:
     assert trip.end_latitude is None  # still running: no end yet
 
 
+def test_unknown_start_place_skips_a_weak_first_point() -> None:
+    # Indoors the first point was a 400 m cell-tower fix; the first good fix is the real start.
+    trip = _existing_trip()
+    trip.start_latitude, trip.start_longitude = Decimal("0"), Decimal("0")
+    repo = _FakeRepo(
+        trip=trip,
+        fixes=[
+            GpsFix(datetime(2026, 10, 28, 6, 36), 20.1500, 85.1500, accuracy_m=400.0),
+            GpsFix(datetime(2026, 10, 28, 6, 37), 20.1000, 85.1000, accuracy_m=6.0),
+            GpsFix(datetime(2026, 10, 28, 6, 40), 20.1100, 85.1000, accuracy_m=6.0),
+        ],
+    )
+    _service_with(repo).upload_gps(make_user(employee_id=5), 5501, _gps_batch())
+    assert (trip.start_latitude, trip.start_longitude) == (Decimal("20.1"), Decimal("85.1"))
+
+
 def test_known_start_place_is_never_overwritten() -> None:
     trip = _existing_trip()
     repo = _FakeRepo(trip=trip, fixes=[GpsFix(datetime(2026, 10, 28, 6, 36), 20.1, 85.1, accuracy_m=5.0)])

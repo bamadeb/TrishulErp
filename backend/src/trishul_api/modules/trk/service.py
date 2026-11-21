@@ -16,7 +16,7 @@ from trishul_api.db.models import (
     TrkTripGpsPoint,
 )
 from trishul_api.modules.trk.constants import COMPLETED, IN_PROGRESS, LATE_UPLOAD_GRACE_DAYS
-from trishul_api.modules.trk.distance import REVIEW_UNTRACKED_KM, gps_gaps, route_distance_km
+from trishul_api.modules.trk.distance import REVIEW_UNTRACKED_KM, accepted_fixes, gps_gaps, route_distance_km
 from trishul_api.modules.trk.handlers import handler_for
 from trishul_api.modules.trk.master_service import TripMasterService
 from trishul_api.modules.trk.repository import TripRepository, untracked_km
@@ -355,7 +355,9 @@ class TripService:
         """Replace a start or end place the phone could not fix (sent as 0,0) with the first or last GPS
         point of the trip's trail. A stopped trip's end only; a running trip has no end yet."""
         self._repo.flush()  # include the points added in this request
-        fixes = [f for f in self._repo.gps_fixes(trip.id) if not _unknown_position(f.latitude, f.longitude)]
+        trail = [f for f in self._repo.gps_fixes(trip.id) if not _unknown_position(f.latitude, f.longitude)]
+        # Prefer good fixes: with weak GPS the first/last raw point can be a cell-tower fix far from the real place.
+        fixes = accepted_fixes(trail) or trail
         if not fixes:
             return
         if _unknown_position(trip.start_latitude, trip.start_longitude):
