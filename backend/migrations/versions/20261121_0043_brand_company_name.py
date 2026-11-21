@@ -25,7 +25,10 @@ def upgrade() -> None:
                 CONSTRAINT [FK_core_principal_company_id] FOREIGN KEY REFERENCES [core].[company] ([id]);
     """)
     op.execute("""
-        EXEC sys.sp_addextendedproperty N'MS_Description',
+        IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE name = N'MS_Description'
+                       AND major_id = OBJECT_ID(N'core.principal')
+                       AND minor_id = COLUMNPROPERTY(OBJECT_ID(N'core.principal'), N'company_id', 'ColumnId'))
+            EXEC sys.sp_addextendedproperty N'MS_Description',
             N'Company behind the brand, shown beside the brand name',
             N'SCHEMA', N'core', N'TABLE', N'principal', N'COLUMN', N'company_id';
     """)

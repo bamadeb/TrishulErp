@@ -22,15 +22,21 @@ depends_on = None
 def upgrade() -> None:
     op.execute("""
         IF COL_LENGTH('core.principal', 'inspection_report_required') IS NULL
+        BEGIN
             ALTER TABLE [core].[principal] ADD [inspection_report_required] BIT NOT NULL
                 CONSTRAINT [DF_core_principal_inspection_report_required] DEFAULT (1);
+            -- Only when the column is new, so a later choice on the Configuration screen is never reset.
+            EXEC (N'UPDATE [core].[principal] SET [inspection_report_required] = 0 WHERE [code] = N''TATA_HITACHI''');
+        END
     """)
     op.execute("""
-        EXEC sys.sp_addextendedproperty N'MS_Description',
+        IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE name = N'MS_Description'
+                       AND major_id = OBJECT_ID(N'core.principal')
+                       AND minor_id = COLUMNPROPERTY(OBJECT_ID(N'core.principal'), N'inspection_report_required', 'ColumnId'))
+            EXEC sys.sp_addextendedproperty N'MS_Description',
             N'Service reports of this brand need the full inspection report; when off, a note or a file is enough',
             N'SCHEMA', N'core', N'TABLE', N'principal', N'COLUMN', N'inspection_report_required';
     """)
-    op.execute("UPDATE [core].[principal] SET [inspection_report_required] = 0 WHERE [code] = N'TATA_HITACHI';")
 
 
 def downgrade() -> None:
