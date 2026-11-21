@@ -1,0 +1,265 @@
+:host {
+  display: block;
+  color: #1b2a4a;
+}
+
+.error {
+  margin: 0 0 0.55rem;
+  color: #b3261e;
+  font-size: 0.82rem;
+}
+
+.panel {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.65rem;
+  background: #fff;
+  border: 1px solid #e3ebf6;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgb(15 40 80 / 4%);
+}
+
+.panel-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+
+  h2 {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+}
+
+.head-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+
+  .count {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .mat-mdc-outlined-button {
+    height: 32px;
+    min-height: 32px;
+    font-size: 12px;
+  }
+
+  .mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    margin-right: 0.15rem;
+  }
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  padding: 0.45rem 0.5rem;
+  background: #f7f9fc;
+  border: 1px solid #e6edf5;
+  border-radius: 8px;
+  --mat-form-field-container-height: 32px;
+  --mat-form-field-container-vertical-padding: 4px;
+  --mat-form-field-container-text-size: 12px;
+  --mat-form-field-outlined-label-text-size: 11px;
+  --mat-select-trigger-text-size: 12px;
+  --mdc-outlined-text-field-container-shape: 6px;
+  --mdc-outlined-text-field-outline-color: #d7e0ea;
+  --mdc-outlined-text-field-hover-outline-color: #b9c9da;
+  --mdc-outlined-text-field-focus-outline-color: #0754b8;
+
+  mat-form-field {
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .search {
+    flex: 1 1 16rem;
+    min-width: min(100%, 14rem);
+    max-width: 22rem;
+  }
+
+  .type {
+    flex: 0 1 8.5rem;
+    width: 8.5rem;
+    min-width: 8rem;
+    max-width: 10rem;
+  }
+
+  .mat-mdc-text-field-wrapper,
+  .mat-mdc-form-field-flex {
+    height: 32px;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 0;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+
+  .mat-mdc-form-field-icon-prefix .mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #64748b;
+    padding-left: 0.35rem;
+  }
+
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text,
+  .mat-mdc-select-min-line,
+  .mat-mdc-input-element,
+  input::placeholder {
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+  }
+
+  .mat-mdc-floating-label,
+  .mdc-floating-label {
+    font-size: 11px !important;
+  }
+
+  input::placeholder {
+    color: #94a3b8 !important;
+  }
+}
+
+::ng-deep .biometric-punch-type-panel.mat-mdc-select-panel {
+  padding: 4px 0;
+  border-radius: 8px;
+  --mat-option-label-text-size: 12px;
+  --mat-option-label-text-weight: 500;
+  --mat-option-label-text-line-height: 1.3;
+
+  .mat-mdc-option {
+    min-height: 30px;
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+  }
+
+  .mdc-list-item__primary-text {
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+  }
+}
+
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 6px 6px;
+  border-bottom: 1px solid #e3ebf6;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+th {
+  color: #5c6b82;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: #f7faff;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafcfe;
+}
+
+tbody tr:hover {
+  background: #f7faff;
+}
+
+.person {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #eaf2ff;
+  color: #0754b8;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.who {
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  small {
+    display: block;
+    color: #5c6b82;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.25;
+  }
+}
+
+.muted {
+  color: #5c6b82;
+}
+
+.empty {
+  padding: 1.25rem 0.5rem;
+  text-align: center;
+  color: #5c6b82;
+  font-size: 0.78rem;
+
+  mat-icon {
+    display: block;
+    margin: 0 auto 0.3rem;
+    opacity: 0.7;
+  }
+}
+
+.pager {
+  margin-top: 0.35rem;
+  color: #5c6b82;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 700px) {
+  .filters .search,
+  .filters .type {
+    max-width: none;
+    flex-basis: 100%;
+    width: 100%;
+  }
+}

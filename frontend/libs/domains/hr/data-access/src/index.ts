@@ -13,3 +13,5 @@ export * from './lib/payroll/statutory.api';
 export * from './lib/payroll/payroll-runs.api';
 export * from './lib/leave/leave.api';
 export * from './lib/reporting/reporting.api';
+export * from './lib/biometric/biometric.api';
+export * from './lib/attendance/attendance.api';

@@ -1,0 +1,98 @@
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (error()) {
+  <p class="error">{{ error() }}</p>
+}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Devices</h2>
+    <button mat-flat-button color="primary" type="button" (click)="openCreate()">
+      <mat-icon>add</mat-icon>
+      Add Device
+    </button>
+  </div>
+
+  <div class="filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        type="search"
+        placeholder="Search name, serial, code or location"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event); page.set(0)"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Status</mat-label>
+      <mat-select [ngModel]="status()" (ngModelChange)="status.set($event); page.set(0)">
+        <mat-option value="">All statuses</mat-option>
+        <mat-option value="Online">Online</mat-option>
+        <mat-option value="Offline">Offline</mat-option>
+        <mat-option value="Maintenance">Maintenance</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Device Name</th>
+          <th>Serial Number</th>
+          <th>Location</th>
+          <th>Sync</th>
+          <th>Status</th>
+          <th>Last Sync</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pageRows(); track row.id) {
+          <tr>
+            <td>
+              <strong>{{ row.name }}</strong><br />
+              <span class="muted">{{ row.code }} · {{ row.vendor }}</span>
+            </td>
+            <td>{{ row.serialNumber || '—' }}</td>
+            <td>{{ row.locationName || '—' }}</td>
+            <td>{{ row.isSyncEnabled ? 'Enabled' : 'Disabled' }}</td>
+            <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+            <td>
+              @if (row.lastSyncedAt) {
+                {{ row.lastSyncedAt | date: 'd MMM y, h:mm a' }}
+              } @else {
+                <span class="muted">Never</span>
+              }
+            </td>
+            <td class="actions-cell">
+              <button mat-icon-button type="button" aria-label="Edit device" (click)="openEdit(row)">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7">
+              <div class="empty">
+                <mat-icon>smartphone</mat-icon>
+                {{ loading() ? 'Loading devices…' : 'No biometric devices match your filters.' }}
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <mat-paginator
+    class="pager"
+    [length]="filtered().length"
+    [pageIndex]="page()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="[5, 8, 15]"
+    (page)="onPage($event)"
+  />
+</section>

@@ -1,0 +1,218 @@
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (error()) {
+  <p class="error">{{ error() }}</p>
+}
+
+@if (data(); as board) {
+  <section class="kpis" aria-label="Biometric summary">
+    <article class="kpi">
+      <span class="kpi-icon tone-blue"><mat-icon>devices</mat-icon></span>
+      <div>
+        <span>Registered Devices</span>
+        <strong>{{ board.registeredDevices | number }}</strong>
+      </div>
+    </article>
+    <article class="kpi">
+      <span class="kpi-icon tone-blue"><mat-icon>group</mat-icon></span>
+      <div>
+        <span>Mapped Employees</span>
+        <strong>{{ board.mappedEmployees | number }}</strong>
+      </div>
+    </article>
+    <article class="kpi">
+      <span class="kpi-icon tone-purple"><mat-icon>fingerprint</mat-icon></span>
+      <div>
+        <span>Today's Punches</span>
+        <strong>{{ board.todaysPunches | number }}</strong>
+      </div>
+    </article>
+    <article class="kpi">
+      <span class="kpi-icon tone-green"><mat-icon>sync</mat-icon></span>
+      <div>
+        <span>Last Sync</span>
+        <strong class="sync-value">
+          {{ lastSyncLabel(board.lastSyncAt) }}
+          @if (board.lastSyncStatus) {
+            <trishul-status-badge [status]="board.lastSyncStatus" [severities]="severities" />
+          }
+        </strong>
+      </div>
+    </article>
+    <article class="kpi">
+      <span class="kpi-icon tone-amber"><mat-icon>warning</mat-icon></span>
+      <div>
+        <span>Sync Failures</span>
+        <strong>{{ board.syncFailures | number }}</strong>
+      </div>
+    </article>
+  </section>
+
+  <div class="mid">
+    <section class="panel trend-panel">
+      <div class="panel-head">
+        <h2>Punch Trend</h2>
+        <span class="muted">Today · Check-in / Check-out</span>
+      </div>
+      <svg viewBox="0 0 560 180" class="trend" role="img" aria-label="Punch trend for today">
+        @for (y of gridYs; track y) {
+          <line [attr.x1]="padX" [attr.x2]="560 - padX" [attr.y1]="y" [attr.y2]="y" class="grid" />
+        }
+        <polyline [attr.points]="checkInLine()" class="in" />
+        <polyline [attr.points]="checkOutLine()" class="out" />
+        @for (point of board.punchTrend; track point.hour; let i = $index) {
+          <text [attr.x]="labelX(i)" [attr.y]="172" text-anchor="middle" class="axis-label">
+            {{ point.hour }}
+          </text>
+        }
+      </svg>
+      <div class="legend">
+        <span><i class="in"></i> Check-In</span>
+        <span><i class="out"></i> Check-Out</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Device Status</h2>
+        <a routerLink="/hr/biometric/devices">View All</a>
+      </div>
+      <div class="overview">
+        <svg viewBox="0 0 120 120" class="donut" role="img" aria-label="Device status">
+          <g transform="rotate(-90 60 60)">
+            <circle cx="60" cy="60" r="42" class="ring" />
+            @for (slice of slices(); track slice.label) {
+              <circle
+                cx="60"
+                cy="60"
+                r="42"
+                class="slice"
+                [style.stroke]="slice.color"
+                [attr.stroke-dasharray]="slice.dash"
+                [attr.stroke-dashoffset]="slice.offset"
+              />
+            }
+          </g>
+          <text x="60" y="56" text-anchor="middle" class="donut-value">{{ board.registeredDevices }}</text>
+          <text x="60" y="72" text-anchor="middle" class="donut-caption">Devices</text>
+        </svg>
+        <ul>
+          @for (slice of slices(); track slice.label) {
+            <li>
+              <i [style.background]="slice.color"></i>
+              <span>{{ slice.label }}</span>
+              <strong>{{ slice.count }}</strong>
+            </li>
+          }
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel actions">
+      <div class="panel-head"><h2>Quick Actions</h2></div>
+      <nav aria-label="Biometric quick actions">
+        <button type="button" (click)="syncPunchData()">
+          <mat-icon>sync</mat-icon>
+          <span>Sync Punch Data</span>
+        </button>
+        <a routerLink="/hr/biometric/devices">
+          <mat-icon>smartphone</mat-icon>
+          <span>Manage Devices</span>
+        </a>
+        <a routerLink="/hr/biometric/mapping">
+          <mat-icon>group</mat-icon>
+          <span>Employee Mapping</span>
+        </a>
+        <a routerLink="/hr/biometric/punches">
+          <mat-icon>format_list_bulleted</mat-icon>
+          <span>View Punch Logs</span>
+        </a>
+      </nav>
+    </section>
+  </div>
+
+  <div class="bottom">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Recent Punches</h2>
+        <a routerLink="/hr/biometric/punches">View All</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employee ID</th>
+              <th>Employee Name</th>
+              <th>Department</th>
+              <th>Punch Time</th>
+              <th>Type</th>
+              <th>Device</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of board.recentPunches; track row.id; let i = $index) {
+              <tr>
+                <td>{{ i + 1 }}</td>
+                <td class="code">{{ row.employeeCode || '—' }}</td>
+                <td>
+                  <span class="person">
+                    <span class="avatar">{{ initials(row.employeeName) }}</span>
+                    <span>{{ row.employeeName || row.biometricUserId }}</span>
+                  </span>
+                </td>
+                <td>{{ row.departmentName || '—' }}</td>
+                <td>{{ row.punchedAt | date: 'h:mm a' }}</td>
+                <td>
+                  @if (row.punchType) {
+                    <trishul-status-badge [status]="row.punchType" [severities]="severities" />
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td>{{ row.deviceName || '—' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7">
+                  <div class="empty">
+                    <mat-icon>fingerprint</mat-icon>
+                    No punch records yet.
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel sync-card">
+      <div class="panel-head"><h2>Last Synchronization</h2></div>
+      @if (board.lastSyncAt) {
+        <div class="sync-status">
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>{{ board.lastSyncStatus || 'Unknown' }}</strong>
+            <p class="muted">{{ board.lastSyncAt | date: 'd MMM y, h:mm a' }}</p>
+          </div>
+          @if (board.lastSyncStatus) {
+            <trishul-status-badge [status]="board.lastSyncStatus" [severities]="severities" />
+          }
+        </div>
+        <a class="history-link" routerLink="/hr/biometric/sync-history">View Sync History →</a>
+      } @else {
+        <div class="empty">
+          <mat-icon>sync</mat-icon>
+          No synchronization has run yet.
+        </div>
+      }
+    </section>
+  </div>
+} @else if (!loading() && !error()) {
+  <div class="empty">
+    <mat-icon>fingerprint</mat-icon>
+    No biometric data is available yet.
+  </div>
+}

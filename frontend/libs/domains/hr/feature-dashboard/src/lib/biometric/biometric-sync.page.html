@@ -1,0 +1,94 @@
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (error()) {
+  <p class="error">{{ error() }}</p>
+}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Sync History</h2>
+    <button mat-flat-button color="primary" type="button" (click)="runManualSync()">
+      <mat-icon>sync</mat-icon>
+      Sync Now
+    </button>
+  </div>
+
+  <div class="filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Status</mat-label>
+      <mat-select [ngModel]="status()" (ngModelChange)="status.set($event); applyFilters()">
+        <mat-option value="">All statuses</mat-option>
+        <mat-option value="Success">Success</mat-option>
+        <mat-option value="Failed">Failed</mat-option>
+        <mat-option value="Skipped">Skipped</mat-option>
+        <mat-option value="Running">Running</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Sync type</mat-label>
+      <mat-select [ngModel]="syncType()" (ngModelChange)="syncType.set($event); applyFilters()">
+        <mat-option value="">All types</mat-option>
+        <mat-option value="Manual">Manual</mat-option>
+        <mat-option value="Scheduled">Scheduled</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Sync ID</th>
+          <th>Device</th>
+          <th>Sync Type</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Fetched</th>
+          <th>Inserted</th>
+          <th>Status</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            <td><strong>SYNC-{{ row.id }}</strong></td>
+            <td>{{ row.deviceName || row.deviceCode || 'All devices' }}</td>
+            <td>{{ row.trigger }}</td>
+            <td>{{ row.startedAt | date: 'd MMM y, h:mm a' }}</td>
+            <td>
+              @if (row.finishedAt) {
+                {{ row.finishedAt | date: 'd MMM y, h:mm a' }}
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+            <td>{{ row.recordsFetched }}</td>
+            <td>{{ row.recordsInserted }}</td>
+            <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+            <td>{{ row.errorMessage || '—' }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="9">
+              <div class="empty">
+                <mat-icon>sync_disabled</mat-icon>
+                {{ loading() ? 'Loading sync history…' : 'No synchronization history yet.' }}
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <mat-paginator
+    class="pager"
+    [length]="total()"
+    [pageIndex]="page()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="[10, 20, 50]"
+    (page)="onPage($event)"
+  />
+</section>

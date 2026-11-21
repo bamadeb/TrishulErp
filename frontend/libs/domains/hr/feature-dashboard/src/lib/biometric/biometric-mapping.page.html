@@ -1,0 +1,110 @@
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (error()) {
+  <p class="error">{{ error() }}</p>
+}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Employee Mapping</h2>
+    <div class="head-actions">
+      <button mat-stroked-button type="button" (click)="bulkUpload()">
+        <mat-icon>upload_file</mat-icon>
+        Bulk Upload
+      </button>
+      <button mat-flat-button color="primary" type="button" (click)="openCreate()">
+        <mat-icon>person_add</mat-icon>
+        Add Mapping
+      </button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        type="search"
+        placeholder="Search employee, biometric ID or device"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event); page.set(0)"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Department</mat-label>
+      <mat-select [ngModel]="department()" (ngModelChange)="department.set($event); page.set(0)">
+        <mat-option value="">All departments</mat-option>
+        @for (dept of departments(); track dept) {
+          <mat-option [value]="dept">{{ dept }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Location</mat-label>
+      <mat-select [ngModel]="location()" (ngModelChange)="location.set($event); page.set(0)">
+        <mat-option value="">All locations</mat-option>
+        @for (loc of locations(); track loc) {
+          <mat-option [value]="loc">{{ loc }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Department</th>
+          <th>Location</th>
+          <th>Biometric ID</th>
+          <th>Device</th>
+          <th>Effective From</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pageRows(); track row.id) {
+          <tr>
+            <td>
+              <strong>{{ row.employeeCode || '—' }}</strong><br />
+              <span class="muted">{{ row.employeeName || '—' }}</span>
+            </td>
+            <td>{{ row.departmentName || '—' }}</td>
+            <td>{{ row.branchName || '—' }}</td>
+            <td>{{ row.biometricUserId }}</td>
+            <td>{{ row.deviceName || 'All devices' }}</td>
+            <td>{{ row.effectiveFrom | date: 'd MMM y' }}</td>
+            <td class="actions-cell">
+              <button mat-icon-button type="button" aria-label="Edit mapping" (click)="openEdit(row)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button type="button" aria-label="Unmap employee" (click)="unmap(row)">
+                <mat-icon>link_off</mat-icon>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7">
+              <div class="empty">
+                <mat-icon>group_off</mat-icon>
+                {{ loading() ? 'Loading mappings…' : 'No employee mappings match your filters.' }}
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <mat-paginator
+    class="pager"
+    [length]="filtered().length"
+    [pageIndex]="page()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="[5, 8, 15]"
+    (page)="onPage($event)"
+  />
+</section>

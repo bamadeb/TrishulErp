@@ -1,0 +1,395 @@
+<div class="shell" [class.with-drawer]="!!selected()">
+  <div class="content">
+    <trishul-page-header
+      title="Daily Attendance"
+      subtitle="View and manage employee attendance for a selected date."
+    >
+      <div class="date-nav" aria-label="Attendance date">
+        <button mat-icon-button type="button" aria-label="Previous day" (click)="shiftDate(-1)">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <button type="button" class="date-btn" (click)="openPicker()">
+          <mat-icon>calendar_today</mat-icon>
+          <span>{{ dateLabel() }}</span>
+          <mat-icon>expand_more</mat-icon>
+        </button>
+        <button mat-icon-button type="button" aria-label="Next day" (click)="shiftDate(1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        <input
+          matInput
+          class="date-hidden"
+          [matDatepicker]="picker"
+          [ngModel]="selectedDate()"
+          (ngModelChange)="onDatePicked($event)"
+        />
+        <mat-datepicker #picker />
+      </div>
+    </trishul-page-header>
+
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+
+    <section class="card">
+      <div class="toolbar" aria-label="Attendance toolbar">
+        <div class="status-tabs" role="tablist" aria-label="Attendance status">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="statusTab() === 'all'"
+            [class.on]="statusTab() === 'all'"
+            (click)="setStatusTab('all')"
+          >
+            All <span>{{ tabCounts().all | number }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="statusTab() === 'present'"
+            [class.on]="statusTab() === 'present'"
+            (click)="setStatusTab('present')"
+          >
+            Present <span>{{ tabCounts().present | number }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="statusTab() === 'absent'"
+            [class.on]="statusTab() === 'absent'"
+            (click)="setStatusTab('absent')"
+          >
+            Absent <span>{{ tabCounts().absent | number }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="statusTab() === 'leave'"
+            [class.on]="statusTab() === 'leave'"
+            (click)="setStatusTab('leave')"
+          >
+            Leave <span>{{ tabCounts().leave | number }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="statusTab() === 'offDay'"
+            [class.on]="statusTab() === 'offDay'"
+            (click)="setStatusTab('offDay')"
+          >
+            Off Day <span>{{ tabCounts().offDay | number }}</span>
+          </button>
+        </div>
+
+        <div class="toolbar-actions">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+              matInput
+              type="search"
+              placeholder="Search Employee (Name / Emp ID)"
+              aria-label="Search Employee (Name / Emp ID)"
+              [ngModel]="search()"
+              (ngModelChange)="onSearch($event)"
+            />
+          </mat-form-field>
+
+          <div class="filter-anchor">
+            <button
+              mat-stroked-button
+              type="button"
+              class="filters-btn"
+              [class.active]="filtersOpen() || activeFilterCount() > 0"
+              [attr.aria-expanded]="filtersOpen()"
+              aria-controls="attendance-filters-panel"
+              (click)="toggleFilters()"
+            >
+              <mat-icon>filter_list</mat-icon>
+              Filters
+              @if (activeFilterCount() > 0) {
+                <span class="count">{{ activeFilterCount() }}</span>
+              }
+            </button>
+
+            @if (filtersOpen()) {
+              <div
+                id="attendance-filters-panel"
+                class="filters-panel"
+                role="dialog"
+                aria-label="Advanced attendance filters"
+              >
+                <header>
+                  <strong>Advanced Filters</strong>
+                  <button mat-icon-button type="button" aria-label="Close filters" (click)="closeFilters()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </header>
+
+                <div class="filter-grid">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Department</mat-label>
+                    <mat-select
+                      [ngModel]="draftFilters().department"
+                      (ngModelChange)="updateDraft('department', $event)"
+                    >
+                      <mat-option value="">All Departments</mat-option>
+                      @for (item of departments(); track item) {
+                        <mat-option [value]="item">{{ item }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Location</mat-label>
+                    <mat-select
+                      [ngModel]="draftFilters().location"
+                      (ngModelChange)="updateDraft('location', $event)"
+                    >
+                      <mat-option value="">All Locations</mat-option>
+                      @for (item of locations(); track item) {
+                        <mat-option [value]="item">{{ item }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Shift</mat-label>
+                    <mat-select
+                      [ngModel]="draftFilters().shift"
+                      (ngModelChange)="updateDraft('shift', $event)"
+                    >
+                      <mat-option value="">All Shifts</mat-option>
+                      @for (item of shifts(); track item) {
+                        <mat-option [value]="item">{{ item }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Attendance Status</mat-label>
+                    <mat-select
+                      [ngModel]="draftFilters().status"
+                      (ngModelChange)="updateDraft('status', $event)"
+                    >
+                      <mat-option value="">All Status</mat-option>
+                      @for (item of statuses; track item) {
+                        <mat-option [value]="item">{{ item }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Employee Type</mat-label>
+                    <mat-select
+                      [ngModel]="draftFilters().employeeType"
+                      (ngModelChange)="updateDraft('employeeType', $event)"
+                    >
+                      <mat-option value="">All Types</mat-option>
+                      @for (item of employeeTypes(); track item) {
+                        <mat-option [value]="item">{{ item }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Reporting Manager</mat-label>
+                    <mat-select
+                      [ngModel]="draftFilters().reportingManager"
+                      (ngModelChange)="updateDraft('reportingManager', $event)"
+                    >
+                      <mat-option value="">All Managers</mat-option>
+                      @for (item of managers(); track item) {
+                        <mat-option [value]="item">{{ item }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+
+                <footer>
+                  <button mat-button type="button" (click)="resetFilters()">Reset</button>
+                  <div class="spacer"></div>
+                  <button mat-stroked-button type="button" (click)="closeFilters()">Close</button>
+                  <button mat-flat-button color="primary" type="button" (click)="applyFilters()">
+                    Apply Filters
+                  </button>
+                </footer>
+              </div>
+            }
+          </div>
+
+          <button mat-stroked-button type="button" class="export" (click)="exportExcel()">
+            <mat-icon class="excel">grid_on</mat-icon>
+            Export Excel
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            class="refresh"
+            matTooltip="Refresh"
+            aria-label="Refresh attendance"
+            (click)="refresh()"
+          >
+            <mat-icon>refresh</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      @if (filterChips().length) {
+        <div class="chips" aria-label="Applied filters">
+          <mat-chip-set>
+            @for (chip of filterChips(); track chip.key) {
+              <mat-chip>
+                {{ chip.label }}: {{ chip.value }}
+                <button matChipRemove type="button" [attr.aria-label]="'Remove ' + chip.label" (click)="removeChip(chip.key)">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip>
+            }
+          </mat-chip-set>
+          <button mat-button type="button" class="clear-all" (click)="resetFilters()">Clear all</button>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="check">
+                <mat-checkbox
+                  [checked]="allPageSelected()"
+                  [indeterminate]="somePageSelected()"
+                  [disabled]="!pageRows().length"
+                  aria-label="Select all employees on this page"
+                  (change)="togglePage($event.checked)"
+                />
+              </th>
+              <th>Emp ID</th>
+              <th>Employee Name</th>
+              <th>Department</th>
+              <th>Shift</th>
+              <th>In Time</th>
+              <th>Out Time</th>
+              <th>Work Hours</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of pageRows(); track row.id) {
+              <tr [class.active]="selected()?.id === row.id" (click)="openDetails(row)">
+                <td class="check" (click)="$event.stopPropagation()">
+                  <mat-checkbox
+                    [checked]="isSelected(row.id)"
+                    [attr.aria-label]="'Select ' + row.employeeName"
+                    (change)="toggleRow(row.id, $event.checked)"
+                  />
+                </td>
+                <td class="code">{{ row.employeeCode }}</td>
+                <td>
+                  <div class="person">
+                    <span class="avatar" aria-hidden="true">{{ initials(row.employeeName) }}</span>
+                    <span>{{ row.employeeName }}</span>
+                  </div>
+                </td>
+                <td>{{ row.department }}</td>
+                <td>{{ row.shift }}</td>
+                <td>
+                  @if (row.firstIn) {
+                    <span class="time" [class.late]="row.firstInLate">{{ row.firstIn }}</span>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td>
+                  @if (row.lastOut) {
+                    <span class="time">{{ row.lastOut }}</span>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td>{{ row.workingHours || '—' }}</td>
+                <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+                <td class="actions" (click)="$event.stopPropagation()">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="More actions"
+                    [matMenuTriggerFor]="rowMenu"
+                    (menuOpened)="menuRow.set(row)"
+                  >
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="10">
+                  <div class="empty">
+                    <mat-icon>event_busy</mat-icon>
+                    {{ loading() ? 'Loading attendance…' : 'No attendance records match your filters.' }}
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager-bar">
+        <span class="pager-summary">
+          Showing
+          {{ total() ? page() * pageSize() + 1 : 0 }}
+          -
+          {{ (page() + 1) * pageSize() > total() ? total() : (page() + 1) * pageSize() }}
+          of {{ total() | number }} employees
+        </span>
+        <mat-paginator
+          class="pager"
+          [length]="total()"
+          [pageIndex]="page()"
+          [pageSize]="pageSize()"
+          [pageSizeOptions]="[10, 20, 50]"
+          [showFirstLastButtons]="true"
+          (page)="onPage($event)"
+        />
+      </div>
+    </section>
+  </div>
+
+  @if (selected(); as row) {
+    <trishul-attendance-daily-drawer
+      [row]="row"
+      [selectedDate]="selectedDate()"
+      (closed)="closeDetails()"
+      (regularize)="regularize($event)"
+      (addRemark)="addRemark($event)"
+      (viewPunchLog)="viewPunchLog($event)"
+    />
+  }
+</div>
+
+@if (filtersOpen()) {
+  <button type="button" class="filters-backdrop" aria-label="Dismiss filters" (click)="closeFilters()"></button>
+}
+
+<mat-menu #rowMenu="matMenu">
+  <button mat-menu-item type="button" (click)="menuView()">
+    <mat-icon>visibility</mat-icon>
+    View details
+  </button>
+  <button mat-menu-item type="button" (click)="menuRegularize()">
+    <mat-icon>edit_calendar</mat-icon>
+    Regularize
+  </button>
+  <button mat-menu-item type="button" (click)="menuRemark()">
+    <mat-icon>sticky_note_2</mat-icon>
+    Add remark
+  </button>
+  <button mat-menu-item type="button" (click)="menuPunchLog()">
+    <mat-icon>fingerprint</mat-icon>
+    View punch log
+  </button>
+</mat-menu>

@@ -26,6 +26,8 @@ from trishul_api.modules.core.router import router as core_router
 from trishul_api.modules.core.teams.router import router as teams_router
 from trishul_api.modules.core.users.router import router as users_router
 from trishul_api.modules.core.warehouses.router import router as warehouses_router
+from trishul_api.modules.hr.attendance.router import router as attendance_router
+from trishul_api.modules.hr.biometric.router import router as biometric_router
 from trishul_api.modules.hr.leave.router import router as leave_router
 from trishul_api.modules.hr.organization.router import router as organization_router
 from trishul_api.modules.hr.payroll.router import router as salary_component_router
@@ -66,6 +68,8 @@ V1_ROUTERS: list[APIRouter] = [
     presales_router,
     organization_router,
     reporting_router,
+    attendance_router,
+    biometric_router,
     leave_router,
     salary_component_router,
     tada_router,
@@ -116,9 +120,11 @@ def create_app(
         # Fill the Cognito identifiers from Secrets Manager when configured; env values are the fallback.
         resolved = apply_cognito_secret(settings, secrets)
         db_engine = engine or create_db_engine(resolved, secrets)
+        app.state.settings = resolved
         app.state.secret_provider = secrets
         app.state.engine = db_engine
         # Request dependencies run inside the mounted API and read its state.
+        api.state.settings = resolved
         api.state.secret_provider = secrets
         api.state.engine = db_engine
         api.state.token_verifier = token_verifier or create_token_verifier(resolved)

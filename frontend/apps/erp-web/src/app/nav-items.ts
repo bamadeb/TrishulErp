@@ -357,18 +357,72 @@ export const navItems: NavItem[] = [
         icon: 'account_tree',
         route: '/hr/organization',
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+        children: [
+          {
+            label: 'Organization',
+            icon: 'corporate_fare',
+            route: '/hr/organization',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Reporting Structure',
+            icon: 'device_hub',
+            route: '/hr/reporting',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+        ],
       },
       {
-        label: 'Reporting Structure',
-        icon: 'schema',
-        route: '/hr/reporting',
+        label: 'Biometric Management',
+        icon: 'fingerprint',
+        route: '/hr/biometric/dashboard',
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+        children: [
+          {
+            label: 'Biometric Dashboard',
+            icon: 'insights',
+            route: '/hr/biometric/dashboard',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Devices',
+            icon: 'smartphone',
+            route: '/hr/biometric/devices',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Employee Mapping',
+            icon: 'group',
+            route: '/hr/biometric/mapping',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Punch Logs',
+            icon: 'format_list_bulleted',
+            route: '/hr/biometric/punches',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Sync History',
+            icon: 'sync',
+            route: '/hr/biometric/sync-history',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+        ],
       },
       {
         label: 'Attendance Management',
         icon: 'schedule',
-        route: '/hr/attendance',
+        route: '/hr/attendance/daily',
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+        children: [
+          {
+            label: 'Daily Attendance',
+            icon: 'today',
+            route: '/hr/attendance/daily',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+        ],
       },
       {
         label: 'Leave Management',

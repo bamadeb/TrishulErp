@@ -5,9 +5,10 @@ import {
   EMPLOYEE_VIEW_PERMISSIONS,
 } from '@trishul/hr-data-access';
 import { HrDashboardPage } from './dashboard/hr-dashboard.page';
-import { HrPlaceholderPage } from './dashboard/hr-placeholder.page';
 import { OrganizationPage } from './organization/organization.page';
 import { ReportingStructurePage } from './reporting/reporting-structure.page';
+import { AttendanceDailyPage } from './attendance/attendance-daily.page';
+import { biometricRoutes } from './biometric/biometric.routes';
 import { leaveRoutes } from './leave/leave.routes';
 import { payrollRoutes } from './payroll/payroll.routes';
 import { EmployeeFormPage } from './employees/form/employee-form.page';
@@ -55,10 +56,20 @@ export const hrRoutes: Route[] = [
   },
   {
     path: 'attendance',
-    title: 'Attendance',
-    data: { screenTitle: 'Attendance' },
     canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
-    component: HrPlaceholderPage,
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'daily' },
+      {
+        path: 'daily',
+        title: 'Daily Attendance',
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        component: AttendanceDailyPage,
+      },
+    ],
+  },
+  {
+    path: 'biometric',
+    children: biometricRoutes,
   },
   {
     path: 'leave',
