@@ -16,6 +16,10 @@ export interface ListTadaEmployeeTrips$Params {
  * Payroll month, YYYY-MM.
  */
   month: string;
+  fromDate?: (string | null);
+  toDate?: (string | null);
+  status?: (string | null);
+  search?: (string | null);
 }
 
 export function listTadaEmployeeTrips(http: HttpClient, rootUrl: string, params: ListTadaEmployeeTrips$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<TadaTripItem>>> {
@@ -23,6 +27,10 @@ export function listTadaEmployeeTrips(http: HttpClient, rootUrl: string, params:
   if (params) {
     rb.path('employeeId', params.employeeId, {});
     rb.query('month', params.month, {});
+    rb.query('fromDate', params.fromDate, {});
+    rb.query('toDate', params.toDate, {});
+    rb.query('status', params.status, {});
+    rb.query('search', params.search, {});
   }
 
   return http.request(

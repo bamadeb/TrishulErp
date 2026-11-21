@@ -175,7 +175,7 @@
         <mat-label>Brands this user may see</mat-label>
         <mat-select formControlName="principalIds" multiple>
           @for (principal of principals(); track principal.id) {
-          <mat-option [value]="principal.id">{{ principal.name }}</mat-option>
+          <mat-option [value]="principal.id"><span class="brand-option"><span class="brand-name">{{ principal.name }}</span>@if (principal.companyName) {<span class="brand-sep"> – </span><span class="brand-company">{{ principal.companyName }}</span>}</span></mat-option>
           }
         </mat-select>
         <mat-hint

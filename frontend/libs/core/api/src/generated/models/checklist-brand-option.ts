@@ -6,6 +6,7 @@
  * A brand a checklist can be made for (the Brand dropdown).
  */
 export interface ChecklistBrandOption {
+  companyName: (string | null);
   id: number;
   name: string;
 }

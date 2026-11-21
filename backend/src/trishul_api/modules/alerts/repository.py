@@ -28,6 +28,8 @@ from trishul_api.modules.alerts.schemas import (
     MyAlertSummary,
     NamedOption,
 )
+from trishul_api.modules.core.brands.names import BRAND_COMPANY_NAME
+from trishul_api.modules.core.schemas import PrincipalRef
 
 _RULE_SORT: SortColumns = {
     "code": AlertRule.code,
@@ -187,11 +189,13 @@ class AlertRepository:
         ).mappings()
         return [NamedOption.model_validate(r) for r in rows]
 
-    def principals(self) -> list[NamedOption]:
+    def principals(self) -> list[PrincipalRef]:
         rows = self._session.execute(
-            select(Principal.id, Principal.name).where(Principal.is_active).order_by(Principal.name)
+            select(Principal.id, Principal.code, Principal.name, BRAND_COMPANY_NAME)
+            .where(Principal.is_active)
+            .order_by(Principal.name)
         ).mappings()
-        return [NamedOption.model_validate(r) for r in rows]
+        return [PrincipalRef.model_validate(r) for r in rows]
 
     def branches(self) -> list[NamedOption]:
         rows = self._session.execute(

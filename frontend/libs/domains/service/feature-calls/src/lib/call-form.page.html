@@ -22,7 +22,7 @@
         <mat-label>Brand</mat-label>
         <mat-select formControlName="principalId">
           @for (p of principals(); track p.id) {
-          <mat-option [value]="p.id">{{ p.name }}</mat-option>
+          <mat-option [value]="p.id"><span class="brand-option"><span class="brand-name">{{ p.name }}</span>@if (p.companyName) {<span class="brand-sep"> – </span><span class="brand-company">{{ p.companyName }}</span>}</span></mat-option>
           }
         </mat-select>
         <mat-error>Choose a brand.</mat-error>

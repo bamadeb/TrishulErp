@@ -14,8 +14,24 @@ export interface CallVisit {
   canStartReport: boolean;
   engineerName: (string | null);
   id: number;
+
+  /**
+   * True for brands whose report is only notes (findings) and attachments (Tata Hitachi).
+   */
+  isNoteAttachmentOnly: boolean;
   nextAction: ('None' | 'Parts required' | 'Revisit' | 'Escalate' | null);
   plannedDate: (string | null);
+
+  /**
+   * Brand code, e.g. TATA_HITACHI.
+   */
+  principalCode: (string | null);
+
+  /**
+   * The call's brand (core.principal).
+   */
+  principalId: (number | null);
+  principalName: (string | null);
   report: (ReportSummary | null);
   serviceEndedAt: (string | null);
   serviceStartedAt: (string | null);

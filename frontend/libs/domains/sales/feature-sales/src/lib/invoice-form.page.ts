@@ -207,7 +207,7 @@ type DirectLine = ReturnType<typeof directLine>;
             <mat-select formControlName="principalId">
               <mat-option [value]="null">The deliveries' brand</mat-option>
               @for (b of options().brands; track b.id) {
-                <mat-option [value]="b.id">{{ b.name }}</mat-option>
+                <mat-option [value]="b.id"><span class="brand-option"><span class="brand-name">{{ b.name }}</span>@if (b.companyName) {<span class="brand-sep"> – </span><span class="brand-company">{{ b.companyName }}</span>}</span></mat-option>
               }
             </mat-select>
           </mat-form-field>

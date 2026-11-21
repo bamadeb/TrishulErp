@@ -67,3 +67,34 @@ body {
     color: var(--mat-sys-primary);
   }
 }
+
+// Brand dropdowns: the brand name, with its company in small muted text underneath. In the closed select
+// (which shows the option's plain text) the company follows the name after a dash instead.
+.mat-mdc-option:has(.brand-option) {
+  min-height: 3.25rem;
+}
+
+.brand-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  padding-block: 0.25rem;
+  line-height: 1.3;
+
+  .brand-name {
+    font-weight: 500;
+  }
+
+  .brand-company {
+    font-size: 0.75rem;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .brand-sep {
+    display: none;
+  }
+}
+
+.brand-panel {
+  min-width: 16rem;
+}

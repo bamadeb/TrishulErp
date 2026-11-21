@@ -3,7 +3,7 @@
 
 
 /**
- * Totals for the overview cards. Probation has no column yet, so that count stays 0.
+ * Totals for the overview cards. Confirmed and probation use the confirmation date.
  */
 export interface EmployeeCounts {
   active: number;

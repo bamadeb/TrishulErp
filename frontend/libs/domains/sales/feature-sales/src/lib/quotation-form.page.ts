@@ -151,7 +151,7 @@ type QuotationType = NonNullable<QuotationCreate['quotationType']>;
             <mat-label>Brand</mat-label>
             <mat-select formControlName="principalId">
               @for (b of options().brands; track b.id) {
-                <mat-option [value]="b.id">{{ b.name }}</mat-option>
+                <mat-option [value]="b.id"><span class="brand-option"><span class="brand-name">{{ b.name }}</span>@if (b.companyName) {<span class="brand-sep"> – </span><span class="brand-company">{{ b.companyName }}</span>}</span></mat-option>
               }
             </mat-select>
             <mat-error>Choose the brand.</mat-error>

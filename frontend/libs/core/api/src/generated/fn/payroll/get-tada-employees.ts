@@ -23,6 +23,11 @@ export interface GetTadaEmployees$Params {
  * Payroll month, YYYY-MM.
  */
   month?: (string | null);
+
+/**
+ * When false, skip month-total and previous-month scans.
+ */
+  includeSummary?: boolean;
   companyId?: (number | null);
   branchId?: (number | null);
   employeeId?: (number | null);
@@ -42,6 +47,7 @@ export function getTadaEmployees(http: HttpClient, rootUrl: string, params?: Get
     rb.query('sort', params.sort, {});
     rb.query('search', params.search, {});
     rb.query('month', params.month, {});
+    rb.query('includeSummary', params.includeSummary, {});
     rb.query('companyId', params.companyId, {});
     rb.query('branchId', params.branchId, {});
     rb.query('employeeId', params.employeeId, {});

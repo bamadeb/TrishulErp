@@ -21,6 +21,7 @@ from trishul_api.db.models import (
     MachineModel,
     Principal,
 )
+from trishul_api.modules.core.brands.names import BRAND_COMPANY_NAME
 from trishul_api.modules.service.reports.schemas import (
     ChecklistBrandOption,
     ChecklistItemOut,
@@ -47,9 +48,11 @@ class ChecklistTemplateService:
 
     def brands(self) -> "list[ChecklistBrandOption]":
         rows = self._db.execute(
-            select(Principal.id, Principal.name).where(Principal.is_active).order_by(Principal.name)
+            select(Principal.id, Principal.name, BRAND_COMPANY_NAME)
+            .where(Principal.is_active)
+            .order_by(Principal.name)
         )
-        return [ChecklistBrandOption(id=r.id, name=r.name) for r in rows]
+        return [ChecklistBrandOption(id=r.id, name=r.name, company_name=r.company_name) for r in rows]
 
     def get(self, template_id: int) -> ChecklistTemplateOut:
         return self._out(self._template(template_id))

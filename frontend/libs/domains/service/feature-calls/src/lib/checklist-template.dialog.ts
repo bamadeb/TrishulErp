@@ -64,7 +64,7 @@ type ResponseType = ChecklistTemplateOut['items'][number]['responseType'];
             <mat-select formControlName="principalId">
               <mat-option [value]="null">All brands</mat-option>
               @for (p of principals(); track p.id) {
-                <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                <mat-option [value]="p.id"><span class="brand-option"><span class="brand-name">{{ p.name }}</span>@if (p.companyName) {<span class="brand-sep"> – </span><span class="brand-company">{{ p.companyName }}</span>}</span></mat-option>
               }
             </mat-select>
           </mat-form-field>

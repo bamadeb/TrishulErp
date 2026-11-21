@@ -4,6 +4,7 @@ from sqlalchemy import case, select
 from sqlalchemy.orm import Session, aliased
 
 from trishul_api.db.models import Branch, LookupType, LookupValue, Principal, Region, Role
+from trishul_api.modules.core.brands.names import BRAND_COMPANY_NAME
 from trishul_api.modules.core.schemas import BranchRef, LookupValueOut, PrincipalRef
 
 
@@ -37,7 +38,11 @@ class CoreRepository:
         return [BranchRef.model_validate(row) for row in self._session.execute(query)]
 
     def principals(self, ids: Set[int] | None) -> list[PrincipalRef]:
-        query = select(Principal.id, Principal.code, Principal.name).where(Principal.is_active).order_by(Principal.name)
+        query = (
+            select(Principal.id, Principal.code, Principal.name, BRAND_COMPANY_NAME)
+            .where(Principal.is_active)
+            .order_by(Principal.name)
+        )
         if ids is not None:
             query = query.where(Principal.id.in_(ids))
         return [PrincipalRef.model_validate(row) for row in self._session.execute(query)]

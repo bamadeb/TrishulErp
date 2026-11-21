@@ -1,6 +1,8 @@
 import { Route } from '@angular/router';
 import {
   ALERT_RULE_MANAGE_PERMISSION,
+  BRAND_MANAGE_PERMISSION,
+  TRACKING_CONFIG_PERMISSION,
   ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_MANAGE_PERMISSION,
   CUSTOMER_VIEW_PERMISSIONS,
@@ -16,6 +18,8 @@ import {
 import { permissionGuard } from '@trishul/core-auth';
 import { AlertRuleFormPage } from './alert-rule-form.page';
 import { AlertRuleListPage } from './alert-rule-list.page';
+import { BrandListPage } from './brand-list.page';
+import { ConfigurationPage } from './configuration.page';
 import { CustomerFormPage } from './customer-form.page';
 import { CustomerListPage } from './customer-list.page';
 import { DocumentListPage } from './document-list.page';
@@ -47,6 +51,20 @@ export const adminRoutes: Route[] = [
     title: 'User',
     canActivate: [permissionGuard(...USER_VIEW_PERMISSIONS)],
     component: UserFormPage,
+  },
+  {
+    path: 'configuration',
+    title: 'Configuration',
+    canActivate: [
+      permissionGuard(BRAND_MANAGE_PERMISSION, TRACKING_CONFIG_PERMISSION),
+    ],
+    component: ConfigurationPage,
+  },
+  {
+    path: 'brands',
+    title: 'Companies & brands',
+    canActivate: [permissionGuard(BRAND_MANAGE_PERMISSION)],
+    component: BrandListPage,
   },
   {
     path: 'customers',

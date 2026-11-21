@@ -56,7 +56,6 @@ ENTITY_TYPE = "svc.service_report"
 SIGN_PERMISSIONS = ("svc.report.submit", "svc.call.assign")
 MAX_SIGNATURE_BYTES = 1024 * 1024
 # Brands whose service report is only notes (findings) and attachments - no checklist, root cause or sign-off.
-NOTE_ATTACHMENT_ONLY_BRANDS = frozenset({"TATA_HITACHI"})
 _NEXT_STATUS: dict[str, ServiceCallCurrentStatus] = {
     "None": "Report submitted",
     "Escalate": "Report submitted",
@@ -382,7 +381,7 @@ class ServiceReportService:
             "principal_id": call.principal_id,
             "principal_code": code,
             "principal_name": principal.name if principal else None,
-            "is_note_attachment_only": code in NOTE_ATTACHMENT_ONLY_BRANDS,
+            "is_note_attachment_only": principal is not None and not principal.inspection_report_required,
         }
 
     def _check_note_attachment_only(self, report: ServiceReport, data: ServiceReportSubmit) -> None:

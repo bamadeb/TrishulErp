@@ -27,6 +27,8 @@ class PrincipalRef(ApiModel):
     id: int
     code: str
     name: str
+    company_name: str | None = None
+    """The company behind the brand, shown beside the brand name in the dropdowns."""
 
 
 class Me(ApiModel):

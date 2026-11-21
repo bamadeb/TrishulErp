@@ -214,6 +214,7 @@ class ChecklistBrandOption(ApiModel):
 
     id: int
     name: str
+    company_name: str | None = None
 
 
 class ChecklistAnswerType(ApiModel):

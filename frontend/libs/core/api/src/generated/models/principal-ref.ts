@@ -3,6 +3,7 @@
 
 export interface PrincipalRef {
   code: string;
+  companyName: (string | null);
   id: number;
   name: string;
 }

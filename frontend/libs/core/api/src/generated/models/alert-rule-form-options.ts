@@ -3,10 +3,11 @@
 
 import { AlertTypeItem } from '../models/alert-type-item';
 import { NamedOption } from '../models/named-option';
+import { PrincipalRef } from '../models/principal-ref';
 export interface AlertRuleFormOptions {
   alertTypes: Array<AlertTypeItem>;
   branches: Array<NamedOption>;
-  principals: Array<NamedOption>;
+  principals: Array<PrincipalRef>;
   roles: Array<NamedOption>;
   users: Array<NamedOption>;
 }

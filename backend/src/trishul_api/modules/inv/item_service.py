@@ -35,6 +35,7 @@ from trishul_api.db.models import (
     SupplierItemPrice,
     Uom,
 )
+from trishul_api.modules.core.brands.names import BRAND_COMPANY_NAME
 from trishul_api.modules.inv.common import COST_VIEWERS, default_company, now, visible_item, visible_location
 from trishul_api.modules.inv.item_schemas import (
     HsnOption,
@@ -197,14 +198,17 @@ class ItemService:
 
     def form_options(self) -> ItemFormOptions:
         masters = MastersService(self._db, self._actor)
-        principals = select(Principal).where(Principal.is_active).order_by(Principal.name)
+        principals = select(Principal, BRAND_COMPANY_NAME).where(Principal.is_active).order_by(Principal.name)
         if self._actor.principal_ids is not None:
             principals = principals.where(Principal.id.in_(self._actor.principal_ids))
         hsn = self._db.scalars(select(HsnSac).where(HsnSac.is_active).order_by(HsnSac.code)).all()
         return ItemFormOptions(
             categories=masters.categories("active"),
             uoms=masters.uoms("active"),
-            principals=[PrincipalOption.model_validate(p) for p in self._db.scalars(principals).all()],
+            principals=[
+                PrincipalOption(id=p.id, code=p.code, name=p.name, company_name=company)
+                for p, company in self._db.execute(principals).all()
+            ],
             hsn_codes=[HsnOption.model_validate(h) for h in hsn],
         )
 

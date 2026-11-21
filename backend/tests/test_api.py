@@ -27,7 +27,7 @@ class FakeCoreRepository:
             )]
 
     def principals(self, ids: object) -> list[PrincipalRef]:
-        return [PrincipalRef(id=10, code="ATLAS_COPCO", name="Atlas Copco")]
+        return [PrincipalRef(id=10, code="ATLAS_COPCO", name="Atlas Copco", company_name="Atlas Copco India")]
 
     def role_names(self, codes: object) -> list[str]:
         return ["Service Team Lead"]
@@ -142,7 +142,7 @@ def test_me_returns_the_angular_auth_contract(api: FastAPI, client: TestClient, 
                 "regionName": None,
             }
         ],
-        "principals": [{"id": 10, "code": "ATLAS_COPCO", "name": "Atlas Copco"}],
+        "principals": [{"id": 10, "code": "ATLAS_COPCO", "name": "Atlas Copco", "companyName": "Atlas Copco India"}],
     }
 
 

@@ -60,7 +60,7 @@ def db() -> Engine:
     insert_row(engine, "core.company", id=COMPANY, code="TRISHUL", legal_name="Trishul", trade_name="Trishul")
     insert_row(engine, "core.branch", id=BRANCH, company_id=COMPANY, code="BBSR", name="Bhubaneswar")
     insert_row(engine, "core.principal", id=PRINCIPAL, code="TATA_HITACHI", name="Tata Hitachi")
-    insert_row(engine, "core.principal", id=BYD, code="BYD", name="BYD")
+    insert_row(engine, "core.principal", id=BYD, code="BYD", name="BYD", inspection_report_required=True)
     insert_row(
         engine,
         "core.customer",
@@ -527,7 +527,7 @@ def test_reports_of_a_call_and_search(engineer: TestClient) -> None:
 def test_checklist_dropdown_options(lead: TestClient, engineer: TestClient) -> None:
     brands = lead.get("/api/v1/svc/checklist-brands")
     assert brands.status_code == 200, brands.text
-    assert {"id": PRINCIPAL, "name": "Tata Hitachi"} in brands.json()
+    assert {"id": PRINCIPAL, "name": "Tata Hitachi", "companyName": None} in brands.json()
     types = lead.get("/api/v1/svc/checklist-answer-types").json()
     assert [t["value"] for t in types] == ["OK Not OK", "Number", "Text", "Photo"]
     assert types[0]["label"] == "OK / Not OK"

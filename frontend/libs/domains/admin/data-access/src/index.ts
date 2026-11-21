@@ -18,3 +18,6 @@ export * from './lib/documents.api';
 export * from './lib/document-library.store';
 export * from './lib/warehouses.models';
 export * from './lib/warehouses.api';
+export * from './lib/brands.models';
+export * from './lib/brands.api';
+export * from './lib/configuration.api';

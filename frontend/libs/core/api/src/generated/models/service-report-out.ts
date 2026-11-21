@@ -40,11 +40,27 @@ export interface ServiceReportOut {
    * The checklist's guidance note for the engineer.
    */
   inspectionNote: (string | null);
+
+  /**
+   * True for brands whose report is only notes (findings) and attachments (Tata Hitachi).
+   */
+  isNoteAttachmentOnly: boolean;
   isPartsRequired: boolean;
   labourHours: (string | null);
   machineCondition: (string | null);
   machineConditionLookupId: (number | null);
   nextAction: ('None' | 'Parts required' | 'Revisit' | 'Escalate' | null);
+
+  /**
+   * Brand code, e.g. TATA_HITACHI.
+   */
+  principalCode: (string | null);
+
+  /**
+   * The call's brand (core.principal).
+   */
+  principalId: (number | null);
+  principalName: (string | null);
   recommendations: (string | null);
   reportNo: string;
   rowVersion: string;

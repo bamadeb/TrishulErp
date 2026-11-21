@@ -94,8 +94,8 @@ const currentUser: CurrentUser = {
     { id: 3, code: 'NGP', name: 'Nagpur', branchType: 'Branch', warehouseId: null, warehouseName: null, regionId: null, regionName: null },
   ],
   principals: [
-    { id: 1, code: 'ATLAS_COPCO', name: 'Atlas Copco' },
-    { id: 2, code: 'TATA_HITACHI', name: 'Tata Hitachi' },
+    { id: 1, code: 'ATLAS_COPCO', name: 'Atlas Copco', companyName: null },
+    { id: 2, code: 'TATA_HITACHI', name: 'Tata Hitachi', companyName: null },
   ],
 };
 

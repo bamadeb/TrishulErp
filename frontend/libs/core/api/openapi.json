@@ -4146,6 +4146,583 @@
         }
       }
     },
+    "/core/brands": {
+      "get": {
+        "tags": [
+          "brands"
+        ],
+        "summary": "Companies and brands, including inactive ones",
+        "operationId": "list_brands",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BrandItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Brands"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "brands"
+        ],
+        "summary": "Add a brand",
+        "operationId": "create_brand",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/brands/form-options": {
+      "get": {
+        "tags": [
+          "brands"
+        ],
+        "summary": "Dropdown values for the brand form",
+        "operationId": "get_brand_form_options",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandFormOptions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/brands/companies": {
+      "post": {
+        "tags": [
+          "brands"
+        ],
+        "summary": "Add a company",
+        "operationId": "create_brand_company",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandCompanyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyChoice"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/brands/{brandId}": {
+      "patch": {
+        "tags": [
+          "brands"
+        ],
+        "summary": "Change a brand or its company",
+        "operationId": "update_brand",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brandId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Brandid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/brands/{brandId}/deactivate": {
+      "post": {
+        "tags": [
+          "brands"
+        ],
+        "summary": "Mark a brand inactive",
+        "operationId": "deactivate_brand",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brandId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Brandid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/brands/{brandId}/activate": {
+      "post": {
+        "tags": [
+          "brands"
+        ],
+        "summary": "Mark a brand active again",
+        "operationId": "activate_brand",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brandId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Brandid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/alert-types": {
       "get": {
         "tags": [
@@ -16469,6 +17046,340 @@
             }
           }
         }
+      }
+    },
+    "/hr/reporting/employees": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Employees for the reporting structure screen",
+        "operationId": "list_reporting_employees",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportingEmployee"
+                  },
+                  "type": "array",
+                  "title": "Response List Reporting Employees"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/reporting/employees/{employeeId}/history": {
+      "get": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Saved reporting-manager changes for one employee",
+        "operationId": "list_reporting_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Employeeid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReportingHistoryItem"
+                  },
+                  "title": "Response List Reporting History"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/reporting/assignments": {
+      "post": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Save who an employee reports to",
+        "operationId": "create_reporting_assignment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportingAssignmentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingAssignmentSaved"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/reporting/removals": {
+      "post": {
+        "tags": [
+          "reporting"
+        ],
+        "summary": "Clear who an employee reports to",
+        "operationId": "create_reporting_removal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportingRemovalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingAssignmentSaved"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/hr/leave/requests/summary": {
@@ -45583,7 +46494,7 @@
           },
           "principals": {
             "items": {
-              "$ref": "#/components/schemas/NamedOption"
+              "$ref": "#/components/schemas/PrincipalRef"
             },
             "type": "array",
             "title": "Principals"
@@ -48798,6 +49709,317 @@
         ],
         "title": "BranchWarehouseUpdate"
       },
+      "BrandCompanyCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 1,
+            "title": "Code",
+            "description": "Short unique company code, e.g. KASI."
+          },
+          "legalName": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Legalname",
+            "description": "Registered legal name."
+          },
+          "tradeName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tradename",
+            "description": "Shown beside brands; legal name if blank."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "legalName"
+        ],
+        "title": "BrandCompanyCreate"
+      },
+      "BrandCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Code",
+            "description": "Unique brand code, e.g. TATA_HITACHI."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "companyId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyid"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          },
+          "handlesSales": {
+            "type": "boolean",
+            "title": "Handlessales",
+            "default": true
+          },
+          "handlesService": {
+            "type": "boolean",
+            "title": "Handlesservice",
+            "default": true
+          },
+          "handlesParts": {
+            "type": "boolean",
+            "title": "Handlesparts",
+            "default": true
+          },
+          "inspectionReportRequired": {
+            "type": "boolean",
+            "title": "Inspectionreportrequired",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "BrandCreate"
+      },
+      "BrandFormOptions": {
+        "properties": {
+          "companies": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyChoice"
+            },
+            "type": "array",
+            "title": "Companies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "companies"
+        ],
+        "title": "BrandFormOptions"
+      },
+      "BrandItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "companyId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyid"
+          },
+          "companyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyname"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          },
+          "handlesSales": {
+            "type": "boolean",
+            "title": "Handlessales"
+          },
+          "handlesService": {
+            "type": "boolean",
+            "title": "Handlesservice"
+          },
+          "handlesParts": {
+            "type": "boolean",
+            "title": "Handlesparts"
+          },
+          "inspectionReportRequired": {
+            "type": "boolean",
+            "title": "Inspectionreportrequired"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "companyId",
+          "companyName",
+          "website",
+          "handlesSales",
+          "handlesService",
+          "handlesParts",
+          "inspectionReportRequired",
+          "isActive",
+          "rowVersion"
+        ],
+        "title": "BrandItem"
+      },
+      "BrandUpdate": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "companyId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyid"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          },
+          "handlesSales": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handlessales"
+          },
+          "handlesService": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handlesservice"
+          },
+          "handlesParts": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handlesparts"
+          },
+          "inspectionReportRequired": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspectionreportrequired"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BrandUpdate",
+        "description": "Only the fields sent are changed."
+      },
       "BydImportLogDetail": {
         "properties": {
           "id": {
@@ -49705,6 +50927,47 @@
             "type": "boolean",
             "title": "Canstartreport",
             "description": "On site, no report yet, and the user may write it."
+          },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid",
+            "description": "The call's brand (core.principal)."
+          },
+          "principalCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalcode",
+            "description": "Brand code, e.g. TATA_HITACHI."
+          },
+          "principalName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalname"
+          },
+          "isNoteAttachmentOnly": {
+            "type": "boolean",
+            "title": "Isnoteattachmentonly",
+            "description": "True for brands whose report is only notes (findings) and attachments (Tata Hitachi).",
+            "default": false
           }
         },
         "type": "object",
@@ -49719,7 +50982,11 @@
           "serviceEndedAt",
           "nextAction",
           "report",
-          "canStartReport"
+          "canStartReport",
+          "principalId",
+          "principalCode",
+          "principalName",
+          "isNoteAttachmentOnly"
         ],
         "title": "CallVisit",
         "description": "A visit of a service call and its report, if one was started."
@@ -50250,12 +51517,24 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "companyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyname"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "name"
+          "name",
+          "companyName"
         ],
         "title": "ChecklistBrandOption",
         "description": "A brand a checklist can be made for (the Brand dropdown)."
@@ -50626,6 +51905,24 @@
           "items"
         ],
         "title": "ChecklistTemplateUpdate"
+      },
+      "CompanyChoice": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CompanyChoice"
       },
       "CompanyCreate": {
         "properties": {
@@ -67193,6 +68490,94 @@
         ],
         "title": "MineApply"
       },
+      "MineApprovalStep": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "approverName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approvername"
+          },
+          "approverRole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approverrole"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Submitted",
+              "Pending",
+              "Approved",
+              "Rejected",
+              "Upcoming",
+              "Cancelled"
+            ],
+            "title": "Status"
+          },
+          "actedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actedat"
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "approverName",
+          "approverRole",
+          "level",
+          "status",
+          "actedAt",
+          "comments"
+        ],
+        "title": "MineApprovalStep",
+        "description": "One step on the approval timeline for a submitted request."
+      },
       "MineBalances": {
         "properties": {
           "financialYear": {
@@ -67564,12 +68949,46 @@
             ],
             "title": "Currentapprovallevel"
           },
+          "pendingWithName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendingwithname"
+          },
+          "pendingWithRole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendingwithrole"
+          },
+          "needsHrAttention": {
+            "type": "boolean",
+            "title": "Needshrattention",
+            "default": false
+          },
           "history": {
             "items": {
               "$ref": "#/components/schemas/MineStatusEvent"
             },
             "type": "array",
             "title": "History"
+          },
+          "approvalSteps": {
+            "items": {
+              "$ref": "#/components/schemas/MineApprovalStep"
+            },
+            "type": "array",
+            "title": "Approvalsteps"
           }
         },
         "type": "object",
@@ -67588,7 +69007,11 @@
           "approverUserId",
           "actedAt",
           "currentApprovalLevel",
-          "history"
+          "pendingWithName",
+          "pendingWithRole",
+          "needsHrAttention",
+          "history",
+          "approvalSteps"
         ],
         "title": "MineRequestDetail"
       },
@@ -67687,6 +69110,33 @@
               }
             ],
             "title": "Currentapprovallevel"
+          },
+          "pendingWithName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendingwithname"
+          },
+          "pendingWithRole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendingwithrole"
+          },
+          "needsHrAttention": {
+            "type": "boolean",
+            "title": "Needshrattention",
+            "default": false
           }
         },
         "type": "object",
@@ -67704,7 +69154,10 @@
           "isHalfDay",
           "approverUserId",
           "actedAt",
-          "currentApprovalLevel"
+          "currentApprovalLevel",
+          "pendingWithName",
+          "pendingWithRole",
+          "needsHrAttention"
         ],
         "title": "MineRequestItem"
       },
@@ -74851,13 +76304,25 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "companyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyname"
           }
         },
         "type": "object",
         "required": [
           "id",
           "code",
-          "name"
+          "name",
+          "companyName"
         ],
         "title": "PrincipalOption"
       },
@@ -74874,13 +76339,25 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "companyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyname"
           }
         },
         "type": "object",
         "required": [
           "id",
           "code",
-          "name"
+          "name",
+          "companyName"
         ],
         "title": "PrincipalRef"
       },
@@ -77097,6 +78574,325 @@
           "submittedAt"
         ],
         "title": "ReportSummary"
+      },
+      "ReportingAssignmentCreate": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "reportingManagerId": {
+            "type": "integer",
+            "title": "Reportingmanagerid"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Effectivefrom"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "employeeId",
+          "reportingManagerId",
+          "effectiveFrom"
+        ],
+        "title": "ReportingAssignmentCreate",
+        "description": "Sets the live reporting manager and keeps the date and remarks."
+      },
+      "ReportingAssignmentSaved": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "previousManagerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousmanagerid"
+          },
+          "managerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Managerid"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Effectivefrom"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "previousManagerId",
+          "managerId",
+          "effectiveFrom",
+          "remarks"
+        ],
+        "title": "ReportingAssignmentSaved"
+      },
+      "ReportingEmployee": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "designation": {
+            "type": "string",
+            "title": "Designation"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "managerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Managerid"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Inactive"
+            ],
+            "title": "Status"
+          },
+          "managerEffectiveFrom": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Managereffectivefrom"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "designation",
+          "department",
+          "location",
+          "managerId",
+          "level",
+          "status",
+          "managerEffectiveFrom"
+        ],
+        "title": "ReportingEmployee",
+        "description": "One employee on the Reporting Structure screen."
+      },
+      "ReportingHistoryItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "previousManagerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousmanagerid"
+          },
+          "previousManagerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousmanagername"
+          },
+          "managerId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Managerid"
+          },
+          "managerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Managername"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Effectivefrom"
+          },
+          "effectiveTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectiveto"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "changedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changedby"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Closed"
+            ],
+            "title": "Status"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "previousManagerId",
+          "previousManagerName",
+          "managerId",
+          "managerName",
+          "effectiveFrom",
+          "effectiveTo",
+          "remarks",
+          "changedBy",
+          "status",
+          "createdAt"
+        ],
+        "title": "ReportingHistoryItem",
+        "description": "One saved change of an employee's reporting manager."
+      },
+      "ReportingRemovalCreate": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Effectivefrom"
+          },
+          "remarks": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "employeeId",
+          "effectiveFrom",
+          "remarks"
+        ],
+        "title": "ReportingRemovalCreate",
+        "description": "Clears the live reporting manager and keeps the closed assignment."
       },
       "RequestPage": {
         "properties": {
@@ -81065,13 +82861,25 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "companyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyname"
           }
         },
         "type": "object",
         "required": [
           "id",
           "code",
-          "name"
+          "name",
+          "companyName"
         ],
         "title": "SalesOption"
       },
@@ -83662,6 +85470,47 @@
             "title": "Canedit",
             "description": "False once submitted, or for someone who is not on the call."
           },
+          "principalId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalid",
+            "description": "The call's brand (core.principal)."
+          },
+          "principalCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalcode",
+            "description": "Brand code, e.g. TATA_HITACHI."
+          },
+          "principalName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Principalname"
+          },
+          "isNoteAttachmentOnly": {
+            "type": "boolean",
+            "title": "Isnoteattachmentonly",
+            "description": "True for brands whose report is only notes (findings) and attachments (Tata Hitachi).",
+            "default": false
+          },
           "checklist": {
             "items": {
               "$ref": "#/components/schemas/ChecklistAnswer"
@@ -83711,6 +85560,10 @@
           "nextAction",
           "submittedAt",
           "canEdit",
+          "principalId",
+          "principalCode",
+          "principalName",
+          "isNoteAttachmentOnly",
           "checklist",
           "rowVersion"
         ],

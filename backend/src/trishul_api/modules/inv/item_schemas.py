@@ -98,6 +98,7 @@ class PrincipalOption(ApiModel):
     id: int
     code: str
     name: str
+    company_name: str | None = None
 
 
 class HsnOption(ApiModel):

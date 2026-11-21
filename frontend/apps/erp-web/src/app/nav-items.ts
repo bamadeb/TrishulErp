@@ -5,6 +5,8 @@ import {
   ROLE_VIEW_PERMISSIONS,
   TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
+  BRAND_MANAGE_PERMISSION,
+  TRACKING_CONFIG_PERMISSION,
   WAREHOUSE_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
@@ -308,6 +310,18 @@ export const navItems: NavItem[] = [
         icon: 'admin_panel_settings',
         route: '/admin/roles',
         permissions: [...ROLE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Companies & brands',
+        icon: 'business',
+        route: '/admin/brands',
+        permissions: [BRAND_MANAGE_PERMISSION],
+      },
+      {
+        label: 'Configuration',
+        icon: 'tune',
+        route: '/admin/configuration',
+        permissions: [BRAND_MANAGE_PERMISSION, TRACKING_CONFIG_PERMISSION],
       },
       {
         label: 'Teams',

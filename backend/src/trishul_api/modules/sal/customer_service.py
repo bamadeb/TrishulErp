@@ -41,6 +41,7 @@ from trishul_api.db.models import (
     State,
     Uom,
 )
+from trishul_api.modules.core.brands.names import BRAND_COMPANY_NAME
 from trishul_api.modules.inv.common import now, visible_location
 from trishul_api.modules.sal.common import (
     ZERO,
@@ -493,7 +494,9 @@ class CustomerAccountService:
     def form_options(self, scope: RequestScope) -> SalesFormOptions:
         # Every result is read with .all() before the next query: SQL Server allows one open result per connection.
         brands = self._db.execute(
-            select(Principal.id, Principal.code, Principal.name).where(Principal.is_active).order_by(Principal.name)
+            select(Principal.id, Principal.code, Principal.name, BRAND_COMPANY_NAME)
+            .where(Principal.is_active)
+            .order_by(Principal.name)
         ).all()
         branches = self._db.execute(
             select(Branch.id, Branch.code, Branch.name).where(Branch.is_active).order_by(Branch.name)
@@ -514,7 +517,11 @@ class CustomerAccountService:
             .order_by(PaymentTerms.days_before_due, PaymentTerms.code)
         ).all()
         states = self._db.execute(select(State.id, State.gst_state_code, State.name).order_by(State.name)).all()
-        brand_options = [SalesOption(id=i, code=c, name=n) for i, c, n in brands if self._actor.can_see_principal(i)]
+        brand_options = [
+            SalesOption(id=i, code=c, name=n, company_name=company)
+            for i, c, n, company in brands
+            if self._actor.can_see_principal(i)
+        ]
         branch_options = [SalesOption(id=i, code=c, name=n) for i, c, n in branches if self._actor.can_use_branch(i)]
         default_branch = scope.branch_id if scope.branch_id is not None else self._actor.default_branch_id
         return SalesFormOptions(

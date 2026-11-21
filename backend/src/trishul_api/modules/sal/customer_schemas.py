@@ -109,6 +109,8 @@ class SalesOption(ApiModel):
     id: int
     code: str
     name: str
+    company_name: str | None = None
+    """Brands only: the company behind the brand, shown beside its name."""
 
 
 class DispatchLocationOption(ApiModel):

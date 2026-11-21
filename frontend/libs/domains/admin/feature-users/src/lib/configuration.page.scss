@@ -1,0 +1,30 @@
+.intro {
+  margin: 1rem 0 0.5rem;
+  color: var(--mat-sys-on-surface-variant);
+  max-width: 48rem;
+}
+
+.table-card {
+  margin-top: 0.5rem;
+}
+
+.name-cell .muted {
+  max-width: 34rem;
+  white-space: normal;
+}
+
+.value-field {
+  width: 12rem;
+  margin: 0.5rem 0;
+}
+
+.toggle-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.empty {
+  padding: 1.5rem 1rem;
+  color: var(--mat-sys-on-surface-variant);
+}

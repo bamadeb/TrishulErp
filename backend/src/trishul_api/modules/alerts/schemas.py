@@ -11,6 +11,7 @@ from trishul_api.db.models.generated.core import (
     AlertRuleSeverity,
     AlertStatus,
 )
+from trishul_api.modules.core.schemas import PrincipalRef
 
 # ------------------------------------------------------------------ catalogue
 
@@ -153,7 +154,7 @@ class AlertRuleFormOptions(ApiModel):
     alert_types: list[AlertTypeItem]
     roles: list[NamedOption]
     users: list[NamedOption]
-    principals: list[NamedOption]
+    principals: list[PrincipalRef]
     branches: list[NamedOption]
 
 

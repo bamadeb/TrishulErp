@@ -3,6 +3,7 @@
 
 export interface PrincipalOption {
   code: string;
+  companyName: (string | null);
   id: number;
   name: string;
 }
