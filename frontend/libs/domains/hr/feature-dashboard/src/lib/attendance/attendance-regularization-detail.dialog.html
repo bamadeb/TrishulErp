@@ -1,0 +1,84 @@
+<div class="dialog">
+  <header class="head">
+    <div class="title-row">
+      <span class="badge" aria-hidden="true"><mat-icon>visibility</mat-icon></span>
+      <div>
+        <h2>Request Details</h2>
+        <p>Review attendance regularization request #{{ row.id }}.</p>
+      </div>
+    </div>
+    <button mat-icon-button type="button" aria-label="Close" mat-dialog-close>
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <section class="employee" aria-label="Employee">
+    <span class="avatar" [style.background]="row.avatarTone">{{ initials(row.employeeName) }}</span>
+    <div class="copy">
+      <strong>{{ row.employeeName }}</strong>
+      <small>{{ row.employeeCode }} · {{ row.department }} · {{ row.location }}</small>
+    </div>
+    <span [class]="statusClass(row.status)">{{ row.status }}</span>
+  </section>
+
+  <dl class="facts">
+    <div>
+      <dt>Attendance Date</dt>
+      <dd>{{ row.attendanceDate }}</dd>
+    </div>
+    <div>
+      <dt>Request Type</dt>
+      <dd><span [class]="typeClass(row.requestType)">{{ row.requestType }}</span></dd>
+    </div>
+    <div>
+      <dt>Original IN / OUT</dt>
+      <dd>{{ row.originalIn || '—' }} / {{ row.originalOut || '—' }}</dd>
+    </div>
+    <div>
+      <dt>Requested IN / OUT</dt>
+      <dd>{{ row.requestedIn || '—' }} / {{ row.requestedOut || '—' }}</dd>
+    </div>
+    <div>
+      <dt>Submitted On</dt>
+      <dd>{{ row.submittedOn }}</dd>
+    </div>
+    <div>
+      <dt>Attachment</dt>
+      <dd>{{ row.attachmentName || 'None' }}</dd>
+    </div>
+  </dl>
+
+  <section class="block">
+    <h3>Reason</h3>
+    <p>{{ row.reason }}</p>
+  </section>
+
+  @if (row.status !== 'Pending') {
+    <section class="block muted">
+      <h3>Review</h3>
+      <p>
+        {{ row.reviewedBy || '—' }}
+        @if (row.reviewedOn) {
+          · {{ row.reviewedOn }}
+        }
+      </p>
+      @if (row.rejectionReason) {
+        <p class="reject-note">{{ row.rejectionReason }}</p>
+      }
+    </section>
+  }
+
+  <footer class="actions">
+    <button mat-stroked-button type="button" mat-dialog-close>Close</button>
+    @if (row.status === 'Pending') {
+      <button mat-stroked-button type="button" class="reject" (click)="reject()">
+        <mat-icon>close</mat-icon>
+        Reject
+      </button>
+      <button mat-flat-button color="primary" type="button" (click)="approve()">
+        <mat-icon>check</mat-icon>
+        Approve
+      </button>
+    }
+  </footer>
+</div>

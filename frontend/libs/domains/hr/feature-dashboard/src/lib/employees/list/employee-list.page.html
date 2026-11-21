@@ -190,7 +190,10 @@
       <ng-container matColumnDef="fullName">
         <th mat-header-cell *matHeaderCellDef mat-sort-header="fullName">Name</th>
         <td mat-cell *matCellDef="let e">
-          <a class="name" [routerLink]="[e.id]">{{ e.fullName }}</a>
+          <div class="person">
+            <span class="avatar" aria-hidden="true">{{ initials(e.fullName) }}</span>
+            <a class="name" [routerLink]="[e.id]">{{ e.fullName }}</a>
+          </div>
         </td>
       </ng-container>
 

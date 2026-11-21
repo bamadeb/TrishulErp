@@ -1,4 +1,5 @@
 import { DecimalPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,20 +14,20 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
-import { MatChip, MatChipRemove, MatChipSet } from '@angular/material/chips';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatDatepicker, MatDatepickerInput } from '@angular/material/datepicker';
-import { MatFormField, MatLabel, MatPrefix } from '@angular/material/form-field';
+import { MatDialog } from '@angular/material/dialog';
+import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import {
   AttendanceApi,
+  AttendanceSummary,
   DailyAttendancePage,
   DailyAttendanceRow as ApiDailyAttendanceRow,
 } from '@trishul/hr-data-access';
@@ -36,67 +37,64 @@ import {
   catchError,
   debounceTime,
   distinctUntilChanged,
+  filter,
   finalize,
+  forkJoin,
   map,
   of,
   switchMap,
   tap,
 } from 'rxjs';
+import { REGULARIZATION_REQUESTS } from './attendance-daily.mock';
 import { AttendanceDailyDrawer } from './attendance-daily.drawer';
 import {
-  ATTENDANCE_STATUSES,
-  AttendanceHistoryItem,
+  AttendanceRegularizeData,
+  AttendanceRegularizeDialog,
+  RegularizeSubmitResult,
+} from './attendance-regularize.dialog';
+import {
   AttendanceKpi,
-  AttendancePunch,
   AttendanceStatus,
+  ContentTab,
   DailyAttendanceRow,
-  StatusTab,
 } from './attendance.models';
 
-interface AdvancedFilters {
-  department: string;
-  location: string;
-  shift: string;
-  status: AttendanceStatus | '';
-  employeeType: string;
-  reportingManager: string;
-}
-
-interface FilterChip {
-  key: keyof AdvancedFilters;
-  label: string;
-  value: string;
-}
-
-interface QueryState {
-  date: string;
-  page: number;
-  pageSize: number;
-  search: string;
-  statusTab: StatusTab;
-  filters: AdvancedFilters;
-}
-
-const EMPTY_FILTERS: AdvancedFilters = {
-  department: '',
-  location: '',
-  shift: '',
-  status: '',
-  employeeType: '',
-  reportingManager: '',
+const STATUS_ICON: Record<AttendanceStatus, string> = {
+  Present: 'check_circle',
+  Late: 'schedule',
+  'Missing Punch': 'fingerprint',
+  Absent: 'cancel',
+  'On Leave': 'flight_takeoff',
+  'Off Day': 'event_busy',
+  Holiday: 'celebration',
+  WFH: 'home',
 };
+
+const AVATAR_TONES = [
+  '#2563eb',
+  '#db2777',
+  '#ea580c',
+  '#7c3aed',
+  '#0891b2',
+  '#059669',
+  '#c2410c',
+  '#4f46e5',
+  '#be123c',
+  '#0d9488',
+];
 
 const EMPTY_KPI: AttendanceKpi = {
   total: 0,
   present: 0,
+  late: 0,
   absent: 0,
   onLeave: 0,
-  offDay: 0,
-  holiday: 0,
-  late: 0,
-  missingPunch: 0,
+  wfh: 0,
 };
 
+const DAY_PAGE_SIZE = 200;
+
+/** Daily Attendance — wired to GET /hr/attendance/daily (UI structure unchanged). */
 @Component({
   selector: 'trishul-attendance-daily-page',
   imports: [
@@ -104,23 +102,18 @@ const EMPTY_KPI: AttendanceKpi = {
     FormsModule,
     MatButton,
     MatCheckbox,
-    MatChip,
-    MatChipRemove,
-    MatChipSet,
     MatDatepicker,
     MatDatepickerInput,
     MatFormField,
     MatIcon,
     MatIconButton,
     MatInput,
-    MatLabel,
     MatMenu,
     MatMenuItem,
     MatMenuTrigger,
     MatOption,
     MatPaginator,
     MatPrefix,
-    MatProgressBar,
     MatSelect,
     MatTooltip,
     PageHeader,
@@ -135,11 +128,12 @@ const EMPTY_KPI: AttendanceKpi = {
 export class AttendanceDailyPage implements OnInit {
   private readonly api = inject(AttendanceApi);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly query$ = new Subject<QueryState>();
   private readonly picker = viewChild(MatDatepicker);
+  private readonly reload$ = new Subject<void>();
+  private readonly search$ = new Subject<string>();
 
-  protected readonly statuses = ATTENDANCE_STATUSES;
   protected readonly severities: Partial<Record<string, StatusSeverity>> = {
     Present: 'success',
     Late: 'warn',
@@ -148,250 +142,105 @@ export class AttendanceDailyPage implements OnInit {
     'On Leave': 'info',
     'Off Day': 'info',
     Holiday: 'neutral',
+    WFH: 'info',
+    Pending: 'warn',
+    Approved: 'success',
+    Rejected: 'danger',
   };
 
-  protected readonly loading = signal(true);
+  protected readonly regularization = REGULARIZATION_REQUESTS;
+  protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly rows = signal<DailyAttendanceRow[]>([]);
-  protected readonly total = signal(0);
-  protected readonly kpi = signal<AttendanceKpi>(EMPTY_KPI);
+  /** Plain object so existing template bindings (`kpi.total`) stay unchanged. */
+  protected kpi: AttendanceKpi = EMPTY_KPI;
+  protected readonly dayRows = signal<DailyAttendanceRow[]>([]);
   protected readonly departments = signal<string[]>([]);
   protected readonly locations = signal<string[]>([]);
   protected readonly shifts = signal<string[]>([]);
-  protected readonly employeeTypes = signal<string[]>([]);
-  protected readonly managers = signal<string[]>([]);
 
   protected readonly selectedDate = signal(new Date());
-  protected readonly statusTab = signal<StatusTab>('all');
+  protected readonly contentTab = signal<ContentTab>('records');
   protected readonly search = signal('');
-  protected readonly filtersOpen = signal(false);
-  protected readonly draftFilters = signal<AdvancedFilters>({ ...EMPTY_FILTERS });
-  protected readonly appliedFilters = signal<AdvancedFilters>({ ...EMPTY_FILTERS });
+  protected readonly department = signal('');
+  protected readonly location = signal('');
+  protected readonly shift = signal('');
   protected readonly page = signal(0);
   protected readonly pageSize = signal(10);
+  protected readonly selectedIds = signal<Set<number>>(new Set());
   protected readonly selected = signal<DailyAttendanceRow | null>(null);
-  protected readonly selectedIds = signal<ReadonlySet<number>>(new Set());
   protected readonly menuRow = signal<DailyAttendanceRow | null>(null);
 
-  protected readonly pageRows = computed(() => this.rows());
-  protected readonly filterChips = computed((): FilterChip[] => {
-    const filters = this.appliedFilters();
-    const chips: FilterChip[] = [];
-    if (filters.department) chips.push({ key: 'department', label: 'Department', value: filters.department });
-    if (filters.location) chips.push({ key: 'location', label: 'Location', value: filters.location });
-    if (filters.shift) chips.push({ key: 'shift', label: 'Shift', value: filters.shift });
-    if (filters.status) chips.push({ key: 'status', label: 'Status', value: filters.status });
-    if (filters.employeeType) {
-      chips.push({ key: 'employeeType', label: 'Employee Type', value: filters.employeeType });
-    }
-    if (filters.reportingManager) {
-      chips.push({ key: 'reportingManager', label: 'Manager', value: filters.reportingManager });
-    }
-    return chips;
-  });
-  protected readonly activeFilterCount = computed(() => this.filterChips().length);
-  protected readonly allPageSelected = computed(() => {
-    const rows = this.pageRows();
-    if (!rows.length) return false;
-    const selected = this.selectedIds();
-    return rows.every((row) => selected.has(row.id));
-  });
-  protected readonly somePageSelected = computed(() => {
-    const rows = this.pageRows();
-    const selected = this.selectedIds();
-    return rows.some((row) => selected.has(row.id)) && !this.allPageSelected();
-  });
   protected readonly dateLabel = computed(() =>
-    this.selectedDate().toLocaleDateString('en-GB', {
+    new Intl.DateTimeFormat('en-GB', {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
       year: 'numeric',
-    }),
+    }).format(this.selectedDate()),
   );
-  protected readonly tabCounts = computed(() => {
-    const kpi = this.kpi();
-    return {
-      all: kpi.total,
-      present: kpi.present,
-      absent: kpi.absent,
-      leave: kpi.onLeave,
-      offDay: kpi.offDay + kpi.holiday,
-    };
+
+  protected readonly filteredRows = computed(() => {
+    const tab = this.contentTab();
+    return this.dayRows().filter((row) => {
+      if (tab === 'exceptions') {
+        return row.status === 'Late' || row.status === 'Absent' || row.status === 'Missing Punch';
+      }
+      return true;
+    });
+  });
+
+  protected readonly total = computed(() =>
+    this.contentTab() === 'regularization'
+      ? this.regularization.length
+      : this.filteredRows().length,
+  );
+
+  protected readonly pageRows = computed(() => {
+    const start = this.page() * this.pageSize();
+    return this.filteredRows().slice(start, start + this.pageSize());
+  });
+
+  protected readonly pageRequests = computed(() => {
+    const start = this.page() * this.pageSize();
+    return this.regularization.slice(start, start + this.pageSize());
+  });
+
+  protected readonly allPageSelected = computed(() => {
+    const rows = this.pageRows();
+    return rows.length > 0 && rows.every((row) => this.selectedIds().has(row.id));
+  });
+
+  protected readonly somePageSelected = computed(() => {
+    const rows = this.pageRows();
+    const count = rows.filter((row) => this.selectedIds().has(row.id)).length;
+    return count > 0 && count < rows.length;
   });
 
   ngOnInit(): void {
-    this.query$
+    this.reload$
       .pipe(
-        debounceTime(200),
-        distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
         tap(() => {
           this.loading.set(true);
           this.error.set(null);
-          this.rows.set([]);
         }),
-        switchMap((query) =>
-          this.api
-            .listDaily({
-              date: query.date,
-              page: query.page + 1,
-              pageSize: query.pageSize,
-              search: query.search.trim() || undefined,
-              statusTab: query.statusTab,
-              department: query.filters.department || undefined,
-              location: query.filters.location || undefined,
-              shift: query.filters.shift || undefined,
-              status: query.filters.status || undefined,
-              employeeType: query.filters.employeeType || undefined,
-              reportingManager: query.filters.reportingManager || undefined,
-            })
-            .pipe(
-              map((page) => this.normalizePage(page)),
-              catchError(() => {
-                this.error.set('Daily attendance could not be loaded from the server.');
-                return of({
-                  rows: [] as DailyAttendanceRow[],
-                  total: 0,
-                  kpi: EMPTY_KPI,
-                  departments: [] as string[],
-                  locations: [] as string[],
-                  shifts: [] as string[],
-                  employeeTypes: [] as string[],
-                  managers: [] as string[],
-                });
-              }),
-              finalize(() => this.loading.set(false)),
-            ),
-        ),
+        switchMap(() => this.loadDay$()),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((page) => {
-        this.rows.set(page.rows);
-        this.total.set(page.total);
-        this.kpi.set(page.kpi);
-        this.departments.set(page.departments);
-        this.locations.set(page.locations);
-        this.shifts.set(page.shifts);
-        this.employeeTypes.set(page.employeeTypes);
-        this.managers.set(page.managers);
-        const selected = this.selected();
-        if (selected) {
-          const next = page.rows.find((row) => row.id === selected.id) ?? null;
-          this.selected.set(next);
-        }
+      .subscribe();
+
+    this.search$
+      .pipe(debounceTime(350), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => {
+        this.search.set(value);
+        this.page.set(0);
+        this.reload$.next();
       });
 
-    this.emitQuery();
+    this.reload$.next();
   }
 
-  protected shiftDate(days: number): void {
-    const next = new Date(this.selectedDate());
-    next.setDate(next.getDate() + days);
-    this.selectedDate.set(next);
-    this.selected.set(null);
-    this.selectedIds.set(new Set());
-    this.page.set(0);
-    this.emitQuery();
-  }
-
-  protected onDatePicked(value: Date | null): void {
-    if (!value) return;
-    this.selectedDate.set(value);
-    this.selected.set(null);
-    this.selectedIds.set(new Set());
-    this.page.set(0);
-    this.emitQuery();
-  }
-
-  protected openPicker(): void {
-    this.picker()?.open();
-  }
-
-  protected setStatusTab(tab: StatusTab): void {
-    this.statusTab.set(tab);
-    this.page.set(0);
-    this.emitQuery();
-  }
-
-  protected onSearch(value: string): void {
-    this.search.set(value);
-    this.page.set(0);
-    this.emitQuery();
-  }
-
-  protected toggleFilters(): void {
-    if (!this.filtersOpen()) {
-      this.draftFilters.set({ ...this.appliedFilters() });
-    }
-    this.filtersOpen.update((open) => !open);
-  }
-
-  protected closeFilters(): void {
-    this.filtersOpen.set(false);
-    this.draftFilters.set({ ...this.appliedFilters() });
-  }
-
-  protected updateDraft<K extends keyof AdvancedFilters>(key: K, value: AdvancedFilters[K]): void {
-    this.draftFilters.update((current) => ({ ...current, [key]: value }));
-  }
-
-  protected applyFilters(): void {
-    this.appliedFilters.set({ ...this.draftFilters() });
-    this.filtersOpen.set(false);
-    this.page.set(0);
-    this.emitQuery();
-  }
-
-  protected resetFilters(): void {
-    this.draftFilters.set({ ...EMPTY_FILTERS });
-    this.appliedFilters.set({ ...EMPTY_FILTERS });
-    this.page.set(0);
-    this.emitQuery();
-  }
-
-  protected removeChip(key: keyof AdvancedFilters): void {
-    this.appliedFilters.update((current) => ({ ...current, [key]: '' }));
-    this.draftFilters.update((current) => ({ ...current, [key]: '' }));
-    this.page.set(0);
-    this.emitQuery();
-  }
-
-  protected onPage(event: PageEvent): void {
-    this.page.set(event.pageIndex);
-    this.pageSize.set(event.pageSize);
-    this.emitQuery();
-  }
-
-  protected openDetails(row: DailyAttendanceRow): void {
-    this.selected.set(row);
-  }
-
-  protected closeDetails(): void {
-    this.selected.set(null);
-  }
-
-  protected isSelected(id: number): boolean {
-    return this.selectedIds().has(id);
-  }
-
-  protected toggleRow(id: number, checked: boolean): void {
-    this.selectedIds.update((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  protected togglePage(checked: boolean): void {
-    this.selectedIds.update((current) => {
-      const next = new Set(current);
-      for (const row of this.pageRows()) {
-        if (checked) next.add(row.id);
-        else next.delete(row.id);
-      }
-      return next;
-    });
+  protected statusIcon(status: AttendanceStatus): string {
+    return STATUS_ICON[status] ?? 'info';
   }
 
   protected initials(name: string): string {
@@ -402,57 +251,152 @@ export class AttendanceDailyPage implements OnInit {
       .join('');
   }
 
-  protected exportExcel(): void {
-    const filters = this.appliedFilters();
-    this.api
-      .listDaily({
-        date: toIsoDate(this.selectedDate()),
-        page: 1,
-        pageSize: 200,
-        search: this.search().trim() || undefined,
-        statusTab: this.statusTab(),
-        department: filters.department || undefined,
-        location: filters.location || undefined,
-        shift: filters.shift || undefined,
-        status: filters.status || undefined,
-        employeeType: filters.employeeType || undefined,
-        reportingManager: filters.reportingManager || undefined,
-      })
-      .subscribe({
-        next: (page) => {
-          const rows = page.items.map((row) => this.normalizeRow(row));
-          downloadCsv(`daily-attendance-${toIsoDate(this.selectedDate())}.csv`, rows);
-          this.snackBar.open(`Exported ${rows.length} attendance row(s).`, 'OK', { duration: 2500 });
-        },
-        error: () => {
-          this.snackBar.open('Excel export failed. Try again.', 'OK', { duration: 3000 });
-        },
-      });
+  protected shiftDate(delta: number): void {
+    const next = new Date(this.selectedDate());
+    next.setDate(next.getDate() + delta);
+    this.selectedDate.set(next);
+    this.page.set(0);
+    this.selectedIds.set(new Set());
+    this.selected.set(null);
+    this.reload$.next();
+  }
+
+  protected openPicker(): void {
+    this.picker()?.open();
+  }
+
+  protected onDatePicked(value: Date | null): void {
+    if (!value) return;
+    this.selectedDate.set(value);
+    this.page.set(0);
+    this.selectedIds.set(new Set());
+    this.selected.set(null);
+    this.reload$.next();
+  }
+
+  protected setTab(tab: ContentTab): void {
+    this.contentTab.set(tab);
+    this.page.set(0);
+    this.selectedIds.set(new Set());
+  }
+
+  protected onSearch(value: string): void {
+    this.search$.next(value.trim());
+  }
+
+  protected onDepartment(value: string): void {
+    this.department.set(value);
+    this.page.set(0);
+    this.reload$.next();
+  }
+
+  protected onLocation(value: string): void {
+    this.location.set(value);
+    this.page.set(0);
+    this.reload$.next();
+  }
+
+  protected onShift(value: string): void {
+    this.shift.set(value);
+    this.page.set(0);
+    this.reload$.next();
+  }
+
+  protected onPage(event: PageEvent): void {
+    this.page.set(event.pageIndex);
+    this.pageSize.set(event.pageSize);
+  }
+
+  protected isSelected(id: number): boolean {
+    return this.selectedIds().has(id);
+  }
+
+  protected toggleRow(id: number, checked: boolean): void {
+    const next = new Set(this.selectedIds());
+    if (checked) next.add(id);
+    else next.delete(id);
+    this.selectedIds.set(next);
+  }
+
+  protected togglePage(checked: boolean): void {
+    const next = new Set(this.selectedIds());
+    for (const row of this.pageRows()) {
+      if (checked) next.add(row.id);
+      else next.delete(row.id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  protected openDetails(row: DailyAttendanceRow): void {
+    this.selected.set(row);
+  }
+
+  protected closeDetails(): void {
+    this.selected.set(null);
   }
 
   protected refresh(): void {
-    this.page.set(0);
-    this.emitQuery();
+    this.reload$.next();
   }
 
-  protected regularize(row: DailyAttendanceRow): void {
-    this.snackBar.open(
-      `Regularization for ${row.employeeName} is not enabled on this screen yet.`,
-      'OK',
-      { duration: 3000 },
-    );
+  protected exportExcel(): void {
+    const rows = this.filteredRows();
+    if (!rows.length) {
+      this.snackBar.open('No attendance rows to export.', 'OK', { duration: 2200 });
+      return;
+    }
+    downloadCsv(`daily-attendance-${toIsoDate(this.selectedDate())}.csv`, rows);
+    this.snackBar.open(`Exported ${rows.length} attendance row(s).`, 'OK', { duration: 2500 });
   }
 
-  protected addRemark(row: DailyAttendanceRow): void {
-    this.snackBar.open(
-      `Remarks for ${row.employeeName}: ${row.remarks || 'none recorded for this date.'}`,
-      'OK',
-      { duration: 3500 },
-    );
-  }
+  protected regularize(row?: DailyAttendanceRow | null): void {
+    const target = this.resolveRegularizeEmployee(row);
+    const data: AttendanceRegularizeData = {
+      employee: target,
+      attendanceDate: this.selectedDate(),
+      employees: this.dayRows(),
+    };
 
-  protected viewPunchLog(row: DailyAttendanceRow): void {
-    this.selected.set(row);
+    this.dialog
+      .open(AttendanceRegularizeDialog, {
+        data,
+        width: '36rem',
+        maxWidth: '95vw',
+        autoFocus: 'dialog',
+        panelClass: 'attendance-regularize-panel',
+      })
+      .afterClosed()
+      .pipe(filter((result): result is RegularizeSubmitResult => !!result))
+      .subscribe((result) => {
+        this.api
+          .createRegularization({
+            employeeId: result.employeeId,
+            attendanceDate: result.attendanceDate,
+            requestType: result.requestType,
+            requestedIn: result.requestedIn,
+            requestedOut: result.requestedOut,
+            reason: result.reason,
+            attachmentName: result.attachmentName,
+          })
+          .pipe(
+            catchError((err: unknown) => {
+              const message =
+                err instanceof HttpErrorResponse
+                  ? extractHttpError(err)
+                  : 'Failed to submit regularization.';
+              this.snackBar.open(message, 'OK', { duration: 4000 });
+              return of(null);
+            }),
+          )
+          .subscribe((saved) => {
+            if (!saved) return;
+            this.snackBar.open(
+              `Regularization submitted for ${saved.employeeName}.`,
+              'OK',
+              { duration: 2800 },
+            );
+          });
+      });
   }
 
   protected menuView(): void {
@@ -461,88 +405,135 @@ export class AttendanceDailyPage implements OnInit {
   }
 
   protected menuRegularize(): void {
-    const row = this.menuRow();
-    if (row) this.regularize(row);
+    this.regularize(this.menuRow());
   }
 
-  protected menuRemark(): void {
-    const row = this.menuRow();
-    if (row) this.addRemark(row);
+  private resolveRegularizeEmployee(
+    row?: DailyAttendanceRow | null,
+  ): DailyAttendanceRow | null {
+    if (row) return row;
+    const selectedIds = [...this.selectedIds()];
+    if (selectedIds.length === 1) {
+      return this.dayRows().find((item) => item.id === selectedIds[0]) ?? null;
+    }
+    return this.selected();
   }
 
-  protected menuPunchLog(): void {
-    const row = this.menuRow();
-    if (row) this.viewPunchLog(row);
-  }
-
-  private emitQuery(): void {
-    this.query$.next({
-      date: toIsoDate(this.selectedDate()),
-      page: this.page(),
-      pageSize: this.pageSize(),
-      search: this.search(),
-      statusTab: this.statusTab(),
-      filters: { ...this.appliedFilters() },
-    });
-  }
-
-  private normalizePage(page: DailyAttendancePage) {
-    return {
-      rows: page.items.map((row) => this.normalizeRow(row)),
-      total: page.total,
-      kpi: {
-        total: page.summary.total,
-        present: page.summary.present,
-        absent: page.summary.absent,
-        onLeave: page.summary.onLeave,
-        offDay: page.summary.offDay,
-        holiday: page.summary.holiday,
-        late: page.summary.late,
-        missingPunch: page.summary.missingPunch,
-      },
-      departments: page.filterOptions.departments,
-      locations: page.filterOptions.locations,
-      shifts: page.filterOptions.shifts,
-      employeeTypes: page.filterOptions.employeeTypes,
-      managers: page.filterOptions.managers,
+  private loadDay$() {
+    const date = toIsoDate(this.selectedDate());
+    const base = {
+      date,
+      pageSize: DAY_PAGE_SIZE,
+      statusTab: 'all' as const,
+      includePunches: true,
+      includeHistory: false,
+      search: this.search() || undefined,
+      department: this.department() || undefined,
+      location: this.location() || undefined,
+      shift: this.shift() || undefined,
     };
+
+    return this.api.listDaily({ ...base, page: 1 }).pipe(
+      switchMap((first) => {
+        const pages = Math.max(1, Math.ceil(first.total / Math.max(first.pageSize, 1)));
+        if (pages <= 1) return of(first);
+        const rest = Array.from({ length: pages - 1 }, (_, index) =>
+          this.api.listDaily({ ...base, page: index + 2 }),
+        );
+        return forkJoin(rest).pipe(
+          map((extra) => ({
+            ...first,
+            items: [...first.items, ...extra.flatMap((page) => page.items)],
+          })),
+        );
+      }),
+      tap((page) => this.applyPage(page)),
+      catchError((err: unknown) => {
+        const message =
+          err instanceof HttpErrorResponse
+            ? extractHttpError(err)
+            : 'Failed to load daily attendance.';
+        this.error.set(message);
+        this.dayRows.set([]);
+        this.kpi = EMPTY_KPI;
+        this.snackBar.open(message, 'OK', { duration: 4000 });
+        return of(null);
+      }),
+      finalize(() => this.loading.set(false)),
+    );
   }
 
-  private normalizeRow(row: ApiDailyAttendanceRow): DailyAttendanceRow {
-    return {
-      id: row.id,
-      employeeId: row.employeeId,
-      employeeCode: row.employeeCode,
-      employeeName: row.employeeName,
-      department: row.department,
-      location: row.location,
-      shift: row.shift,
-      employeeType: row.employeeType,
-      reportingManager: row.reportingManager,
-      firstIn: formatTime(row.firstIn),
-      lastOut: formatTime(row.lastOut),
-      firstInLate: row.firstInLate,
-      workingHours: row.workingHours,
-      status: row.status as AttendanceStatus,
-      remarks: row.remarks ?? '',
-      punches: (row.punches ?? []).map(
-        (punch): AttendancePunch => ({
-          kind: punch.kind,
-          at: formatTime(punch.at) ?? punch.at,
-          device: punch.device,
-        }),
-      ),
-      history: (row.history ?? []).map(
-        (item): AttendanceHistoryItem => ({
-          date: item.date,
-          status: item.status as AttendanceStatus,
-          firstIn: formatTime(item.firstIn),
-          lastOut: formatTime(item.lastOut),
-          workingHours: item.workingHours,
-        }),
-      ),
-    };
+  private applyPage(page: DailyAttendancePage): void {
+    this.kpi = mapKpi(page.summary);
+    this.departments.set(page.filterOptions.departments);
+    this.locations.set(page.filterOptions.locations);
+    this.shifts.set(page.filterOptions.shifts);
+    this.dayRows.set(page.items.map(normalizeRow));
+    this.error.set(null);
+
+    const selected = this.selected();
+    if (selected) {
+      const refreshed = this.dayRows().find((row) => row.id === selected.id) ?? null;
+      this.selected.set(refreshed);
+    }
   }
+}
+
+function mapKpi(summary: AttendanceSummary): AttendanceKpi {
+  const presentOnly = Math.max(0, summary.present - summary.late - summary.missingPunch);
+  return {
+    total: summary.total,
+    present: presentOnly,
+    late: summary.late,
+    absent: summary.absent,
+    onLeave: summary.onLeave,
+    // API has no WFH yet; keep the existing KPI card at zero.
+    wfh: 0,
+  };
+}
+
+function normalizeRow(row: ApiDailyAttendanceRow): DailyAttendanceRow {
+  return {
+    id: row.id,
+    employeeId: row.employeeId,
+    employeeCode: row.employeeCode,
+    employeeName: row.employeeName,
+    department: row.department,
+    location: row.location,
+    shift: row.shift,
+    employeeType: row.employeeType,
+    reportingManager: row.reportingManager,
+    firstIn: formatTime(row.firstIn),
+    lastOut: formatTime(row.lastOut),
+    firstInLate: row.firstInLate,
+    workingHours: row.workingHours,
+    status: row.status,
+    remarks: row.remarks,
+    avatarTone: avatarTone(row.employeeId || row.id),
+    punches: row.punches ?? [],
+    history: (row.history ?? []).map((item) => ({
+      date: item.date,
+      status: item.status,
+      firstIn: formatTime(item.firstIn),
+      lastOut: formatTime(item.lastOut),
+      workingHours: item.workingHours,
+    })),
+  };
+}
+
+function formatTime(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+}
+
+function avatarTone(id: number): string {
+  return AVATAR_TONES[Math.abs(id) % AVATAR_TONES.length]!;
 }
 
 function toIsoDate(value: Date): string {
@@ -552,13 +543,6 @@ function toIsoDate(value: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function formatTime(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-}
-
 function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
   const header = [
     'Emp ID',
@@ -566,36 +550,31 @@ function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
     'Department',
     'Location',
     'Shift',
-    'Employee Type',
-    'Reporting Manager',
     'In Time',
     'Out Time',
-    'Work Hours',
+    'Worked Hours',
     'Status',
     'Remarks',
   ];
-  const lines = [
-    header.join(','),
-    ...rows.map((row) =>
-      [
-        row.employeeCode,
-        row.employeeName,
-        row.department,
-        row.location,
-        row.shift,
-        row.employeeType,
-        row.reportingManager,
-        row.firstIn ?? '',
-        row.lastOut ?? '',
-        row.workingHours ?? '',
-        row.status,
-        row.remarks,
-      ]
-        .map(csvEscape)
-        .join(','),
-    ),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const body = rows.map((row) =>
+    [
+      row.employeeCode,
+      row.employeeName,
+      row.department,
+      row.location,
+      row.shift,
+      row.firstIn ?? '',
+      row.lastOut ?? '',
+      row.workingHours ?? '',
+      row.status,
+      row.remarks,
+    ]
+      .map(csvEscape)
+      .join(','),
+  );
+  const blob = new Blob([[header.join(','), ...body].join('\n')], {
+    type: 'text/csv;charset=utf-8',
+  });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -605,6 +584,15 @@ function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
 }
 
 function csvEscape(value: string): string {
-  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  if (/[",\n]/.test(value)) return `"${value.replaceAll('"', '""')}"`;
   return value;
+}
+
+function extractHttpError(err: HttpErrorResponse): string {
+  const detail = err.error?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (err.status === 401) return 'Sign in required to load attendance.';
+  if (err.status === 403) return 'You do not have permission to view attendance.';
+  if (err.status === 0) return 'Cannot reach the API server.';
+  return `Failed to load daily attendance (${err.status || 'error'}).`;
 }

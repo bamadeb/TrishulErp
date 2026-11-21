@@ -97,5 +97,74 @@ def test_weekly_off_without_punches():
         punches=[],
     )
     assert status == "Off Day"
-    assert first_in is None and last_out is None and late is False and hours is None
     assert remarks == "Weekly off"
+    assert first_in is None and last_out is None and late is False and hours is None
+
+
+def test_muster_status_codes_and_hours_parse():
+    from trishul_api.modules.hr.attendance.service import _status_to_muster_code
+
+    assert _status_to_muster_code("Present") == "P"
+    assert _status_to_muster_code("Late") == "L"
+    assert _status_to_muster_code("Missing Punch") == "P"
+    assert _status_to_muster_code("Absent") == "A"
+    assert _status_to_muster_code("On Leave") == "PL"
+    assert _status_to_muster_code("Holiday") == "H"
+    assert _status_to_muster_code("Off Day") == "OFF"
+
+    service = AttendanceService.__new__(AttendanceService)
+    assert service._parse_hours_minutes("7h 15m") == 7 * 60 + 15
+    assert service._parse_hours_minutes(None) == 0
+
+
+def test_exception_detection_absent_late_missing():
+    service = AttendanceService.__new__(AttendanceService)
+    service._repo = type("R", (), {"holiday_applies": lambda self, h, b, s: True})()
+    day = date(2026, 11, 19)  # Wednesday
+    shift = _shift()
+
+    absent = service._detect_exception(
+        day=day,
+        employee=_employee(),
+        shift=shift,
+        holidays=[],
+        leave=None,
+        punches=[],
+    )
+    assert absent is not None and absent[0] == "Absent"
+
+    missing = service._detect_exception(
+        day=day,
+        employee=_employee(),
+        shift=shift,
+        holidays=[],
+        leave=None,
+        punches=[PunchSource(1, datetime(2026, 11, 19, 9, 1), "IN", "Gate")],
+    )
+    assert missing is not None and missing[0] == "Missing Punch"
+
+    late = service._detect_exception(
+        day=day,
+        employee=_employee(),
+        shift=shift,
+        holidays=[],
+        leave=None,
+        punches=[
+            PunchSource(1, datetime(2026, 11, 19, 9, 40), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 19, 18, 5), "OUT", "Gate"),
+        ],
+    )
+    assert late is not None and late[0] == "Late Arrival"
+
+    early = service._detect_exception(
+        day=day,
+        employee=_employee(),
+        shift=shift,
+        holidays=[],
+        leave=None,
+        punches=[
+            PunchSource(1, datetime(2026, 11, 19, 9, 2), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 19, 15, 0), "OUT", "Gate"),
+        ],
+    )
+    assert early is not None and early[0] == "Early Exit"

@@ -1,0 +1,182 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Home</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Attendance Dashboard</strong>
+</nav>
+
+<trishul-page-header
+  title="Attendance Dashboard"
+  subtitle="Real-time attendance overview, trends and exceptions."
+>
+  <div class="date-nav" aria-label="Dashboard date">
+    <button mat-icon-button type="button" aria-label="Previous day" (click)="shiftDate(-1)">
+      <mat-icon>chevron_left</mat-icon>
+    </button>
+    <button type="button" class="date-btn" disabled>
+      <mat-icon>calendar_today</mat-icon>
+      <span>{{ dateLabel() }}</span>
+    </button>
+    <button mat-icon-button type="button" aria-label="Next day" (click)="shiftDate(1)">
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+</trishul-page-header>
+
+<section class="kpis" aria-label="Attendance KPIs">
+  @for (card of kpiCards; track card.id) {
+    <article class="kpi" [attr.data-tone]="card.tone">
+      <span class="icon"><mat-icon>{{ card.icon }}</mat-icon></span>
+      <div>
+        <span>{{ card.label }}</span>
+        <strong>
+          {{ card.value | number }}
+          @if (card.percent != null) {
+            <em>{{ card.percent | number: '1.1-1' }}%</em>
+          }
+        </strong>
+      </div>
+    </article>
+  }
+</section>
+
+<section class="charts" aria-label="Attendance charts">
+  <article class="panel overview">
+    <h2>Attendance Overview</h2>
+    <div class="overview-body">
+      <svg viewBox="0 0 120 120" class="donut" role="img" aria-label="Attendance rate donut">
+        <g transform="rotate(-90 60 60)">
+          <circle cx="60" cy="60" r="42" class="ring" />
+          @for (slice of slices(); track slice.label) {
+            <circle
+              cx="60"
+              cy="60"
+              r="42"
+              class="slice"
+              [style.stroke]="slice.color"
+              [attr.stroke-dasharray]="slice.dash"
+              [attr.stroke-dashoffset]="slice.offset"
+            />
+          }
+        </g>
+        <text x="60" y="56" text-anchor="middle" class="donut-value">
+          {{ attendanceRate | number: '1.1-1' }}%
+        </text>
+        <text x="60" y="72" text-anchor="middle" class="donut-caption">Attendance Rate</text>
+      </svg>
+      <ul class="legend">
+        @for (slice of slices(); track slice.label) {
+          <li>
+            <i [style.background]="slice.color"></i>
+            <span>{{ slice.label }}</span>
+            <strong>{{ slice.count | number }}</strong>
+            <em>{{ slice.percent | number: '1.1-1' }}%</em>
+          </li>
+        }
+      </ul>
+    </div>
+  </article>
+
+  <article class="panel trend">
+    <h2>Attendance Trend (Last 7 Days)</h2>
+    <svg viewBox="0 0 280 100" class="trend-chart" role="img" aria-label="Attendance trend">
+      <defs>
+        <linearGradient id="attendanceTrendFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0754b8" stop-opacity="0.22" />
+          <stop offset="100%" stop-color="#0754b8" stop-opacity="0.02" />
+        </linearGradient>
+      </defs>
+      <polygon [attr.points]="trendArea()" fill="url(#attendanceTrendFill)" />
+      <polyline [attr.points]="trendLine()" />
+      @for (point of trend; track point.label; let i = $index) {
+        <text
+          [attr.x]="12 + (i / 6) * 256"
+          [attr.y]="12"
+          text-anchor="middle"
+          class="point-label"
+        >
+          {{ point.percent | number: '1.1-1' }}%
+        </text>
+      }
+    </svg>
+    <div class="trend-labels">
+      @for (point of trend; track point.label) {
+        <span>{{ point.label }}</span>
+      }
+    </div>
+  </article>
+</section>
+
+<section class="bottom" aria-label="Department exceptions and actions">
+  <article class="panel departments">
+    <div class="panel-head">
+      <h2>Attendance by Department</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Department</th>
+            <th>Employees</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Attendance %</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of departments; track row.id) {
+            <tr>
+              <td class="name">{{ row.department }}</td>
+              <td>{{ row.employees | number }}</td>
+              <td>{{ row.present | number }}</td>
+              <td>{{ row.absent | number }}</td>
+              <td>
+                <div class="pct">
+                  <strong>{{ row.attendancePct | number: '1.1-1' }}%</strong>
+                  <span class="bar" aria-hidden="true">
+                    <i [style.width.%]="row.attendancePct"></i>
+                  </span>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="panel exceptions">
+    <div class="panel-head">
+      <h2>Today's Exceptions</h2>
+      <a routerLink="/hr/attendance/exceptions">View All</a>
+    </div>
+    <p class="total">{{ exceptionsTotal | number }} open exceptions</p>
+    <ul>
+      @for (item of exceptions; track item.id) {
+        <li>
+          <a [routerLink]="item.route" [attr.data-tone]="item.tone">
+            <span class="icon"><mat-icon>{{ item.icon }}</mat-icon></span>
+            <span class="label">{{ item.label }}</span>
+            <strong>{{ item.count | number }}</strong>
+            <mat-icon class="chev">chevron_right</mat-icon>
+          </a>
+        </li>
+      }
+    </ul>
+  </article>
+
+  <article class="panel actions">
+    <div class="panel-head">
+      <h2>Quick Actions</h2>
+    </div>
+    <nav>
+      @for (action of actions; track action.id) {
+        <a [routerLink]="action.route">
+          <span class="icon"><mat-icon>{{ action.icon }}</mat-icon></span>
+          <span>{{ action.label }}</span>
+        </a>
+      }
+    </nav>
+  </article>
+</section>

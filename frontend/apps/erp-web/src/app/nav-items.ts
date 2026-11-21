@@ -427,13 +427,49 @@ export const navItems: NavItem[] = [
       {
         label: 'Attendance Management',
         icon: 'schedule',
-        route: '/hr/attendance/daily',
+        route: '/hr/attendance/dashboard',
         permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
         children: [
+          {
+            label: 'Attendance Dashboard',
+            icon: 'insights',
+            route: '/hr/attendance/dashboard',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
           {
             label: 'Daily Attendance',
             icon: 'today',
             route: '/hr/attendance/daily',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Monthly Muster',
+            icon: 'calendar_month',
+            route: '/hr/attendance/monthly-muster',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Attendance Exceptions',
+            icon: 'report_problem',
+            route: '/hr/attendance/exceptions',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Attendance Regularization',
+            icon: 'edit_calendar',
+            route: '/hr/attendance/regularization',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Shift & Attendance Rules',
+            icon: 'rule',
+            route: '/hr/attendance/rules',
+            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Attendance Finalization',
+            icon: 'verified',
+            route: '/hr/attendance/finalization',
             permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
           },
         ],

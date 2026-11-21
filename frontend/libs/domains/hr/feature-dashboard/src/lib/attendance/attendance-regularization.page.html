@@ -1,0 +1,314 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Home</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Regularization</strong>
+</nav>
+
+<trishul-page-header
+  title="Attendance Regularization"
+  subtitle="Review and manage attendance correction requests."
+>
+  <button mat-flat-button color="primary" type="button" (click)="openRegularize()">
+    <mat-icon>add</mat-icon>
+    Regularize Attendance
+  </button>
+</trishul-page-header>
+
+<section class="kpis" aria-label="Regularization summary">
+  <article class="kpi tone-total">
+    <span class="icon"><mat-icon>groups</mat-icon></span>
+    <div>
+      <span>Total Requests</span>
+      <strong>{{ kpi().total | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-pending">
+    <span class="icon"><mat-icon>schedule</mat-icon></span>
+    <div>
+      <span>Pending</span>
+      <strong>{{ kpi().pending | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-approved">
+    <span class="icon"><mat-icon>check_circle</mat-icon></span>
+    <div>
+      <span>Approved</span>
+      <strong>{{ kpi().approved | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-rejected">
+    <span class="icon"><mat-icon>cancel</mat-icon></span>
+    <div>
+      <span>Rejected</span>
+      <strong>{{ kpi().rejected | number }}</strong>
+    </div>
+  </article>
+</section>
+
+<section class="card" [class.loading]="loading()">
+  <div class="tabs" role="tablist" aria-label="Regularization views">
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'pending'"
+      [attr.aria-selected]="contentTab() === 'pending'"
+      (click)="setTab('pending')"
+    >
+      Pending <span>{{ tabCounts().pending | number }}</span>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'approved'"
+      [attr.aria-selected]="contentTab() === 'approved'"
+      (click)="setTab('approved')"
+    >
+      Approved <span>{{ tabCounts().approved | number }}</span>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'rejected'"
+      [attr.aria-selected]="contentTab() === 'rejected'"
+      (click)="setTab('rejected')"
+    >
+      Rejected <span>{{ tabCounts().rejected | number }}</span>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'all'"
+      [attr.aria-selected]="contentTab() === 'all'"
+      (click)="setTab('all')"
+    >
+      All Requests <span>{{ tabCounts().total | number }}</span>
+    </button>
+  </div>
+
+  <div class="toolbar" aria-label="Regularization filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        type="search"
+        placeholder="Search by Employee ID / Name"
+        aria-label="Search by Employee ID / Name"
+        [ngModel]="search()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select
+        [ngModel]="department()"
+        (ngModelChange)="onDepartment($event)"
+        aria-label="Department"
+      >
+        <mat-option value="">Department: All</mat-option>
+        @for (item of departments(); track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select
+        [ngModel]="location()"
+        (ngModelChange)="onLocation($event)"
+        aria-label="Location"
+      >
+        <mat-option value="">Location: All</mat-option>
+        @for (item of locations(); track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter type">
+      <mat-select
+        [ngModel]="requestType()"
+        (ngModelChange)="onRequestType($event)"
+        aria-label="Request Type"
+      >
+        <mat-option value="">Request Type: All</mat-option>
+        @for (item of requestTypes; track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="range">
+      <mat-label>Date range</mat-label>
+      <mat-date-range-input [rangePicker]="picker">
+        <input
+          matStartDate
+          [ngModel]="rangeStart()"
+          (ngModelChange)="setRangeStart($event)"
+          aria-label="From date"
+        />
+        <input
+          matEndDate
+          [ngModel]="rangeEnd()"
+          (ngModelChange)="setRangeEnd($event)"
+          aria-label="To date"
+        />
+      </mat-date-range-input>
+      <mat-datepicker-toggle matIconSuffix [for]="picker" />
+      <mat-date-range-picker #picker />
+    </mat-form-field>
+
+    <div class="toolbar-actions">
+      <button
+        mat-icon-button
+        type="button"
+        class="refresh"
+        matTooltip="Refresh"
+        aria-label="Refresh regularization list"
+        (click)="refresh()"
+      >
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="check">
+            <mat-checkbox
+              [checked]="allPageSelected()"
+              [indeterminate]="somePageSelected()"
+              [disabled]="!pageRows().length"
+              aria-label="Select all requests on this page"
+              (change)="togglePage($event.checked)"
+            />
+          </th>
+          <th class="code">Emp ID</th>
+          <th class="name-col">Employee Name</th>
+          <th class="dept">Department</th>
+          <th class="date">Attendance Date</th>
+          <th class="req-type">Request Type</th>
+          <th class="times">Original IN/OUT</th>
+          <th class="times">Requested IN/OUT</th>
+          <th class="reason">Reason</th>
+          <th class="submitted">Submitted On</th>
+          <th class="status-col">Status</th>
+          <th class="actions-col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pageRows(); track row.id) {
+          <tr>
+            <td class="check">
+              <mat-checkbox
+                [checked]="isSelected(row.id)"
+                [attr.aria-label]="'Select ' + row.employeeName"
+                (change)="toggleRow(row.id, $event.checked)"
+              />
+            </td>
+            <td class="code">{{ row.employeeCode }}</td>
+            <td class="name-col">
+              <div class="person">
+                <span class="avatar" aria-hidden="true" [style.background]="row.avatarTone">
+                  {{ initials(row.employeeName) }}
+                </span>
+                <button type="button" class="name" (click)="viewDetails(row)">
+                  {{ row.employeeName }}
+                </button>
+              </div>
+            </td>
+            <td class="dept">{{ row.department }}</td>
+            <td class="date">{{ row.attendanceDate }}</td>
+            <td class="req-type">
+              <span [class]="typeClass(row.requestType)">{{ row.requestType }}</span>
+            </td>
+            <td class="times">
+              <span class="time">{{ row.originalIn || '—' }}</span>
+              <span class="sep">/</span>
+              <span class="time">{{ row.originalOut || '—' }}</span>
+            </td>
+            <td class="times">
+              <span class="time">{{ row.requestedIn || '—' }}</span>
+              <span class="sep">/</span>
+              <span class="time">{{ row.requestedOut || '—' }}</span>
+            </td>
+            <td class="reason" [matTooltip]="row.reason">{{ row.reason }}</td>
+            <td class="submitted">{{ row.submittedOn }}</td>
+            <td class="status-col">
+              <span [class]="statusClass(row.status)">{{ row.status }}</span>
+            </td>
+            <td class="actions">
+              <button
+                mat-icon-button
+                type="button"
+                class="view"
+                matTooltip="View details"
+                aria-label="View details"
+                (click)="viewDetails(row)"
+              >
+                <mat-icon>visibility</mat-icon>
+              </button>
+              @if (row.status === 'Pending') {
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="approve"
+                  matTooltip="Approve"
+                  aria-label="Approve request"
+                  (click)="approve(row)"
+                >
+                  <mat-icon>check_circle</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="reject"
+                  matTooltip="Reject"
+                  aria-label="Reject request"
+                  (click)="reject(row)"
+                >
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="12">
+              <div class="empty">
+                <mat-icon>event_busy</mat-icon>
+                @if (loading()) {
+                  Loading regularization requests…
+                } @else {
+                  No regularization requests match your filters.
+                }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager-bar">
+    <span class="pager-summary">
+      Showing
+      {{ total() ? page() * pageSize() + 1 : 0 }}
+      –
+      {{ (page() + 1) * pageSize() > total() ? total() : (page() + 1) * pageSize() }}
+      of {{ total() | number }} requests
+    </span>
+    <mat-paginator
+      class="pager"
+      [length]="total()"
+      [pageIndex]="page()"
+      [pageSize]="pageSize()"
+      [pageSizeOptions]="[10, 20, 50]"
+      [showFirstLastButtons]="true"
+      (page)="onPage($event)"
+    />
+  </div>
+</section>
