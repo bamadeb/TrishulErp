@@ -72,6 +72,9 @@ ALERT_TYPE = "SVC_PART_REQUEST"
 # The call's status once the office has saved a quotation for its requested parts.
 QUOTATION_SENT: ServiceCallCurrentStatus = "Quotation sent"
 _DEFAULT_GST = Decimal(18)
+# The same parts asked again by the same user on the same call and visit within this time are a resend of a
+# request whose reply was lost (slow network: the app timed out and the engineer tapped again), not a new one.
+REPEAT_WINDOW = timedelta(minutes=10)
 _SORTS = {"createdAt": ServicePartRequest.id, "callNo": ServiceCall.call_no, "status": ServicePartRequest.status}
 
 
@@ -105,6 +108,12 @@ class PartRequestService:
         uoms = self._uoms({u for u in unit_of.values() if u is not None})
 
         now = _now()
+        repeat = self._recent_identical_request(call.id, data, unit_of, items, now)
+        if repeat:
+            # The app resent a request whose reply it never got (slow network): return what was saved, once.
+            log.info("Part request on call %s repeated within %s; returning the saved rows", call.id, REPEAT_WINDOW)
+            return [self._out(row, call, items.get(row.item_id) if row.item_id else None, uoms) for row in repeat]
+
         rows: list[ServicePartRequest] = []
         for index, part in enumerate(data.parts):
             item = items.get(part.item_id) if part.item_id is not None else None
@@ -130,6 +139,66 @@ class PartRequestService:
         self._raise_alert(call.id, min(r.id for r in rows))
         self._db.commit()
         return [self._out(row, call, items.get(row.item_id) if row.item_id else None, uoms) for row in rows]
+
+    def _recent_identical_request(
+        self,
+        call_id: int,
+        data: PartRequestCreate,
+        unit_of: dict[int, int | None],
+        items: dict[int, Item],
+        now: datetime,
+    ) -> list[ServicePartRequest]:
+        """The rows of this user's request on this call and visit, made within REPEAT_WINDOW, with exactly the
+        same parts, quantities, units, chargeability and required-by date; empty when there is none. One request's
+        rows share their created_at, which tells requests apart."""
+
+        def signature(
+            item_id: int | None, description: str | None, quantity: Decimal, uom_id: int | None, chargeable: bool
+        ) -> tuple[Any, ...]:
+            return (item_id, (description or "").strip(), Decimal(str(quantity)).normalize(), uom_id, chargeable)
+
+        wanted = sorted(
+            (
+                signature(
+                    part.item_id,
+                    part.part_description or (items[part.item_id].description if part.item_id in items else None),
+                    part.quantity,
+                    unit_of[index],
+                    part.is_chargeable,
+                )
+                for index, part in enumerate(data.parts)
+            ),
+            key=repr,
+        )
+        visit = (
+            ServicePartRequest.service_visit_id.is_(None)
+            if data.service_visit_id is None
+            else ServicePartRequest.service_visit_id == data.service_visit_id
+        )
+        recent = self._db.scalars(
+            select(ServicePartRequest)
+            .where(
+                ServicePartRequest.service_call_id == call_id,
+                ServicePartRequest.created_by_user_id == self._actor.id,
+                ServicePartRequest.created_at >= now - REPEAT_WINDOW,
+                ServicePartRequest.is_active,
+                visit,
+            )
+            .order_by(ServicePartRequest.id)
+        ).all()
+        by_request: dict[datetime, list[ServicePartRequest]] = {}
+        for row in recent:
+            by_request.setdefault(row.created_at, []).append(row)
+        for rows in reversed(list(by_request.values())):  # newest request first
+            if rows[0].required_by_date != data.required_by_date:
+                continue
+            got = sorted(
+                (signature(r.item_id, r.part_description, r.quantity, r.uom_id, r.is_chargeable) for r in rows),
+                key=repr,
+            )
+            if got == wanted:
+                return rows
+        return []
 
     def of_call(self, call_id: int) -> list[PartRequestListItem]:
         """Every part requested on a call (for the engineer's app and the call screen)."""

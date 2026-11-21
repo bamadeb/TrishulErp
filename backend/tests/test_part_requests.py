@@ -1,6 +1,7 @@
 """Parts requests against a service call: route -> service -> SQL (SQLite)."""
 
 from collections.abc import Iterator
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -206,3 +207,40 @@ def test_no_requests_on_a_finished_call(engineer: TestClient) -> None:
 def test_permission_is_required(settings: Settings, db: Engine) -> None:
     with client_for(settings, db, 1, ENGINEER, {"svc.call.view.assigned"}) as c:
         assert c.post(URL, json={"parts": [{"itemId": OIL, "quantity": 1}]}).status_code == 403
+
+
+def test_a_resent_request_is_saved_only_once(engineer: TestClient, db: Engine) -> None:
+    # The app timed out on a slow network and the engineer tapped again: same parts, same call and visit.
+    body = {
+        "serviceVisitId": VISIT,
+        "requiredByDate": "2026-11-20",
+        "parts": [{"itemId": FILTER, "quantity": 2}, {"partDescription": "Seal kit", "quantity": 1, "uomId": NOS}],
+    }
+    first = engineer.post(URL, json=body)
+    again = engineer.post(URL, json={**body, "parts": list(reversed(body["parts"]))})  # order does not matter
+    assert first.status_code == again.status_code == 200
+    assert sorted(p["id"] for p in again.json()) == sorted(p["id"] for p in first.json())
+    with Session(db) as s:
+        assert len(s.scalars(select(ServicePartRequest)).all()) == 2
+
+
+def test_a_different_request_is_a_new_one(engineer: TestClient, db: Engine) -> None:
+    body = {"serviceVisitId": VISIT, "parts": [{"itemId": FILTER, "quantity": 2}]}
+    assert engineer.post(URL, json=body).status_code == 200
+    assert engineer.post(URL, json={**body, "parts": [{"itemId": FILTER, "quantity": 3}]}).status_code == 200
+    assert engineer.post(URL, json={**body, "requiredByDate": "2026-12-01"}).status_code == 200
+    assert engineer.post(URL, json={"parts": body["parts"]}).status_code == 200  # no visit
+    with Session(db) as s:
+        assert len(s.scalars(select(ServicePartRequest)).all()) == 4
+
+
+def test_the_same_parts_asked_later_are_a_new_request(engineer: TestClient, db: Engine) -> None:
+    body = {"serviceVisitId": VISIT, "parts": [{"itemId": OIL, "quantity": 1}]}
+    assert engineer.post(URL, json=body).status_code == 200
+    with Session(db) as s:
+        for row in s.scalars(select(ServicePartRequest)):
+            row.created_at = row.created_at - timedelta(minutes=11)
+        s.commit()
+    assert engineer.post(URL, json=body).status_code == 200
+    with Session(db) as s:
+        assert len(s.scalars(select(ServicePartRequest)).all()) == 2
