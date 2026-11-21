@@ -275,6 +275,17 @@ class CallTripHistoryItem(ApiModel):
     device_platform: str | None = None
     device_os_version: str | None = None
     device_app_version: str | None = None
+    untracked_km: float | None = Field(
+        None,
+        description="Straight-line km of the stretches with no GPS (the phone recorded nothing for 2+ minutes "
+        "over 0.5+ km). The GPS distance counts them as straight lines, so it is short by roughly the road "
+        "detour. None for trips without a GPS trail.",
+    )
+    needs_review: bool = Field(
+        False,
+        description="True for a completed GPS trip with at least 1 km untracked and no distance adjustment yet: "
+        "a Team Lead should check the kilometres.",
+    )
     row_version: RowVersion
 
 
@@ -284,6 +295,15 @@ class RoutePoint(ApiModel):
     longitude: float
     accuracy_m: float | None
     is_mock_location: bool
+
+
+class GpsGapItem(ApiModel):
+    """A stretch with no GPS: the phone stopped recording (power saving, the app closed) and the path is unknown."""
+
+    started_at: UtcDateTime = Field(description="Last good fix before the gap.")
+    ended_at: UtcDateTime = Field(description="First good fix after the gap.")
+    minutes: int
+    straight_km: float = Field(description="Straight line between the two fixes; the road is usually longer.")
 
 
 class GpsQuality(ApiModel):
@@ -296,6 +316,11 @@ class GpsQuality(ApiModel):
     mock_location_count: int = Field(description="Points flagged as fake GPS.")
     first_recorded_at: UtcDateTime | None
     last_recorded_at: UtcDateTime | None
+    gaps: list[GpsGapItem] = Field(
+        default_factory=list,
+        description="Stretches where the phone recorded no usable fix for 2+ minutes over 0.5+ km, oldest first.",
+    )
+    untracked_km: float = Field(0.0, description="Sum of the gaps' straight-line km.")
 
 
 class TripRoute(ApiModel):

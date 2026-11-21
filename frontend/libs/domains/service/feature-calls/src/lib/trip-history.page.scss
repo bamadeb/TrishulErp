@@ -137,6 +137,17 @@ td {
     color: var(--trishul-info);
     background: var(--trishul-info-container);
   }
+
+  // A trip with a large stretch without GPS: its kilometres need a Team Lead's check.
+  &.review {
+    color: var(--mat-sys-error);
+    background: var(--mat-sys-error-container);
+    cursor: help;
+  }
+}
+
+.warn-text {
+  color: #b45309;
 }
 
 .dist-cell {
@@ -384,6 +395,30 @@ td {
   .bad {
     color: var(--mat-sys-error);
   }
+
+  // The no-GPS stretches under the trail check, and the note under the Google Maps link.
+  .gap-list {
+    margin: 0 0 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--mat-sys-corner-small);
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+    font: var(--mat-sys-body-medium);
+    display: grid;
+    gap: 0.25rem;
+
+    .muted {
+      font: var(--mat-sys-body-small);
+      color: inherit;
+      opacity: 0.85;
+    }
+  }
+
+  .maps-note {
+    margin: 0.35rem 0 0;
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
 }
 
 .route-map {
@@ -424,6 +459,25 @@ td {
     stroke-width: 3;
     stroke-dasharray: 2 7;
     stroke-linecap: round;
+  }
+
+  // "21 min no GPS" on a stretch where the phone recorded nothing.
+  .gap-label,
+  .gap-label-halo {
+    font: 600 13px / 1 system-ui, sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+
+  .gap-label-halo {
+    fill: #fff;
+    stroke: #fff;
+    stroke-width: 5;
+    stroke-linejoin: round;
+  }
+
+  .gap-label {
+    fill: #b91c1c;
   }
 
   .raw-line {

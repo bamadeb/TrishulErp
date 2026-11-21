@@ -50772,6 +50772,24 @@
             ],
             "title": "Deviceappversion"
           },
+          "untrackedKm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Untrackedkm",
+            "description": "Straight-line km of the stretches with no GPS (the phone recorded nothing for 2+ minutes over 0.5+ km). The GPS distance counts them as straight lines, so it is short by roughly the road detour. None for trips without a GPS trail."
+          },
+          "needsReview": {
+            "type": "boolean",
+            "title": "Needsreview",
+            "description": "True for a completed GPS trip with at least 1 km untracked and no distance adjustment yet: a Team Lead should check the kilometres.",
+            "default": false
+          },
           "rowVersion": {
             "type": "string",
             "title": "Rowversion"
@@ -50811,6 +50829,8 @@
           "devicePlatform",
           "deviceOsVersion",
           "deviceAppVersion",
+          "untrackedKm",
+          "needsReview",
           "rowVersion"
         ],
         "title": "CallTripHistoryItem",
@@ -61049,6 +61069,40 @@
         ],
         "title": "GpsDiagnosticUploadResult"
       },
+      "GpsGapItem": {
+        "properties": {
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startedat",
+            "description": "Last good fix before the gap."
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Endedat",
+            "description": "First good fix after the gap."
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          },
+          "straightKm": {
+            "type": "number",
+            "title": "Straightkm",
+            "description": "Straight line between the two fixes; the road is usually longer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "startedAt",
+          "endedAt",
+          "minutes",
+          "straightKm"
+        ],
+        "title": "GpsGapItem",
+        "description": "A stretch with no GPS: the phone stopped recording (power saving, the app closed) and the path is unknown."
+      },
       "GpsPointInput": {
         "properties": {
           "recordedAt": {
@@ -61181,6 +61235,20 @@
               }
             ],
             "title": "Lastrecordedat"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/GpsGapItem"
+            },
+            "type": "array",
+            "title": "Gaps",
+            "description": "Stretches where the phone recorded no usable fix for 2+ minutes over 0.5+ km, oldest first."
+          },
+          "untrackedKm": {
+            "type": "number",
+            "title": "Untrackedkm",
+            "description": "Sum of the gaps' straight-line km.",
+            "default": 0.0
           }
         },
         "type": "object",
@@ -61191,7 +61259,9 @@
           "poorAccuracyCount",
           "mockLocationCount",
           "firstRecordedAt",
-          "lastRecordedAt"
+          "lastRecordedAt",
+          "gaps",
+          "untrackedKm"
         ],
         "title": "GpsQuality",
         "description": "Quality of the whole GPS trail (never of the thinned-out points returned for drawing)."

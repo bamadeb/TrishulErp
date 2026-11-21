@@ -1,0 +1,28 @@
+<trishul-page-header
+  title="Biometric Management"
+  subtitle="Monitor biometric devices, sync attendance and manage employee mapping."
+>
+  <button mat-stroked-button type="button" disabled [attr.aria-label]="todayLabel">
+    <mat-icon>calendar_today</mat-icon>
+    Today, {{ todayLabel }}
+  </button>
+  <button mat-flat-button color="primary" type="button" (click)="syncNow()">
+    <mat-icon>sync</mat-icon>
+    Sync Now
+  </button>
+</trishul-page-header>
+
+<nav class="tabs" aria-label="Biometric sections">
+  @for (tab of tabs; track tab.route) {
+    <a
+      [routerLink]="tab.route"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      <mat-icon>{{ tab.icon }}</mat-icon>
+      {{ tab.label }}
+    </a>
+  }
+</nav>
+
+<router-outlet />

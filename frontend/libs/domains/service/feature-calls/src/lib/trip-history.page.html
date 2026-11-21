@@ -79,6 +79,17 @@
               @if (trip.isDistanceAdjusted) {
                 <span class="tag adj">Adjusted</span>
               }
+              @if (trip.needsReview) {
+                <span
+                  class="tag review"
+                  [matTooltip]="
+                    'About ' + fmtKm(trip.untrackedKm) +
+                    ' km of this trip had no GPS (the phone stopped recording, e.g. power saving or the app closed). ' +
+                    'The GPS distance counts it as a straight line, so it is likely short: check the kilometres and adjust.'
+                  "
+                  >Needs review</span
+                >
+              }
               @if (trip.vehicleType && !trip.isGpsTracked) {
                 <span class="tag veh" [class.hand]="!trip.isGpsTracked">{{ trip.vehicleType }}</span>
               }
@@ -131,6 +142,9 @@
               }
               @if (distanceSource(trip); as source) {
                 <div class="why">{{ source }}</div>
+              }
+              @if (trip.untrackedKm && trip.untrackedKm >= 1) {
+                <div class="why warn-text">≈ {{ fmtKm(trip.untrackedKm) }} km without GPS</div>
               }
             }
           </td>
@@ -429,6 +443,12 @@
                   <polyline class="line-halo" [attr.points]="p" />
                   <polyline class="line" [attr.points]="p" />
                 }
+                @for (g of m.gaps; track $index) {
+                  @if (g.label) {
+                    <text class="gap-label-halo" [attr.x]="g.mid.x" [attr.y]="g.mid.y">{{ g.label }}</text>
+                    <text class="gap-label" [attr.x]="g.mid.x" [attr.y]="g.mid.y">{{ g.label }}</text>
+                  }
+                }
                 @for (p of m.mock; track $index) {
                   <circle class="mock" [attr.cx]="p.x" [attr.cy]="p.y" r="3" />
                 }
@@ -450,7 +470,7 @@
                 }
                 @if (m.gaps.length) {
                   <span
-                    matTooltip="No good GPS fix on this stretch (weak signal, e.g. indoors or just after starting), so the real path is unknown. The distance counts it as a straight line, so it can come out a little short."
+                    matTooltip="No good GPS fix on this stretch: a weak signal (indoors, just after starting), or the phone stopped recording (power saving, the app closed). The real path is unknown and the distance counts it as a straight line, so it comes out short."
                     ><i class="gap"></i> No good GPS</span
                   >
                 }
@@ -473,6 +493,13 @@
                   Open in Google Maps
                 </a>
               </div>
+              @if (route.quality.gaps.length) {
+                <p class="maps-note">
+                  <mat-icon inline>info</mat-icon>
+                  Google Maps draws its own road route through the stretches without GPS. That part is
+                  Google's estimate, not where the engineer was tracked.
+                </p>
+              }
             } @else {
               <p class="muted">No GPS points were recorded for this trip.</p>
             }
@@ -509,6 +536,8 @@
                     <span class="chip warn">No data</span>
                   } @else if (route.quality.mockLocationCount > 0) {
                     <span class="chip bad">Fake GPS seen</span>
+                  } @else if (route.quality.gaps.length) {
+                    <span class="chip bad">GPS lost</span>
                   } @else if (route.quality.poorAccuracyCount > 0) {
                     <span class="chip warn">Some weak fixes</span>
                   } @else {
@@ -517,6 +546,22 @@
                 </dd>
               </div>
             </dl>
+            @if (route.quality.gaps.length) {
+              <div class="gap-list" role="note">
+                @for (gap of route.quality.gaps; track gap.startedAt) {
+                  <div>
+                    <mat-icon inline>gps_off</mat-icon>
+                    GPS lost {{ gap.startedAt | date: 'HH:mm' }}–{{ gap.endedAt | date: 'HH:mm' }}
+                    ({{ gap.minutes }} min, ≈ {{ fmtKm(gap.straightKm) }} km straight line not tracked)
+                  </div>
+                }
+                <div class="muted">
+                  The phone recorded no position here, usually because of power saving or the app being
+                  closed. The GPS distance counts these stretches as straight lines, so the road distance
+                  is longer.
+                </div>
+              </div>
+            }
           }
 
           @if (store.syncStatus(); as sync) {

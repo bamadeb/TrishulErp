@@ -42,6 +42,11 @@ export interface CallTripHistoryItem {
   lastLatitude: (number | null);
   lastLongitude: (number | null);
   mapDistanceKm: (number | null);
+
+  /**
+   * True for a completed GPS trip with at least 1 km untracked and no distance adjustment yet: a Team Lead should check the kilometres.
+   */
+  needsReview: boolean;
   remarks: (string | null);
   rowVersion: string;
   startAt: string;
@@ -54,6 +59,11 @@ export interface CallTripHistoryItem {
   startLongitude: number;
   status: string;
   tripType: string;
+
+  /**
+   * Straight-line km of the stretches with no GPS (the phone recorded nothing for 2+ minutes over 0.5+ km). The GPS distance counts them as straight lines, so it is short by roughly the road detour. None for trips without a GPS trail.
+   */
+  untrackedKm: (number | null);
 
   /**
    * How the trip was made, e.g. Own bike, Public transport.

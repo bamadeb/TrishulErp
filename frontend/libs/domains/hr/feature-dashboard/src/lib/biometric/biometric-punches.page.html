@@ -1,0 +1,112 @@
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (error()) {
+  <p class="error">{{ error() }}</p>
+}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Punch Logs</h2>
+    <div class="head-actions">
+      <span class="muted count">{{ total() | number }} record{{ total() === 1 ? '' : 's' }}</span>
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="filters" aria-label="Punch log filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        type="search"
+        placeholder="Search employee, device or location"
+        aria-label="Search employee, device or location"
+        [ngModel]="search()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="type">
+      <mat-label>Type</mat-label>
+      <mat-select
+        panelClass="biometric-punch-type-panel"
+        [ngModel]="punchType()"
+        (ngModelChange)="onPunchType($event)"
+        aria-label="Punch type"
+      >
+        <mat-option value="">All types</mat-option>
+        <mat-option value="IN">IN</mat-option>
+        <mat-option value="OUT">OUT</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Date</th>
+          <th>Punch Time</th>
+          <th>Type</th>
+          <th>Device</th>
+          <th>Location</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            <td>
+              <span class="person">
+                <span class="avatar" aria-hidden="true">{{ initials(row.employeeName) }}</span>
+                <span class="who">
+                  <strong>{{ row.employeeCode || row.biometricUserId }}</strong>
+                  <small>
+                    {{ row.employeeName || 'Unmapped' }}
+                    @if (row.departmentName) {
+                      · {{ row.departmentName }}
+                    }
+                  </small>
+                </span>
+              </span>
+            </td>
+            <td>{{ row.punchedAt | date: 'd MMM y' }}</td>
+            <td>{{ row.punchedAt | date: 'h:mm a' }}</td>
+            <td>
+              @if (row.punchType) {
+                <trishul-status-badge [status]="row.punchType" [severities]="severities" />
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+            <td>{{ row.deviceName || '—' }}</td>
+            <td>{{ row.deviceLocation || '—' }}</td>
+            <td>{{ row.source }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7">
+              <div class="empty">
+                <mat-icon>fingerprint</mat-icon>
+                {{ loading() ? 'Loading punch logs…' : 'No punch logs match your filters.' }}
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <mat-paginator
+    class="pager"
+    [length]="total()"
+    [pageIndex]="page()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="[10, 20, 50]"
+    (page)="onPage($event)"
+  />
+</section>

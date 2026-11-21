@@ -13,6 +13,12 @@ from trishul_api.db.models.generated import __all__ as _generated
 
 # Hand-written until the generator is re-run against the migrated DB (see trk.py).
 from trishul_api.db.models.asc import ContractVisitDay
+from trishul_api.db.models.biometric import (
+    BiometricDevice,
+    BiometricEmployeeMapping,
+    BiometricPunchLog,
+    BiometricSyncLog,
+)
 from trishul_api.db.models.machine import MachineEngineer
 from trishul_api.db.models.leave import (
     LeaveAttendanceClass,
@@ -50,6 +56,10 @@ from trishul_api.db.models.trk import (
 __all__ = [
     "Audited",
     "Base",
+    "BiometricDevice",
+    "BiometricEmployeeMapping",
+    "BiometricPunchLog",
+    "BiometricSyncLog",
     "ContractVisitDay",
     "LeaveAttendanceClass",
     "LeaveBalanceTransaction",

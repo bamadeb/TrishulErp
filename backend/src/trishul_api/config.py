@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     # Background jobs (the TrishulJobs service): how often scheduled alert rules are evaluated.
     alert_job_interval_seconds: int = 60
 
+    # Biometric (eSSL) integration. Sync stays off until official API docs and Secrets Manager
+    # credentials are provided. Only the secret *id* lives here — never the secret value.
+    biometric_sync_enabled: bool = False
+    biometric_default_secret_id: str | None = None
+
     @property
     def cognito_issuer(self) -> str:
         return f"https://cognito-idp.{self.cognito_region}.amazonaws.com/{self.cognito_user_pool_id}"

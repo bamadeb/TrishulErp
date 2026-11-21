@@ -193,6 +193,7 @@ export type { GpsDiagnosticEventInput } from './models/gps-diagnostic-event-inpu
 export type { GpsDiagnosticItem } from './models/gps-diagnostic-item';
 export type { GpsDiagnosticUploadResult } from './models/gps-diagnostic-upload-result';
 export type { GpsPointInput } from './models/gps-point-input';
+export type { GpsGapItem } from './models/gps-gap-item';
 export type { GpsQuality } from './models/gps-quality';
 export type { GpsUploadResult } from './models/gps-upload-result';
 export type { GradeCreate } from './models/grade-create';
