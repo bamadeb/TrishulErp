@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -8,7 +8,7 @@ import { DailyAttendanceRow } from './attendance.models';
 /** Lightweight details drawer for Daily Attendance UI mock. */
 @Component({
   selector: 'trishul-attendance-daily-drawer',
-  imports: [DatePipe, MatButton, MatIcon, MatIconButton, StatusBadge],
+  imports: [DatePipe, DecimalPipe, MatButton, MatIcon, MatIconButton, StatusBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './attendance-daily.drawer.html',
   styleUrl: './attendance-daily.drawer.scss',
@@ -29,6 +29,15 @@ export class AttendanceDailyDrawer {
     Holiday: 'neutral',
     WFH: 'info',
   };
+
+  /** Google Maps at the punch point (mobile face punches carry their GPS fix). */
+  protected mapLink(latitude: number, longitude: number): string {
+    return `https://www.google.com/maps?q=${latitude},${longitude}`;
+  }
+
+  protected formatDistance(metres: number): string {
+    return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`;
+  }
 
   protected initials(name: string): string {
     return name

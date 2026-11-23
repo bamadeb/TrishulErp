@@ -21,6 +21,7 @@ from trishul_api.db.models import (
     Holiday,
     LeaveRequest,
     Shift,
+    WorkLocation,
 )
 
 _WEEKDAY = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
@@ -53,11 +54,26 @@ class ShiftAssignment:
 
 
 @dataclass(frozen=True, slots=True)
+class PunchLocation:
+    """Where a mobile face punch was made (biometric punches have none: the device is the place)."""
+
+    latitude: float
+    longitude: float
+    accuracy_m: float | None
+    place: str | None
+    """The nearest work location of the employee's policy, if any."""
+    inside_office: bool | None
+    distance_m: float | None
+    fake_gps: bool
+
+
+@dataclass(frozen=True, slots=True)
 class PunchSource:
     employee_id: int
     punched_at: datetime
     punch_type: str | None
     device_name: str | None
+    location: PunchLocation | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,7 +217,19 @@ class AttendanceRepository:
         punches: punched_at is Indian clock time, as the shift and day comparisons here expect, while
         attendance_punch.effective_at holds UTC."""
         rows = self._db.execute(
-            select(AttendancePunch.employee_id, AttendancePunch.effective_at, AttendancePunch.punch_type)
+            select(
+                AttendancePunch.employee_id,
+                AttendancePunch.effective_at,
+                AttendancePunch.punch_type,
+                AttendancePunch.latitude,
+                AttendancePunch.longitude,
+                AttendancePunch.gps_accuracy_m,
+                WorkLocation.name,
+                AttendancePunch.inside_geofence,
+                AttendancePunch.distance_m,
+                AttendancePunch.is_mock_location,
+            )
+            .outerjoin(WorkLocation, WorkLocation.id == AttendancePunch.work_location_id)
             .where(AttendancePunch.is_active == True)  # noqa: E712
             .where(AttendancePunch.status == "Present")
             .where(AttendancePunch.effective_at >= start - _IST_OFFSET)
@@ -213,6 +241,17 @@ class AttendanceRepository:
                 punched_at=row[1] + _IST_OFFSET,
                 punch_type=str(row[2]).upper(),
                 device_name="Mobile app (face)",
+                location=PunchLocation(
+                    latitude=float(row[3]),
+                    longitude=float(row[4]),
+                    accuracy_m=float(row[5]) if row[5] is not None else None,
+                    place=row[6],
+                    inside_office=row[7],
+                    distance_m=float(row[8]) if row[8] is not None else None,
+                    fake_gps=bool(row[9]),
+                )
+                if row[3] is not None and row[4] is not None
+                else None,
             )
             for row in rows
         ]

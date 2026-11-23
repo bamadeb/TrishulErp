@@ -1,11 +1,22 @@
 """Request and response models for Daily Attendance."""
 
-from datetime import date, datetime
-from typing import Literal
+from datetime import date, datetime, timedelta, timezone
+from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import AfterValidator, Field
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, UtcDateTime
+
+IST = timezone(timedelta(hours=5, minutes=30), "IST")
+
+
+def _as_india(value: datetime) -> datetime:
+    return value.replace(tzinfo=IST) if value.tzinfo is None else value
+
+
+IndiaDateTime = Annotated[datetime, AfterValidator(_as_india)]
+"""A punch time. Daily attendance works in Indian clock time (punched_at, hr.attendance.check_in_at,
+shift start/end), so these are sent with +05:30. Sent as UTC, the browser showed them 5.5 h late."""
 
 AttendanceDisplayStatus = Literal[
     "Present",
@@ -33,17 +44,31 @@ class DailyAttendanceQuery(PageQuery):
     include_punches: bool = True
 
 
+class AttendancePunchLocationOut(ApiModel):
+    """Where a mobile face punch was made; null for biometric punches."""
+
+    latitude: float
+    longitude: float
+    accuracy_m: float | None
+    place: str | None
+    """Nearest work location of the employee's policy."""
+    inside_office: bool | None
+    distance_m: float | None
+    fake_gps: bool
+
+
 class AttendancePunchOut(ApiModel):
     kind: PunchKind
-    at: UtcDateTime
+    at: IndiaDateTime
     device: str
+    location: AttendancePunchLocationOut | None = None
 
 
 class AttendanceHistoryOut(ApiModel):
     date: date
     status: AttendanceDisplayStatus
-    first_in: UtcDateTime | None = None
-    last_out: UtcDateTime | None = None
+    first_in: IndiaDateTime | None = None
+    last_out: IndiaDateTime | None = None
     working_hours: str | None = None
 
 
@@ -57,8 +82,8 @@ class DailyAttendanceRowOut(ApiModel):
     shift: str
     employee_type: str
     reporting_manager: str
-    first_in: UtcDateTime | None = None
-    last_out: UtcDateTime | None = None
+    first_in: IndiaDateTime | None = None
+    last_out: IndiaDateTime | None = None
     first_in_late: bool = False
     working_hours: str | None = None
     status: AttendanceDisplayStatus
@@ -191,8 +216,8 @@ class AttendanceExceptionRowOut(ApiModel):
     location: str
     date: date
     shift: str
-    first_in: UtcDateTime | None = None
-    last_out: UtcDateTime | None = None
+    first_in: IndiaDateTime | None = None
+    last_out: IndiaDateTime | None = None
     exception_type: ExceptionType
     expected_hours: str
     actual_hours: str | None = None
@@ -261,8 +286,8 @@ class RegularizationRowOut(ApiModel):
     location: str
     attendance_date: date
     request_type: RegularizationRequestType
-    original_in: UtcDateTime | None = None
-    original_out: UtcDateTime | None = None
+    original_in: IndiaDateTime | None = None
+    original_out: IndiaDateTime | None = None
     requested_in: str | None = None
     requested_out: str | None = None
     reason: str

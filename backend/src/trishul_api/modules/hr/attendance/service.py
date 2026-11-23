@@ -35,6 +35,7 @@ from trishul_api.modules.hr.attendance.schemas import (
     AttendanceExceptionsQuery,
     AttendanceFilterOptionsOut,
     AttendanceHistoryOut,
+    AttendancePunchLocationOut,
     AttendancePunchOut,
     AttendanceSummaryOut,
     DailyAttendancePageOut,
@@ -956,10 +957,22 @@ class AttendanceService:
         kind = (punch.punch_type or "").upper()
         if kind not in ("IN", "OUT"):
             kind = "IN"
+        where = punch.location
         return AttendancePunchOut(
             kind=kind,  # type: ignore[arg-type]
             at=punch.punched_at,
             device=punch.device_name or "—",
+            location=AttendancePunchLocationOut(
+                latitude=where.latitude,
+                longitude=where.longitude,
+                accuracy_m=where.accuracy_m,
+                place=where.place,
+                inside_office=where.inside_office,
+                distance_m=where.distance_m,
+                fake_gps=where.fake_gps,
+            )
+            if where is not None
+            else None,
         )
 
     @staticmethod

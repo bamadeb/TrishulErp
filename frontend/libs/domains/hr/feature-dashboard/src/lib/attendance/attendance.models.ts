@@ -16,6 +16,16 @@ export interface AttendancePunch {
   kind: 'IN' | 'OUT';
   at: string;
   device: string;
+  /** Mobile face punches: where it was made. Biometric punches: none. */
+  location?: {
+    latitude: number;
+    longitude: number;
+    accuracyM: number | null;
+    place: string | null;
+    insideOffice: boolean | null;
+    distanceM: number | null;
+    fakeGps: boolean;
+  } | null;
 }
 
 export interface AttendanceHistoryItem {

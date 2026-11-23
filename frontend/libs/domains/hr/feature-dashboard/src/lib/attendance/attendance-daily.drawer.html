@@ -32,6 +32,46 @@
       <div><dt>Worked Hours</dt><dd>{{ row().workingHours || '—' }}</dd></div>
       <div><dt>Status</dt><dd>{{ row().status }}</dd></div>
     </dl>
+
+    @if (row().punches.length) {
+      <h3 class="punches-title">Punches</h3>
+      <ul class="punches">
+        @for (punch of row().punches; track $index) {
+          <li>
+            <div class="punch-head">
+              <strong>{{ punch.kind === 'OUT' ? 'Check-out' : 'Check-in' }}</strong>
+              <span>{{ punch.at | date: 'h:mm a' }}</span>
+              <small>{{ punch.device }}</small>
+            </div>
+            @if (punch.location; as where) {
+              <div class="punch-where">
+                <mat-icon>{{ where.fakeGps ? 'gps_off' : 'location_on' }}</mat-icon>
+                <div>
+                  <a [href]="mapLink(where.latitude, where.longitude)" target="_blank" rel="noopener">
+                    {{ where.latitude }}, {{ where.longitude }}
+                  </a>
+                  <small>
+                    @if (where.insideOffice === true) {
+                      At {{ where.place }}
+                    } @else if (where.place && where.distanceM !== null) {
+                      {{ formatDistance(where.distanceM) }} from {{ where.place }}
+                    } @else {
+                      Field
+                    }
+                    @if (where.accuracyM !== null) {
+                      · GPS ±{{ where.accuracyM | number: '1.0-0' }} m
+                    }
+                  </small>
+                  @if (where.fakeGps) {
+                    <small class="warn">Fake-location app detected</small>
+                  }
+                </div>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
   </div>
 
   <footer>

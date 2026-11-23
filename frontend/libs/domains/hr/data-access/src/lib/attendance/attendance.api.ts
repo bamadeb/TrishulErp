@@ -15,10 +15,23 @@ export type AttendanceStatus =
 export type AttendanceStatusTab = 'all' | 'present' | 'absent' | 'leave' | 'offDay';
 export type AttendancePunchKind = 'IN' | 'OUT';
 
+/** Where a mobile face punch was made; null for biometric punches. */
+export interface AttendancePunchLocation {
+  latitude: number;
+  longitude: number;
+  accuracyM: number | null;
+  /** Nearest work location of the employee's attendance policy. */
+  place: string | null;
+  insideOffice: boolean | null;
+  distanceM: number | null;
+  fakeGps: boolean;
+}
+
 export interface AttendancePunch {
   kind: AttendancePunchKind;
   at: string;
   device: string;
+  location?: AttendancePunchLocation | null;
 }
 
 export interface AttendanceHistoryItem {

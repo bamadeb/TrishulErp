@@ -316,7 +316,10 @@ def test_my_today_needs_a_linked_employee(settings: Settings, db: Engine) -> Non
 def test_daily_attendance_reads_accepted_face_punches_in_indian_time() -> None:
     from trishul_api.modules.hr.attendance.repository import AttendanceRepository
 
-    engine = sqlite_engine(["hr.biometric_device", "hr.biometric_punch_log", "hr.attendance_punch"])
+    engine = sqlite_engine(["hr.biometric_device", "hr.biometric_punch_log", "hr.attendance_punch", "hr.work_location"])
+    insert_row(
+        engine, "hr.work_location", id=7, name="Bhadrak office", latitude=21.0574, longitude=86.4963, radius_m=150
+    )
     common = {
         "employee_id": EMPLOYEE,
         "attendance_date": date(2026, 11, 21),
@@ -331,6 +334,12 @@ def test_daily_attendance_reads_accepted_face_punches_in_indian_time() -> None:
         punch_type="In",
         effective_at=datetime(2026, 11, 21, 3, 32),
         status="Present",
+        latitude=21.0601,
+        longitude=86.4990,
+        gps_accuracy_m=12.5,
+        work_location_id=7,
+        inside_geofence=False,
+        distance_m=402.3,
         **common,
     )
     insert_row(
@@ -371,6 +380,30 @@ def test_daily_attendance_reads_accepted_face_punches_in_indian_time() -> None:
         (datetime(2026, 11, 21, 0, 30), "OUT", "Mobile app (face)"),
         (datetime(2026, 11, 21, 9, 2), "IN", "Mobile app (face)"),
     ]
+    # Field staff: HR sees where each punch was made (the late check-out had no GPS fix).
+    where = punches[1].location
+    assert where is not None and (where.latitude, where.longitude) == (21.0601, 86.499)
+    assert (where.place, where.inside_office, where.distance_m, where.accuracy_m) == (
+        "Bhadrak office",
+        False,
+        402.3,
+        12.5,
+    )
+    assert where.fake_gps is False and punches[0].location is None
+
+    from trishul_api.modules.hr.attendance.service import AttendanceService
+
+    out = AttendanceService._punch_out(punches[1]).model_dump(mode="json", by_alias=True)
+    assert out["location"] == {
+        "latitude": 21.0601,
+        "longitude": 86.499,
+        "accuracyM": 12.5,
+        "place": "Bhadrak office",
+        "insideOffice": False,
+        "distanceM": 402.3,
+        "fakeGps": False,
+    }
+    assert out["at"] == "2026-11-21T09:02:00+05:30"
 
 
 def test_employee_list_shows_policy_locations_and_face(client: TestClient, db: Engine) -> None:
