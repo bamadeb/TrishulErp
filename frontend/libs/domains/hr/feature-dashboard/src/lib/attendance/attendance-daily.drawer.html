@@ -7,7 +7,9 @@
   </header>
 
   <div class="profile">
-    <span class="avatar" aria-hidden="true">{{ initials(row().employeeName) }}</span>
+    <span class="avatar" [style.background]="row().avatarTone" aria-hidden="true">
+      {{ initials(row().employeeName) }}
+    </span>
     <div class="copy">
       <div class="title">
         <strong>{{ row().employeeName }}</strong>
@@ -22,77 +24,14 @@
     <span class="shift">Shift: {{ row().shift }}</span>
   </div>
 
-  <nav class="tabs" aria-label="Detail sections">
-    <button type="button" [class.on]="tab() === 'punches'" (click)="tab.set('punches')">Punch Details</button>
-    <button type="button" [class.on]="tab() === 'info'" (click)="tab.set('info')">Attendance Info</button>
-    <button type="button" [class.on]="tab() === 'history'" (click)="tab.set('history')">History</button>
-  </nav>
-
   <div class="body">
-    @if (tab() === 'punches') {
-      @if (row().punches.length) {
-        <ul class="timeline">
-          @for (punch of row().punches; track punch.at + punch.kind) {
-            <li [class.in]="punch.kind === 'IN'" [class.out]="punch.kind === 'OUT'">
-              <span class="mark" aria-hidden="true">
-                <mat-icon>{{ punch.kind === 'IN' ? 'login' : 'logout' }}</mat-icon>
-              </span>
-              <div class="punch">
-                <div class="head">
-                  <strong>{{ punch.kind }}</strong>
-                  <span>{{ punch.at }}</span>
-                </div>
-                <small>Device: {{ punch.device }}</small>
-              </div>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="empty">No punches recorded for this date.</p>
-      }
-
-      <div class="hours">
-        <mat-icon>schedule</mat-icon>
-        <div>
-          <small>Total Working Hours</small>
-          <strong>{{ row().workingHours || '—' }}</strong>
-        </div>
-      </div>
-    }
-
-    @if (tab() === 'info') {
-      <dl>
-        <div><dt>Status</dt><dd>{{ row().status }}</dd></div>
-        <div><dt>Employee Type</dt><dd>{{ row().employeeType }}</dd></div>
-        <div><dt>Reporting Manager</dt><dd>{{ row().reportingManager }}</dd></div>
-        <div><dt>First IN</dt><dd>{{ row().firstIn || '—' }}</dd></div>
-        <div><dt>Last OUT</dt><dd>{{ row().lastOut || '—' }}</dd></div>
-        <div><dt>Working Hours</dt><dd>{{ row().workingHours || '—' }}</dd></div>
-        <div><dt>Location</dt><dd>{{ row().location }}</dd></div>
-        <div><dt>Remarks</dt><dd>{{ row().remarks || '—' }}</dd></div>
-      </dl>
-    }
-
-    @if (tab() === 'history') {
-      @if (row().history.length) {
-        <ul class="history">
-          @for (item of row().history; track item.date) {
-            <li>
-              <div class="head">
-                <strong>{{ item.date | date: 'd MMM y' }}</strong>
-                <trishul-status-badge [status]="item.status" [severities]="severities" />
-              </div>
-              <small>
-                {{ item.firstIn || '—' }} → {{ item.lastOut || '—' }}
-                · {{ item.workingHours || 'No hours' }}
-              </small>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="empty">No recent attendance history for this employee.</p>
-      }
-    }
+    <dl>
+      <div><dt>Location</dt><dd>{{ row().location }}</dd></div>
+      <div><dt>In Time</dt><dd>{{ row().firstIn || '—' }}</dd></div>
+      <div><dt>Out Time</dt><dd>{{ row().lastOut || '—' }}</dd></div>
+      <div><dt>Worked Hours</dt><dd>{{ row().workingHours || '—' }}</dd></div>
+      <div><dt>Status</dt><dd>{{ row().status }}</dd></div>
+    </dl>
   </div>
 
   <footer>
@@ -100,13 +39,6 @@
       <mat-icon>edit</mat-icon>
       Regularize
     </button>
-    <button mat-stroked-button type="button" (click)="addRemark.emit(row())">
-      <mat-icon>chat_bubble_outline</mat-icon>
-      Add Remark
-    </button>
-    <button mat-stroked-button type="button" (click)="viewPunchLog.emit(row())">
-      <mat-icon>list_alt</mat-icon>
-      View Punch Log
-    </button>
+    <button mat-stroked-button type="button" (click)="closed.emit()">Close</button>
   </footer>
 </aside>

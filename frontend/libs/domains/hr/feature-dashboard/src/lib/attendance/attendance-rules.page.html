@@ -1,0 +1,345 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Home</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Shift &amp; Attendance Rules</strong>
+</nav>
+
+<trishul-page-header
+  title="Shift & Attendance Rules"
+  subtitle="Configure work shifts, attendance rules, grace time, overtime, and other attendance policies."
+/>
+
+<section class="card shell">
+  <div class="tabs" role="tablist" aria-label="Rules sections">
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'shifts'"
+      [attr.aria-selected]="contentTab() === 'shifts'"
+      (click)="setTab('shifts')"
+    >
+      <mat-icon>schedule</mat-icon>
+      Shifts
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'rules'"
+      [attr.aria-selected]="contentTab() === 'rules'"
+      (click)="setTab('rules')"
+    >
+      <mat-icon>rule</mat-icon>
+      Attendance Rules
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'assignment'"
+      [attr.aria-selected]="contentTab() === 'assignment'"
+      (click)="setTab('assignment')"
+    >
+      <mat-icon>groups</mat-icon>
+      Shift Assignment
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'holidays'"
+      [attr.aria-selected]="contentTab() === 'holidays'"
+      (click)="setTab('holidays')"
+    >
+      <mat-icon>calendar_month</mat-icon>
+      Holiday Calendar
+    </button>
+  </div>
+
+  @if (contentTab() === 'shifts') {
+    <div class="panel">
+      <section class="kpis" aria-label="Shift summary">
+        <article class="kpi tone-total">
+          <span class="icon"><mat-icon>schedule</mat-icon></span>
+          <div>
+            <span>Total Shifts</span>
+            <strong>{{ kpi.total | number }}</strong>
+          </div>
+        </article>
+        <article class="kpi tone-active">
+          <span class="icon"><mat-icon>check_circle</mat-icon></span>
+          <div>
+            <span>Active Shifts</span>
+            <strong>{{ kpi.active | number }}</strong>
+          </div>
+        </article>
+        <article class="kpi tone-inactive">
+          <span class="icon"><mat-icon>pause_circle</mat-icon></span>
+          <div>
+            <span>Inactive Shifts</span>
+            <strong>{{ kpi.inactive | number }}</strong>
+          </div>
+        </article>
+        <article class="kpi tone-groups">
+          <span class="icon"><mat-icon>event</mat-icon></span>
+          <div>
+            <span>Shift Groups</span>
+            <strong>{{ kpi.groups | number }}</strong>
+          </div>
+        </article>
+      </section>
+
+      <div class="toolbar" aria-label="Shift filters">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+          <mat-icon matPrefix>search</mat-icon>
+          <input
+            matInput
+            type="search"
+            placeholder="Search by Shift Name / Code"
+            aria-label="Search by Shift Name / Code"
+            [ngModel]="search()"
+            (ngModelChange)="onSearch($event)"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+          <mat-select [ngModel]="status()" (ngModelChange)="onStatus($event)" aria-label="Status">
+            <mat-option value="">Status: All</mat-option>
+            <mat-option value="Active">Active</mat-option>
+            <mat-option value="Inactive">Inactive</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="toolbar-actions">
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="Refresh"
+            aria-label="Refresh shifts"
+            (click)="refresh()"
+          >
+            <mat-icon>refresh</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="Export"
+            aria-label="Export shifts"
+            (click)="exportExcel()"
+          >
+            <mat-icon>download</mat-icon>
+          </button>
+          <button mat-flat-button color="primary" type="button" (click)="addShift()">
+            <mat-icon>add</mat-icon>
+            Add Shift
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="check">
+                <mat-checkbox
+                  [checked]="allSelected()"
+                  [indeterminate]="someSelected()"
+                  [disabled]="!filteredShifts().length"
+                  aria-label="Select all shifts"
+                  (change)="toggleAll($event.checked)"
+                />
+              </th>
+              <th>Shift Code</th>
+              <th>Shift Name</th>
+              <th>Shift Type</th>
+              <th>In Time</th>
+              <th>Out Time</th>
+              <th>Work Hours</th>
+              <th>Break</th>
+              <th>Grace (In / Out)</th>
+              <th>Status</th>
+              <th class="actions-col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of filteredShifts(); track row.id) {
+              <tr>
+                <td class="check">
+                  <mat-checkbox
+                    [checked]="isSelected(row.id)"
+                    [attr.aria-label]="'Select ' + row.name"
+                    (change)="toggleRow(row.id, $event.checked)"
+                  />
+                </td>
+                <td>
+                  <span class="code-pill" [style.color]="row.codeTone" [style.background]="row.codeTone + '1a'">
+                    {{ row.code }}
+                  </span>
+                </td>
+                <td class="name">{{ row.name }}</td>
+                <td><span [class]="typeClass(row.type)">{{ row.type }}</span></td>
+                <td>{{ row.inTime }}</td>
+                <td>{{ row.outTime }}</td>
+                <td>{{ row.workHours }}</td>
+                <td class="break">{{ row.breakLabel }}</td>
+                <td>{{ row.graceIn }} min / {{ row.graceOut }} min</td>
+                <td>
+                  <span [class]="statusClass(row.status)">
+                    <mat-icon>{{ row.status === 'Active' ? 'check_circle' : 'info' }}</mat-icon>
+                    {{ row.status }}
+                  </span>
+                </td>
+                <td class="actions">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    matTooltip="Edit"
+                    aria-label="Edit shift"
+                    (click)="editShift(row)"
+                  >
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="More actions"
+                    [matMenuTriggerFor]="rowMenu"
+                    (menuOpened)="menuRow.set(row)"
+                  >
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="11">
+                  <div class="empty">
+                    <mat-icon>event_busy</mat-icon>
+                    No shifts match your filters.
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (contentTab() === 'rules') {
+    <div class="panel">
+      <div class="section-head">
+        <div>
+          <h2>Attendance Rules</h2>
+          <p>Define organization-wide attendance and working hour rules.</p>
+        </div>
+        <button mat-stroked-button color="primary" type="button" (click)="editRules()">
+          <mat-icon>edit</mat-icon>
+          Edit Rules
+        </button>
+      </div>
+
+      <div class="rules-grid">
+        @for (block of ruleBlocks; track block.id) {
+          <article class="rule-card" [attr.data-tone]="block.tone">
+            <header>
+              <span class="icon"><mat-icon>{{ block.icon }}</mat-icon></span>
+              <strong>{{ block.title }}</strong>
+            </header>
+            <dl>
+              @for (item of block.items; track item.label) {
+                <div>
+                  <dt>{{ item.label }}</dt>
+                  <dd [class]="item.accent ?? 'neutral'">{{ item.value }}</dd>
+                </div>
+              }
+            </dl>
+          </article>
+        }
+      </div>
+    </div>
+  }
+
+  @if (contentTab() === 'assignment') {
+    <div class="panel">
+      <div class="section-head">
+        <div>
+          <h2>Shift Assignment</h2>
+          <p>Sample employee-to-shift mappings for UI demonstration.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="compact">
+          <thead>
+            <tr>
+              <th>Emp ID</th>
+              <th>Employee Name</th>
+              <th>Department</th>
+              <th>Shift</th>
+              <th>Effective From</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of assignments; track row.id) {
+              <tr>
+                <td class="code-text">{{ row.employeeCode }}</td>
+                <td>
+                  <div class="person">
+                    <span class="avatar" [style.background]="row.avatarTone">{{ initials(row.employeeName) }}</span>
+                    <span class="emp-name">{{ row.employeeName }}</span>
+                  </div>
+                </td>
+                <td>{{ row.department }}</td>
+                <td>{{ row.shiftCode }} · {{ row.shiftName }}</td>
+                <td>{{ row.effectiveFrom }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (contentTab() === 'holidays') {
+    <div class="panel">
+      <div class="section-head">
+        <div>
+          <h2>Holiday Calendar</h2>
+          <p>FY 2024-25 sample holidays used by attendance rules.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="compact">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Holiday Name</th>
+              <th>Type</th>
+              <th>Applies To</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of holidays; track row.id) {
+              <tr>
+                <td>{{ row.date }}</td>
+                <td class="name">{{ row.name }}</td>
+                <td><span class="type regular">{{ row.type }}</span></td>
+                <td>{{ row.appliesTo }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>
+
+<mat-menu #rowMenu="matMenu">
+  <button mat-menu-item type="button" (click)="editShift()">
+    <mat-icon>edit</mat-icon>
+    Edit
+  </button>
+  <button mat-menu-item type="button" (click)="deleteShift()">
+    <mat-icon>delete</mat-icon>
+    Delete
+  </button>
+</mat-menu>

@@ -1,0 +1,338 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Home</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Attendance Exceptions</strong>
+</nav>
+
+<trishul-page-header
+  title="Attendance Exceptions"
+  subtitle="View and manage attendance exceptions such as missing punches, late arrivals, early exits, short hours, and absences."
+>
+  <div class="range-nav" aria-label="Exception date range">
+    <button mat-icon-button type="button" aria-label="Previous range" (click)="shiftRange(-1)">
+      <mat-icon>chevron_left</mat-icon>
+    </button>
+    <button type="button" class="range-btn" disabled>
+      <mat-icon>calendar_today</mat-icon>
+      <span>{{ rangeLabel }}</span>
+    </button>
+    <button mat-icon-button type="button" aria-label="Next range" (click)="shiftRange(1)">
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+</trishul-page-header>
+
+<section class="kpis" aria-label="Exception summary">
+  <article class="kpi tone-total">
+    <span class="icon"><mat-icon>notification_important</mat-icon></span>
+    <div>
+      <span>Total Exceptions</span>
+      <strong>{{ kpi.total | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-missing">
+    <span class="icon"><mat-icon>fingerprint</mat-icon></span>
+    <div>
+      <span>Missing Punch</span>
+      <strong>{{ kpi.missingPunch | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-late">
+    <span class="icon"><mat-icon>schedule</mat-icon></span>
+    <div>
+      <span>Late Arrival</span>
+      <strong>{{ kpi.lateArrival | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-early">
+    <span class="icon"><mat-icon>logout</mat-icon></span>
+    <div>
+      <span>Early Exit</span>
+      <strong>{{ kpi.earlyExit | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-short">
+    <span class="icon"><mat-icon>timer</mat-icon></span>
+    <div>
+      <span>Short Hours</span>
+      <strong>{{ kpi.shortHours | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-absent">
+    <span class="icon"><mat-icon>person_off</mat-icon></span>
+    <div>
+      <span>Absent</span>
+      <strong>{{ kpi.absent | number }}</strong>
+    </div>
+  </article>
+</section>
+
+<section class="card">
+  <div class="tabs" role="tablist" aria-label="Exception views">
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'all'"
+      [attr.aria-selected]="contentTab() === 'all'"
+      (click)="setTab('all')"
+    >
+      All Exceptions <span>{{ tabCounts().all | number }}</span>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'pending'"
+      [attr.aria-selected]="contentTab() === 'pending'"
+      (click)="setTab('pending')"
+    >
+      Pending Review <span>{{ tabCounts().pending | number }}</span>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.on]="contentTab() === 'resolved'"
+      [attr.aria-selected]="contentTab() === 'resolved'"
+      (click)="setTab('resolved')"
+    >
+      Resolved <span>{{ tabCounts().resolved | number }}</span>
+    </button>
+  </div>
+
+  <div class="toolbar" aria-label="Exception filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        type="search"
+        placeholder="Search by Employee ID / Name"
+        aria-label="Search by Employee ID / Name"
+        [ngModel]="search()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select
+        [ngModel]="department()"
+        (ngModelChange)="onDepartment($event)"
+        aria-label="Department"
+      >
+        <mat-option value="">Department: All</mat-option>
+        @for (item of departments(); track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select
+        [ngModel]="location()"
+        (ngModelChange)="onLocation($event)"
+        aria-label="Location"
+      >
+        <mat-option value="">Location: All</mat-option>
+        @for (item of locations(); track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select
+        [ngModel]="exceptionType()"
+        (ngModelChange)="onExceptionType($event)"
+        aria-label="Exception Type"
+      >
+        <mat-option value="">Exception Type: All</mat-option>
+        @for (item of exceptionTypes; track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select [ngModel]="status()" (ngModelChange)="onStatus($event)" aria-label="Status">
+        <mat-option value="">Status: All</mat-option>
+        <mat-option value="Pending">Pending</mat-option>
+        <mat-option value="Resolved">Resolved</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="toolbar-actions">
+      <button
+        mat-icon-button
+        type="button"
+        matTooltip="Refresh"
+        aria-label="Refresh exceptions"
+        (click)="refresh()"
+      >
+        <mat-icon>refresh</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        matTooltip="Export"
+        aria-label="Export exceptions"
+        (click)="exportExcel()"
+      >
+        <mat-icon>download</mat-icon>
+      </button>
+      <button mat-flat-button color="primary" type="button" (click)="regularize()">
+        <mat-icon>add</mat-icon>
+        Regularize
+      </button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="check">
+            <mat-checkbox
+              [checked]="allPageSelected()"
+              [indeterminate]="somePageSelected()"
+              [disabled]="!pageRows().length"
+              aria-label="Select all exceptions on this page"
+              (change)="togglePage($event.checked)"
+            />
+          </th>
+          <th class="code">Emp ID</th>
+          <th class="name-col">Employee Name</th>
+          <th>Department</th>
+          <th>Date</th>
+          <th class="shift">Shift</th>
+          <th>In Time</th>
+          <th>Out Time</th>
+          <th>Exception Type</th>
+          <th>Expected Hours</th>
+          <th>Actual Hours</th>
+          <th>Status</th>
+          <th class="actions-col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pageRows(); track row.id) {
+          <tr>
+            <td class="check">
+              <mat-checkbox
+                [checked]="isSelected(row.id)"
+                [attr.aria-label]="'Select ' + row.employeeName"
+                (change)="toggleRow(row.id, $event.checked)"
+              />
+            </td>
+            <td class="code">{{ row.employeeCode }}</td>
+            <td class="name-col">
+              <div class="person">
+                <span class="avatar" aria-hidden="true" [style.background]="row.avatarTone">
+                  {{ initials(row.employeeName) }}
+                </span>
+                <button type="button" class="name" (click)="viewDetails(row)">
+                  {{ row.employeeName }}
+                </button>
+              </div>
+            </td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.date }}</td>
+            <td class="shift">{{ row.shift }}</td>
+            <td>
+              @if (row.firstIn) {
+                <span class="time">{{ row.firstIn }}</span>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+            <td>
+              @if (row.lastOut) {
+                <span class="time">{{ row.lastOut }}</span>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+            <td>
+              <span [class]="typeClass(row.exceptionType)">
+                <mat-icon>{{ typeIcon(row.exceptionType) }}</mat-icon>
+                {{ row.exceptionType }}
+              </span>
+            </td>
+            <td>{{ row.expectedHours }}</td>
+            <td>{{ row.actualHours || '—' }}</td>
+            <td>
+              <span [class]="statusClass(row.status)">
+                <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
+                {{ row.status }}
+              </span>
+            </td>
+            <td class="actions">
+              <button
+                mat-icon-button
+                type="button"
+                matTooltip="View details"
+                aria-label="View details"
+                (click)="viewDetails(row)"
+              >
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                type="button"
+                aria-label="More actions"
+                [matMenuTriggerFor]="rowMenu"
+                (menuOpened)="menuRow.set(row)"
+              >
+                <mat-icon>more_vert</mat-icon>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="13">
+              <div class="empty">
+                <mat-icon>event_busy</mat-icon>
+                No exceptions match your filters.
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager-bar">
+    <span class="pager-summary">
+      Showing
+      {{ total() ? page() * pageSize() + 1 : 0 }}
+      –
+      {{ (page() + 1) * pageSize() > total() ? total() : (page() + 1) * pageSize() }}
+      of {{ total() | number }} records
+    </span>
+    <mat-paginator
+      class="pager"
+      [length]="total()"
+      [pageIndex]="page()"
+      [pageSize]="pageSize()"
+      [pageSizeOptions]="[10, 20, 50]"
+      [showFirstLastButtons]="true"
+      (page)="onPage($event)"
+    />
+  </div>
+</section>
+
+<mat-menu #rowMenu="matMenu">
+  <button mat-menu-item type="button" (click)="viewDetails()">
+    <mat-icon>visibility</mat-icon>
+    View details
+  </button>
+  @if (menuRow()?.status === 'Pending') {
+    <button mat-menu-item type="button" (click)="resolve()">
+      <mat-icon>check_circle</mat-icon>
+      Resolve
+    </button>
+  }
+  <button mat-menu-item type="button" (click)="regularize()">
+    <mat-icon>edit_calendar</mat-icon>
+    Regularize
+  </button>
+</mat-menu>

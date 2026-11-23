@@ -1,0 +1,249 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Home</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Monthly Muster</strong>
+</nav>
+
+<trishul-page-header
+  title="Monthly Muster"
+  subtitle="View and manage employee attendance for the selected month."
+>
+  <div class="month-nav" aria-label="Muster month">
+    <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)">
+      <mat-icon>chevron_left</mat-icon>
+    </button>
+    <button type="button" class="month-btn" disabled>
+      <mat-icon>calendar_month</mat-icon>
+      <span>{{ monthLabel() }}</span>
+    </button>
+    <button mat-icon-button type="button" aria-label="Next month" (click)="shiftMonth(1)">
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+</trishul-page-header>
+
+<section class="kpis" aria-label="Monthly muster summary">
+  <article class="kpi tone-total">
+    <span class="icon"><mat-icon>groups</mat-icon></span>
+    <div>
+      <span>Total Employees</span>
+      <strong>{{ kpi.total | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-present">
+    <span class="icon"><mat-icon>check_circle</mat-icon></span>
+    <div>
+      <span>Present</span>
+      <strong>{{ kpi.present | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-late">
+    <span class="icon"><mat-icon>schedule</mat-icon></span>
+    <div>
+      <span>Late</span>
+      <strong>{{ kpi.late | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-absent">
+    <span class="icon"><mat-icon>cancel</mat-icon></span>
+    <div>
+      <span>Absent</span>
+      <strong>{{ kpi.absent | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-leave">
+    <span class="icon"><mat-icon>flight_takeoff</mat-icon></span>
+    <div>
+      <span>On Leave</span>
+      <strong>{{ kpi.onLeave | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-wfh">
+    <span class="icon"><mat-icon>home</mat-icon></span>
+    <div>
+      <span>Work From Home</span>
+      <strong>{{ kpi.wfh | number }}</strong>
+    </div>
+  </article>
+</section>
+
+<section class="card">
+  <div class="toolbar" aria-label="Muster filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        type="search"
+        placeholder="Search by Employee ID / Name"
+        aria-label="Search by Employee ID / Name"
+        [ngModel]="search()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select
+        [ngModel]="department()"
+        (ngModelChange)="onDepartment($event)"
+        aria-label="Department"
+      >
+        <mat-option value="">Department: All</mat-option>
+        @for (item of departments(); track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-select
+        [ngModel]="location()"
+        (ngModelChange)="onLocation($event)"
+        aria-label="Location"
+      >
+        <mat-option value="">Location: All</mat-option>
+        @for (item of locations(); track item) {
+          <mat-option [value]="item">{{ item }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter status">
+      <mat-select
+        [ngModel]="employmentStatus()"
+        (ngModelChange)="onEmploymentStatus($event)"
+        aria-label="Employment Status"
+      >
+        <mat-option value="">Employment Status: All</mat-option>
+        <mat-option value="Active">Employment Status: Active</mat-option>
+        <mat-option value="Inactive">Employment Status: Inactive</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="toolbar-actions">
+      <button
+        mat-icon-button
+        type="button"
+        class="refresh"
+        matTooltip="Refresh"
+        aria-label="Refresh muster"
+        (click)="refresh()"
+      >
+        <mat-icon>refresh</mat-icon>
+      </button>
+      <button mat-flat-button color="primary" type="button" (click)="exportExcel()">
+        <mat-icon>download</mat-icon>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="check sticky-l0">
+            <mat-checkbox
+              [checked]="allPageSelected()"
+              [indeterminate]="somePageSelected()"
+              [disabled]="!pageRows().length"
+              aria-label="Select all employees on this page"
+              (change)="togglePage($event.checked)"
+            />
+          </th>
+          <th class="code sticky-l1">Emp ID</th>
+          <th class="name-col sticky-l2">Employee Name</th>
+          <th class="dept sticky-l3">Department</th>
+          @for (col of dayColumns(); track col.day) {
+            <th class="day" [class.weekend]="col.isWeekend">
+              <span class="d">{{ col.day | number: '2.0-0' }}</span>
+              <span class="w">{{ col.weekday }}</span>
+            </th>
+          }
+          <th class="sum sticky-r5">P</th>
+          <th class="sum sticky-r4">L</th>
+          <th class="sum sticky-r3">A</th>
+          <th class="sum sticky-r2">PL</th>
+          <th class="sum sticky-r1">WFH</th>
+          <th class="hrs sticky-r0">Hrs</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pageRows(); track row.id) {
+          <tr>
+            <td class="check sticky-l0">
+              <mat-checkbox
+                [checked]="isSelected(row.id)"
+                [attr.aria-label]="'Select ' + row.employeeName"
+                (change)="toggleRow(row.id, $event.checked)"
+              />
+            </td>
+            <td class="code sticky-l1">{{ row.employeeCode }}</td>
+            <td class="name-col sticky-l2">
+              <div class="person">
+                <span class="avatar" aria-hidden="true" [style.background]="row.avatarTone">
+                  {{ initials(row.employeeName) }}
+                </span>
+                <span class="name">{{ row.employeeName }}</span>
+              </div>
+            </td>
+            <td class="dept sticky-l3">{{ row.department }}</td>
+            @for (col of dayColumns(); track col.day; let i = $index) {
+              <td class="day" [class.weekend]="col.isWeekend">
+                <span [class]="dayClass(dayCode(row, i))" [matTooltip]="dayCode(row, i)">
+                  {{ dayLabel(dayCode(row, i)) }}
+                </span>
+              </td>
+            }
+            <td class="sum sticky-r5">{{ row.present }}</td>
+            <td class="sum sticky-r4">{{ row.late }}</td>
+            <td class="sum sticky-r3">{{ row.absent }}</td>
+            <td class="sum sticky-r2">{{ row.leave }}</td>
+            <td class="sum sticky-r1">{{ row.wfh }}</td>
+            <td class="hrs sticky-r0">{{ row.hours }}h</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="4 + dayColumns().length + 6">
+              <div class="empty">
+                <mat-icon>event_busy</mat-icon>
+                No employees match your filters.
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <div class="legend" aria-label="Attendance legend">
+      <span><i class="mark present">P</i> Present</span>
+      <span><i class="mark late">L</i> Late</span>
+      <span><i class="mark absent">A</i> Absent</span>
+      <span><i class="mark leave">PL</i> On Leave</span>
+      <span><i class="mark wfh">WFH</i> WFH</span>
+      <span><i class="mark off">—</i> Holiday / Off</span>
+    </div>
+
+    <div class="pager-bar">
+      <span class="pager-summary">
+        Showing
+        {{ total() ? page() * pageSize() + 1 : 0 }}
+        –
+        {{ (page() + 1) * pageSize() > total() ? total() : (page() + 1) * pageSize() }}
+        of {{ total() | number }}
+      </span>
+      <mat-paginator
+        class="pager"
+        [length]="total()"
+        [pageIndex]="page()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="[10, 20, 50]"
+        [showFirstLastButtons]="true"
+        (page)="onPage($event)"
+      />
+    </div>
+  </div>
+</section>

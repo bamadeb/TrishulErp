@@ -270,6 +270,14 @@ export class EmployeeListPage {
     return trimmed ? trimmed : '—';
   }
 
+  protected initials(name: string): string {
+    return name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('');
+  }
+
   private applyFilters(change: Partial<EmployeeViewFilters>): void {
     this.prefs.patchFilters(change);
     this.store.updateQuery(this.prefs.query());

@@ -1,0 +1,317 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Home</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Attendance Finalization</strong>
+</nav>
+
+<trishul-page-header
+  title="Attendance Finalization"
+  subtitle="Finalize and lock monthly attendance for payroll processing."
+>
+  <div class="month-nav" aria-label="Finalization month">
+    <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)">
+      <mat-icon>chevron_left</mat-icon>
+    </button>
+    <button type="button" class="month-btn" disabled>
+      <mat-icon>calendar_month</mat-icon>
+      <span>{{ monthLabel() }}</span>
+    </button>
+    <button mat-icon-button type="button" aria-label="Next month" (click)="shiftMonth(1)">
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+</trishul-page-header>
+
+<section class="kpis" aria-label="Finalization summary">
+  <article class="kpi tone-total">
+    <span class="icon"><mat-icon>groups</mat-icon></span>
+    <div>
+      <span>Total Employees</span>
+      <strong>{{ kpi.totalEmployees | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-ready">
+    <span class="icon"><mat-icon>check_circle</mat-icon></span>
+    <div>
+      <span>Attendance Ready</span>
+      <strong>{{ kpi.attendanceReady | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-exceptions">
+    <span class="icon"><mat-icon>schedule</mat-icon></span>
+    <div>
+      <span>With Exceptions</span>
+      <strong>{{ kpi.withExceptions | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-pending">
+    <span class="icon"><mat-icon>hourglass_empty</mat-icon></span>
+    <div>
+      <span>Pending Regularization</span>
+      <strong>{{ kpi.pendingRegularization | number }}</strong>
+    </div>
+  </article>
+  <article class="kpi tone-finalized">
+    <span class="icon"><mat-icon>lock</mat-icon></span>
+    <div>
+      <span>Finalized</span>
+      <strong>{{ kpi.finalized | number }}</strong>
+    </div>
+  </article>
+</section>
+
+<div class="layout">
+  <section class="card main">
+    <div class="tabs" role="tablist" aria-label="Finalization views">
+      <button
+        type="button"
+        role="tab"
+        [class.on]="contentTab() === 'department'"
+        [attr.aria-selected]="contentTab() === 'department'"
+        (click)="setTab('department')"
+      >
+        By Department
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.on]="contentTab() === 'location'"
+        [attr.aria-selected]="contentTab() === 'location'"
+        (click)="setTab('location')"
+      >
+        By Location
+      </button>
+    </div>
+
+    <div class="toolbar" aria-label="Finalization filters">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          type="search"
+          [placeholder]="'Search ' + groupLabel()"
+          [attr.aria-label]="'Search ' + groupLabel()"
+          [ngModel]="search()"
+          (ngModelChange)="onSearch($event)"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+        <mat-select
+          [ngModel]="groupFilter()"
+          (ngModelChange)="onGroupFilter($event)"
+          [attr.aria-label]="groupLabel()"
+        >
+          <mat-option value="">{{ groupLabel() }}: All</mat-option>
+          @for (item of groupOptions(); track item) {
+            <mat-option [value]="item">{{ item }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+        <mat-select
+          [ngModel]="statusFilter()"
+          (ngModelChange)="onStatusFilter($event)"
+          aria-label="Status"
+        >
+          <mat-option value="">Status: All</mat-option>
+          <mat-option value="Ready">Ready</mat-option>
+          <mat-option value="Review">Review</mat-option>
+          <mat-option value="Pending">Pending</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <div class="toolbar-actions">
+        <button
+          mat-icon-button
+          type="button"
+          matTooltip="Refresh"
+          aria-label="Refresh finalization"
+          (click)="refresh()"
+        >
+          <mat-icon>refresh</mat-icon>
+        </button>
+        <button mat-stroked-button type="button" (click)="exportExcel()">
+          <mat-icon>download</mat-icon>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="check">
+              <mat-checkbox
+                [checked]="allSelected()"
+                [indeterminate]="someSelected()"
+                [disabled]="!filteredRows().length"
+                aria-label="Select all rows"
+                (change)="toggleAll($event.checked)"
+              />
+            </th>
+            <th>{{ groupLabel() }}</th>
+            <th>Employees</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Leave</th>
+            <th>Exceptions</th>
+            <th class="ready-col">Readiness</th>
+            <th>Status</th>
+            <th class="actions-col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of filteredRows(); track row.id) {
+            <tr>
+              <td class="check">
+                <mat-checkbox
+                  [checked]="isSelected(row.id)"
+                  [attr.aria-label]="'Select ' + row.name"
+                  (change)="toggleRow(row.id, $event.checked)"
+                />
+              </td>
+              <td class="name">{{ row.name }}</td>
+              <td>{{ row.employees | number }}</td>
+              <td>{{ row.present | number }}</td>
+              <td>{{ row.absent | number }}</td>
+              <td>{{ row.leave | number }}</td>
+              <td>{{ row.exceptions | number }}</td>
+              <td class="ready-col">
+                <div class="readiness" [attr.data-tone]="readinessTone(row.readiness)">
+                  <strong>{{ row.readiness }}%</strong>
+                  <span class="bar" aria-hidden="true">
+                    <i [style.width.%]="row.readiness"></i>
+                  </span>
+                </div>
+              </td>
+              <td>
+                <span [class]="statusClass(row.status)">
+                  <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
+                  {{ row.status }}
+                </span>
+              </td>
+              <td class="actions">
+                <button
+                  mat-icon-button
+                  type="button"
+                  matTooltip="View details"
+                  aria-label="View details"
+                  (click)="viewDetails(row)"
+                >
+                  <mat-icon>visibility</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  type="button"
+                  aria-label="More actions"
+                  [matMenuTriggerFor]="rowMenu"
+                  (menuOpened)="menuRow.set(row)"
+                >
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="10">
+                <div class="empty">
+                  <mat-icon>event_busy</mat-icon>
+                  No {{ groupLabel().toLowerCase() }}s match your filters.
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager-summary">
+      Showing 1 – {{ filteredRows().length }} of {{ filteredRows().length }}
+      {{ groupLabel().toLowerCase() }}s
+    </div>
+  </section>
+
+  <aside class="side" aria-label="Finalization panel">
+    <section class="card side-card">
+      <h2>Finalization Summary</h2>
+      <dl>
+        <div>
+          <dt>Month</dt>
+          <dd>{{ monthLabel() }}</dd>
+        </div>
+        <div>
+          <dt>Total Employees</dt>
+          <dd>{{ summary.totalEmployees | number }}</dd>
+        </div>
+        <div>
+          <dt>Attendance Ready</dt>
+          <dd>
+            {{ summary.attendanceReady | number }}
+            <em class="ready">{{ summary.attendanceReadyPct }}%</em>
+          </dd>
+        </div>
+        <div>
+          <dt>With Exceptions</dt>
+          <dd>
+            {{ summary.withExceptions | number }}
+            <em class="warn">{{ summary.withExceptionsPct }}%</em>
+          </dd>
+        </div>
+        <div>
+          <dt>Pending Regularization</dt>
+          <dd>
+            {{ summary.pendingRegularization | number }}
+            <em class="pending">{{ summary.pendingRegularizationPct }}%</em>
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="card side-card">
+      <div class="checklist-head">
+        <h2>Pre-Finalization Checklist</h2>
+        <span>{{ checklistDoneCount() }}/{{ checklist().length }}</span>
+      </div>
+      <ul class="checklist">
+        @for (item of checklist(); track item.id) {
+          <li>
+            <mat-checkbox
+              [checked]="item.done"
+              (change)="toggleChecklist(item.id, $event.checked)"
+            >
+              {{ item.label }}
+            </mat-checkbox>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="finalize"
+      (click)="finalizeAttendance()"
+    >
+      <mat-icon>lock</mat-icon>
+      Finalize &amp; Lock Attendance
+    </button>
+    <p class="note">
+      <mat-icon>info</mat-icon>
+      Once finalized, attendance for {{ monthLabel() }} will be locked and sent to Payroll for
+      processing.
+    </p>
+  </aside>
+</div>
+
+<mat-menu #rowMenu="matMenu">
+  <button mat-menu-item type="button" (click)="viewDetails()">
+    <mat-icon>visibility</mat-icon>
+    View details
+  </button>
+</mat-menu>

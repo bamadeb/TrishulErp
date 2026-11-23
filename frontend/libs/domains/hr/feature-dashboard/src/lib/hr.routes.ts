@@ -8,6 +8,12 @@ import { HrDashboardPage } from './dashboard/hr-dashboard.page';
 import { OrganizationPage } from './organization/organization.page';
 import { ReportingStructurePage } from './reporting/reporting-structure.page';
 import { AttendanceDailyPage } from './attendance/attendance-daily.page';
+import { AttendanceDashboardPage } from './attendance/attendance-dashboard.page';
+import { AttendanceExceptionsPage } from './attendance/attendance-exceptions.page';
+import { AttendanceFinalizationPage } from './attendance/attendance-finalization.page';
+import { AttendanceMusterPage } from './attendance/attendance-muster.page';
+import { AttendanceRegularizationPage } from './attendance/attendance-regularization.page';
+import { AttendanceRulesPage } from './attendance/attendance-rules.page';
 import { biometricRoutes } from './biometric/biometric.routes';
 import { leaveRoutes } from './leave/leave.routes';
 import { payrollRoutes } from './payroll/payroll.routes';
@@ -58,12 +64,49 @@ export const hrRoutes: Route[] = [
     path: 'attendance',
     canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'daily' },
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      {
+        path: 'dashboard',
+        title: 'Attendance Dashboard',
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        component: AttendanceDashboardPage,
+      },
       {
         path: 'daily',
         title: 'Daily Attendance',
         canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
         component: AttendanceDailyPage,
+      },
+      {
+        path: 'monthly-muster',
+        title: 'Monthly Muster',
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        component: AttendanceMusterPage,
+      },
+      {
+        path: 'exceptions',
+        title: 'Attendance Exceptions',
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        component: AttendanceExceptionsPage,
+      },
+      {
+        path: 'regularization',
+        title: 'Attendance Regularization',
+        data: { screenTitle: 'Attendance Regularization' },
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        component: AttendanceRegularizationPage,
+      },
+      {
+        path: 'rules',
+        title: 'Shift & Attendance Rules',
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        component: AttendanceRulesPage,
+      },
+      {
+        path: 'finalization',
+        title: 'Attendance Finalization',
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        component: AttendanceFinalizationPage,
       },
     ],
   },
