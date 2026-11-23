@@ -28,3 +28,10 @@
   padding: 1.5rem 1rem;
   color: var(--mat-sys-on-surface-variant);
 }
+
+.setting-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 1rem 0;
+}

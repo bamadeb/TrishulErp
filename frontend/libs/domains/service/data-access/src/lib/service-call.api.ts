@@ -16,9 +16,11 @@ import {
   ServiceCallListItem,
   ServiceCallStatusChange,
   ServiceCallTriageUpdate,
+  ServiceSettings,
   changeServiceCallStatus,
   createServiceCall,
   getServiceCall,
+  getServiceSettings,
   listCallStatusHistory,
   listCustomers,
   listEngineerOptions,
@@ -97,6 +99,11 @@ export class ServiceCallApi {
     query: ListUnassignedServiceCalls$Params,
   ): Observable<PageUnassignedCallItem> {
     return this.api.call(listUnassignedServiceCalls, query);
+  }
+
+  /** Service settings, such as how many pending calls an engineer may have. */
+  settings(): Observable<ServiceSettings> {
+    return this.api.call(getServiceSettings);
   }
 
   /** Each engineer's availability and calls on a day (yyyy-mm-dd), best choice first. */

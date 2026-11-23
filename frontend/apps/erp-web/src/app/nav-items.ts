@@ -6,6 +6,7 @@ import {
   TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
   BRAND_MANAGE_PERMISSION,
+  SERVICE_CONFIG_PERMISSION,
   TRACKING_CONFIG_PERMISSION,
   WAREHOUSE_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
@@ -321,7 +322,11 @@ export const navItems: NavItem[] = [
         label: 'Configuration',
         icon: 'tune',
         route: '/admin/configuration',
-        permissions: [BRAND_MANAGE_PERMISSION, TRACKING_CONFIG_PERMISSION],
+        permissions: [
+          BRAND_MANAGE_PERMISSION,
+          TRACKING_CONFIG_PERMISSION,
+          SERVICE_CONFIG_PERMISSION,
+        ],
       },
       {
         label: 'Teams',

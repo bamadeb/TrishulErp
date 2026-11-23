@@ -282,3 +282,11 @@ class AssignedServiceCallListItem(ApiModel):
         None, description="The day my visit is planned for (earliest, not yet started); None = not planned yet."
     )
     row_version: RowVersion
+
+
+class ServiceSettings(ApiModel):
+    max_pending_calls: int = Field(description="An engineer with more pending calls than this cannot be given another.")
+
+
+class ServiceSettingsUpdate(InputModel):
+    max_pending_calls: int = Field(ge=0, le=100, description="0 blocks every new assignment; at most 100.")

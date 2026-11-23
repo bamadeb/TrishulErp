@@ -62,6 +62,7 @@ TABLES = [
     "core.alert_rule_recipient",
     "core.alert",
     "core.alert_recipient",
+    "core.system_setting",
 ]
 
 COMPANY, BRANCH, PRINCIPAL = 1, 1, 1
@@ -624,6 +625,37 @@ def test_assigning_several_engineers_gives_each_the_day(client: TestClient, db: 
     assert [day[name]["openCalls"] for name in ("Satyajit Tung", "Second", "Third")] == [1, 1, 1]
     with Session(db) as s:
         assert sorted(v.visit_no for v in s.scalars(select(ServiceVisit))) == [1, 2, 3]
+
+
+def open_calls_for(client: TestClient, count: int) -> None:
+    """Give ENGINEER_ID `count` open calls."""
+    for _ in range(count):
+        call = create(client).json()
+        assert client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call)).status_code == 200
+
+
+def test_an_engineer_with_more_than_three_pending_calls_gets_no_new_call(client: TestClient, db: Engine) -> None:
+    open_calls_for(client, 4)  # the limit is "more than 3": 4 are open and nobody is refused before the 5th
+    call = create(client).json()
+    refused = client.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call))
+    assert refused.status_code == 400, refused.text
+    assert "pending calls" in refused.json()["detail"]
+    assert client.get(f"{URL}/{call['id']}").json()["assignedEngineerId"] is None
+
+
+def test_the_pending_call_limit_is_managed_in_the_settings(client: TestClient, db: Engine, settings: Settings) -> None:
+    assert client.get("/api/v1/svc/settings").json() == {"maxPendingCalls": 3}  # no row yet: the default
+    insert_row(db, "core.system_setting", id=1, setting_key="SERVICE_MAX_PENDING_CALLS", setting_value="3",
+               data_type="Number")  # (SQLite can't number a new BIGINT key; SQL Server does)
+    assert client.put("/api/v1/svc/settings", json={"maxPendingCalls": 5}).status_code == 403  # not a manager
+    with make_client(settings, db, TEAM_LEAD | {"svc.config.manage"}) as admin:
+        assert admin.put("/api/v1/svc/settings", json={"maxPendingCalls": 5}).json() == {"maxPendingCalls": 5}
+        assert admin.put("/api/v1/svc/settings", json={"maxPendingCalls": -1}).status_code == 422
+        open_calls_for(admin, 4)
+        call = create(admin).json()
+        allowed = admin.patch(f"{URL}/{call['id']}", json={"engineerId": ENGINEER_ID}, headers=if_match(call))
+        assert allowed.status_code == 200, allowed.text  # 4 pending is fine when the limit is 5
+        assert admin.get("/api/v1/svc/settings").json() == {"maxPendingCalls": 5}
 
 
 def test_taking_a_support_engineer_off_drops_their_day(client: TestClient, db: Engine) -> None:

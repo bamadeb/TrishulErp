@@ -139,6 +139,20 @@
       }
     </p>
 
+    @if (overloaded().length) {
+    <p class="reminder" role="alert">
+      <mat-icon>notifications_active</mat-icon>
+      <span>
+        Reminder: {{ overloaded().length }}
+        {{ overloaded().length === 1 ? 'engineer has' : 'engineers have' }}
+        more than {{ maxPending() }} pending calls and can't be given new ones —
+        @for (e of overloaded(); track e.id; let last = $last) {
+        {{ e.name }} ({{ e.openCalls }}){{ last ? '' : ', ' }}
+        }
+      </span>
+    </p>
+    }
+
     <div class="progress">
       @if (loadingEngineers()) {
       <mat-progress-bar mode="indeterminate" />
@@ -152,7 +166,8 @@
           <td mat-cell *matCellDef="let e">
             <mat-checkbox
               [checked]="isPicked(e)"
-              [disabled]="!selected() || saving() || e.availability === 'On leave'"
+              [disabled]="!selected() || saving() || e.availability === 'On leave' || (isOverloaded(e) && !isPicked(e))"
+              [matTooltip]="isOverloaded(e) ? 'Has ' + e.openCalls + ' pending calls (limit ' + maxPending() + ')' : ''"
               [attr.aria-label]="'Put ' + e.name + ' on the call'"
               (change)="toggle(e)"
             />
@@ -208,7 +223,12 @@
 
         <ng-container matColumnDef="openCalls">
           <th mat-header-cell *matHeaderCellDef class="num">All open</th>
-          <td mat-cell *matCellDef="let e" class="num">{{ e.openCalls }}</td>
+          <td mat-cell *matCellDef="let e" class="num">
+            <span [class.over]="isOverloaded(e)">{{ e.openCalls }}</span>
+            @if (isOverloaded(e)) {
+            <mat-icon class="over-icon" inline>block</mat-icon>
+            }
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="distance">

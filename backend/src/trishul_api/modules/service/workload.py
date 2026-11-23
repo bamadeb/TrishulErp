@@ -81,7 +81,7 @@ def _calls_on(db: Session, engineer_ids: list[int], day: date) -> dict[int, int]
     return {engineer: count for engineer, count in rows.tuples()}
 
 
-def _open_calls(db: Session, engineer_ids: list[int]) -> Counter[int]:
+def open_calls_of(db: Session, engineer_ids: list[int]) -> Counter[int]:
     still_open = and_(ServiceCall.is_active, ServiceCall.current_status.notin_(sorted(FINISHED_STATUSES)))
     counts: Counter[int] = Counter()
     # Read each result before the next query: SQL Server keeps one open result per connection.
@@ -162,7 +162,7 @@ def engineer_workload(
     leave = leave_on(db, ids, query.on_date)
     everywhere, holiday_branches = _holiday_branches(db, query.on_date)
     on_date = _calls_on(db, ids, query.on_date)
-    open_calls = _open_calls(db, ids)
+    open_calls = open_calls_of(db, ids)
     site = _site_position(db, call) if call is not None else None
     positions = _last_positions(db, ids) if site is not None else {}
 
