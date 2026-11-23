@@ -109,12 +109,16 @@ class OpenCvFaceEngine:
         x, y, w, h = (int(v) for v in face[:4])
         crop = picture[max(0, y) : max(0, y) + max(1, h), max(0, x) : max(0, x) + max(1, w)]
         gray = cv2.cvtColor(crop if crop.size else aligned, cv2.COLOR_BGR2GRAY)
+        # Sharpness on the 112x112 aligned face the matcher itself uses: the same blur scores the same
+        # whatever the photo size. On the raw crop a large, sharp face (a webcam or phone photo taken
+        # close) scored as "blurred", because per-pixel detail falls as the face gets bigger.
+        aligned_gray = cv2.cvtColor(aligned, cv2.COLOR_BGR2GRAY)
         vector = np.asarray(feature, dtype=np.float32).reshape(-1)
         return FaceAnalysis(
             face_count=1,
             confidence=float(face[-1]),
             face_width_px=w,
-            sharpness=float(cv2.Laplacian(gray, cv2.CV_64F).var()),
+            sharpness=float(cv2.Laplacian(aligned_gray, cv2.CV_64F).var()),
             brightness=float(gray.mean()),
             vector=vector,
             jpeg=jpeg,

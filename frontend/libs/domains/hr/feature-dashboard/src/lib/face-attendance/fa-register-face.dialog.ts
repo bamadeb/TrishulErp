@@ -1,9 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   OnDestroy,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
@@ -28,7 +30,14 @@ export interface FaRegisterFaceDialogData {
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
-/** Uploads an employee's face photo with their consent; a second HR user approves it afterwards. */
+/**
+ * Registers an employee's face from an uploaded photo or one taken now, with their consent; a second
+ * HR user approves it afterwards.
+ *
+ * Taking a photo: browsers allow the webcam (getUserMedia) only on HTTPS pages. Where it isn't
+ * available (the ERP on plain HTTP), "Take photo" opens the device camera through a file input with
+ * capture="user": a phone or tablet opens its front camera; a laptop shows the file picker.
+ */
 @Component({
   selector: 'trishul-fa-register-face-dialog',
   imports: [
@@ -54,24 +63,64 @@ const MAX_BYTES = 8 * 1024 * 1024;
           No cap, mask or sunglasses. The face should fill a good part of the
           photo.
         </li>
-        <li>JPEG or PNG, up to 8 MB. A phone photo taken now is best.</li>
+        <li>JPEG or PNG, up to 8 MB. A photo taken now is best.</li>
       </ul>
+
       <input
         #file
         type="file"
         accept="image/jpeg,image/png"
         hidden
-        (change)="pick(file.files)"
+        (change)="pick(file.files); file.value = ''"
       />
-      <button
-        mat-stroked-button
-        type="button"
-        (click)="file.click()"
-        [disabled]="saving()"
-      >
-        <mat-icon>add_a_photo</mat-icon>
-        {{ photo() ? 'Choose another photo' : 'Choose photo' }}
-      </button>
+      <input
+        #shot
+        type="file"
+        accept="image/*"
+        capture="user"
+        hidden
+        (change)="pick(shot.files); shot.value = ''"
+      />
+
+      @if (cameraOn()) {
+        <div class="camera">
+          <video #video autoplay playsinline muted></video>
+          <div class="camera-actions">
+            <button mat-flat-button type="button" (click)="capture()">
+              <mat-icon>photo_camera</mat-icon>
+              Capture
+            </button>
+            <button mat-button type="button" (click)="stopCamera()">
+              Cancel
+            </button>
+          </div>
+        </div>
+      } @else {
+        <div class="sources">
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="takePhoto(shot)"
+            [disabled]="saving()"
+          >
+            <mat-icon>photo_camera</mat-icon>
+            Take photo
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="file.click()"
+            [disabled]="saving()"
+          >
+            <mat-icon>upload</mat-icon>
+            Upload photo
+          </button>
+        </div>
+      }
+      @if (cameraNote()) {
+        <p class="muted">{{ cameraNote() }}</p>
+      }
+
       @if (preview(); as src) {
         <img [src]="src" alt="Selected photo" />
       }
@@ -97,7 +146,7 @@ const MAX_BYTES = 8 * 1024 * 1024;
       <button
         mat-flat-button
         type="button"
-        [disabled]="!photo() || !consent || saving()"
+        [disabled]="!photo() || !consent || saving() || cameraOn()"
         (click)="save()"
       >
         Register
@@ -120,6 +169,25 @@ const MAX_BYTES = 8 * 1024 * 1024;
       padding-left: 1.1rem;
       color: var(--mat-sys-on-surface-variant);
       font: var(--mat-sys-body-small);
+    }
+    .sources,
+    .camera-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .camera {
+      display: grid;
+      gap: 0.5rem;
+      justify-self: center;
+    }
+    video {
+      width: min(22rem, 75vw);
+      border-radius: var(--mat-sys-corner-medium);
+      background: #000;
+      transform: scaleX(
+        -1
+      ); /* a mirror, as people expect from a front camera */
     }
     img {
       max-width: 14rem;
@@ -147,12 +215,81 @@ export class FaRegisterFaceDialog implements OnDestroy {
   private readonly ref = inject(MatDialogRef<FaRegisterFaceDialog, boolean>);
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly data = inject<FaRegisterFaceDialogData>(MAT_DIALOG_DATA);
+  private readonly video = viewChild<ElementRef<HTMLVideoElement>>('video');
+
   protected readonly photo = signal<File | null>(null);
   protected readonly preview = signal<SafeUrl | null>(null);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly cameraOn = signal(false);
+  protected readonly cameraNote = signal<string | null>(null);
   protected consent = false;
   private objectUrl: string | null = null;
+  private stream: MediaStream | null = null;
+
+  /** Webcam on HTTPS; otherwise the device camera through the file input (phones open it directly). */
+  protected async takePhoto(fallback: HTMLInputElement): Promise<void> {
+    this.error.set(null);
+    this.cameraNote.set(null);
+    const media = navigator.mediaDevices;
+    if (!window.isSecureContext || !media?.getUserMedia) {
+      if (!isTouchDevice()) {
+        this.cameraNote.set(
+          'This browser allows the laptop camera only on a secure (https) address. ' +
+            'Use Upload photo, or open this screen on a phone or tablet to take the photo there.',
+        );
+      }
+      fallback.click();
+      return;
+    }
+    try {
+      this.stream = await media.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 960 },
+        },
+        audio: false,
+      });
+      this.cameraOn.set(true);
+      // The <video> appears with cameraOn; attach the stream once it exists.
+      setTimeout(() => {
+        const el = this.video()?.nativeElement;
+        if (el && this.stream) el.srcObject = this.stream;
+      });
+    } catch {
+      this.stopCamera();
+      this.cameraNote.set(
+        'The camera could not be opened (permission refused or no camera). Use Upload photo.',
+      );
+    }
+  }
+
+  protected capture(): void {
+    const el = this.video()?.nativeElement;
+    if (!el || !el.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = el.videoWidth;
+    canvas.height = el.videoHeight;
+    // Stored the way the camera sees it (not mirrored), like a photo from a phone.
+    canvas.getContext('2d')?.drawImage(el, 0, 0);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const name = `${this.data.employee.employeeCode}-${Date.now()}.jpg`;
+        this.setPhoto(new File([blob], name, { type: 'image/jpeg' }));
+        this.stopCamera();
+      },
+      'image/jpeg',
+      0.92,
+    );
+  }
+
+  protected stopCamera(): void {
+    this.stream?.getTracks().forEach((track) => track.stop());
+    this.stream = null;
+    this.cameraOn.set(false);
+  }
 
   protected pick(files: FileList | null): void {
     const file = files?.[0];
@@ -166,10 +303,7 @@ export class FaRegisterFaceDialog implements OnDestroy {
       this.error.set('The photo must be 8 MB or smaller.');
       return;
     }
-    this.revoke();
-    this.objectUrl = URL.createObjectURL(file);
-    this.preview.set(this.sanitizer.bypassSecurityTrustUrl(this.objectUrl));
-    this.photo.set(file);
+    this.setPhoto(file);
   }
 
   protected save(): void {
@@ -189,11 +323,26 @@ export class FaRegisterFaceDialog implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopCamera();
     this.revoke();
+  }
+
+  private setPhoto(file: File): void {
+    this.revoke();
+    this.objectUrl = URL.createObjectURL(file);
+    this.preview.set(this.sanitizer.bypassSecurityTrustUrl(this.objectUrl));
+    this.photo.set(file);
   }
 
   private revoke(): void {
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.objectUrl = null;
   }
+}
+
+function isTouchDevice(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(pointer: coarse)').matches
+  );
 }

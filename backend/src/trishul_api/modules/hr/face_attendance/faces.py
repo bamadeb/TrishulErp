@@ -32,7 +32,9 @@ MAX_PHOTO_BYTES = 8 * 1024 * 1024
 # better than a punch selfie. Starting values; the pilot tunes them.
 MIN_CONFIDENCE = 0.85
 MIN_FACE_WIDTH_PX = 100
-MIN_SHARPNESS = 40.0
+# Laplacian variance of the 112x112 aligned face (engine.py). Measured 2026-11-23: sharp faces 300-1250 at any
+# photo size, a webcam frame about 640, clearly blurred ones 7-45; 30 refuses only what is too soft to match.
+MIN_SHARPNESS = 30.0
 BRIGHTNESS_RANGE = (50.0, 215.0)
 
 _LIVE = ("Pending approval", "Active")
