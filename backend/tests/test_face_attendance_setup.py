@@ -23,6 +23,7 @@ from .sqlite_db import insert_row, sqlite_engine
 TABLES = [
     "core.company",
     "core.branch",
+    "hr.department",
     "core.employee",
     "hr.face_model",
     "hr.employee_face",
@@ -370,3 +371,51 @@ def test_daily_attendance_reads_accepted_face_punches_in_indian_time() -> None:
         (datetime(2026, 11, 21, 0, 30), "OUT", "Mobile app (face)"),
         (datetime(2026, 11, 21, 9, 2), "IN", "Mobile app (face)"),
     ]
+
+
+def test_employee_list_shows_policy_locations_and_face(client: TestClient, db: Engine) -> None:
+    insert_row(
+        db,
+        "core.employee",
+        id=21,
+        company_id=1,
+        branch_id=1,
+        employee_code="E021",
+        first_name="Bikash",
+        status="Active",
+        is_active=True,
+    )
+    insert_row(
+        db,
+        "core.employee",
+        id=22,
+        company_id=1,
+        branch_id=1,
+        employee_code="E022",
+        first_name="Left",
+        status="Resigned",
+        is_active=True,
+    )
+    office = _office(client)
+    today = india_date(utc_now())
+    client.post(
+        f"{BASE}/employees/{EMPLOYEE}/policy",
+        json={"policyId": 1, "fromDate": str(today), "workLocationIds": [office["id"]]},
+    )
+    insert_row(db, "hr.employee_face", id=1, employee_id=EMPLOYEE, status="Active")
+    insert_row(
+        db,
+        "hr.employee_face",
+        id=2,
+        employee_id=EMPLOYEE,
+        status="Pending approval",
+        created_at=utc_now() + timedelta(seconds=5),
+    )
+
+    rows = {r["employeeCode"]: r for r in client.get(f"{BASE}/employees").json()}
+    assert set(rows) == {"E020", "E021"}  # a resigned employee is left out
+    anita = rows["E020"]
+    assert anita["policyCode"] == "OFFICE" and anita["workLocationNames"] == ["Bhubaneswar office"]
+    assert anita["faceStatus"] == "Active" and anita["faceId"] == 1  # the Active face wins over a newer pending one
+    assert anita["branchName"] == "Bhubaneswar"
+    assert rows["E021"]["policyCode"] is None and rows["E021"]["faceStatus"] == "Not registered"

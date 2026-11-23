@@ -26,6 +26,8 @@ export interface ListDailyAttendance$Params {
   status?: ('Present' | 'Late' | 'Missing Punch' | 'Absent' | 'On Leave' | 'Off Day' | 'Holiday' | null);
   employeeType?: (string | null);
   reportingManager?: (string | null);
+  includeHistory?: boolean;
+  includePunches?: boolean;
 }
 
 export function listDailyAttendance(http: HttpClient, rootUrl: string, params: ListDailyAttendance$Params, context?: HttpContext): Observable<StrictHttpResponse<DailyAttendancePageOut>> {
@@ -43,6 +45,8 @@ export function listDailyAttendance(http: HttpClient, rootUrl: string, params: L
     rb.query('status', params.status, {});
     rb.query('employeeType', params.employeeType, {});
     rb.query('reportingManager', params.reportingManager, {});
+    rb.query('includeHistory', params.includeHistory, {});
+    rb.query('includePunches', params.includePunches, {});
   }
 
   return http.request(

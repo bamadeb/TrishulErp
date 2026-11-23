@@ -17730,6 +17730,26 @@
               ],
               "title": "Reportingmanager"
             }
+          },
+          {
+            "name": "includeHistory",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includehistory"
+            }
+          },
+          {
+            "name": "includePunches",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Includepunches"
+            }
           }
         ],
         "responses": {
@@ -17784,6 +17804,3331 @@
             }
           }
         }
+      }
+    },
+    "/hr/attendance/daily/employees/{employeeId}/history": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Recent attendance history for one employee (lazy-loaded by the drawer)",
+        "operationId": "employee_attendance_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Employeeid"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "History ends the day before this date",
+              "title": "Before"
+            },
+            "description": "History ends the day before this date"
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 31,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttendanceHistoryOut"
+                  },
+                  "title": "Response Employee Attendance History"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/muster": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Monthly muster matrix (computed from punches, leave, holidays and shifts)",
+        "operationId": "list_monthly_muster",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Department"
+            }
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location"
+            }
+          },
+          {
+            "name": "employmentStatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Active",
+                    "Inactive"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employmentstatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyMusterPageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/exceptions": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Attendance exceptions for a date range (computed from punches, leave, holidays and shifts)",
+        "operationId": "list_attendance_exceptions",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "To"
+            }
+          },
+          {
+            "name": "statusTab",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "pending",
+                "resolved"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Statustab"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Department"
+            }
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location"
+            }
+          },
+          {
+            "name": "exceptionType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Missing Punch",
+                    "Late Arrival",
+                    "Early Exit",
+                    "Short Hours",
+                    "Absent"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exceptiontype"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Pending",
+                    "Resolved"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceExceptionsPageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/exceptions/{exceptionId}/resolve": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Mark an exception resolved via hr.attendance.is_regularized",
+        "operationId": "resolve_attendance_exception",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "exceptionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Exceptionid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ResolveExceptionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceExceptionRowOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/regularizations": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Attendance regularization requests from hr.attendance_regularization",
+        "operationId": "list_regularizations",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "To"
+            }
+          },
+          {
+            "name": "statusTab",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "all"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Statustab"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Department"
+            }
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location"
+            }
+          },
+          {
+            "name": "requestType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Missed Punch",
+                    "Wrong Attendance",
+                    "Early Exit",
+                    "WFH Correction",
+                    "Late Arrival"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Requesttype"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegularizationPageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Create an attendance regularization request",
+        "operationId": "create_regularization",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegularizationCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegularizationRowOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/regularizations/{regularizationId}/approve": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Approve a pending regularization request",
+        "operationId": "approve_regularization",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "regularizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Regularizationid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RegularizationDecisionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegularizationRowOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/regularizations/{regularizationId}/reject": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Reject a pending regularization request",
+        "operationId": "reject_regularization",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "regularizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Regularizationid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegularizationDecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegularizationRowOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/me/today": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "My attendance today: policy, work locations, face registration and today's punches",
+        "operationId": "get_my_attendance_today",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyAttendanceTodayOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/work-locations": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "List attendance work locations (geofences)",
+        "operationId": "list_work_locations",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branchid"
+            }
+          },
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includeinactive"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkLocationOut"
+                  },
+                  "title": "Response List Work Locations"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Add an attendance work location",
+        "operationId": "create_work_location",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkLocationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkLocationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/work-locations/{locationId}": {
+      "patch": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Update an attendance work location (If-Match: its rowVersion)",
+        "operationId": "update_work_location",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Locationid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkLocationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkLocationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/policies": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "List attendance policies",
+        "operationId": "list_attendance_policies",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includeinactive"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttendancePolicyOut"
+                  },
+                  "title": "Response List Attendance Policies"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Add an attendance policy",
+        "operationId": "create_attendance_policy",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendancePolicyCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendancePolicyOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/policies/{policyId}": {
+      "patch": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Update an attendance policy (If-Match: its rowVersion)",
+        "operationId": "update_attendance_policy",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Policyid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendancePolicyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendancePolicyOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/employees": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Active employees with today's attendance policy, work locations and face registration status",
+        "operationId": "list_attendance_employees",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branchid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttendanceEmployeeOut"
+                  },
+                  "title": "Response List Attendance Employees"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/employees/{employeeId}/policy": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "The attendance policy and work locations in force for an employee today",
+        "operationId": "get_employee_attendance_policy",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Employeeid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeePolicyOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Assign an attendance policy and work locations to an employee from a date (closes the previous one)",
+        "operationId": "assign_employee_attendance_policy",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Employeeid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeePolicyAssign"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeePolicyOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/employees/{employeeId}/face": {
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Register an employee's face from a photo (waits for a second HR user's approval)",
+        "operationId": "register_employee_face",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Employeeid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_register_employee_face"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceRegistrationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/faces/{faceId}": {
+      "delete": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Delete a face registration's data: photo and face vector (If-Match: its rowVersion)",
+        "operationId": "delete_face_registration",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "faceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Faceid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/faces": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "List face registrations",
+        "operationId": "list_face_registrations",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Pending approval",
+                    "Active",
+                    "Rejected",
+                    "Superseded",
+                    "Deleted"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "employeeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employeeid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FaceRegistrationOut"
+                  },
+                  "title": "Response List Face Registrations"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/faces/{faceId}/approve": {
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Approve a face registration (not one you registered)",
+        "operationId": "approve_face_registration",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "faceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Faceid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceRegistrationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/faces/{faceId}/reject": {
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Reject a face registration with a reason",
+        "operationId": "reject_face_registration",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "faceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Faceid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaceRejectIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceRegistrationOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/faces/{faceId}/photo": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "The registration photo (each view is written to the audit log)",
+        "operationId": "get_face_registration_photo",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "faceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Faceid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/face-models": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Face and anti-spoof model versions",
+        "operationId": "list_face_models",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FaceModelOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Face Models"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/challenges": {
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Start an online punch: a one-time code and the blink / head-turn to ask for (valid 2 minutes)",
+        "operationId": "create_attendance_challenge",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChallengeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChallengeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/punches": {
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Online check-in / check-out with 1 to 3 photos (resending the same clientUuid is safe)",
+        "operationId": "create_attendance_punch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_attendance_punch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PunchResultOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Face punches (HR: everyone; team lead: their team). status=Pending is the review queue",
+        "operationId": "list_attendance_punches",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Present",
+                    "Pending",
+                    "Rejected"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fromdate"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Todate"
+            }
+          },
+          {
+            "name": "employeeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employeeid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PunchListItemOut"
+                  },
+                  "title": "Response List Attendance Punches"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/punches/offline": {
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "A punch taken without network, sent later (resending the same clientUuid is safe)",
+        "operationId": "create_offline_attendance_punch",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_offline_attendance_punch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PunchResultOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/punches/{punchId}/review": {
+      "post": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "Accept or reject a punch waiting for review",
+        "operationId": "review_attendance_punch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "punchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Punchid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PunchReviewIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PunchListItemOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/punches/{punchId}/photo": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "The punch photo (each view is written to the audit log)",
+        "operationId": "get_attendance_punch_photo",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "punchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Punchid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/me/face-template": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "My registered face (for matching on the phone when offline); each download is logged",
+        "operationId": "get_my_face_template",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceTemplateOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/hr/biometric/dashboard": {
@@ -49808,6 +53153,351 @@
         ],
         "title": "AttendanceClassWrite"
       },
+      "AttendanceEmployeeOut": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "departmentName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departmentname"
+          },
+          "policyId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policyid"
+          },
+          "policyCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policycode"
+          },
+          "policyName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policyname"
+          },
+          "policyMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Office",
+                  "Field",
+                  "Hybrid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policymode"
+          },
+          "policyFromDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policyfromdate"
+          },
+          "workLocationIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Worklocationids"
+          },
+          "workLocationNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Worklocationnames"
+          },
+          "faceId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceid"
+          },
+          "faceStatus": {
+            "type": "string",
+            "enum": [
+              "Not registered",
+              "Pending approval",
+              "Active",
+              "Rejected"
+            ],
+            "title": "Facestatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "branchId",
+          "branchName",
+          "departmentName",
+          "policyId",
+          "policyCode",
+          "policyName",
+          "policyMode",
+          "policyFromDate",
+          "workLocationIds",
+          "workLocationNames",
+          "faceId",
+          "faceStatus"
+        ],
+        "title": "AttendanceEmployeeOut",
+        "description": "One employee on the HR set-up screen: policy in force today and face registration status."
+      },
+      "AttendanceExceptionRowOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "shift": {
+            "type": "string",
+            "title": "Shift"
+          },
+          "firstIn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstin"
+          },
+          "lastOut": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastout"
+          },
+          "exceptionType": {
+            "type": "string",
+            "enum": [
+              "Missing Punch",
+              "Late Arrival",
+              "Early Exit",
+              "Short Hours",
+              "Absent"
+            ],
+            "title": "Exceptiontype"
+          },
+          "expectedHours": {
+            "type": "string",
+            "title": "Expectedhours"
+          },
+          "actualHours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actualhours"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Resolved"
+            ],
+            "title": "Status"
+          },
+          "remark": {
+            "type": "string",
+            "title": "Remark",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "department",
+          "location",
+          "date",
+          "shift",
+          "firstIn",
+          "lastOut",
+          "exceptionType",
+          "expectedHours",
+          "actualHours",
+          "status",
+          "remark"
+        ],
+        "title": "AttendanceExceptionRowOut"
+      },
+      "AttendanceExceptionsPageOut": {
+        "properties": {
+          "dateFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Datefrom"
+          },
+          "dateTo": {
+            "type": "string",
+            "format": "date",
+            "title": "Dateto"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ExceptionKpiOut"
+          },
+          "filterOptions": {
+            "$ref": "#/components/schemas/ExceptionFilterOptionsOut"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceExceptionRowOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          },
+          "pendingCount": {
+            "type": "integer",
+            "title": "Pendingcount"
+          },
+          "resolvedCount": {
+            "type": "integer",
+            "title": "Resolvedcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dateFrom",
+          "dateTo",
+          "summary",
+          "filterOptions",
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "pendingCount",
+          "resolvedCount"
+        ],
+        "title": "AttendanceExceptionsPageOut"
+      },
       "AttendanceFilterOptionsOut": {
         "properties": {
           "departments": {
@@ -49938,6 +53628,429 @@
           "workingHours"
         ],
         "title": "AttendanceHistoryOut"
+      },
+      "AttendancePolicyCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "pattern": "^[A-Z0-9_]+$",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "Office",
+              "Field",
+              "Hybrid"
+            ],
+            "title": "Mode"
+          },
+          "challenge": {
+            "type": "string",
+            "enum": [
+              "None",
+              "Blink",
+              "Blink and turn"
+            ],
+            "title": "Challenge",
+            "default": "Blink"
+          },
+          "challengeOnCheckOut": {
+            "type": "boolean",
+            "title": "Challengeoncheckout",
+            "default": false
+          },
+          "antispoofRequired": {
+            "type": "boolean",
+            "title": "Antispoofrequired",
+            "default": true
+          },
+          "matchThreshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matchthreshold"
+          },
+          "reviewThreshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewthreshold"
+          },
+          "maxScoreGap": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Maxscoregap",
+            "default": "0.1"
+          },
+          "maxGpsAccuracyM": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 5.0,
+            "title": "Maxgpsaccuracym",
+            "default": 100
+          },
+          "allowOffline": {
+            "type": "boolean",
+            "title": "Allowoffline",
+            "default": true
+          },
+          "offlineAutoAccept": {
+            "type": "boolean",
+            "title": "Offlineautoaccept",
+            "default": true
+          },
+          "maxOfflineHours": {
+            "type": "integer",
+            "maximum": 720.0,
+            "minimum": 1.0,
+            "title": "Maxofflinehours",
+            "default": 72
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "mode"
+        ],
+        "title": "AttendancePolicyCreate"
+      },
+      "AttendancePolicyOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "Office",
+              "Field",
+              "Hybrid"
+            ],
+            "title": "Mode"
+          },
+          "challenge": {
+            "type": "string",
+            "enum": [
+              "None",
+              "Blink",
+              "Blink and turn"
+            ],
+            "title": "Challenge"
+          },
+          "challengeOnCheckOut": {
+            "type": "boolean",
+            "title": "Challengeoncheckout"
+          },
+          "antispoofRequired": {
+            "type": "boolean",
+            "title": "Antispoofrequired"
+          },
+          "matchThreshold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matchthreshold"
+          },
+          "reviewThreshold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewthreshold"
+          },
+          "maxScoreGap": {
+            "type": "string",
+            "title": "Maxscoregap"
+          },
+          "maxGpsAccuracyM": {
+            "type": "integer",
+            "title": "Maxgpsaccuracym"
+          },
+          "allowOffline": {
+            "type": "boolean",
+            "title": "Allowoffline"
+          },
+          "offlineAutoAccept": {
+            "type": "boolean",
+            "title": "Offlineautoaccept"
+          },
+          "maxOfflineHours": {
+            "type": "integer",
+            "title": "Maxofflinehours"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "employeeCount": {
+            "type": "integer",
+            "title": "Employeecount",
+            "default": 0
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "mode",
+          "challenge",
+          "challengeOnCheckOut",
+          "antispoofRequired",
+          "matchThreshold",
+          "reviewThreshold",
+          "maxScoreGap",
+          "maxGpsAccuracyM",
+          "allowOffline",
+          "offlineAutoAccept",
+          "maxOfflineHours",
+          "isActive",
+          "employeeCount",
+          "rowVersion"
+        ],
+        "title": "AttendancePolicyOut"
+      },
+      "AttendancePolicyUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Office",
+                  "Field",
+                  "Hybrid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "challenge": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "None",
+                  "Blink",
+                  "Blink and turn"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge"
+          },
+          "challengeOnCheckOut": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challengeoncheckout"
+          },
+          "antispoofRequired": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Antispoofrequired"
+          },
+          "matchThreshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matchthreshold"
+          },
+          "reviewThreshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewthreshold"
+          },
+          "maxScoreGap": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxscoregap"
+          },
+          "maxGpsAccuracyM": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2000.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxgpsaccuracym"
+          },
+          "allowOffline": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowoffline"
+          },
+          "offlineAutoAccept": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offlineautoaccept"
+          },
+          "maxOfflineHours": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 720.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxofflinehours"
+          },
+          "isActive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isactive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AttendancePolicyUpdate"
       },
       "AttendancePunchOut": {
         "properties": {
@@ -51659,6 +55772,54 @@
         ],
         "title": "Body_apply_service_contract_import"
       },
+      "Body_create_attendance_punch": {
+        "properties": {
+          "evidence": {
+            "type": "string",
+            "title": "Evidence",
+            "description": "PunchEvidence as JSON: clientUuid, punchType, nonce, challengeResult, deviceScore, GPS, device details"
+          },
+          "frames": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Frames",
+            "description": "1 to 3 JPEG photos from the face check"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence",
+          "frames"
+        ],
+        "title": "Body_create_attendance_punch"
+      },
+      "Body_create_offline_attendance_punch": {
+        "properties": {
+          "evidence": {
+            "type": "string",
+            "title": "Evidence",
+            "description": "PunchEvidence as JSON: clientUuid, punchType, nonce, challengeResult, deviceScore, GPS, device details; deviceCapturedAt is required"
+          },
+          "frames": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Frames",
+            "description": "1 to 3 JPEG photos from the face check"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence",
+          "frames"
+        ],
+        "title": "Body_create_offline_attendance_punch"
+      },
       "Body_preview_service_call_import": {
         "properties": {
           "file": {
@@ -51721,6 +55882,27 @@
           "file"
         ],
         "title": "Body_preview_service_contract_import"
+      },
+      "Body_register_employee_face": {
+        "properties": {
+          "photo": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Photo",
+            "description": "JPEG or PNG, up to 8 MB"
+          },
+          "consent": {
+            "type": "boolean",
+            "title": "Consent",
+            "description": "The employee agreed to their face being stored for attendance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photo",
+          "consent"
+        ],
+        "title": "Body_register_employee_face"
       },
       "Body_sign_service_report": {
         "properties": {
@@ -54241,6 +58423,68 @@
         "type": "object",
         "title": "CategoryUpdate",
         "description": "Only the fields sent are changed; send parentCategoryId null to make it a top category."
+      },
+      "ChallengeOut": {
+        "properties": {
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "punchType": {
+            "type": "string",
+            "enum": [
+              "In",
+              "Out"
+            ],
+            "title": "Punchtype"
+          },
+          "challenge": {
+            "type": "string",
+            "title": "Challenge"
+          },
+          "instruction": {
+            "type": "string",
+            "title": "Instruction"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expiresat"
+          },
+          "serverTime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Servertime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nonce",
+          "punchType",
+          "challenge",
+          "instruction",
+          "expiresAt",
+          "serverTime"
+        ],
+        "title": "ChallengeOut"
+      },
+      "ChallengeRequest": {
+        "properties": {
+          "punchType": {
+            "type": "string",
+            "enum": [
+              "In",
+              "Out"
+            ],
+            "title": "Punchtype"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "punchType"
+        ],
+        "title": "ChallengeRequest"
       },
       "ChecklistAnswer": {
         "properties": {
@@ -62699,6 +66943,84 @@
         "title": "EmployeeOption",
         "description": "An employee to link a user to."
       },
+      "EmployeePolicyAssign": {
+        "properties": {
+          "policyId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Policyid"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Fromdate"
+          },
+          "workLocationIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Worklocationids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "policyId",
+          "fromDate"
+        ],
+        "title": "EmployeePolicyAssign"
+      },
+      "EmployeePolicyOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/AttendancePolicyOut"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Fromdate"
+          },
+          "toDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todate"
+          },
+          "workLocations": {
+            "items": {
+              "$ref": "#/components/schemas/WorkLocationOut"
+            },
+            "type": "array",
+            "title": "Worklocations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "policy",
+          "fromDate",
+          "toDate",
+          "workLocations"
+        ],
+        "title": "EmployeePolicyOut"
+      },
       "EmployeeUpcomingLeave": {
         "properties": {
           "requestId": {
@@ -63547,6 +67869,83 @@
         ],
         "title": "EntitlementPreviewRequest"
       },
+      "ExceptionFilterOptionsOut": {
+        "properties": {
+          "departments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Departments"
+          },
+          "locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "exceptionTypes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Missing Punch",
+                "Late Arrival",
+                "Early Exit",
+                "Short Hours",
+                "Absent"
+              ]
+            },
+            "type": "array",
+            "title": "Exceptiontypes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "departments",
+          "locations",
+          "exceptionTypes"
+        ],
+        "title": "ExceptionFilterOptionsOut"
+      },
+      "ExceptionKpiOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "missingPunch": {
+            "type": "integer",
+            "title": "Missingpunch"
+          },
+          "lateArrival": {
+            "type": "integer",
+            "title": "Latearrival"
+          },
+          "earlyExit": {
+            "type": "integer",
+            "title": "Earlyexit"
+          },
+          "shortHours": {
+            "type": "integer",
+            "title": "Shorthours"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "missingPunch",
+          "lateArrival",
+          "earlyExit",
+          "shortHours",
+          "absent"
+        ],
+        "title": "ExceptionKpiOut"
+      },
       "ExpiringContract": {
         "properties": {
           "id": {
@@ -63599,6 +67998,327 @@
           "visitsRemaining"
         ],
         "title": "ExpiringContract"
+      },
+      "FaceModelOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Face",
+              "Anti-spoof"
+            ],
+            "title": "Kind"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "vectorSize": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectorsize"
+          },
+          "defaultMatchThreshold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultmatchthreshold"
+          },
+          "defaultReviewThreshold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultreviewthreshold"
+          },
+          "isCurrent": {
+            "type": "boolean",
+            "title": "Iscurrent"
+          },
+          "activatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "kind",
+          "version",
+          "vectorSize",
+          "defaultMatchThreshold",
+          "defaultReviewThreshold",
+          "isCurrent",
+          "activatedAt"
+        ],
+        "title": "FaceModelOut"
+      },
+      "FaceRegistrationOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeename"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending approval",
+              "Active",
+              "Rejected",
+              "Superseded",
+              "Deleted"
+            ],
+            "title": "Status"
+          },
+          "faceConfidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faceconfidence"
+          },
+          "sharpness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpness"
+          },
+          "brightness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brightness"
+          },
+          "faceModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facemodel"
+          },
+          "registeredByUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registeredbyuserid"
+          },
+          "registeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registeredat"
+          },
+          "approvedByUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approvedbyuserid"
+          },
+          "approvedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approvedat"
+          },
+          "rejectionReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejectionreason"
+          },
+          "consentAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consentat"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "status",
+          "faceConfidence",
+          "sharpness",
+          "brightness",
+          "faceModel",
+          "registeredByUserId",
+          "registeredAt",
+          "approvedByUserId",
+          "approvedAt",
+          "rejectionReason",
+          "consentAt",
+          "rowVersion"
+        ],
+        "title": "FaceRegistrationOut"
+      },
+      "FaceRejectIn": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "FaceRejectIn"
+      },
+      "FaceTemplateOut": {
+        "properties": {
+          "faceId": {
+            "type": "integer",
+            "title": "Faceid"
+          },
+          "modelCode": {
+            "type": "string",
+            "title": "Modelcode"
+          },
+          "modelVersion": {
+            "type": "string",
+            "title": "Modelversion"
+          },
+          "vectorSize": {
+            "type": "integer",
+            "title": "Vectorsize"
+          },
+          "vector": {
+            "type": "string",
+            "title": "Vector"
+          },
+          "matchThreshold": {
+            "type": "string",
+            "title": "Matchthreshold"
+          },
+          "reviewThreshold": {
+            "type": "string",
+            "title": "Reviewthreshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "faceId",
+          "modelCode",
+          "modelVersion",
+          "vectorSize",
+          "vector",
+          "matchThreshold",
+          "reviewThreshold"
+        ],
+        "title": "FaceTemplateOut",
+        "description": "The signed-in employee's own registered face, for matching on the phone when offline."
       },
       "FieldChange": {
         "properties": {
@@ -72467,6 +77187,68 @@
         ],
         "title": "MonthPoint"
       },
+      "MonthlyMusterPageOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "daysInMonth": {
+            "type": "integer",
+            "title": "Daysinmonth"
+          },
+          "dayColumns": {
+            "items": {
+              "$ref": "#/components/schemas/MusterDayColumnOut"
+            },
+            "type": "array",
+            "title": "Daycolumns"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MusterKpiOut"
+          },
+          "filterOptions": {
+            "$ref": "#/components/schemas/MusterFilterOptionsOut"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MusterEmployeeRowOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "daysInMonth",
+          "dayColumns",
+          "summary",
+          "filterOptions",
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "MonthlyMusterPageOut"
+      },
       "MovementRow": {
         "properties": {
           "id": {
@@ -72650,6 +77432,186 @@
         ],
         "title": "MovementRow"
       },
+      "MusterDayColumnOut": {
+        "properties": {
+          "day": {
+            "type": "integer",
+            "title": "Day"
+          },
+          "weekday": {
+            "type": "string",
+            "title": "Weekday"
+          },
+          "isWeekend": {
+            "type": "boolean",
+            "title": "Isweekend"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "weekday",
+          "isWeekend"
+        ],
+        "title": "MusterDayColumnOut"
+      },
+      "MusterEmployeeRowOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Inactive"
+            ],
+            "title": "Employmentstatus"
+          },
+          "days": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "P",
+                "L",
+                "A",
+                "PL",
+                "WFH",
+                "OFF",
+                "H"
+              ]
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "present": {
+            "type": "integer",
+            "title": "Present"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "leave": {
+            "type": "integer",
+            "title": "Leave"
+          },
+          "wfh": {
+            "type": "integer",
+            "title": "Wfh"
+          },
+          "hours": {
+            "type": "integer",
+            "title": "Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "department",
+          "location",
+          "employmentStatus",
+          "days",
+          "present",
+          "late",
+          "absent",
+          "leave",
+          "wfh",
+          "hours"
+        ],
+        "title": "MusterEmployeeRowOut"
+      },
+      "MusterFilterOptionsOut": {
+        "properties": {
+          "departments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Departments"
+          },
+          "locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "departments",
+          "locations"
+        ],
+        "title": "MusterFilterOptionsOut"
+      },
+      "MusterKpiOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "present": {
+            "type": "integer",
+            "title": "Present"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "onLeave": {
+            "type": "integer",
+            "title": "Onleave"
+          },
+          "wfh": {
+            "type": "integer",
+            "title": "Wfh"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "present",
+          "late",
+          "absent",
+          "onLeave",
+          "wfh"
+        ],
+        "title": "MusterKpiOut",
+        "description": "Month totals: employee count + sum of day-codes across the filtered roster."
+      },
       "MyAlertItem": {
         "properties": {
           "id": {
@@ -72814,6 +77776,227 @@
         ],
         "title": "MyAlertSummary",
         "description": "For the bell: unread alerts that are not resolved yet, and all open ones."
+      },
+      "MyAttendanceTodayOut": {
+        "properties": {
+          "serverTime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Servertime"
+          },
+          "attendanceDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Attendancedate"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "canPunch": {
+            "type": "boolean",
+            "title": "Canpunch"
+          },
+          "blockedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blockedreason"
+          },
+          "nextPunchType": {
+            "type": "string",
+            "enum": [
+              "In",
+              "Out"
+            ],
+            "title": "Nextpunchtype"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttendancePolicyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "workLocations": {
+            "items": {
+              "$ref": "#/components/schemas/WorkLocationOut"
+            },
+            "type": "array",
+            "title": "Worklocations"
+          },
+          "face": {
+            "$ref": "#/components/schemas/MyFaceOut"
+          },
+          "faceModelVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facemodelversion"
+          },
+          "punches": {
+            "items": {
+              "$ref": "#/components/schemas/MyPunchOut"
+            },
+            "type": "array",
+            "title": "Punches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "serverTime",
+          "attendanceDate",
+          "employeeId",
+          "canPunch",
+          "blockedReason",
+          "nextPunchType",
+          "policy",
+          "workLocations",
+          "face",
+          "faceModelVersion",
+          "punches"
+        ],
+        "title": "MyAttendanceTodayOut"
+      },
+      "MyFaceOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Not registered",
+              "Pending approval",
+              "Active",
+              "Rejected"
+            ],
+            "title": "Status"
+          },
+          "registeredAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registeredat"
+          },
+          "rejectionReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejectionreason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "registeredAt",
+          "rejectionReason"
+        ],
+        "title": "MyFaceOut"
+      },
+      "MyPunchOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "punchType": {
+            "type": "string",
+            "enum": [
+              "In",
+              "Out"
+            ],
+            "title": "Punchtype"
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Effectiveat"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Present",
+              "Pending",
+              "Rejected"
+            ],
+            "title": "Status"
+          },
+          "statusReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statusreason"
+          },
+          "captureMode": {
+            "type": "string",
+            "enum": [
+              "Online",
+              "Offline"
+            ],
+            "title": "Capturemode"
+          },
+          "insideGeofence": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insidegeofence"
+          },
+          "workLocationName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worklocationname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "punchType",
+          "effectiveAt",
+          "status",
+          "statusReason",
+          "captureMode",
+          "insideGeofence",
+          "workLocationName"
+        ],
+        "title": "MyPunchOut"
       },
       "MyWork": {
         "properties": {
@@ -79647,6 +84830,407 @@
         "title": "ProblemDetails",
         "description": "The body of every error response (RFC 7807), for the OpenAPI document and the Angular client."
       },
+      "PunchListItemOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeename"
+          },
+          "attendanceDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Attendancedate"
+          },
+          "punchType": {
+            "type": "string",
+            "enum": [
+              "In",
+              "Out"
+            ],
+            "title": "Punchtype"
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Effectiveat"
+          },
+          "captureMode": {
+            "type": "string",
+            "enum": [
+              "Online",
+              "Offline"
+            ],
+            "title": "Capturemode"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Present",
+              "Pending",
+              "Rejected"
+            ],
+            "title": "Status"
+          },
+          "statusReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statusreason"
+          },
+          "faceStatus": {
+            "type": "string",
+            "title": "Facestatus"
+          },
+          "serverScore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serverscore"
+          },
+          "deviceScore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Devicescore"
+          },
+          "challenge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge"
+          },
+          "challengeResult": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challengeresult"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "gpsAccuracyM": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpsaccuracym"
+          },
+          "isMockLocation": {
+            "type": "boolean",
+            "title": "Ismocklocation"
+          },
+          "insideGeofence": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insidegeofence"
+          },
+          "distanceM": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancem"
+          },
+          "workLocationName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worklocationname"
+          },
+          "timeTrust": {
+            "type": "string",
+            "title": "Timetrust"
+          },
+          "hasPhoto": {
+            "type": "boolean",
+            "title": "Hasphoto"
+          },
+          "reviewedByUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewedbyuserid"
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewedat"
+          },
+          "reviewRemarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewremarks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "attendanceDate",
+          "punchType",
+          "effectiveAt",
+          "captureMode",
+          "status",
+          "statusReason",
+          "faceStatus",
+          "serverScore",
+          "deviceScore",
+          "challenge",
+          "challengeResult",
+          "latitude",
+          "longitude",
+          "gpsAccuracyM",
+          "isMockLocation",
+          "insideGeofence",
+          "distanceM",
+          "workLocationName",
+          "timeTrust",
+          "hasPhoto",
+          "reviewedByUserId",
+          "reviewedAt",
+          "reviewRemarks"
+        ],
+        "title": "PunchListItemOut"
+      },
+      "PunchResultOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "clientUuid": {
+            "type": "string",
+            "title": "Clientuuid"
+          },
+          "punchType": {
+            "type": "string",
+            "enum": [
+              "In",
+              "Out"
+            ],
+            "title": "Punchtype"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Present",
+              "Pending",
+              "Rejected"
+            ],
+            "title": "Status"
+          },
+          "statusReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statusreason"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Effectiveat"
+          },
+          "attendanceDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Attendancedate"
+          },
+          "captureMode": {
+            "type": "string",
+            "enum": [
+              "Online",
+              "Offline"
+            ],
+            "title": "Capturemode"
+          },
+          "insideGeofence": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insidegeofence"
+          },
+          "workLocationName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worklocationname"
+          },
+          "alreadyReceived": {
+            "type": "boolean",
+            "title": "Alreadyreceived",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clientUuid",
+          "punchType",
+          "status",
+          "statusReason",
+          "message",
+          "effectiveAt",
+          "attendanceDate",
+          "captureMode",
+          "insideGeofence",
+          "workLocationName",
+          "alreadyReceived"
+        ],
+        "title": "PunchResultOut"
+      },
+      "PunchReviewIn": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "Present",
+              "Rejected"
+            ],
+            "title": "Decision"
+          },
+          "remarks": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 3,
+            "title": "Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision",
+          "remarks"
+        ],
+        "title": "PunchReviewIn"
+      },
       "PunchTrendPoint": {
         "properties": {
           "hour": {
@@ -81688,6 +87272,385 @@
         "title": "RegisterDeviceInput",
         "description": "Sent by the Android app on sign-in. The user is the signed-in account, so it is not in the body."
       },
+      "RegularizationCreateIn": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Employeeid"
+          },
+          "attendanceDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Attendancedate"
+          },
+          "requestType": {
+            "type": "string",
+            "enum": [
+              "Missed Punch",
+              "Wrong Attendance",
+              "Early Exit",
+              "WFH Correction",
+              "Late Arrival"
+            ],
+            "title": "Requesttype"
+          },
+          "requestedIn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedin"
+          },
+          "requestedOut": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedout"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 250,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "attachmentName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachmentname"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "employeeId",
+          "attendanceDate",
+          "requestType",
+          "reason"
+        ],
+        "title": "RegularizationCreateIn"
+      },
+      "RegularizationDecisionIn": {
+        "properties": {
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 250
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RegularizationDecisionIn"
+      },
+      "RegularizationFilterOptionsOut": {
+        "properties": {
+          "departments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Departments"
+          },
+          "locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "requestTypes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Missed Punch",
+                "Wrong Attendance",
+                "Early Exit",
+                "WFH Correction",
+                "Late Arrival"
+              ]
+            },
+            "type": "array",
+            "title": "Requesttypes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "departments",
+          "locations",
+          "requestTypes"
+        ],
+        "title": "RegularizationFilterOptionsOut"
+      },
+      "RegularizationKpiOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "pending",
+          "approved",
+          "rejected"
+        ],
+        "title": "RegularizationKpiOut"
+      },
+      "RegularizationPageOut": {
+        "properties": {
+          "dateFrom": {
+            "type": "string",
+            "format": "date",
+            "title": "Datefrom"
+          },
+          "dateTo": {
+            "type": "string",
+            "format": "date",
+            "title": "Dateto"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/RegularizationKpiOut"
+          },
+          "filterOptions": {
+            "$ref": "#/components/schemas/RegularizationFilterOptionsOut"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RegularizationRowOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          },
+          "pendingCount": {
+            "type": "integer",
+            "title": "Pendingcount"
+          },
+          "approvedCount": {
+            "type": "integer",
+            "title": "Approvedcount"
+          },
+          "rejectedCount": {
+            "type": "integer",
+            "title": "Rejectedcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dateFrom",
+          "dateTo",
+          "summary",
+          "filterOptions",
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "pendingCount",
+          "approvedCount",
+          "rejectedCount"
+        ],
+        "title": "RegularizationPageOut"
+      },
+      "RegularizationRowOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "attendanceDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Attendancedate"
+          },
+          "requestType": {
+            "type": "string",
+            "enum": [
+              "Missed Punch",
+              "Wrong Attendance",
+              "Early Exit",
+              "WFH Correction",
+              "Late Arrival"
+            ],
+            "title": "Requesttype"
+          },
+          "originalIn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Originalin"
+          },
+          "originalOut": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Originalout"
+          },
+          "requestedIn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedin"
+          },
+          "requestedOut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedout"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "submittedOn": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submittedon"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Approved",
+              "Rejected"
+            ],
+            "title": "Status"
+          },
+          "rejectionReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejectionreason"
+          },
+          "attachmentName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachmentname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "department",
+          "location",
+          "attendanceDate",
+          "requestType",
+          "originalIn",
+          "originalOut",
+          "requestedIn",
+          "requestedOut",
+          "reason",
+          "submittedOn",
+          "status",
+          "rejectionReason",
+          "attachmentName"
+        ],
+        "title": "RegularizationRowOut"
+      },
       "ReportAttachment": {
         "properties": {
           "id": {
@@ -82247,6 +88210,25 @@
           "status"
         ],
         "title": "RequestRow"
+      },
+      "ResolveExceptionIn": {
+        "properties": {
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResolveExceptionIn"
       },
       "RoleCreate": {
         "properties": {
@@ -96084,6 +102066,260 @@
           "days"
         ],
         "title": "WeeklyRestGrantWrite"
+      },
+      "WorkLocationCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "radiusM": {
+            "type": "integer",
+            "maximum": 5000.0,
+            "minimum": 10.0,
+            "title": "Radiusm",
+            "default": 150
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "latitude",
+          "longitude"
+        ],
+        "title": "WorkLocationCreate"
+      },
+      "WorkLocationOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "latitude": {
+            "type": "string",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "string",
+            "title": "Longitude"
+          },
+          "radiusM": {
+            "type": "integer",
+            "title": "Radiusm"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "branchId",
+          "branchName",
+          "latitude",
+          "longitude",
+          "radiusM",
+          "address",
+          "isActive",
+          "rowVersion"
+        ],
+        "title": "WorkLocationOut"
+      },
+      "WorkLocationUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchid"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "radiusM": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5000.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radiusm"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "isActive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isactive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "WorkLocationUpdate"
       },
       "trishul_api__modules__hr__leave__dashboard_schemas__MineBalance": {
         "properties": {

@@ -15,6 +15,7 @@ import { AttendanceMusterPage } from './attendance/attendance-muster.page';
 import { AttendanceRegularizationPage } from './attendance/attendance-regularization.page';
 import { AttendanceRulesPage } from './attendance/attendance-rules.page';
 import { biometricRoutes } from './biometric/biometric.routes';
+import { faceAttendanceRoutes } from './face-attendance/face-attendance.routes';
 import { leaveRoutes } from './leave/leave.routes';
 import { payrollRoutes } from './payroll/payroll.routes';
 import { EmployeeFormPage } from './employees/form/employee-form.page';
@@ -113,6 +114,10 @@ export const hrRoutes: Route[] = [
   {
     path: 'biometric',
     children: biometricRoutes,
+  },
+  {
+    path: 'face-attendance',
+    children: faceAttendanceRoutes,
   },
   {
     path: 'leave',

@@ -15,3 +15,4 @@ export * from './lib/leave/leave.api';
 export * from './lib/reporting/reporting.api';
 export * from './lib/biometric/biometric.api';
 export * from './lib/attendance/attendance.api';
+export * from './lib/face-attendance/face-attendance.api';

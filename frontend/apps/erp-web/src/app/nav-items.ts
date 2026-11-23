@@ -11,7 +11,14 @@ import {
   WAREHOUSE_VIEW_PERMISSIONS,
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
-import { EMPLOYEE_VIEW_PERMISSIONS, LEAVE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
+import {
+  EMPLOYEE_VIEW_PERMISSIONS,
+  FACE_APPROVE_PERMISSION,
+  FACE_ATTENDANCE_VIEW_PERMISSIONS,
+  FACE_PUNCH_VIEW_PERMISSIONS,
+  FACE_REGISTER_PERMISSION,
+  LEAVE_VIEW_PERMISSIONS,
+} from '@trishul/hr-data-access';
 import {
   INV_ADJUSTMENT_VIEW_PERMISSIONS,
   INV_ANY_PERMISSIONS,
@@ -426,6 +433,44 @@ export const navItems: NavItem[] = [
             icon: 'sync',
             route: '/hr/biometric/sync-history',
             permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+          },
+        ],
+      },
+      {
+        label: 'Face Attendance',
+        icon: 'face',
+        route: '/hr/face-attendance/employees',
+        permissions: [...FACE_ATTENDANCE_VIEW_PERMISSIONS],
+        children: [
+          {
+            label: 'Employees',
+            icon: 'badge',
+            route: '/hr/face-attendance/employees',
+            permissions: [...FACE_ATTENDANCE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Face approvals',
+            icon: 'face',
+            route: '/hr/face-attendance/faces',
+            permissions: [FACE_REGISTER_PERMISSION, FACE_APPROVE_PERMISSION],
+          },
+          {
+            label: 'Punches & review',
+            icon: 'fact_check',
+            route: '/hr/face-attendance/punches',
+            permissions: [...FACE_PUNCH_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Work locations',
+            icon: 'location_on',
+            route: '/hr/face-attendance/locations',
+            permissions: [...FACE_ATTENDANCE_VIEW_PERMISSIONS],
+          },
+          {
+            label: 'Policies',
+            icon: 'rule',
+            route: '/hr/face-attendance/policies',
+            permissions: [...FACE_ATTENDANCE_VIEW_PERMISSIONS],
           },
         ],
       },

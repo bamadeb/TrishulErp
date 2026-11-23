@@ -20,6 +20,7 @@ from trishul_api.db.models import (
     AttendancePolicy,
     AttendancePunch,
     Branch,
+    Department,
     Employee,
     EmployeeAttendanceLocation,
     EmployeeAttendancePolicy,
@@ -29,6 +30,7 @@ from trishul_api.db.models import (
 )
 from trishul_api.modules.hr.face_attendance.rules import india_date
 from trishul_api.modules.hr.face_attendance.schemas import (
+    AttendanceEmployeeOut,
     AttendancePolicyCreate,
     AttendancePolicyOut,
     AttendancePolicyUpdate,
@@ -266,6 +268,79 @@ class FaceAttendanceService:
             to_date=assignment.to_date,
             work_locations=self._location_outs(locations),
         )
+
+    def list_employees(self, branch_id: int | None = None) -> list[AttendanceEmployeeOut]:
+        """Active employees with the policy in force today, its work locations and their face status."""
+        today = india_date(utc_now())
+        query = (
+            select(Employee, Branch.name, Department.name)
+            .outerjoin(Branch, Branch.id == Employee.branch_id)
+            .outerjoin(Department, Department.id == Employee.department_id)
+            .where(Employee.is_active == True)  # noqa: E712
+            .where(or_(Employee.status == "Active", Employee.status.is_(None)))
+            .order_by(Employee.employee_code)
+        )
+        if branch_id is not None:
+            query = query.where(Employee.branch_id == branch_id)
+        rows = self._db.execute(query).all()
+
+        assignments: dict[int, EmployeeAttendancePolicy] = {}
+        for row in self._db.scalars(
+            select(EmployeeAttendancePolicy)
+            .where(_assignment_on(today))
+            .order_by(EmployeeAttendancePolicy.from_date.desc(), EmployeeAttendancePolicy.id.desc())
+        ):
+            assignments.setdefault(row.employee_id, row)
+        policies = {p.id: p for p in self._db.scalars(select(AttendancePolicy))}
+        locations: dict[int, list[tuple[int, str]]] = {}
+        if assignments:
+            for assignment_id, location_id, name in self._db.execute(
+                select(EmployeeAttendanceLocation.employee_attendance_policy_id, WorkLocation.id, WorkLocation.name)
+                .join(WorkLocation, WorkLocation.id == EmployeeAttendanceLocation.work_location_id)
+                .where(
+                    EmployeeAttendanceLocation.employee_attendance_policy_id.in_([a.id for a in assignments.values()])
+                )
+                .order_by(WorkLocation.name)
+            ):
+                locations.setdefault(assignment_id, []).append((location_id, name))
+        faces: dict[int, EmployeeFace] = {}
+        for face in self._db.scalars(
+            select(EmployeeFace)
+            .where(EmployeeFace.is_active == True, EmployeeFace.status.in_(_LIVE_FACE))  # noqa: E712
+            .order_by(EmployeeFace.created_at.desc(), EmployeeFace.id.desc())
+        ):
+            # An Active face wins over a newer pending or rejected one: it is what punches are checked against.
+            current = faces.get(face.employee_id)
+            if current is None or (face.status == "Active" and current.status != "Active"):
+                faces[face.employee_id] = face
+
+        out: list[AttendanceEmployeeOut] = []
+        for employee, branch_name, department_name in rows:
+            assignment = assignments.get(employee.id)
+            policy = policies.get(assignment.policy_id) if assignment else None
+            locs = locations.get(assignment.id, []) if assignment else []
+            registered = faces.get(employee.id)
+            out.append(
+                AttendanceEmployeeOut(
+                    employee_id=employee.id,
+                    employee_code=employee.employee_code,
+                    employee_name=" ".join(p for p in (employee.first_name, employee.last_name) if p)
+                    or employee.employee_code,
+                    branch_id=employee.branch_id,
+                    branch_name=branch_name,
+                    department_name=department_name,
+                    policy_id=policy.id if policy else None,
+                    policy_code=policy.code if policy else None,
+                    policy_name=policy.name if policy else None,
+                    policy_mode=policy.mode if policy else None,
+                    policy_from_date=assignment.from_date if assignment else None,
+                    work_location_ids=[loc_id for loc_id, _ in locs],
+                    work_location_names=[name for _, name in locs],
+                    face_id=registered.id if registered else None,
+                    face_status=registered.status if registered else "Not registered",
+                )
+            )
+        return out
 
     def _require_employee(self, employee_id: int) -> Employee:
         employee = self._db.get(Employee, employee_id)

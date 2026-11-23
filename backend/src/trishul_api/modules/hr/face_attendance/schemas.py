@@ -128,6 +128,26 @@ class EmployeePolicyAssign(InputModel):
     work_location_ids: list[int] = Field(default_factory=list, max_length=20)
 
 
+class AttendanceEmployeeOut(ApiModel):
+    """One employee on the HR set-up screen: policy in force today and face registration status."""
+
+    employee_id: int
+    employee_code: str
+    employee_name: str
+    branch_id: int | None
+    branch_name: str | None
+    department_name: str | None
+    policy_id: int | None
+    policy_code: str | None
+    policy_name: str | None
+    policy_mode: PolicyMode | None
+    policy_from_date: date | None
+    work_location_ids: list[int]
+    work_location_names: list[str]
+    face_id: int | None
+    face_status: FaceStatus
+
+
 class EmployeePolicyOut(ApiModel):
     id: int
     employee_id: int

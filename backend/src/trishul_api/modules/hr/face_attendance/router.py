@@ -22,6 +22,7 @@ from trishul_api.modules.hr.face_attendance.protect import FaceDataKeyMissing, F
 from trishul_api.modules.hr.face_attendance.punches import MAX_FRAME_BYTES, MAX_FRAMES, Frame, PunchService
 from trishul_api.modules.hr.face_attendance.review import PunchReviewService
 from trishul_api.modules.hr.face_attendance.schemas import (
+    AttendanceEmployeeOut,
     AttendancePolicyCreate,
     AttendancePolicyOut,
     AttendancePolicyUpdate,
@@ -215,6 +216,17 @@ def update_attendance_policy(
 
 
 # --- employee assignment ---------------------------------------------------------------
+
+
+@router.get(
+    "/employees",
+    summary="Active employees with today's attendance policy, work locations and face registration status",
+    dependencies=[CAN_VIEW_SETUP],
+)
+def list_attendance_employees(
+    service: FaceAttendance, branch_id: Annotated[int | None, Query(alias="branchId", gt=0)] = None
+) -> list[AttendanceEmployeeOut]:
+    return service.list_employees(branch_id)
 
 
 @router.get(
