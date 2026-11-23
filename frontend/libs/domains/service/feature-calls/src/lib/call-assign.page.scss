@@ -273,3 +273,25 @@ td {
   font: var(--mat-sys-body-small);
   color: var(--mat-sys-on-surface-variant);
 }
+
+.reminder {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font: var(--mat-sys-body-medium);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+.over {
+  color: var(--mat-sys-error);
+  font-weight: 600;
+}
+
+.over-icon {
+  color: var(--mat-sys-error);
+  vertical-align: middle;
+}

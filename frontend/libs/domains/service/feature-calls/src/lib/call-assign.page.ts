@@ -41,6 +41,7 @@ import {
   debounceTime,
   distinctUntilChanged,
   finalize,
+  map,
   of,
   switchMap,
   tap,
@@ -81,6 +82,9 @@ const AVAILABILITY_SEVERITY: Record<EngineerAvailability, StatusSeverity> = {
   Holiday: 'warn',
   'On leave': 'danger',
 };
+
+/** Used until the configured limit (Configuration > Service) has loaded. */
+const DEFAULT_MAX_PENDING_CALLS = 3;
 
 const NO_CALLS: PageUnassignedCallItem = {
   items: [],
@@ -223,6 +227,18 @@ export class CallAssignPage {
       ),
   );
   protected readonly support = computed(() => this.team().slice(1));
+  /** The limit set on the Configuration screen: more open calls than this and no new call. */
+  protected readonly maxPending = toSignal(
+    this.api.settings().pipe(
+      map((s) => s.maxPendingCalls),
+      catchError(() => of(DEFAULT_MAX_PENDING_CALLS)),
+    ),
+    { initialValue: DEFAULT_MAX_PENDING_CALLS },
+  );
+  /** Engineers over the limit: shown as a reminder and not selectable. */
+  protected readonly overloaded = computed(() =>
+    this.engineers().filter((e) => this.isOverloaded(e)),
+  );
 
   constructor() {
     this.search$
@@ -262,6 +278,10 @@ export class CallAssignPage {
     this.picked.set([]);
   }
 
+  protected isOverloaded(engineer: EngineerWorkload): boolean {
+    return engineer.openCalls > this.maxPending();
+  }
+
   protected isPicked(engineer: EngineerWorkload): boolean {
     return this.team().some((e) => e.id === engineer.id);
   }
@@ -271,6 +291,14 @@ export class CallAssignPage {
   }
 
   protected toggle(engineer: EngineerWorkload): void {
+    if (this.isOverloaded(engineer) && !this.picked().includes(engineer.id)) {
+      this.snackBar.open(
+        `${engineer.name} has ${engineer.openCalls} pending calls (limit ${this.maxPending()}).`,
+        'OK',
+        { duration: 4000 },
+      );
+      return;
+    }
     this.picked.update((ids) =>
       ids.includes(engineer.id)
         ? ids.filter((id) => id !== engineer.id)

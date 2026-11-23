@@ -8,7 +8,7 @@ call's status is recorded in svc.call_status_log (see status_log.py) and shown a
 import logging
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser, RequestScope
@@ -41,8 +41,9 @@ from trishul_api.modules.service.schemas import (
     ServiceCallStatusChange,
     ServiceCallTriageUpdate,
 )
+from trishul_api.modules.service.settings import max_pending_calls
 from trishul_api.modules.service.status_log import record_status_change
-from trishul_api.modules.service.workload import leave_on
+from trishul_api.modules.service.workload import leave_on, open_calls_of
 
 log = logging.getLogger(__name__)
 
@@ -218,11 +219,35 @@ class ServiceCallService:
         # Only people being added are checked: a team lead can keep someone an office user put on the call.
         for engineer in sorted(wanted - assignees(self._db, call)):
             self._check_engineer(engineer, "engineerId" if engineer == lead else "supportEngineerIds")
+        self._check_pending_limit(sorted(wanted - assignees(self._db, call)), lead)
         set_engineers(self._db, call, lead, support - {lead}, self._actor.id, _now())
         if lead is not None and call.current_status == "Logged":
             call.current_status = "Assigned"
         elif lead is None and call.current_status == "Assigned":
             call.current_status = "Logged"
+
+    def _check_pending_limit(self, new_engineers: list[int], lead: int | None) -> None:
+        """No new call for an engineer who already has more than the configured limit of unfinished ones."""
+        if not new_engineers:
+            return
+        limit = max_pending_calls(self._db)
+        pending = open_calls_of(self._db, new_engineers)
+        names = {
+            employee_id: name
+            for employee_id, name in self._db.execute(
+                select(Employee.id, func.concat_ws(" ", Employee.first_name, Employee.last_name)).where(
+                    Employee.id.in_(new_engineers)
+                )
+            ).all()
+        }
+        for engineer in new_engineers:
+            if pending[engineer] > limit:
+                field = "engineerId" if engineer == lead else "supportEngineerIds"
+                who = names.get(engineer, f"Engineer {engineer}")
+                raise ApiError(
+                    f"{who} has {pending[engineer]} pending calls (limit {limit}). Finish some before assigning more.",
+                    errors={field: ["Too many pending calls."]},
+                )
 
     def _check_engineer(self, engineer_id: int, field: str) -> None:
         if (

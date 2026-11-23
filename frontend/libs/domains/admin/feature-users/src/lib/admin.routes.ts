@@ -2,6 +2,7 @@ import { Route } from '@angular/router';
 import {
   ALERT_RULE_MANAGE_PERMISSION,
   BRAND_MANAGE_PERMISSION,
+  SERVICE_CONFIG_PERMISSION,
   TRACKING_CONFIG_PERMISSION,
   ALERT_RULE_VIEW_PERMISSIONS,
   CUSTOMER_MANAGE_PERMISSION,
@@ -56,7 +57,11 @@ export const adminRoutes: Route[] = [
     path: 'configuration',
     title: 'Configuration',
     canActivate: [
-      permissionGuard(BRAND_MANAGE_PERMISSION, TRACKING_CONFIG_PERMISSION),
+      permissionGuard(
+        BRAND_MANAGE_PERMISSION,
+        TRACKING_CONFIG_PERMISSION,
+        SERVICE_CONFIG_PERMISSION,
+      ),
     ],
     component: ConfigurationPage,
   },

@@ -55,6 +55,37 @@
       </div>
     </div>
   </mat-tab>
+  } @if (canService) {
+  <mat-tab label="Service">
+    <p class="intro">
+      An engineer who already has more than this many pending calls (unfinished
+      calls they lead or support) cannot be given another. The team lead sees a
+      reminder on the Assign engineers screen, and the assignment is refused.
+    </p>
+    <div class="setting-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <input
+          matInput
+          type="number"
+          min="0"
+          max="100"
+          aria-label="Maximum pending calls per engineer"
+          [value]="maxPendingDraft()"
+          (input)="maxPendingDraft.set($any($event.target).value)"
+          (keydown.enter)="maxPendingDirty() && saveMaxPending()"
+        />
+        <mat-hint>Maximum pending calls per engineer (0 to 100)</mat-hint>
+      </mat-form-field>
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="!maxPendingDirty() || savingService()"
+        (click)="saveMaxPending()"
+      >
+        Save
+      </button>
+    </div>
+  </mat-tab>
   } @if (canTracking) {
   <mat-tab label="Trip tracking">
     <p class="intro">

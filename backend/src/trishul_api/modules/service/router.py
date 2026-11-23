@@ -40,10 +40,13 @@ from trishul_api.modules.service.schemas import (
     ServiceCallQuery,
     ServiceCallStatusChange,
     ServiceCallTriageUpdate,
+    ServiceSettings,
+    ServiceSettingsUpdate,
     UnassignedCallItem,
     UnassignedCallQuery,
 )
 from trishul_api.modules.service.service import ServiceCallService
+from trishul_api.modules.service.settings import max_pending_calls, set_max_pending_calls
 from trishul_api.modules.service.workload import engineer_workload
 from trishul_api.modules.trk.manual_travel import ManualTravelService
 from trishul_api.modules.trk.schemas import CallTripHistoryItem, ManualTravelOut
@@ -349,3 +352,21 @@ def change_service_call_status(
     row_version: Annotated[bytes, Depends(if_match_row_version)],
 ) -> ServiceCallDetail:
     return ServiceCallService(db, actor).change_status(call_id, row_version, data)
+
+
+@router.get(
+    "/settings",
+    summary="Service settings, such as the pending-call limit per engineer",
+    dependencies=[Depends(require_permission("svc.call.assign", "svc.config.manage"))],
+)
+def get_service_settings(db: DbSession) -> ServiceSettings:
+    return ServiceSettings(max_pending_calls=max_pending_calls(db))
+
+
+@router.put(
+    "/settings",
+    summary="Change the service settings",
+    dependencies=[Depends(require_permission("svc.config.manage"))],
+)
+def update_service_settings(data: ServiceSettingsUpdate, actor: CurrentUserDep, db: DbSession) -> ServiceSettings:
+    return ServiceSettings(max_pending_calls=set_max_pending_calls(db, data.max_pending_calls, actor.id))

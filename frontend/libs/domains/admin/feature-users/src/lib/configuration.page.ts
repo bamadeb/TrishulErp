@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -16,6 +17,8 @@ import {
   BRAND_MANAGE_PERMISSION,
   BrandApi,
   BrandItem,
+  SERVICE_CONFIG_PERMISSION,
+  ServiceSettingsApi,
   TRACKING_CONFIG_PERMISSION,
   TrackingConfigApi,
   TrackingConfigParameter,
@@ -48,6 +51,7 @@ import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 })
 export class ConfigurationPage {
   private readonly brandApi = inject(BrandApi);
+  private readonly serviceApi = inject(ServiceSettingsApi);
   private readonly trackingApi = inject(TrackingConfigApi);
   private readonly snackBar = inject(MatSnackBar);
   private readonly auth = inject(AuthStore);
@@ -58,6 +62,14 @@ export class ConfigurationPage {
   protected readonly canTracking = this.auth.hasPermission(
     TRACKING_CONFIG_PERMISSION,
   );
+
+  protected readonly canService = this.auth.hasPermission(
+    SERVICE_CONFIG_PERMISSION,
+  );
+  /** Pending-call limit as saved, and what is typed in the box. */
+  protected readonly maxPending = signal<number | null>(null);
+  protected readonly maxPendingDraft = signal('');
+  protected readonly savingService = signal(false);
 
   protected readonly brands = signal<BrandItem[]>([]);
   protected readonly parameters = signal<TrackingConfigParameter[]>([]);
@@ -77,6 +89,41 @@ export class ConfigurationPage {
   constructor() {
     if (this.canBrands) this.loadBrands();
     if (this.canTracking) this.loadParameters();
+    if (this.canService) this.loadServiceSettings();
+  }
+
+  // ------------------------------------------------------------------ service settings
+
+  protected readonly maxPendingDirty = computed(() => {
+    const text = this.maxPendingDraft().trim();
+    return text !== '' && Number(text) !== this.maxPending();
+  });
+
+  protected saveMaxPending(): void {
+    const value = Number(this.maxPendingDraft().trim());
+    if (!Number.isInteger(value) || value < 0 || value > 100) {
+      this.snackBar.open('Enter a whole number from 0 to 100.', 'OK', {
+        duration: 4000,
+      });
+      return;
+    }
+    this.savingService.set(true);
+    this.serviceApi.update(value).subscribe({
+      next: (saved) => {
+        this.maxPending.set(saved.maxPendingCalls);
+        this.maxPendingDraft.set(String(saved.maxPendingCalls));
+        this.savingService.set(false);
+        this.snackBar.open('Pending-call limit saved', 'OK', { duration: 3000 });
+      },
+      error: () => this.savingService.set(false),
+    });
+  }
+
+  private loadServiceSettings(): void {
+    this.serviceApi.get().subscribe((s) => {
+      this.maxPending.set(s.maxPendingCalls);
+      this.maxPendingDraft.set(String(s.maxPendingCalls));
+    });
   }
 
   // ------------------------------------------------------------------ inspection report by brand
