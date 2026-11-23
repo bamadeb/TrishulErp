@@ -8,6 +8,7 @@ dependencies = [
     "apscheduler>=3.10,<4",
     "boto3>=1.43.119",
     "fastapi>=0.161.1",
+    "opencv-python-headless>=4.10",
     "openpyxl>=3.1.5",
     "pydantic-settings>=2.16.1",
     "pydantic[email]>=2.14.1",
@@ -69,7 +70,7 @@ disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
 # Hand-written mirror of a generated module (see trk.py); same SQL Server type calls.
-module = ["trishul_api.db.models.trk", "trishul_api.db.models.asc", "trishul_api.db.models.machine"]
+module = ["trishul_api.db.models.trk", "trishul_api.db.models.asc", "trishul_api.db.models.machine", "trishul_api.db.models.face_attendance"]
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from trishul_api.db.models import (
     Attendance,
+    AttendancePunch,
     AttendanceRegularization,
     BiometricDevice,
     BiometricPunchLog,
@@ -23,6 +24,7 @@ from trishul_api.db.models import (
 )
 
 _WEEKDAY = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
+_IST_OFFSET = timedelta(hours=5, minutes=30)
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,7 +184,7 @@ class AttendanceRepository:
             .where(BiometricPunchLog.punched_at <= end)
             .order_by(BiometricPunchLog.punched_at, BiometricPunchLog.id)
         ).all()
-        return [
+        biometric = [
             PunchSource(
                 employee_id=int(row[0]),
                 punched_at=row[1],
@@ -191,6 +193,28 @@ class AttendanceRepository:
             )
             for row in rows
             if row[0] is not None
+        ]
+        return sorted(biometric + self._face_punches_between(start, end), key=lambda p: p.punched_at)
+
+    def _face_punches_between(self, start: datetime, end: datetime) -> list[PunchSource]:
+        """Accepted mobile face punches (hr.attendance_punch, status Present) in the same terms as biometric
+        punches: punched_at is Indian clock time, as the shift and day comparisons here expect, while
+        attendance_punch.effective_at holds UTC."""
+        rows = self._db.execute(
+            select(AttendancePunch.employee_id, AttendancePunch.effective_at, AttendancePunch.punch_type)
+            .where(AttendancePunch.is_active == True)  # noqa: E712
+            .where(AttendancePunch.status == "Present")
+            .where(AttendancePunch.effective_at >= start - _IST_OFFSET)
+            .where(AttendancePunch.effective_at <= end - _IST_OFFSET)
+        ).all()
+        return [
+            PunchSource(
+                employee_id=int(row[0]),
+                punched_at=row[1] + _IST_OFFSET,
+                punch_type=str(row[2]).upper(),
+                device_name="Mobile app (face)",
+            )
+            for row in rows
         ]
 
     def approved_leave_for_date(self, day: date) -> dict[int, LeaveCover]:

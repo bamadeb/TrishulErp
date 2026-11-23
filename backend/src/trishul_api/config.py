@@ -84,6 +84,14 @@ class Settings(BaseSettings):
     biometric_sync_enabled: bool = False
     biometric_default_secret_id: str | None = None
 
+    # Mobile face attendance. Face vectors and photos are encrypted with a 32-byte AES key (base64),
+    # read from this Secrets Manager secret; TRISHUL_FACE_DATA_KEY is for local development only.
+    # Without a key, face registration is switched off. The YuNet/SFace .onnx files live in
+    # face_models_dir (default backend/var/face_models; scripts/download_face_models.py).
+    face_data_key_secret_id: str | None = None
+    face_data_key: SecretStr | None = None
+    face_models_dir: str | None = None
+
     @property
     def cognito_issuer(self) -> str:
         return f"https://cognito-idp.{self.cognito_region}.amazonaws.com/{self.cognito_user_pool_id}"

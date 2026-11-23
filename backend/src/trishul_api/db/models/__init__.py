@@ -19,6 +19,17 @@ from trishul_api.db.models.biometric import (
     BiometricPunchLog,
     BiometricSyncLog,
 )
+from trishul_api.db.models.face_attendance import (
+    AttendanceAudit,
+    AttendanceChallenge,
+    AttendancePolicy,
+    AttendancePunch,
+    EmployeeAttendanceLocation,
+    EmployeeAttendancePolicy,
+    EmployeeFace,
+    FaceModel,
+    WorkLocation,
+)
 from trishul_api.db.models.machine import MachineEngineer
 from trishul_api.db.models.leave import (
     LeaveAttendanceClass,
@@ -54,6 +65,10 @@ from trishul_api.db.models.trk import (
 )
 
 __all__ = [
+    "AttendanceAudit",
+    "AttendanceChallenge",
+    "AttendancePolicy",
+    "AttendancePunch",
     "Audited",
     "Base",
     "BiometricDevice",
@@ -61,6 +76,10 @@ __all__ = [
     "BiometricPunchLog",
     "BiometricSyncLog",
     "ContractVisitDay",
+    "EmployeeAttendanceLocation",
+    "EmployeeAttendancePolicy",
+    "EmployeeFace",
+    "FaceModel",
     "LeaveAttendanceClass",
     "LeaveBalanceTransaction",
     "LeaveEntitlementRun",
@@ -88,5 +107,6 @@ __all__ = [
     "TrkTripStatusMaster",
     "TrkTripTypeMaster",
     "TrkTripVehicleTypeMaster",
+    "WorkLocation",
     *_generated,
 ]
