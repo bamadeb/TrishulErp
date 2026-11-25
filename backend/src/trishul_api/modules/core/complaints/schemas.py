@@ -1,10 +1,30 @@
+import base64
+import binascii
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import BeforeValidator, Field, WithJsonSchema
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
 from trishul_api.db.models.complaint import ComplaintHistoryAction, ComplaintStatus
+
+
+def _decode_row_version(value: object) -> object:
+    """The client sends back the base64 text it was given; compare the bytes it stands for."""
+    if isinstance(value, str):
+        try:
+            return base64.b64decode(value.strip(), validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError("Not a valid rowVersion.") from exc
+    return value
+
+
+RowVersionIn = Annotated[
+    bytes,
+    BeforeValidator(_decode_row_version),
+    WithJsonSchema({"type": "string", "description": "rowVersion as received (base64)"}),
+]
+"""A rowVersion in a request body (base64), decoded to bytes. RowVersion itself only encodes for output."""
 
 STATUSES: tuple[ComplaintStatus, ...] = ("Open", "In Progress", "On Hold", "Resolved", "Closed")
 OPEN_STATUSES: tuple[ComplaintStatus, ...] = ("Open", "In Progress", "On Hold")
@@ -140,7 +160,7 @@ class ComplaintStatusChange(InputModel):
 
     status: ComplaintStatus
     note: str | None = Field(None, max_length=1000, description="Optional; shown to the person who raised it.")
-    row_version: RowVersion | None = Field(
+    row_version: RowVersionIn | None = Field(
         None, description="The rowVersion the user saw; if sent and the complaint has changed since, 409."
     )
 

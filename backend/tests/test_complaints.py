@@ -426,6 +426,17 @@ def test_a_stale_row_version_is_a_conflict(as_user: Callable[[str], TestClient],
     assert response.status_code == 409
 
 
+def test_the_row_version_the_user_saw_is_accepted(as_user: Callable[[str], TestClient]) -> None:
+    # Web and mobile send back the base64 rowVersion from the detail; it must match, not always conflict.
+    complaint = _raise(as_user("raju"))
+    url = f"/api/v1/core/complaints/{complaint['id']}/status"
+    leader = as_user("meera")
+    shown = leader.get(f"/api/v1/core/complaints/{complaint['id']}").json()
+    response = leader.post(url, json={"status": "In Progress", "rowVersion": shown["rowVersion"]})
+    assert response.status_code == 200, response.text
+    assert leader.post(url, json={"status": "On Hold", "rowVersion": "not base64!"}).status_code == 422
+
+
 def test_history_is_written_for_every_change(as_user: Callable[[str], TestClient], db: Engine) -> None:
     complaint_id = _raise(as_user("raju"))["id"]
     as_user("meera").post(f"/api/v1/core/complaints/{complaint_id}/status", json={"status": "On Hold", "note": "Parts"})
