@@ -18992,6 +18992,96 @@
         ]
       }
     },
+    "/hr/attendance/me/month": {
+      "get": {
+        "tags": [
+          "face-attendance"
+        ],
+        "summary": "My attendance calendar for a month (same day status as HR's Daily Attendance)",
+        "operationId": "get_my_attendance_month",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2020,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyMonthOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/hr/attendance/work-locations": {
       "get": {
         "tags": [
@@ -37904,6 +37994,178 @@
         }
       }
     },
+    "/inv/items/import/preview": {
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Dry run of an item price file: what would be created or changed, and what is wrong with it",
+        "operationId": "preview_item_import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_item_import"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemImportPreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The file is not the item price file.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/inv/items/import": {
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Import an item price file: create new items, update prices and missing HSN codes of existing ones",
+        "operationId": "apply_item_import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_apply_item_import"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemImportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The file is not the item price file.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/inv/items/form-options": {
       "get": {
         "tags": [
@@ -54052,6 +54314,78 @@
         "type": "object",
         "title": "AttendancePolicyUpdate"
       },
+      "AttendancePunchLocationOut": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "accuracyM": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracym"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "insideOffice": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insideoffice"
+          },
+          "distanceM": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancem"
+          },
+          "fakeGps": {
+            "type": "boolean",
+            "title": "Fakegps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude",
+          "accuracyM",
+          "place",
+          "insideOffice",
+          "distanceM",
+          "fakeGps"
+        ],
+        "title": "AttendancePunchLocationOut",
+        "description": "Where a mobile face punch was made; null for biometric punches."
+      },
       "AttendancePunchOut": {
         "properties": {
           "kind": {
@@ -54070,13 +54404,24 @@
           "device": {
             "type": "string",
             "title": "Device"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttendancePunchLocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
           "kind",
           "at",
-          "device"
+          "device",
+          "location"
         ],
         "title": "AttendancePunchOut"
       },
@@ -55709,6 +56054,52 @@
         "type": "object",
         "title": "BiometricSyncRequest"
       },
+      "Body_apply_item_import": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "The item price .xlsx"
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoryid"
+          },
+          "uomId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uomid"
+          },
+          "priceField": {
+            "type": "string",
+            "enum": [
+              "mrp",
+              "standardCost"
+            ],
+            "title": "Pricefield",
+            "default": "mrp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_apply_item_import"
+      },
       "Body_apply_service_call_import": {
         "properties": {
           "file": {
@@ -55819,6 +56210,52 @@
           "frames"
         ],
         "title": "Body_create_offline_attendance_punch"
+      },
+      "Body_preview_item_import": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "The item price .xlsx"
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoryid"
+          },
+          "uomId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uomid"
+          },
+          "priceField": {
+            "type": "string",
+            "enum": [
+              "mrp",
+              "standardCost"
+            ],
+            "title": "Pricefield",
+            "default": "mrp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_preview_item_import"
       },
       "Body_preview_service_call_import": {
         "properties": {
@@ -67492,13 +67929,20 @@
           "employeeCode": {
             "type": "string",
             "title": "Employeecode"
+          },
+          "openCalls": {
+            "type": "integer",
+            "title": "Opencalls",
+            "description": "Unfinished calls they are on, as lead or support.",
+            "default": 0
           }
         },
         "type": "object",
         "required": [
           "id",
           "name",
-          "employeeCode"
+          "employeeCode",
+          "openCalls"
         ],
         "title": "EngineerOption"
       },
@@ -72052,6 +72496,248 @@
           "hsnCodes"
         ],
         "title": "ItemFormOptions"
+      },
+      "ItemImportIssue": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "duplicateInFile",
+              "ambiguous",
+              "missingHsn",
+              "unknownHsn",
+              "noPrice",
+              "invalid"
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ItemImportIssue"
+      },
+      "ItemImportPreview": {
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/ItemImportSummary"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ItemImportRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "rows"
+        ],
+        "title": "ItemImportPreview"
+      },
+      "ItemImportResult": {
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/ItemImportSummary"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ItemImportRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "rows"
+        ],
+        "title": "ItemImportResult"
+      },
+      "ItemImportRow": {
+        "properties": {
+          "rowNumber": {
+            "type": "integer",
+            "title": "Rownumber"
+          },
+          "externalId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Externalid"
+          },
+          "material": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "hsnCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hsncode"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "Create",
+              "Update",
+              "Unchanged",
+              "Skip"
+            ],
+            "title": "Action"
+          },
+          "itemCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemcode",
+            "description": "The item that is created or changed."
+          },
+          "changes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changes",
+            "description": "What the import changes, e.g. 'MRP 100 → 120'."
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ItemImportIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rowNumber",
+          "externalId",
+          "material",
+          "description",
+          "hsnCode",
+          "price",
+          "action",
+          "itemCode",
+          "changes",
+          "issues"
+        ],
+        "title": "ItemImportRow"
+      },
+      "ItemImportSummary": {
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "creates": {
+            "type": "integer",
+            "title": "Creates"
+          },
+          "updates": {
+            "type": "integer",
+            "title": "Updates"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "skips": {
+            "type": "integer",
+            "title": "Skips"
+          },
+          "duplicates": {
+            "type": "integer",
+            "title": "Duplicates",
+            "description": "Rows repeating a part already in the file, or matching several items."
+          },
+          "missingHsn": {
+            "type": "integer",
+            "title": "Missinghsn",
+            "description": "Rows without an HSN code ('Not assigned' or blank)."
+          },
+          "unknownHsn": {
+            "type": "integer",
+            "title": "Unknownhsn",
+            "description": "Rows whose HSN code is not in the HSN master."
+          },
+          "noPrice": {
+            "type": "integer",
+            "title": "Noprice",
+            "description": "Rows with a zero or blank price (the price is left as it is)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "fileName",
+          "total",
+          "creates",
+          "updates",
+          "unchanged",
+          "skips",
+          "duplicates",
+          "missingHsn",
+          "unknownHsn",
+          "noPrice"
+        ],
+        "title": "ItemImportSummary"
       },
       "ItemLineIn": {
         "properties": {
@@ -77914,6 +78600,98 @@
           "rejectionReason"
         ],
         "title": "MyFaceOut"
+      },
+      "MyMonthDayOut": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "firstIn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstin"
+          },
+          "lastOut": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastout"
+          },
+          "workingHours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workinghours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "status",
+          "firstIn",
+          "lastOut",
+          "workingHours"
+        ],
+        "title": "MyMonthDayOut",
+        "description": "One day of the employee's own calendar, as HR's Daily Attendance and Muster see it."
+      },
+      "MyMonthOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/MyMonthDayOut"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Totals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "days",
+          "totals"
+        ],
+        "title": "MyMonthOut"
       },
       "MyPunchOut": {
         "properties": {

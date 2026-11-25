@@ -5,4 +5,9 @@ export interface EngineerOption {
   employeeCode: string;
   id: number;
   name: string;
+
+  /**
+   * Unfinished calls they are on, as lead or support.
+   */
+  openCalls: number;
 }

@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { provideNativeDateAdapter } from '@angular/material/core';
@@ -44,6 +44,7 @@ import {
   debounceTime,
   distinctUntilChanged,
   finalize,
+  forkJoin,
   of,
 } from 'rxjs';
 import { AuthStore, HasPermission } from '@trishul/core-auth';
@@ -154,13 +155,6 @@ export class CallListPage {
   /** A team lead can assign engineers and set priority inline. */
   protected readonly canAssign = this.auth.hasPermission(
     SERVICE_CALL_ASSIGN_PERMISSION,
-  );
-  /** Engineers of the selected branch, loaded once for the assign dialog. */
-  protected readonly engineers = toSignal(
-    this.canAssign
-      ? this.api.engineerOptions().pipe(catchError(() => of([])))
-      : of<EngineerOption[]>([]),
-    { initialValue: [] as EngineerOption[] },
   );
   /** The call currently being saved, so its controls disable while in flight. */
   protected readonly busyId = signal<number | null>(null);
@@ -274,20 +268,35 @@ export class CallListPage {
 
   /** Open the dialog to choose everyone on the call. */
   protected assignEngineers(call: ServiceCallListItem): void {
+    // Fresh each time: the pending-call counts change as calls are assigned and finished.
+    forkJoin({
+      engineers: this.api.engineerOptions(),
+      settings: this.api.settings().pipe(catchError(() => of(null))),
+    }).subscribe(({ engineers, settings }) =>
+      this.openEngineersDialog(call, engineers, settings?.maxPendingCalls ?? 3),
+    );
+  }
+
+  private openEngineersDialog(
+    call: ServiceCallListItem,
+    offered: EngineerOption[],
+    maxPending: number,
+  ): void {
     const support = call.supportEngineers ?? [];
     const onCall: EngineerOption[] = support.map((e) => ({
       ...e,
       employeeCode: '',
+      openCalls: 0,
     }));
     if (call.assignedEngineerId != null && call.assignedEngineerName) {
       onCall.push({
         id: call.assignedEngineerId,
         name: call.assignedEngineerName,
         employeeCode: '',
+        openCalls: 0,
       });
     }
     // Keep people already on the call who aren't on offer (another branch), or Save would drop them.
-    const offered = this.engineers();
     const missing = onCall.filter((e) => !offered.some((o) => o.id === e.id));
     const data: CallEngineersData = {
       callNo: call.callNo,
@@ -295,6 +304,7 @@ export class CallListPage {
       leadId: call.assignedEngineerId,
       supportIds: support.map((e) => e.id),
       plannedVisitDate: call.plannedVisitDate ?? null,
+      maxPending,
       planVisit: !FINISHED.has(call.currentStatus),
     };
     this.dialog

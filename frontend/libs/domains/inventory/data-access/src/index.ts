@@ -2,3 +2,4 @@
 export * from './lib/inventory.shared';
 export * from './lib/item-picker';
 export * from './lib/fields.dialog';
+export * from './lib/item-import.api';

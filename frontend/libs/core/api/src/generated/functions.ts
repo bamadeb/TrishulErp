@@ -369,6 +369,8 @@ export type { RejectRegularization$Params as RejectRegularization$Params } from 
 export { rejectRegularization as rejectRegularization } from './fn/attendance/reject-regularization';
 export type { GetMyAttendanceToday$Params as GetMyAttendanceToday$Params } from './fn/face-attendance/get-my-attendance-today';
 export { getMyAttendanceToday as getMyAttendanceToday } from './fn/face-attendance/get-my-attendance-today';
+export type { GetMyAttendanceMonth$Params as GetMyAttendanceMonth$Params } from './fn/face-attendance/get-my-attendance-month';
+export { getMyAttendanceMonth as getMyAttendanceMonth } from './fn/face-attendance/get-my-attendance-month';
 export type { ListWorkLocations$Params as ListWorkLocations$Params } from './fn/face-attendance/list-work-locations';
 export { listWorkLocations as listWorkLocations } from './fn/face-attendance/list-work-locations';
 export type { CreateWorkLocation$Params as CreateWorkLocation$Params } from './fn/face-attendance/create-work-location';
@@ -721,6 +723,10 @@ export type { ListItems$Params as ListItems$Params } from './fn/items/list-items
 export { listItems as listItems } from './fn/items/list-items';
 export type { CreateItem$Params as CreateItem$Params } from './fn/items/create-item';
 export { createItem as createItem } from './fn/items/create-item';
+export type { PreviewItemImport$Params as PreviewItemImport$Params } from './fn/items/preview-item-import';
+export { previewItemImport as previewItemImport } from './fn/items/preview-item-import';
+export type { ApplyItemImport$Params as ApplyItemImport$Params } from './fn/items/apply-item-import';
+export { applyItemImport as applyItemImport } from './fn/items/apply-item-import';
 export type { GetItemFormOptions$Params as GetItemFormOptions$Params } from './fn/items/get-item-form-options';
 export { getItemFormOptions as getItemFormOptions } from './fn/items/get-item-form-options';
 export type { GetItem$Params as GetItem$Params } from './fn/items/get-item';

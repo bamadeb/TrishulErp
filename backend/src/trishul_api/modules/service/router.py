@@ -47,7 +47,7 @@ from trishul_api.modules.service.schemas import (
 )
 from trishul_api.modules.service.service import ServiceCallService
 from trishul_api.modules.service.settings import max_pending_calls, set_max_pending_calls
-from trishul_api.modules.service.workload import engineer_workload
+from trishul_api.modules.service.workload import engineer_workload, open_calls_of
 from trishul_api.modules.trk.manual_travel import ManualTravelService
 from trishul_api.modules.trk.schemas import CallTripHistoryItem, ManualTravelOut
 from trishul_api.modules.trk.service import TripService
@@ -168,8 +168,13 @@ def list_engineer_options(
     actor: CurrentUserDep,
     scope: ScopeDep,
     repo: ServiceCallRepo,
+    db: DbSession,
 ) -> list[EngineerOption]:
-    return repo.engineer_options(scope, query, call_visibility(actor, repo.team_members))
+    engineers = repo.engineer_options(scope, query, call_visibility(actor, repo.team_members))
+    pending = open_calls_of(db, [e.id for e in engineers]) if engineers else {}
+    for engineer in engineers:
+        engineer.open_calls = pending.get(engineer.id, 0)
+    return engineers
 
 
 @router.get(

@@ -28,6 +28,8 @@ export interface CallEngineersData {
   supportIds: number[];
   /** yyyy-mm-dd the call's visit is already planned for, if any. */
   plannedVisitDate: string | null;
+  /** An engineer with more pending calls than this cannot be added to the call. */
+  maxPending: number;
   /** False for a finished call: changing who was on it plans no visit. */
   planVisit: boolean;
 }
@@ -91,14 +93,27 @@ function addDays(days: number): string {
           (input)="search.set($any($event.target).value)"
         />
       </mat-form-field>
+      @if (overloaded().length) {
+      <p class="reminder" role="alert">
+        <mat-icon>notifications_active</mat-icon>
+        <span>
+          Reminder: {{ overloaded().length }}
+          {{ overloaded().length === 1 ? 'engineer has' : 'engineers have' }}
+          more than {{ data.maxPending }} pending calls and can't be added.
+        </span>
+      </p>
+      }
       <div class="list">
         @for (e of visible(); track e.id) {
         <div class="row">
           <mat-checkbox
             [checked]="selected().includes(e.id)"
+            [disabled]="blocked(e)"
+            [matTooltip]="blocked(e) ? 'Has ' + e.openCalls + ' pending calls (limit ' + data.maxPending + ')' : ''"
             (change)="toggle(e.id)"
           >
             {{ e.name }} <span class="muted">· {{ e.employeeCode }}</span>
+            <span class="pending" [class.over]="e.openCalls > data.maxPending">{{ e.openCalls }} pending</span>
           </mat-checkbox>
           @if (selected()[0] === e.id) {
           <span class="lead"><mat-icon inline>star</mat-icon> Lead</span>
@@ -170,6 +185,25 @@ function addDays(days: number): string {
       align-items: center;
       justify-content: space-between;
       min-height: 2.75rem;
+    }
+    .pending {
+      margin-left: 0.5rem;
+      font: var(--mat-sys-label-small);
+      color: var(--mat-sys-on-surface-variant);
+    }
+    .pending.over {
+      color: var(--mat-sys-error);
+      font-weight: 600;
+    }
+    .reminder {
+      display: flex;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      font: var(--mat-sys-body-small);
+      background: var(--mat-sys-error-container);
+      color: var(--mat-sys-on-error-container);
     }
     .muted {
       color: var(--mat-sys-on-surface-variant);
@@ -248,6 +282,15 @@ export class CallEngineersDialog {
         e.employeeCode.toLowerCase().includes(term),
     );
   });
+
+  /** Over the limit and not already on this call (someone already on it can stay or be taken off). */
+  protected blocked(e: EngineerOption): boolean {
+    return e.openCalls > this.data.maxPending && !this.selected().includes(e.id);
+  }
+
+  protected readonly overloaded = computed(() =>
+    this.data.engineers.filter((e) => e.openCalls > this.data.maxPending),
+  );
 
   protected readonly summary = computed(() => {
     const count = this.selected().length;

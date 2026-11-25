@@ -29,9 +29,9 @@ const mockHistory = new Map<number, CallStatusLogItem[]>();
 let mockHistoryId = 1;
 
 const MOCK_ENGINEERS: EngineerOption[] = [
-  { id: 10, name: 'Rahul Patil', employeeCode: 'EMP0010' },
-  { id: 11, name: 'Sneha Kulkarni', employeeCode: 'EMP0011' },
-  { id: 12, name: 'Imran Shaikh', employeeCode: 'EMP0012' },
+  { id: 10, name: 'Rahul Patil', employeeCode: 'EMP0010', openCalls: 2 },
+  { id: 11, name: 'Sneha Kulkarni', employeeCode: 'EMP0011', openCalls: 5 },
+  { id: 12, name: 'Imran Shaikh', employeeCode: 'EMP0012', openCalls: 0 },
 ];
 
 // Mirrors the mock customer seeds (see mock-customers.ts) so the triage PATCH can echo a name.

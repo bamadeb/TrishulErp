@@ -18,6 +18,7 @@ import {
 } from '@trishul/inventory-data-access';
 import { ItemDetailPage } from './item-detail.page';
 import { ItemFormPage } from './item-form.page';
+import { ItemImportPage } from './item-import.page';
 import { ItemListPage } from './item-list.page';
 import { LocationsPage } from './locations.page';
 import { OpeningStockPage } from './opening-stock.page';
@@ -39,6 +40,12 @@ export const inventoryRoutes: Route[] = [
     title: 'Add item',
     canActivate: [permissionGuard(INV_ITEM_MANAGE)],
     component: ItemFormPage,
+  },
+  {
+    path: 'items/import',
+    title: 'Import item prices',
+    canActivate: [permissionGuard(INV_ITEM_MANAGE)],
+    component: ItemImportPage,
   },
   {
     path: 'items/:itemId',

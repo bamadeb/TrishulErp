@@ -79,6 +79,9 @@ const ACTIVE: Record<string, StatusSeverity> = {
       <a mat-stroked-button routerLink="../setup"
         ><mat-icon>tune</mat-icon>Categories, units & prices</a
       >
+      <a mat-stroked-button routerLink="import" *trishulHasPermission="manage"
+        ><mat-icon>upload_file</mat-icon>Import prices</a
+      >
       <a mat-flat-button routerLink="new" *trishulHasPermission="manage">
         <mat-icon>add</mat-icon>Add item
       </a>

@@ -186,6 +186,7 @@ class EngineerOption(ApiModel):
     id: int
     name: str
     employee_code: str
+    open_calls: int = Field(0, description="Unfinished calls they are on, as lead or support.")
 
 
 class ServiceCallDetail(ApiModel):
