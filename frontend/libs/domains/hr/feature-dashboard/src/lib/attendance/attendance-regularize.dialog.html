@@ -2,7 +2,7 @@
   <header class="head">
     <div class="title-row">
       <span class="badge" aria-hidden="true"><mat-icon>edit_calendar</mat-icon></span>
-      <div>
+      <div class="titles">
         <h2>Regularize Attendance</h2>
         <p>Raise a request to correct or update attendance for an employee.</p>
       </div>
@@ -12,117 +12,142 @@
     </button>
   </header>
 
-  @if (!lockEmployee) {
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-      <mat-label>Employee *</mat-label>
-      <mat-select
-        [ngModel]="employeeId()"
-        (ngModelChange)="onEmployeeChange($event)"
-        aria-label="Select employee"
-      >
-        @for (row of employees; track optionId(row)) {
-          <mat-option [value]="optionId(row)">
-            {{ row.employeeName }} ({{ row.employeeCode }})
-          </mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-  }
-
-  @if (selectedEmployee(); as employee) {
-    <section class="employee" aria-label="Employee details">
-      <span class="avatar" [style.background]="employee.avatarTone">
-        {{ initials(employee.employeeName) }}
-      </span>
-      <div class="copy">
-        <strong>{{ employee.employeeName }}</strong>
-        <small>{{ employee.employeeCode }} | {{ employee.department }}</small>
-      </div>
-      @if (employee.status) {
-        <span class="status-wrap">
-          <trishul-status-badge [status]="employee.status" [severities]="severities" />
-        </span>
-      }
-    </section>
-  }
-
-  <div class="grid">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Request Type *</mat-label>
-      <mat-select [ngModel]="requestType()" (ngModelChange)="requestType.set($event)">
-        @for (type of requestTypes; track type) {
-          <mat-option [value]="type">{{ type }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Attendance Date *</mat-label>
-      <input
-        matInput
-        [matDatepicker]="picker"
-        [ngModel]="attendanceDate()"
-        (ngModelChange)="attendanceDate.set($event)"
-      />
-      <mat-datepicker-toggle matIconSuffix [for]="picker" />
-      <mat-datepicker #picker />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Current IN</mat-label>
-      <mat-icon matPrefix>schedule</mat-icon>
-      <input matInput [ngModel]="currentIn() || '—'" disabled />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Current OUT</mat-label>
-      <mat-icon matPrefix>schedule</mat-icon>
-      <input matInput [ngModel]="currentOut() || '—'" disabled />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Requested IN *</mat-label>
-      <mat-icon matPrefix>schedule</mat-icon>
-      <input matInput [ngModel]="requestedIn()" (ngModelChange)="requestedIn.set($event)" />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Requested OUT *</mat-label>
-      <mat-icon matPrefix>schedule</mat-icon>
-      <input matInput [ngModel]="requestedOut()" (ngModelChange)="requestedOut.set($event)" />
-    </mat-form-field>
-  </div>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full reason">
-    <mat-label>Reason *</mat-label>
-    <textarea
-      matInput
-      rows="3"
-      maxlength="250"
-      [ngModel]="reason()"
-      (ngModelChange)="onReason($event)"
-      placeholder="Describe why attendance needs correction"
-    ></textarea>
-    <span matSuffix class="counter">{{ reasonCount() }} / 250</span>
-  </mat-form-field>
-
-  <div class="attachment">
-    <label>Attachment (Optional)</label>
-    @if (attachmentName(); as fileName) {
-      <div class="file">
-        <mat-icon>attach_file</mat-icon>
-        <span>{{ fileName }}@if (attachmentSize(); as size) { ({{ size }}) }</span>
-        <button mat-icon-button type="button" aria-label="Remove attachment" (click)="clearAttachment()">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-    } @else {
-      <label class="upload">
-        <mat-icon>upload_file</mat-icon>
-        <span>Upload supporting file</span>
-        <input type="file" (change)="onFileSelected($event)" />
-      </label>
+  <div class="body">
+    @if (!lockEmployee) {
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+        <mat-label>Employee *</mat-label>
+        <mat-select
+          [ngModel]="employeeId()"
+          (ngModelChange)="onEmployeeChange($event)"
+          aria-label="Select employee"
+        >
+          @for (row of employees; track optionId(row)) {
+            <mat-option [value]="optionId(row)">
+              {{ row.employeeName }} ({{ row.employeeCode }})
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
     }
+
+    @if (selectedEmployee(); as employee) {
+      <section class="employee" aria-label="Employee details">
+        <span class="avatar" [style.background]="employee.avatarTone">
+          {{ initials(employee.employeeName) }}
+        </span>
+        <div class="copy">
+          <strong>{{ employee.employeeName }}</strong>
+          <small>{{ employee.employeeCode }} | {{ employee.department }}</small>
+        </div>
+        @if (employee.status) {
+          <span class="status-wrap">
+            <trishul-status-badge [status]="employee.status" [severities]="severities" />
+          </span>
+        }
+      </section>
+    }
+
+    <div class="grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Request Type *</mat-label>
+        <mat-select [ngModel]="requestType()" (ngModelChange)="requestType.set($event)">
+          @for (type of requestTypes; track type) {
+            <mat-option [value]="type">{{ type }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Attendance Date *</mat-label>
+        <input
+          matInput
+          [matDatepicker]="picker"
+          [ngModel]="attendanceDate()"
+          (ngModelChange)="attendanceDate.set($event)"
+        />
+        <mat-datepicker-toggle matIconSuffix [for]="picker" />
+        <mat-datepicker #picker />
+      </mat-form-field>
+    </div>
+
+    <section class="current-pair" aria-label="Current punch times">
+      <div class="current-cell">
+        <span class="current-label">Current IN</span>
+        <span class="current-value">
+          <mat-icon>schedule</mat-icon>
+          {{ currentIn() || '—' }}
+        </span>
+      </div>
+      <div class="current-cell">
+        <span class="current-label">Current OUT</span>
+        <span class="current-value">
+          <mat-icon>schedule</mat-icon>
+          {{ currentOut() || '—' }}
+        </span>
+      </div>
+    </section>
+
+    <div class="grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Requested IN *</mat-label>
+        <input
+          matInput
+          [matTimepicker]="inPicker"
+          [ngModel]="requestedIn()"
+          (ngModelChange)="requestedIn.set($event)"
+          aria-label="Requested IN time"
+        />
+        <mat-timepicker-toggle matIconSuffix [for]="inPicker" />
+        <mat-timepicker #inPicker interval="15m" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Requested OUT *</mat-label>
+        <input
+          matInput
+          [matTimepicker]="outPicker"
+          [ngModel]="requestedOut()"
+          (ngModelChange)="requestedOut.set($event)"
+          aria-label="Requested OUT time"
+        />
+        <mat-timepicker-toggle matIconSuffix [for]="outPicker" />
+        <mat-timepicker #outPicker interval="15m" />
+      </mat-form-field>
+    </div>
+
+    <div class="reason-block">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full reason">
+        <mat-label>Reason *</mat-label>
+        <textarea
+          matInput
+          rows="3"
+          maxlength="250"
+          [ngModel]="reason()"
+          (ngModelChange)="onReason($event)"
+          placeholder="Describe why attendance needs correction"
+        ></textarea>
+      </mat-form-field>
+      <span class="counter" aria-live="polite">{{ reasonCount() }} / 250</span>
+    </div>
+
+    <div class="attachment">
+      <span class="attach-label">Attachment (Optional)</span>
+      @if (attachmentName(); as fileName) {
+        <div class="file">
+          <mat-icon>attach_file</mat-icon>
+          <span>{{ fileName }}@if (attachmentSize(); as size) { ({{ size }}) }</span>
+          <button mat-icon-button type="button" aria-label="Remove attachment" (click)="clearAttachment()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      } @else {
+        <label class="upload">
+          <mat-icon>upload_file</mat-icon>
+          <span>Upload supporting file</span>
+          <input type="file" (change)="onFileSelected($event)" />
+        </label>
+      }
+    </div>
   </div>
 
   <footer class="actions">

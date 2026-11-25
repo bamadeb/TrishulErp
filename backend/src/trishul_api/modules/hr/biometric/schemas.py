@@ -157,6 +157,9 @@ class DeviceStatusCounts(ApiModel):
     maintenance: int
 
 
+IntegrationStatus = Literal["Ready", "Disabled", "Blocked"]
+
+
 class BiometricDashboardOut(ApiModel):
     registered_devices: int
     mapped_employees: int
@@ -167,3 +170,6 @@ class BiometricDashboardOut(ApiModel):
     device_status: DeviceStatusCounts
     punch_trend: list[PunchTrendPoint]
     recent_punches: list[BiometricPunchOut]
+    """Vendor sync readiness — never implies punches were invented."""
+    integration_status: IntegrationStatus = "Disabled"
+    integration_message: str = ""

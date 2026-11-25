@@ -51,12 +51,12 @@ DeviceId = Annotated[int, Path(alias="deviceId", gt=0)]
 MappingId = Annotated[int, Path(alias="mappingId", gt=0)]
 
 
-@router.get("/dashboard", summary="Biometric dashboard summary", dependencies=[CAN_VIEW])
+@router.get("/dashboard", summary="Biometric dashboard summary", dependencies=[CAN_MANAGE])
 def dashboard(biometric: Biometric) -> BiometricDashboardOut:
     return biometric.dashboard()
 
 
-@router.get("/devices", summary="List biometric devices", dependencies=[CAN_VIEW])
+@router.get("/devices", summary="List biometric devices", dependencies=[CAN_MANAGE])
 def list_devices(biometric: Biometric) -> list[BiometricDeviceOut]:
     return biometric.list_devices()
 
@@ -76,7 +76,7 @@ def create_device(
 @router.get(
     "/devices/{deviceId}",
     summary="Get one biometric device",
-    dependencies=[CAN_VIEW],
+    dependencies=[CAN_MANAGE],
     responses=NOT_FOUND_RESPONSE,
 )
 def get_device(device_id: DeviceId, biometric: Biometric) -> BiometricDeviceOut:
@@ -95,7 +95,7 @@ def update_device(
     return biometric.update_device(actor, device_id, data)
 
 
-@router.get("/mappings", summary="List biometric employee mappings", dependencies=[CAN_VIEW])
+@router.get("/mappings", summary="List biometric employee mappings", dependencies=[CAN_MANAGE])
 def list_mappings(
     biometric: Biometric,
     employee_id: Annotated[int | None, Query(alias="employeeId", gt=0)] = None,
@@ -141,7 +141,7 @@ def deactivate_mapping(
     return biometric.deactivate_mapping(actor, mapping_id)
 
 
-@router.get("/punches", summary="View biometric punch logs", dependencies=[CAN_VIEW])
+@router.get("/punches", summary="View biometric punch logs", dependencies=[CAN_MANAGE])
 def list_punches(query: Annotated[BiometricPunchQuery, Query()], biometric: Biometric) -> Page[BiometricPunchOut]:
     return biometric.list_punches(query)
 
@@ -157,7 +157,7 @@ def run_sync(
     return biometric.run_manual_sync(actor, data)
 
 
-@router.get("/sync-logs", summary="Biometric synchronization history", dependencies=[CAN_VIEW])
+@router.get("/sync-logs", summary="Biometric synchronization history", dependencies=[CAN_MANAGE])
 def list_sync_logs(
     query: Annotated[BiometricSyncLogQuery, Query()], biometric: Biometric
 ) -> Page[BiometricSyncLogOut]:

@@ -1,11 +1,11 @@
 """Request and response models for Daily Attendance."""
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated, Literal
 
 from pydantic import AfterValidator, Field
 
-from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, UtcDateTime
+from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion, UtcDateTime
 
 IST = timezone(timedelta(hours=5, minutes=30), "IST")
 
@@ -253,8 +253,13 @@ class AttendanceExceptionsPageOut(ApiModel):
     resolved_count: int
 
 
+ResolvedAttendanceStatus = Literal["Present", "Absent", "Half day", "On duty"]
+
+
 class ResolveExceptionIn(InputModel):
     remark: str | None = Field(None, max_length=300)
+    """Required for Missing Punch / Absent — no silent LOP policy is configured."""
+    resolved_status: ResolvedAttendanceStatus | None = Field(None, alias="resolvedStatus")
 
 
 RegularizationRequestType = Literal[
@@ -336,3 +341,360 @@ class RegularizationCreateIn(InputModel):
 
 class RegularizationDecisionIn(InputModel):
     remark: str | None = Field(None, max_length=250)
+
+
+# ---------------------------------------------------------------------------
+# Shift master, attendance rules, shift assignment, leave-year context
+# ---------------------------------------------------------------------------
+
+WeekdayCode = Literal["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+LeaveYearBasis = Literal["FINANCIAL", "CALENDAR"]
+
+
+class ShiftWrite(InputModel):
+    code: str = Field(min_length=1, max_length=10)
+    name: str = Field(min_length=1, max_length=60)
+    start_time: time = Field(alias="startTime")
+    end_time: time = Field(alias="endTime")
+    grace_minutes: int = Field(10, alias="graceMinutes", ge=0, le=240)
+    half_day_hours: float | None = Field(None, alias="halfDayHours", ge=0, le=24)
+    is_active: bool = True
+
+
+class ShiftItem(ApiModel):
+    id: int
+    code: str
+    name: str
+    start_time: time
+    end_time: time
+    work_hours: str
+    grace_minutes: int
+    half_day_hours: float | None = None
+    is_active: bool
+    is_overnight: bool
+    row_version: RowVersion
+
+
+class ShiftSummary(ApiModel):
+    total: int
+    active: int
+    inactive: int
+
+
+class ShiftListQuery(PageQuery):
+    active_only: bool | None = None
+
+
+class ShiftPage(ApiModel):
+    items: list[ShiftItem]
+    summary: ShiftSummary
+    total: int
+    page: int
+    page_size: int
+
+
+class AttendanceRulesOut(ApiModel):
+    standard_work_hours: float
+    working_days_per_week: int
+    late_arrival_grace_minutes: int
+    early_exit_grace_minutes: int
+    ot_after_hours: float
+    ot_approval_required: bool
+    weekly_off_days: list[WeekdayCode]
+    weekly_off_applies_to: str
+    auto_attendance_enabled: bool
+    manual_attendance_enabled: bool
+    leave_year_label: str
+    holiday_count: int
+    row_version: RowVersion | None = None
+
+
+class AttendanceRulesWrite(InputModel):
+    standard_work_hours: float = Field(alias="standardWorkHours", gt=0, le=24)
+    working_days_per_week: int = Field(alias="workingDaysPerWeek", ge=1, le=7)
+    late_arrival_grace_minutes: int = Field(alias="lateArrivalGraceMinutes", ge=0, le=240)
+    early_exit_grace_minutes: int = Field(alias="earlyExitGraceMinutes", ge=0, le=240)
+    ot_after_hours: float = Field(alias="otAfterHours", gt=0, le=24)
+    ot_approval_required: bool = Field(alias="otApprovalRequired")
+    weekly_off_days: list[WeekdayCode] = Field(alias="weeklyOffDays")
+    weekly_off_applies_to: str = Field("All Employees", alias="weeklyOffAppliesTo", max_length=80)
+    auto_attendance_enabled: bool = Field(alias="autoAttendanceEnabled")
+    manual_attendance_enabled: bool = Field(alias="manualAttendanceEnabled")
+
+
+class LeaveYearOut(ApiModel):
+    year_basis: LeaveYearBasis
+    year: int
+    label: str
+    start_date: date
+    end_date: date
+
+
+class ShiftAssignmentWrite(InputModel):
+    employee_id: int = Field(alias="employeeId", gt=0)
+    shift_id: int = Field(alias="shiftId", gt=0)
+    from_date: date = Field(alias="fromDate")
+    to_date: date | None = Field(None, alias="toDate")
+    weekly_off_days: list[WeekdayCode] | None = Field(None, alias="weeklyOffDays")
+    is_active: bool = True
+
+
+class ShiftAssignmentItem(ApiModel):
+    id: int
+    employee_id: int
+    employee_code: str
+    employee_name: str
+    department: str
+    shift_id: int
+    shift_code: str
+    shift_name: str
+    weekly_off_days: list[WeekdayCode]
+    from_date: date
+    to_date: date | None
+    is_current: bool
+    is_active: bool
+    row_version: RowVersion
+
+
+class ShiftAssignmentListQuery(PageQuery):
+    current_only: bool = True
+    employee_id: int | None = Field(None, gt=0)
+    shift_id: int | None = Field(None, gt=0)
+
+
+class ShiftAssignmentPage(ApiModel):
+    items: list[ShiftAssignmentItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class ShiftAssignmentEmployeeOption(ApiModel):
+    id: int
+    employee_code: str
+    employee_name: str
+    department: str
+
+
+class ShiftAssignmentOptions(ApiModel):
+    employees: list[ShiftAssignmentEmployeeOption]
+    shifts: list[ShiftItem]
+
+
+class AttendanceHolidayItem(ApiModel):
+    id: int
+    holiday_date: date
+    name: str
+    holiday_type: Literal["National", "Festival", "Optional"]
+    category: Literal["National", "Regional", "Optional"]
+    applies_to: str
+    is_active: bool
+
+
+class AttendanceHolidayPage(ApiModel):
+    leave_year: LeaveYearOut
+    items: list[AttendanceHolidayItem]
+    total: int
+
+
+# ---------------------------------------------------------------------------
+# Monthly attendance finalization
+# ---------------------------------------------------------------------------
+
+FinalizationGroupBy = Literal["department", "location"]
+FinalizationRowStatus = Literal["Ready", "Review", "Pending"]
+
+
+class FinalizationQuery(ApiModel):
+    year: int = Field(ge=2000, le=2100)
+    month: int = Field(ge=1, le=12)
+    group_by: FinalizationGroupBy = "department"
+
+
+class FinalizationKpiOut(ApiModel):
+    total_employees: int
+    attendance_ready: int
+    with_exceptions: int
+    pending_regularization: int
+    finalized: int
+
+
+class FinalizationSummaryOut(ApiModel):
+    year: int
+    month: int
+    month_label: str
+    total_employees: int
+    attendance_ready: int
+    attendance_ready_pct: float
+    with_exceptions: int
+    with_exceptions_pct: float
+    pending_regularization: int
+    pending_regularization_pct: float
+    is_finalized: bool
+    finalized_at: UtcDateTime | None = None
+    finalized_by_user_id: int | None = None
+
+
+class FinalizationChecklistItemOut(ApiModel):
+    id: str
+    label: str
+    done: bool
+    detail: str = ""
+
+
+class FinalizationGroupRowOut(ApiModel):
+    id: int
+    name: str
+    employees: int
+    present: int
+    absent: int
+    leave: int
+    exceptions: int
+    pending_regularization: int
+    readiness: int
+    status: FinalizationRowStatus
+
+
+class FinalizationPageOut(ApiModel):
+    year: int
+    month: int
+    group_by: FinalizationGroupBy
+    kpi: FinalizationKpiOut
+    summary: FinalizationSummaryOut
+    checklist: list[FinalizationChecklistItemOut]
+    groups: list[FinalizationGroupRowOut]
+    can_finalize: bool
+    is_finalized: bool
+
+
+class FinalizationLockOut(ApiModel):
+    year: int
+    month: int
+    month_label: str
+    is_finalized: bool
+    finalized_at: UtcDateTime | None = None
+    finalized_by_user_id: int | None = None
+    employee_count: int
+    message: str
+    persisted_days: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Attendance dashboard + ESS mine + reports summary
+# ---------------------------------------------------------------------------
+
+
+class DashboardKpiOut(ApiModel):
+    total: int
+    present: int
+    present_pct: float
+    absent: int
+    absent_pct: float
+    late: int
+    late_pct: float
+    early_exit: int
+    early_exit_pct: float
+    short_hours: int
+    short_hours_pct: float
+
+
+class DashboardOverviewSliceOut(ApiModel):
+    label: str
+    count: int
+    percent: float
+    color: str
+
+
+class DashboardTrendPointOut(ApiModel):
+    label: str
+    percent: float
+    date: date
+
+
+class DashboardDepartmentRowOut(ApiModel):
+    id: int
+    department: str
+    employees: int
+    present: int
+    absent: int
+    attendance_pct: float
+
+
+class DashboardExceptionItemOut(ApiModel):
+    id: str
+    label: str
+    count: int
+    tone: str
+    icon: str
+    route: str
+
+
+class DashboardQuickActionOut(ApiModel):
+    id: str
+    label: str
+    icon: str
+    route: str
+
+
+class AttendanceDashboardOut(ApiModel):
+    date: date
+    date_label: str
+    attendance_rate: float
+    kpi: DashboardKpiOut
+    overview: list[DashboardOverviewSliceOut]
+    trend: list[DashboardTrendPointOut]
+    departments: list[DashboardDepartmentRowOut]
+    exceptions: list[DashboardExceptionItemOut]
+    exceptions_total: int
+    actions: list[DashboardQuickActionOut]
+    is_month_finalized: bool
+
+
+class MineAttendanceDayOut(ApiModel):
+    date: date
+    status: AttendanceDisplayStatus
+    first_in: str | None = None
+    last_out: str | None = None
+    working_hours: str | None = None
+    shift: str
+    remarks: str = ""
+
+
+class MineAttendanceSummaryOut(ApiModel):
+    present: int
+    late: int
+    absent: int
+    on_leave: int
+    off_day: int
+    holiday: int
+    missing_punch: int
+
+
+class MineAttendancePageOut(ApiModel):
+    employee_id: int
+    employee_code: str
+    employee_name: str
+    year: int
+    month: int
+    month_label: str
+    summary: MineAttendanceSummaryOut
+    items: list[MineAttendanceDayOut]
+    regularizations: list[RegularizationRowOut] = []
+    is_month_finalized: bool
+    can_regularize: bool = True
+
+
+class AttendanceReportsSummaryOut(ApiModel):
+    year: int
+    month: int
+    month_label: str
+    total_employees: int
+    present: int
+    late: int
+    absent: int
+    on_leave: int
+    wfh: int
+    pending_exceptions: int
+    pending_regularizations: int
+    is_month_finalized: bool
+    finalized_at: UtcDateTime | None = None

@@ -30,6 +30,7 @@ import {
   AttendanceSummary,
   DailyAttendancePage,
   DailyAttendanceRow as ApiDailyAttendanceRow,
+  RegularizationRow,
 } from '@trishul/hr-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import {
@@ -45,9 +46,9 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
-import { REGULARIZATION_REQUESTS } from './attendance-daily.mock';
 import { AttendanceDailyDrawer } from './attendance-daily.drawer';
 import {
+  ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
   AttendanceRegularizeData,
   AttendanceRegularizeDialog,
   RegularizeSubmitResult,
@@ -57,6 +58,7 @@ import {
   AttendanceStatus,
   ContentTab,
   DailyAttendanceRow,
+  RegularizationRequest,
 } from './attendance.models';
 
 const STATUS_ICON: Record<AttendanceStatus, string> = {
@@ -148,7 +150,7 @@ export class AttendanceDailyPage implements OnInit {
     Rejected: 'danger',
   };
 
-  protected readonly regularization = REGULARIZATION_REQUESTS;
+  protected readonly regularization = signal<RegularizationRequest[]>([]);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   /** Plain object so existing template bindings (`kpi.total`) stay unchanged. */
@@ -191,7 +193,7 @@ export class AttendanceDailyPage implements OnInit {
 
   protected readonly total = computed(() =>
     this.contentTab() === 'regularization'
-      ? this.regularization.length
+      ? this.regularization().length
       : this.filteredRows().length,
   );
 
@@ -202,7 +204,7 @@ export class AttendanceDailyPage implements OnInit {
 
   protected readonly pageRequests = computed(() => {
     const start = this.page() * this.pageSize();
-    return this.regularization.slice(start, start + this.pageSize());
+    return this.regularization().slice(start, start + this.pageSize());
   });
 
   protected readonly allPageSelected = computed(() => {
@@ -359,11 +361,8 @@ export class AttendanceDailyPage implements OnInit {
 
     this.dialog
       .open(AttendanceRegularizeDialog, {
+        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
         data,
-        width: '36rem',
-        maxWidth: '95vw',
-        autoFocus: 'dialog',
-        panelClass: 'attendance-regularize-panel',
       })
       .afterClosed()
       .pipe(filter((result): result is RegularizeSubmitResult => !!result))
@@ -395,6 +394,7 @@ export class AttendanceDailyPage implements OnInit {
               'OK',
               { duration: 2800 },
             );
+            this.reload$.next();
           });
       });
   }
@@ -433,21 +433,64 @@ export class AttendanceDailyPage implements OnInit {
       shift: this.shift() || undefined,
     };
 
-    return this.api.listDaily({ ...base, page: 1 }).pipe(
-      switchMap((first) => {
-        const pages = Math.max(1, Math.ceil(first.total / Math.max(first.pageSize, 1)));
-        if (pages <= 1) return of(first);
-        const rest = Array.from({ length: pages - 1 }, (_, index) =>
-          this.api.listDaily({ ...base, page: index + 2 }),
-        );
-        return forkJoin(rest).pipe(
-          map((extra) => ({
-            ...first,
-            items: [...first.items, ...extra.flatMap((page) => page.items)],
+    const regs$ = this.api
+      .listRegularizations({
+        from: date,
+        to: date,
+        page: 1,
+        pageSize: 200,
+        statusTab: 'all',
+      })
+      .pipe(
+        catchError(() =>
+          of({
+            items: [] as RegularizationRow[],
+            total: 0,
+            page: 1,
+            pageSize: 200,
+            pendingCount: 0,
+            approvedCount: 0,
+            rejectedCount: 0,
+            dateFrom: date,
+            dateTo: date,
+            summary: { total: 0, pending: 0, approved: 0, rejected: 0 },
+            filterOptions: { departments: [], locations: [], requestTypes: [] },
+          }),
+        ),
+      );
+
+    return forkJoin({
+      daily: this.api.listDaily({ ...base, page: 1 }).pipe(
+        switchMap((first) => {
+          const pages = Math.max(1, Math.ceil(first.total / Math.max(first.pageSize, 1)));
+          if (pages <= 1) return of(first);
+          const rest = Array.from({ length: pages - 1 }, (_, index) =>
+            this.api.listDaily({ ...base, page: index + 2 }),
+          );
+          return forkJoin(rest).pipe(
+            map((extra) => ({
+              ...first,
+              items: [...first.items, ...extra.flatMap((page) => page.items)],
+            })),
+          );
+        }),
+      ),
+      regs: regs$,
+    }).pipe(
+      tap(({ daily, regs }) => {
+        this.applyPage(daily);
+        this.regularization.set(
+          regs.items.map((row) => ({
+            id: row.id,
+            employeeCode: row.employeeCode,
+            employeeName: row.employeeName,
+            date: formatDisplayDate(row.attendanceDate),
+            reason: row.reason,
+            status: row.status,
+            avatarTone: avatarTone(row.employeeId || row.id),
           })),
         );
       }),
-      tap((page) => this.applyPage(page)),
       catchError((err: unknown) => {
         const message =
           err instanceof HttpErrorResponse
@@ -455,6 +498,7 @@ export class AttendanceDailyPage implements OnInit {
             : 'Failed to load daily attendance.';
         this.error.set(message);
         this.dayRows.set([]);
+        this.regularization.set([]);
         this.kpi = EMPTY_KPI;
         this.snackBar.open(message, 'OK', { duration: 4000 });
         return of(null);
@@ -541,6 +585,16 @@ function toIsoDate(value: Date): string {
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
 }
 
 function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {

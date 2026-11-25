@@ -1,7 +1,14 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ApiConfiguration } from '@trishul/core-api';
+import { ApiConfiguration, withRowVersion } from '@trishul/core-api';
+
+/** Create/update/deactivate shifts and shift assignments. Not implied by HR/ADMIN role. */
+export const ATTENDANCE_SHIFT_MANAGE_PERMISSION = 'hr.attendance.shift.manage';
+/** Edit organization attendance rules. Not implied by HR/ADMIN role. */
+export const ATTENDANCE_RULES_MANAGE_PERMISSION = 'hr.attendance.rules.manage';
+/** Finalize and lock monthly attendance. Not implied by HR/ADMIN role. */
+export const ATTENDANCE_FINALIZE_PERMISSION = 'hr.attendance.finalize';
 
 export type AttendanceStatus =
   | 'Present'
@@ -117,6 +124,22 @@ export class AttendanceApi {
     return `${this.config.rootUrl}/hr/attendance`;
   }
 
+  dashboard(date?: string): Observable<AttendanceDashboard> {
+    let params = new HttpParams();
+    if (date) params = params.set('date', date);
+    return this.http.get<AttendanceDashboard>(`${this.base}/dashboard`, { params });
+  }
+
+  mine(year: number, month: number): Observable<MineAttendancePage> {
+    const params = new HttpParams().set('year', String(year)).set('month', String(month));
+    return this.http.get<MineAttendancePage>(`${this.base}/mine`, { params });
+  }
+
+  reportsSummary(year: number, month: number): Observable<AttendanceReportsSummary> {
+    const params = new HttpParams().set('year', String(year)).set('month', String(month));
+    return this.http.get<AttendanceReportsSummary>(`${this.base}/reports/summary`, { params });
+  }
+
   /** Load one selected date. Prefer statusTab=all + large pageSize; filter tabs client-side. */
   listDaily(query: DailyAttendanceQuery): Observable<DailyAttendancePage> {
     let params = new HttpParams()
@@ -175,11 +198,18 @@ export class AttendanceApi {
     return this.http.get<AttendanceExceptionsList>(`${this.base}/exceptions`, { params });
   }
 
-  /** Mark exception resolved (sets hr.attendance.is_regularized when a row exists). */
-  resolveException(exceptionId: number, remark?: string): Observable<AttendanceExceptionRow> {
+  /** Mark exception resolved (sets hr.attendance status + is_regularized). */
+  resolveException(
+    exceptionId: number,
+    remark?: string,
+    resolvedStatus?: 'Present' | 'Absent' | 'Half day' | 'On duty',
+  ): Observable<AttendanceExceptionRow> {
+    const body: { remark?: string; resolvedStatus?: string } = {};
+    if (remark) body.remark = remark;
+    if (resolvedStatus) body.resolvedStatus = resolvedStatus;
     return this.http.post<AttendanceExceptionRow>(
       `${this.base}/exceptions/${exceptionId}/resolve`,
-      remark ? { remark } : {},
+      body,
     );
   }
 
@@ -202,6 +232,11 @@ export class AttendanceApi {
     return this.http.post<RegularizationRow>(`${this.base}/regularizations`, body);
   }
 
+  /** ESS: regularization for authenticated employee (server ignores client employeeId). */
+  createMineRegularization(body: RegularizationCreate): Observable<RegularizationRow> {
+    return this.http.post<RegularizationRow>(`${this.base}/mine/regularizations`, body);
+  }
+
   approveRegularization(regularizationId: number, remark?: string): Observable<RegularizationRow> {
     return this.http.post<RegularizationRow>(
       `${this.base}/regularizations/${regularizationId}/approve`,
@@ -214,6 +249,102 @@ export class AttendanceApi {
       `${this.base}/regularizations/${regularizationId}/reject`,
       { remark },
     );
+  }
+
+  // ---- Shift & Attendance Rules --------------------------------------------
+
+  listShifts(query: ShiftListQuery = {}): Observable<ShiftPage> {
+    let params = new HttpParams()
+      .set('page', String(query.page ?? 1))
+      .set('pageSize', String(query.pageSize ?? 200));
+    if (query.search?.trim()) params = params.set('search', query.search.trim());
+    if (query.activeOnly === true) params = params.set('activeOnly', 'true');
+    if (query.activeOnly === false) params = params.set('activeOnly', 'false');
+    return this.http.get<ShiftPage>(`${this.base}/shifts`, { params });
+  }
+
+  createShift(body: ShiftWrite): Observable<ShiftItem> {
+    return this.http.post<ShiftItem>(`${this.base}/shifts`, body);
+  }
+
+  updateShift(shiftId: number, rowVersion: string, body: ShiftWrite): Observable<ShiftItem> {
+    return this.http.patch<ShiftItem>(`${this.base}/shifts/${shiftId}`, body, {
+      context: withRowVersion(rowVersion),
+    });
+  }
+
+  deleteShift(shiftId: number, rowVersion: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/shifts/${shiftId}`, {
+      context: withRowVersion(rowVersion),
+    });
+  }
+
+  leaveYear(): Observable<LeaveYearInfo> {
+    return this.http.get<LeaveYearInfo>(`${this.base}/leave-year`);
+  }
+
+  holidaysForLeaveYear(): Observable<AttendanceHolidayPage> {
+    return this.http.get<AttendanceHolidayPage>(`${this.base}/holidays`);
+  }
+
+  finalization(query: FinalizationQuery): Observable<FinalizationPage> {
+    const params = new HttpParams()
+      .set('year', String(query.year))
+      .set('month', String(query.month))
+      .set('groupBy', query.groupBy ?? 'department');
+    return this.http.get<FinalizationPage>(`${this.base}/finalization`, { params });
+  }
+
+  lockFinalization(year: number, month: number): Observable<FinalizationLockResult> {
+    const params = new HttpParams().set('year', String(year)).set('month', String(month));
+    return this.http.post<FinalizationLockResult>(`${this.base}/finalization/lock`, {}, { params });
+  }
+
+  getRules(): Observable<AttendanceRules> {
+    return this.http.get<AttendanceRules>(`${this.base}/rules`);
+  }
+
+  saveRules(body: AttendanceRulesWrite, rowVersion?: string | null): Observable<AttendanceRules> {
+    const headers =
+      rowVersion != null && rowVersion !== ''
+        ? new HttpHeaders({ 'If-Match': `"${rowVersion}"` })
+        : undefined;
+    return this.http.put<AttendanceRules>(`${this.base}/rules`, body, { headers });
+  }
+
+  shiftAssignmentOptions(): Observable<ShiftAssignmentOptions> {
+    return this.http.get<ShiftAssignmentOptions>(`${this.base}/shift-assignments/options`);
+  }
+
+  listShiftAssignments(query: ShiftAssignmentListQuery = {}): Observable<ShiftAssignmentPage> {
+    let params = new HttpParams()
+      .set('page', String(query.page ?? 1))
+      .set('pageSize', String(query.pageSize ?? 200))
+      .set('currentOnly', String(query.currentOnly ?? true));
+    if (query.search?.trim()) params = params.set('search', query.search.trim());
+    if (query.employeeId) params = params.set('employeeId', String(query.employeeId));
+    if (query.shiftId) params = params.set('shiftId', String(query.shiftId));
+    return this.http.get<ShiftAssignmentPage>(`${this.base}/shift-assignments`, { params });
+  }
+
+  createShiftAssignment(body: ShiftAssignmentWrite): Observable<ShiftAssignmentItem> {
+    return this.http.post<ShiftAssignmentItem>(`${this.base}/shift-assignments`, body);
+  }
+
+  updateShiftAssignment(
+    assignmentId: number,
+    rowVersion: string,
+    body: ShiftAssignmentWrite,
+  ): Observable<ShiftAssignmentItem> {
+    return this.http.patch<ShiftAssignmentItem>(`${this.base}/shift-assignments/${assignmentId}`, body, {
+      context: withRowVersion(rowVersion),
+    });
+  }
+
+  deleteShiftAssignment(assignmentId: number, rowVersion: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/shift-assignments/${assignmentId}`, {
+      context: withRowVersion(rowVersion),
+    });
   }
 }
 
@@ -427,4 +558,351 @@ export interface RegularizationCreate {
   requestedOut?: string | null;
   reason: string;
   attachmentName?: string | null;
+}
+
+export type WeekdayCode = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+
+export interface ShiftItem {
+  id: number;
+  code: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  workHours: string;
+  graceMinutes: number;
+  halfDayHours: number | null;
+  isActive: boolean;
+  isOvernight: boolean;
+  rowVersion: string;
+}
+
+export interface ShiftWrite {
+  code: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  graceMinutes: number;
+  halfDayHours?: number | null;
+  isActive: boolean;
+}
+
+export interface ShiftSummary {
+  total: number;
+  active: number;
+  inactive: number;
+}
+
+export interface ShiftPage {
+  items: ShiftItem[];
+  summary: ShiftSummary;
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ShiftListQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  activeOnly?: boolean | null;
+}
+
+export interface AttendanceRules {
+  standardWorkHours: number;
+  workingDaysPerWeek: number;
+  lateArrivalGraceMinutes: number;
+  earlyExitGraceMinutes: number;
+  otAfterHours: number;
+  otApprovalRequired: boolean;
+  weeklyOffDays: WeekdayCode[];
+  weeklyOffAppliesTo: string;
+  autoAttendanceEnabled: boolean;
+  manualAttendanceEnabled: boolean;
+  leaveYearLabel: string;
+  holidayCount: number;
+  rowVersion: string | null;
+}
+
+export interface AttendanceRulesWrite {
+  standardWorkHours: number;
+  workingDaysPerWeek: number;
+  lateArrivalGraceMinutes: number;
+  earlyExitGraceMinutes: number;
+  otAfterHours: number;
+  otApprovalRequired: boolean;
+  weeklyOffDays: WeekdayCode[];
+  weeklyOffAppliesTo: string;
+  autoAttendanceEnabled: boolean;
+  manualAttendanceEnabled: boolean;
+}
+
+export interface LeaveYearInfo {
+  yearBasis: 'FINANCIAL' | 'CALENDAR';
+  year: number;
+  label: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface ShiftAssignmentItem {
+  id: number;
+  employeeId: number;
+  employeeCode: string;
+  employeeName: string;
+  department: string;
+  shiftId: number;
+  shiftCode: string;
+  shiftName: string;
+  weeklyOffDays: WeekdayCode[];
+  fromDate: string;
+  toDate: string | null;
+  isCurrent: boolean;
+  isActive: boolean;
+  rowVersion: string;
+}
+
+export interface ShiftAssignmentWrite {
+  employeeId: number;
+  shiftId: number;
+  fromDate: string;
+  toDate?: string | null;
+  weeklyOffDays?: WeekdayCode[] | null;
+  isActive: boolean;
+}
+
+export interface ShiftAssignmentPage {
+  items: ShiftAssignmentItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ShiftAssignmentListQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  currentOnly?: boolean;
+  employeeId?: number;
+  shiftId?: number;
+}
+
+export interface ShiftAssignmentEmployeeOption {
+  id: number;
+  employeeCode: string;
+  employeeName: string;
+  department: string;
+}
+
+export interface ShiftAssignmentOptions {
+  employees: ShiftAssignmentEmployeeOption[];
+  shifts: ShiftItem[];
+}
+
+export interface AttendanceHolidayItem {
+  id: number;
+  holidayDate: string;
+  name: string;
+  holidayType: 'National' | 'Festival' | 'Optional';
+  category: 'National' | 'Regional' | 'Optional';
+  appliesTo: string;
+  isActive: boolean;
+}
+
+export interface AttendanceHolidayPage {
+  leaveYear: LeaveYearInfo;
+  items: AttendanceHolidayItem[];
+  total: number;
+}
+
+export type FinalizationGroupBy = 'department' | 'location';
+export type FinalizationRowStatus = 'Ready' | 'Review' | 'Pending';
+
+export interface FinalizationQuery {
+  year: number;
+  month: number;
+  groupBy?: FinalizationGroupBy;
+}
+
+export interface FinalizationKpi {
+  totalEmployees: number;
+  attendanceReady: number;
+  withExceptions: number;
+  pendingRegularization: number;
+  finalized: number;
+}
+
+export interface FinalizationSummary {
+  year: number;
+  month: number;
+  monthLabel: string;
+  totalEmployees: number;
+  attendanceReady: number;
+  attendanceReadyPct: number;
+  withExceptions: number;
+  withExceptionsPct: number;
+  pendingRegularization: number;
+  pendingRegularizationPct: number;
+  isFinalized: boolean;
+  finalizedAt: string | null;
+  finalizedByUserId: number | null;
+}
+
+export interface FinalizationChecklistItem {
+  id: string;
+  label: string;
+  done: boolean;
+  detail: string;
+}
+
+export interface FinalizationGroupRow {
+  id: number;
+  name: string;
+  employees: number;
+  present: number;
+  absent: number;
+  leave: number;
+  exceptions: number;
+  pendingRegularization: number;
+  readiness: number;
+  status: FinalizationRowStatus;
+}
+
+export interface FinalizationPage {
+  year: number;
+  month: number;
+  groupBy: FinalizationGroupBy;
+  kpi: FinalizationKpi;
+  summary: FinalizationSummary;
+  checklist: FinalizationChecklistItem[];
+  groups: FinalizationGroupRow[];
+  canFinalize: boolean;
+  isFinalized: boolean;
+}
+
+export interface FinalizationLockResult {
+  year: number;
+  month: number;
+  monthLabel: string;
+  isFinalized: boolean;
+  finalizedAt: string | null;
+  finalizedByUserId: number | null;
+  employeeCount: number;
+  persistedDays?: number;
+  message: string;
+}
+
+export interface AttendanceDashboardKpi {
+  total: number;
+  present: number;
+  presentPct: number;
+  absent: number;
+  absentPct: number;
+  late: number;
+  latePct: number;
+  earlyExit: number;
+  earlyExitPct: number;
+  shortHours: number;
+  shortHoursPct: number;
+}
+
+export interface AttendanceDashboardOverviewSlice {
+  label: string;
+  count: number;
+  percent: number;
+  color: string;
+}
+
+export interface AttendanceDashboardTrendPoint {
+  label: string;
+  percent: number;
+  date: string;
+}
+
+export interface AttendanceDashboardDepartmentRow {
+  id: number;
+  department: string;
+  employees: number;
+  present: number;
+  absent: number;
+  attendancePct: number;
+}
+
+export interface AttendanceDashboardExceptionItem {
+  id: string;
+  label: string;
+  count: number;
+  tone: string;
+  icon: string;
+  route: string;
+}
+
+export interface AttendanceDashboardQuickAction {
+  id: string;
+  label: string;
+  icon: string;
+  route: string;
+}
+
+export interface AttendanceDashboard {
+  date: string;
+  dateLabel: string;
+  attendanceRate: number;
+  kpi: AttendanceDashboardKpi;
+  overview: AttendanceDashboardOverviewSlice[];
+  trend: AttendanceDashboardTrendPoint[];
+  departments: AttendanceDashboardDepartmentRow[];
+  exceptions: AttendanceDashboardExceptionItem[];
+  exceptionsTotal: number;
+  actions: AttendanceDashboardQuickAction[];
+  isMonthFinalized: boolean;
+}
+
+export interface MineAttendanceDay {
+  date: string;
+  status: AttendanceStatus;
+  firstIn: string | null;
+  lastOut: string | null;
+  workingHours: string | null;
+  shift: string;
+  remarks: string;
+}
+
+export interface MineAttendanceSummary {
+  present: number;
+  late: number;
+  absent: number;
+  onLeave: number;
+  offDay: number;
+  holiday: number;
+  missingPunch: number;
+}
+
+export interface MineAttendancePage {
+  employeeId: number;
+  employeeCode: string;
+  employeeName: string;
+  year: number;
+  month: number;
+  monthLabel: string;
+  summary: MineAttendanceSummary;
+  items: MineAttendanceDay[];
+  regularizations: RegularizationRow[];
+  isMonthFinalized: boolean;
+  canRegularize: boolean;
+}
+
+export interface AttendanceReportsSummary {
+  year: number;
+  month: number;
+  monthLabel: string;
+  totalEmployees: number;
+  present: number;
+  late: number;
+  absent: number;
+  onLeave: number;
+  wfh: number;
+  pendingExceptions: number;
+  pendingRegularizations: number;
+  isMonthFinalized: boolean;
+  finalizedAt: string | null;
 }

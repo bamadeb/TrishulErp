@@ -1,0 +1,87 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Home</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Attendance Reports</strong>
+</nav>
+
+<trishul-page-header
+  title="Attendance Reports"
+  subtitle="Monthly muster, exceptions and payroll lock status for Go-Live ops."
+>
+  <div class="filters">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-select [ngModel]="monthIndex()" (ngModelChange)="onMonth($event)">
+        @for (label of months; track label; let i = $index) {
+          <mat-option [value]="i">{{ label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-select [ngModel]="year()" (ngModelChange)="onYear($event)">
+        @for (y of years; track y) {
+          <mat-option [value]="y">{{ y }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-icon-button type="button" aria-label="Refresh" (click)="reload()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+</trishul-page-header>
+
+@if (loading()) {
+  <div class="state">Loading report summary…</div>
+} @else if (error()) {
+  <div class="state error">{{ error() }}</div>
+} @else if (summary(); as s) {
+  <section class="kpis" aria-label="Report KPIs">
+    <article class="kpi"><span>Employees</span><strong>{{ s.totalEmployees | number }}</strong></article>
+    <article class="kpi"><span>Present days</span><strong>{{ s.present | number }}</strong></article>
+    <article class="kpi"><span>Late days</span><strong>{{ s.late | number }}</strong></article>
+    <article class="kpi"><span>Absent days</span><strong>{{ s.absent | number }}</strong></article>
+    <article class="kpi"><span>Leave days</span><strong>{{ s.onLeave | number }}</strong></article>
+    <article class="kpi"><span>Pending exceptions</span><strong>{{ s.pendingExceptions | number }}</strong></article>
+    <article class="kpi"><span>Pending regs</span><strong>{{ s.pendingRegularizations | number }}</strong></article>
+    <article class="kpi" [class.locked]="s.isMonthFinalized">
+      <span>Payroll lock</span>
+      <strong>{{ s.isMonthFinalized ? 'Locked' : 'Open' }}</strong>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="panel-head">
+      <div>
+        <h2>{{ s.monthLabel }} reports</h2>
+        <p>
+          @if (s.isMonthFinalized) {
+            Finalized{{ s.finalizedAt ? ' at ' + s.finalizedAt : '' }}. Payroll can use LOP from
+            hr.attendance.
+          } @else {
+            Month is not finalized. Finalize attendance before payroll processing.
+          }
+        </p>
+      </div>
+      <div class="actions">
+        <a mat-stroked-button routerLink="/hr/attendance/monthly-muster">Open Muster</a>
+        <a mat-stroked-button routerLink="/hr/attendance/finalization">Finalization</a>
+      </div>
+    </div>
+
+    <div class="exports">
+      <button mat-flat-button color="primary" type="button" [disabled]="exporting()" (click)="exportMuster()">
+        <mat-icon>download</mat-icon>
+        Export Monthly Muster CSV
+      </button>
+      <button mat-stroked-button type="button" [disabled]="exporting()" (click)="exportExceptions()">
+        <mat-icon>download</mat-icon>
+        Export Exceptions CSV
+      </button>
+      <button mat-stroked-button type="button" [disabled]="exporting()" (click)="exportBoth()">
+        <mat-icon>folder_zip</mat-icon>
+        Export Both
+      </button>
+    </div>
+  </section>
+}

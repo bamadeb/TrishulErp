@@ -98,3 +98,37 @@ body {
 .brand-panel {
   min-width: 16rem;
 }
+
+/* Regularize Attendance dialog: fit entirely in the viewport.
+   Material's .mat-mdc-dialog-panel defaults max-width to 560px and the surface
+   uses flex-shrink:0 — together with width:36rem that clipped the right edge. */
+.cdk-overlay-pane.attendance-regularize-panel.mat-mdc-dialog-panel,
+.cdk-overlay-pane.attendance-regularize-panel {
+  width: min(34rem, calc(100vw - 2rem)) !important;
+  max-width: min(34rem, calc(100vw - 2rem)) !important;
+  min-width: 0 !important;
+}
+
+.attendance-regularize-panel .mat-mdc-dialog-container,
+.attendance-regularize-panel .mat-mdc-dialog-inner-container,
+.attendance-regularize-panel .mdc-dialog__container,
+.attendance-regularize-panel .mat-mdc-dialog-surface,
+.attendance-regularize-panel .mdc-dialog__surface {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box;
+}
+
+.attendance-regularize-panel .mat-mdc-dialog-surface,
+.attendance-regularize-panel .mdc-dialog__surface {
+  flex-shrink: 1 !important;
+}
+
+.attendance-regularize-panel .mat-mdc-dialog-component-host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}

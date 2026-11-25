@@ -18,6 +18,11 @@ import { MatFormField, MatLabel, MatPrefix, MatSuffix } from '@angular/material/
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
+import {
+  MatTimepicker,
+  MatTimepickerInput,
+  MatTimepickerToggle,
+} from '@angular/material/timepicker';
 import { StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { DailyAttendanceRow, RegularizationRequestType } from './attendance.models';
 
@@ -40,6 +45,8 @@ export interface AttendanceRegularizeData {
   employee?: RegularizeEmployeeOption | DailyAttendanceRow | null;
   attendanceDate?: Date | null;
   employees?: readonly (RegularizeEmployeeOption | DailyAttendanceRow)[];
+  /** When true, hide the employee picker. Defaults to locked for single-employee ESS flows. */
+  lockEmployee?: boolean;
 }
 
 export interface RegularizeSubmitResult {
@@ -60,6 +67,14 @@ const REQUEST_TYPES: RegularizeRequestType[] = [
   'Late Arrival',
 ];
 
+/** Shared MatDialog size — stay inside the viewport (Material default max is 560px). */
+export const ATTENDANCE_REGULARIZE_DIALOG_OPTIONS = {
+  width: '100%',
+  maxWidth: 'min(34rem, calc(100vw - 2rem))',
+  autoFocus: 'dialog' as const,
+  panelClass: 'attendance-regularize-panel',
+};
+
 /** Regularize Attendance popup — returns submit payload for the caller to POST. */
 @Component({
   selector: 'trishul-attendance-regularize-dialog',
@@ -79,6 +94,9 @@ const REQUEST_TYPES: RegularizeRequestType[] = [
     MatPrefix,
     MatSelect,
     MatSuffix,
+    MatTimepicker,
+    MatTimepickerInput,
+    MatTimepickerToggle,
     StatusBadge,
   ],
   providers: [provideNativeDateAdapter()],
@@ -113,8 +131,12 @@ export class AttendanceRegularizeDialog {
   );
   protected readonly currentIn = signal(this.data.employee?.firstIn ?? null);
   protected readonly currentOut = signal(this.data.employee?.lastOut ?? null);
-  protected readonly requestedIn = signal(this.data.employee?.firstIn ?? '09:30 AM');
-  protected readonly requestedOut = signal(this.data.employee?.lastOut ?? '06:30 PM');
+  protected readonly requestedIn = signal<Date | null>(
+    parseDisplayTime(this.data.employee?.firstIn, 9, 30),
+  );
+  protected readonly requestedOut = signal<Date | null>(
+    parseDisplayTime(this.data.employee?.lastOut, 18, 30),
+  );
   protected readonly reason = signal('');
   protected readonly attachmentName = signal<string | null>(null);
   protected readonly attachmentSize = signal<string | null>(null);
@@ -132,8 +154,8 @@ export class AttendanceRegularizeDialog {
     const reason = this.reason().trim();
     return (
       !!this.selectedEmployee() &&
-      !!this.requestedIn().trim() &&
-      !!this.requestedOut().trim() &&
+      !!this.requestedIn() &&
+      !!this.requestedOut() &&
       reason.length > 0 &&
       reason.length <= 250
     );
@@ -141,7 +163,11 @@ export class AttendanceRegularizeDialog {
 
   protected readonly reasonCount = computed(() => this.reason().length);
 
-  protected readonly lockEmployee = !!this.data.employee;
+  protected readonly lockEmployee =
+    this.data.lockEmployee === true ||
+    (this.data.lockEmployee !== false &&
+      !!this.data.employee &&
+      this.employees.length <= 1);
 
   protected initials(name: string): string {
     return name
@@ -161,8 +187,8 @@ export class AttendanceRegularizeDialog {
     if (!employee) return;
     this.currentIn.set(employee.firstIn ?? null);
     this.currentOut.set(employee.lastOut ?? null);
-    this.requestedIn.set(employee.firstIn ?? '09:30 AM');
-    this.requestedOut.set(employee.lastOut ?? '06:30 PM');
+    this.requestedIn.set(parseDisplayTime(employee.firstIn, 9, 30));
+    this.requestedOut.set(parseDisplayTime(employee.lastOut, 18, 30));
   }
 
   protected onReason(value: string): void {
@@ -186,13 +212,15 @@ export class AttendanceRegularizeDialog {
   protected submit(): void {
     if (!this.canSubmit()) return;
     const employeeId = resolveEmployeeId(this.selectedEmployee());
-    if (employeeId == null) return;
+    const requestedIn = this.requestedIn();
+    const requestedOut = this.requestedOut();
+    if (employeeId == null || !requestedIn || !requestedOut) return;
     this.dialogRef.close({
       employeeId,
       attendanceDate: toIsoDate(this.attendanceDate()),
       requestType: this.requestType(),
-      requestedIn: this.requestedIn().trim(),
-      requestedOut: this.requestedOut().trim(),
+      requestedIn: formatDisplayTime(requestedIn),
+      requestedOut: formatDisplayTime(requestedOut),
       reason: this.reason().trim(),
       attachmentName: this.attachmentName(),
     });
@@ -220,4 +248,45 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Build a Date used only for its time-of-day (Material timepicker value). */
+function parseDisplayTime(
+  value: string | null | undefined,
+  fallbackHour: number,
+  fallbackMinute: number,
+): Date {
+  const result = new Date();
+  result.setSeconds(0, 0);
+  if (!value || !value.trim() || value.trim() === '—') {
+    result.setHours(fallbackHour, fallbackMinute, 0, 0);
+    return result;
+  }
+  const text = value.trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (match) {
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const meridiem = match[3]?.toUpperCase();
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    result.setHours(hours, minutes, 0, 0);
+    return result;
+  }
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    result.setHours(parsed.getHours(), parsed.getMinutes(), 0, 0);
+    return result;
+  }
+  result.setHours(fallbackHour, fallbackMinute, 0, 0);
+  return result;
+}
+
+/** API/backend-friendly 12h time, e.g. "09:30 AM". */
+function formatDisplayTime(value: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(value);
 }

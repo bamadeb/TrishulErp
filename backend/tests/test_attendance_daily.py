@@ -101,6 +101,22 @@ def test_weekly_off_without_punches():
     assert first_in is None and last_out is None and late is False and hours is None
 
 
+def test_persist_status_policy_alignment():
+    """TTPL: late beyond grace → Half day; Missing Punch not silently Absent."""
+    from decimal import Decimal
+
+    from trishul_api.modules.hr.attendance.service import _persist_status
+
+    assert _persist_status("Missing Punch", None) is None
+    assert _persist_status("Late", None) == "Half day"
+    assert _persist_status("Present", None) == "Present"
+    assert _persist_status("Absent", None) == "Absent"
+    assert (
+        _persist_status("Present", None, worked_hours=Decimal("3"), half_day_hours=4.0)
+        == "Half day"
+    )
+
+
 def test_muster_status_codes_and_hours_parse():
     from trishul_api.modules.hr.attendance.service import _status_to_muster_code
 
