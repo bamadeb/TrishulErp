@@ -11,6 +11,10 @@
   subtitle="Configure work shifts, attendance rules, grace time, overtime, and other attendance policies."
 />
 
+@if (error()) {
+  <p class="banner error" role="alert">{{ error() }}</p>
+}
+
 <section class="card shell">
   <div class="tabs" role="tablist" aria-label="Rules sections">
     <button
@@ -62,28 +66,28 @@
           <span class="icon"><mat-icon>schedule</mat-icon></span>
           <div>
             <span>Total Shifts</span>
-            <strong>{{ kpi.total | number }}</strong>
+            <strong>{{ shiftSummary().total | number }}</strong>
           </div>
         </article>
         <article class="kpi tone-active">
           <span class="icon"><mat-icon>check_circle</mat-icon></span>
           <div>
             <span>Active Shifts</span>
-            <strong>{{ kpi.active | number }}</strong>
+            <strong>{{ shiftSummary().active | number }}</strong>
           </div>
         </article>
         <article class="kpi tone-inactive">
           <span class="icon"><mat-icon>pause_circle</mat-icon></span>
           <div>
             <span>Inactive Shifts</span>
-            <strong>{{ kpi.inactive | number }}</strong>
+            <strong>{{ shiftSummary().inactive | number }}</strong>
           </div>
         </article>
         <article class="kpi tone-groups">
           <span class="icon"><mat-icon>event</mat-icon></span>
           <div>
-            <span>Shift Groups</span>
-            <strong>{{ kpi.groups | number }}</strong>
+            <span>Overnight Shifts</span>
+            <strong>{{ overnightCount() | number }}</strong>
           </div>
         </article>
       </section>
@@ -110,25 +114,19 @@
         </mat-form-field>
 
         <div class="toolbar-actions">
-          <button
-            mat-icon-button
-            type="button"
-            matTooltip="Refresh"
-            aria-label="Refresh shifts"
-            (click)="refresh()"
-          >
+          <button mat-icon-button type="button" matTooltip="Refresh" aria-label="Refresh shifts" (click)="refresh()">
             <mat-icon>refresh</mat-icon>
           </button>
-          <button
-            mat-icon-button
-            type="button"
-            matTooltip="Export"
-            aria-label="Export shifts"
-            (click)="exportExcel()"
-          >
+          <button mat-icon-button type="button" matTooltip="Export" aria-label="Export shifts" (click)="exportExcel()">
             <mat-icon>download</mat-icon>
           </button>
-          <button mat-flat-button color="primary" type="button" (click)="addShift()">
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            *trishulHasPermission="shiftManage"
+            (click)="addShift()"
+          >
             <mat-icon>add</mat-icon>
             Add Shift
           </button>
@@ -150,74 +148,82 @@
               </th>
               <th>Shift Code</th>
               <th>Shift Name</th>
-              <th>Shift Type</th>
               <th>In Time</th>
               <th>Out Time</th>
               <th>Work Hours</th>
-              <th>Break</th>
-              <th>Grace (In / Out)</th>
+              <th>Grace</th>
               <th>Status</th>
               <th class="actions-col"></th>
             </tr>
           </thead>
           <tbody>
-            @for (row of filteredShifts(); track row.id) {
+            @if (loading() && !filteredShifts().length) {
               <tr>
-                <td class="check">
-                  <mat-checkbox
-                    [checked]="isSelected(row.id)"
-                    [attr.aria-label]="'Select ' + row.name"
-                    (change)="toggleRow(row.id, $event.checked)"
-                  />
-                </td>
-                <td>
-                  <span class="code-pill" [style.color]="row.codeTone" [style.background]="row.codeTone + '1a'">
-                    {{ row.code }}
-                  </span>
-                </td>
-                <td class="name">{{ row.name }}</td>
-                <td><span [class]="typeClass(row.type)">{{ row.type }}</span></td>
-                <td>{{ row.inTime }}</td>
-                <td>{{ row.outTime }}</td>
-                <td>{{ row.workHours }}</td>
-                <td class="break">{{ row.breakLabel }}</td>
-                <td>{{ row.graceIn }} min / {{ row.graceOut }} min</td>
-                <td>
-                  <span [class]="statusClass(row.status)">
-                    <mat-icon>{{ row.status === 'Active' ? 'check_circle' : 'info' }}</mat-icon>
-                    {{ row.status }}
-                  </span>
-                </td>
-                <td class="actions">
-                  <button
-                    mat-icon-button
-                    type="button"
-                    matTooltip="Edit"
-                    aria-label="Edit shift"
-                    (click)="editShift(row)"
-                  >
-                    <mat-icon>edit</mat-icon>
-                  </button>
-                  <button
-                    mat-icon-button
-                    type="button"
-                    aria-label="More actions"
-                    [matMenuTriggerFor]="rowMenu"
-                    (menuOpened)="menuRow.set(row)"
-                  >
-                    <mat-icon>more_vert</mat-icon>
-                  </button>
-                </td>
+                <td colspan="9"><div class="empty">Loading shifts…</div></td>
               </tr>
-            } @empty {
-              <tr>
-                <td colspan="11">
-                  <div class="empty">
-                    <mat-icon>event_busy</mat-icon>
-                    No shifts match your filters.
-                  </div>
-                </td>
-              </tr>
+            } @else {
+              @for (row of filteredShifts(); track row.id) {
+                <tr>
+                  <td class="check">
+                    <mat-checkbox
+                      [checked]="isSelected(row.id)"
+                      [attr.aria-label]="'Select ' + row.name"
+                      (change)="toggleRow(row.id, $event.checked)"
+                    />
+                  </td>
+                  <td>
+                    <span
+                      class="code-pill"
+                      [style.color]="codeTone(row.code)"
+                      [style.background]="codeTone(row.code) + '1a'"
+                    >
+                      {{ row.code }}
+                    </span>
+                  </td>
+                  <td class="name">{{ row.name }}</td>
+                  <td>{{ formatTime(row.startTime) }}</td>
+                  <td>{{ formatTime(row.endTime) }}</td>
+                  <td>{{ row.workHours }}{{ row.isOvernight ? ' (overnight)' : '' }}</td>
+                  <td>{{ row.graceMinutes }} min</td>
+                  <td>
+                    <span [class]="statusClass(row.isActive)">
+                      <mat-icon>{{ row.isActive ? 'check_circle' : 'info' }}</mat-icon>
+                      {{ row.isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                  </td>
+                  <td class="actions">
+                    <ng-container *trishulHasPermission="shiftManage">
+                      <button
+                        mat-icon-button
+                        type="button"
+                        matTooltip="Edit"
+                        aria-label="Edit shift"
+                        (click)="editShift(row)"
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        aria-label="More actions"
+                        [matMenuTriggerFor]="rowMenu"
+                        (menuOpened)="menuShift.set(row)"
+                      >
+                        <mat-icon>more_vert</mat-icon>
+                      </button>
+                    </ng-container>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="9">
+                    <div class="empty">
+                      <mat-icon>event_busy</mat-icon>
+                      No shifts match your filters.
+                    </div>
+                  </td>
+                </tr>
+              }
             }
           </tbody>
         </table>
@@ -230,32 +236,43 @@
       <div class="section-head">
         <div>
           <h2>Attendance Rules</h2>
-          <p>Define organization-wide attendance and working hour rules.</p>
+          <p>Organization-wide attendance and working hour rules stored in the database.</p>
         </div>
-        <button mat-stroked-button color="primary" type="button" (click)="editRules()">
+        <button
+          mat-stroked-button
+          color="primary"
+          type="button"
+          *trishulHasPermission="rulesManage"
+          (click)="editRules()"
+          [disabled]="!rules()"
+        >
           <mat-icon>edit</mat-icon>
           Edit Rules
         </button>
       </div>
 
-      <div class="rules-grid">
-        @for (block of ruleBlocks; track block.id) {
-          <article class="rule-card" [attr.data-tone]="block.tone">
-            <header>
-              <span class="icon"><mat-icon>{{ block.icon }}</mat-icon></span>
-              <strong>{{ block.title }}</strong>
-            </header>
-            <dl>
-              @for (item of block.items; track item.label) {
-                <div>
-                  <dt>{{ item.label }}</dt>
-                  <dd [class]="item.accent ?? 'neutral'">{{ item.value }}</dd>
-                </div>
-              }
-            </dl>
-          </article>
-        }
-      </div>
+      @if (!rules()) {
+        <div class="empty"><mat-icon>rule</mat-icon>Loading attendance rules…</div>
+      } @else {
+        <div class="rules-grid">
+          @for (block of ruleBlocks(); track block.id) {
+            <article class="rule-card" [attr.data-tone]="block.tone">
+              <header>
+                <span class="icon"><mat-icon>{{ block.icon }}</mat-icon></span>
+                <strong>{{ block.title }}</strong>
+              </header>
+              <dl>
+                @for (item of block.items; track item.label) {
+                  <div>
+                    <dt>{{ item.label }}</dt>
+                    <dd [class]="item.accent ?? 'neutral'">{{ item.value }}</dd>
+                  </div>
+                }
+              </dl>
+            </article>
+          }
+        </div>
+      }
     </div>
   }
 
@@ -264,9 +281,39 @@
       <div class="section-head">
         <div>
           <h2>Shift Assignment</h2>
-          <p>Sample employee-to-shift mappings for UI demonstration.</p>
+          <p>Employee-to-shift mappings from the database. New assignments close overlapping ones and keep history.</p>
         </div>
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          *trishulHasPermission="shiftManage"
+          (click)="addAssignment()"
+        >
+          <mat-icon>add</mat-icon>
+          Assign Shift
+        </button>
       </div>
+
+      <div class="toolbar" aria-label="Assignment filters">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+          <mat-icon matPrefix>search</mat-icon>
+          <input
+            matInput
+            type="search"
+            placeholder="Search employee / shift"
+            [ngModel]="assignmentSearch()"
+            (ngModelChange)="assignmentSearch.set($event)"
+          />
+        </mat-form-field>
+        <mat-slide-toggle
+          [checked]="showAssignmentHistory()"
+          (change)="onHistoryToggle($event.checked)"
+        >
+          Show history
+        </mat-slide-toggle>
+      </div>
+
       <div class="table-wrap">
         <table class="compact">
           <thead>
@@ -275,22 +322,50 @@
               <th>Employee Name</th>
               <th>Department</th>
               <th>Shift</th>
+              <th>Weekly Off</th>
               <th>Effective From</th>
+              <th>Effective To</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            @for (row of assignments; track row.id) {
-              <tr>
+            @for (row of filteredAssignments(); track row.id) {
+              <tr [class.muted]="!row.isCurrent">
                 <td class="code-text">{{ row.employeeCode }}</td>
                 <td>
                   <div class="person">
-                    <span class="avatar" [style.background]="row.avatarTone">{{ initials(row.employeeName) }}</span>
+                    <span class="avatar" [style.background]="avatarTone(row.employeeName)">
+                      {{ initials(row.employeeName) }}
+                    </span>
                     <span class="emp-name">{{ row.employeeName }}</span>
                   </div>
                 </td>
                 <td>{{ row.department }}</td>
                 <td>{{ row.shiftCode }} · {{ row.shiftName }}</td>
-                <td>{{ row.effectiveFrom }}</td>
+                <td>{{ row.weeklyOffDays.join(', ') || '—' }}</td>
+                <td>{{ formatDate(row.fromDate) }}</td>
+                <td>{{ row.toDate ? formatDate(row.toDate) : 'Open' }}</td>
+                <td class="actions">
+                  <ng-container *trishulHasPermission="shiftManage">
+                    <button mat-icon-button type="button" matTooltip="Edit" (click)="editAssignment(row)">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    @if (row.isCurrent) {
+                      <button mat-icon-button type="button" matTooltip="End" (click)="endAssignment(row)">
+                        <mat-icon>event_busy</mat-icon>
+                      </button>
+                    }
+                  </ng-container>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8">
+                  <div class="empty">
+                    <mat-icon>groups</mat-icon>
+                    No shift assignments found.
+                  </div>
+                </td>
               </tr>
             }
           </tbody>
@@ -304,9 +379,23 @@
       <div class="section-head">
         <div>
           <h2>Holiday Calendar</h2>
-          <p>FY 2024-25 sample holidays used by attendance rules.</p>
+          <p>
+            Holidays for the current leave year
+            <strong>{{ leaveYear()?.label || '…' }}</strong>
+            ({{ leaveYear()?.yearBasis === 'CALENDAR' ? 'calendar year' : 'financial year' }}
+            {{ leaveYear()?.startDate || '' }} – {{ leaveYear()?.endDate || '' }}).
+          </p>
         </div>
+        <a mat-stroked-button color="primary" routerLink="/hr/leave/holidays">
+          <mat-icon>open_in_new</mat-icon>
+          Manage holidays
+        </a>
       </div>
+
+      @if (holidayError()) {
+        <p class="banner error" role="alert">{{ holidayError() }}</p>
+      }
+
       <div class="table-wrap">
         <table class="compact">
           <thead>
@@ -318,12 +407,21 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of holidays; track row.id) {
+            @for (row of holidays(); track row.id) {
               <tr>
-                <td>{{ row.date }}</td>
+                <td>{{ formatDate(row.holidayDate) }}</td>
                 <td class="name">{{ row.name }}</td>
-                <td><span class="type regular">{{ row.type }}</span></td>
-                <td>{{ row.appliesTo }}</td>
+                <td><span class="type regular">{{ holidayType(row.category) }}</span></td>
+                <td>{{ appliesTo(row) }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4">
+                  <div class="empty">
+                    <mat-icon>calendar_month</mat-icon>
+                    No holidays configured for {{ leaveYear()?.label || 'this leave year' }}.
+                  </div>
+                </td>
               </tr>
             }
           </tbody>
@@ -334,12 +432,12 @@
 </section>
 
 <mat-menu #rowMenu="matMenu">
-  <button mat-menu-item type="button" (click)="editShift()">
+  <button mat-menu-item type="button" *trishulHasPermission="shiftManage" (click)="editShift()">
     <mat-icon>edit</mat-icon>
     Edit
   </button>
-  <button mat-menu-item type="button" (click)="deleteShift()">
+  <button mat-menu-item type="button" *trishulHasPermission="shiftManage" (click)="deleteShift()">
     <mat-icon>delete</mat-icon>
-    Delete
+    Deactivate
   </button>
 </mat-menu>

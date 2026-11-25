@@ -7,7 +7,11 @@
       <div>
         <h2>{{ isReject ? 'Reject Request' : 'Approve Request' }}</h2>
         <p>
-          {{ isReject ? 'Provide a rejection reason before continuing.' : 'Confirm approval for this regularization request.' }}
+          {{
+            isReject
+              ? 'Provide a rejection reason before continuing.'
+              : 'Confirm approval for this regularization request.'
+          }}
         </p>
       </div>
     </div>
@@ -16,10 +20,28 @@
     </button>
   </header>
 
-  <section class="summary">
+  <section class="summary" aria-label="Request summary">
     <strong>{{ data.row.employeeName }}</strong>
-    <span>{{ data.row.employeeCode }} · {{ data.row.attendanceDate }} · {{ data.row.requestType }}</span>
+    <span
+      >{{ data.row.employeeCode }} · {{ data.row.department }} ·
+      {{ data.row.attendanceDate }} · {{ data.row.requestType }}</span
+    >
   </section>
+
+  <dl class="facts">
+    <div>
+      <dt>Original IN / OUT</dt>
+      <dd>{{ data.row.originalIn || '—' }} / {{ data.row.originalOut || '—' }}</dd>
+    </div>
+    <div>
+      <dt>Requested IN / OUT</dt>
+      <dd>{{ data.row.requestedIn || '—' }} / {{ data.row.requestedOut || '—' }}</dd>
+    </div>
+    <div class="wide">
+      <dt>Reason</dt>
+      <dd>{{ data.row.reason || '—' }}</dd>
+    </div>
+  </dl>
 
   @if (isReject) {
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full reason">
@@ -36,7 +58,8 @@
     </mat-form-field>
   } @else {
     <p class="note">
-      Approving will mark this request as Approved in the UI demo. No backend changes are made.
+      Approving updates attendance with the requested IN/OUT times and marks this request as
+      Approved.
     </p>
   }
 

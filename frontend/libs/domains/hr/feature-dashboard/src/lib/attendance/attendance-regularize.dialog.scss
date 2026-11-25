@@ -1,25 +1,46 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: min(40rem, calc(100dvh - 2rem));
+  overflow: hidden;
+  color: #1b2a4a;
 }
 
 .dialog {
-  width: min(36rem, calc(100vw - 2rem));
-  padding: 1rem 1.1rem 1rem;
-  color: #1b2a4a;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .head {
   display: flex;
+  flex: none;
   gap: 0.75rem;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 0.9rem;
+  padding: 1rem 1rem 0.5rem;
+  min-width: 0;
 }
 
 .title-row {
   display: flex;
   gap: 0.7rem;
   align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+}
+
+.titles {
   min-width: 0;
 }
 
@@ -47,22 +68,38 @@ h2 {
   line-height: 1.25;
 }
 
-p {
+.head p {
   margin: 0.2rem 0 0;
   color: #64748b;
   font-size: 0.78rem;
   line-height: 1.35;
 }
 
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Space above first outlined label so the notch is not clipped. */
+  padding: 0.55rem 1rem 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
 .employee {
-  display: flex;
-  gap: 0.65rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.45rem 0.65rem;
   align-items: center;
-  margin-bottom: 0.85rem;
-  padding: 0.7rem 0.75rem;
+  width: 100%;
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.75rem;
   border: 1px solid #e3ebf6;
   border-radius: 12px;
   background: #f7faff;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .avatar {
@@ -70,7 +107,6 @@ p {
   place-items: center;
   width: 36px;
   height: 36px;
-  min-width: 36px;
   border-radius: 50%;
   color: #fff;
   font-size: 12px;
@@ -79,74 +115,150 @@ p {
 
 .copy {
   min-width: 0;
-  flex: 1;
 
   strong {
     display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.9rem;
     font-weight: 700;
   }
 
   small {
     display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: #64748b;
     font-size: 0.74rem;
   }
 }
 
 .status-wrap {
-  margin-left: auto;
+  min-width: 0;
+  justify-self: end;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.65rem 0.75rem;
-  margin-bottom: 0.35rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.85rem 0.75rem;
+  margin: 0 0 0.85rem;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-  --mat-form-field-container-height: 42px;
-  --mat-form-field-container-vertical-padding: 8px;
-  --mat-form-field-container-text-size: 13px;
-  --mdc-outlined-text-field-container-shape: 10px;
+.grid > *,
+.full {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
 }
 
 .full {
-  width: 100%;
-  margin-bottom: 0.65rem;
+  display: block;
+  margin: 0 0 0.85rem;
+}
 
-  --mat-form-field-container-text-size: 13px;
+.current-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0 0 0.85rem;
+  min-width: 0;
+}
+
+.current-cell {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.current-label {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.current-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  color: #1b2a4a;
+  font-size: 0.88rem;
+  font-weight: 650;
+
+  mat-icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #64748b;
+  }
+}
+
+/* Keep Material outline notch intact — do not force infix widths. */
+.body mat-form-field {
+  width: 100%;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.body mat-form-field:not(.reason) {
+  --mat-form-field-container-height: 48px;
+}
+
+.body mat-form-field.reason {
   --mdc-outlined-text-field-container-shape: 10px;
 }
 
+.reason-block {
+  margin: 0 0 0.85rem;
+  min-width: 0;
+}
+
 .reason {
-  position: relative;
+  margin-bottom: 0 !important;
 
   textarea {
     resize: vertical;
-    min-height: 4.5rem;
-  }
-
-  .counter {
-    position: absolute;
-    right: 0.35rem;
-    bottom: 0.15rem;
-    color: #94a3b8;
-    font-size: 0.68rem;
-    font-weight: 600;
-    pointer-events: none;
+    min-height: 4.25rem;
   }
 }
 
-.attachment {
-  margin: 0.15rem 0 1rem;
+.counter {
+  display: block;
+  margin-top: 0.3rem;
+  text-align: right;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
 
-  > label {
-    display: block;
-    margin-bottom: 0.35rem;
-    color: #334155;
-    font-size: 0.78rem;
-    font-weight: 600;
-  }
+.attachment {
+  margin: 0 0 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.attach-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .file,
@@ -154,8 +266,12 @@ p {
   display: flex;
   gap: 0.45rem;
   align-items: center;
-  min-height: 2.6rem;
-  padding: 0.35rem 0.55rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.65rem;
   border: 1px solid #d7e3f4;
   border-radius: 10px;
   background: #f8fafc;
@@ -210,20 +326,28 @@ p {
 
 .actions {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
-  padding-top: 0.15rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid #eef2f7;
+  background: #fff;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 
   .mat-mdc-outlined-button,
-  .mat-mdc-unelevated-button {
+  .mat-mdc-unelevated-button,
+  .mat-mdc-button-base {
     height: 36px;
     border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 650;
   }
 
-  .mat-mdc-unelevated-button mat-icon {
+  .mat-mdc-unelevated-button mat-icon,
+  .mat-mdc-button-base mat-icon {
     width: 16px;
     height: 16px;
     font-size: 16px;
@@ -232,16 +356,25 @@ p {
 }
 
 @media (max-width: 640px) {
-  .grid {
-    grid-template-columns: 1fr;
+  .grid,
+  .current-pair {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .employee {
-    flex-wrap: wrap;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .status-wrap {
-    margin-left: 0;
-    width: 100%;
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .actions {
+    justify-content: stretch;
+
+    .mat-mdc-button-base {
+      flex: 1 1 auto;
+    }
   }
 }

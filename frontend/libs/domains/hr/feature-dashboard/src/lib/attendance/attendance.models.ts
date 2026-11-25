@@ -97,6 +97,7 @@ export interface RegularizationKpi {
 
 export interface RegularizationListRow {
   id: number;
+  employeeId: number;
   employeeCode: string;
   employeeName: string;
   department: string;
@@ -208,102 +209,11 @@ export const EXCEPTION_TYPES: ExceptionType[] = [
   'Absent',
 ];
 
-/** Shift & Attendance Rules UI models (static mock). */
+/** Shift & Attendance Rules UI tab ids (data comes from AttendanceApi / LeaveApi). */
 export type RulesTab = 'shifts' | 'rules' | 'assignment' | 'holidays';
 
-export type ShiftStatus = 'Active' | 'Inactive';
-export type ShiftType = 'Regular' | 'Flexible';
-
-export interface ShiftKpi {
-  total: number;
-  active: number;
-  inactive: number;
-  groups: number;
-}
-
-export interface ShiftRow {
-  id: number;
-  code: string;
-  name: string;
-  type: ShiftType;
-  inTime: string;
-  outTime: string;
-  workHours: string;
-  breakLabel: string;
-  graceIn: number;
-  graceOut: number;
-  status: ShiftStatus;
-  codeTone: string;
-}
-
-export interface AttendanceRuleBlock {
-  id: string;
-  title: string;
-  icon: string;
-  tone: string;
-  items: { label: string; value: string; accent?: 'success' | 'link' | 'neutral' }[];
-}
-
-export interface ShiftAssignmentRow {
-  id: number;
-  employeeCode: string;
-  employeeName: string;
-  department: string;
-  shiftCode: string;
-  shiftName: string;
-  effectiveFrom: string;
-  avatarTone: string;
-}
-
-export interface HolidayRow {
-  id: number;
-  date: string;
-  name: string;
-  type: 'National' | 'Restricted' | 'Optional';
-  appliesTo: string;
-}
-
-/** Attendance Finalization UI models (static mock). */
+/** Attendance Finalization tab ids (data from AttendanceApi.finalization). */
 export type FinalizationTab = 'department' | 'location';
-
-export type FinalizationRowStatus = 'Ready' | 'Review' | 'Pending';
-
-export interface FinalizationKpi {
-  totalEmployees: number;
-  attendanceReady: number;
-  withExceptions: number;
-  pendingRegularization: number;
-  finalized: number;
-}
-
-export interface FinalizationSummary {
-  monthLabel: string;
-  totalEmployees: number;
-  attendanceReady: number;
-  attendanceReadyPct: number;
-  withExceptions: number;
-  withExceptionsPct: number;
-  pendingRegularization: number;
-  pendingRegularizationPct: number;
-}
-
-export interface FinalizationChecklistItem {
-  id: string;
-  label: string;
-  done: boolean;
-}
-
-export interface FinalizationGroupRow {
-  id: number;
-  name: string;
-  employees: number;
-  present: number;
-  absent: number;
-  leave: number;
-  exceptions: number;
-  readiness: number;
-  status: FinalizationRowStatus;
-}
 
 /** Attendance Dashboard UI models (static mock). */
 export interface DashboardKpiCard {

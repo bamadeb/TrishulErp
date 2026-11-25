@@ -102,6 +102,9 @@ class PayrollRunService:
 
     def process(self, actor: CurrentUser, data: PayrollRunRequest) -> list[PayrollRunItem]:
         month = month_start(data.month)
+        from trishul_api.modules.hr.attendance.finalization_ops import require_month_finalized
+
+        require_month_finalized(self._repo._session, month.year, month.month)
         slips = self._slips(month)
         if not slips:
             covered = [person for person in self._repo.payable(month) if _covers(person, month)]
@@ -149,6 +152,10 @@ class PayrollRunService:
     def recalculate(self, actor: CurrentUser, run_id: int) -> PayrollRunItem:
         run = self._open_run(run_id)
         self._ensure_editable(run)
+        from trishul_api.modules.hr.attendance.finalization_ops import require_month_finalized
+
+        period = month_start(run.period_month)
+        require_month_finalized(self._repo._session, period.year, period.month)
         current = self._saved(run)
         nxt = [slip for slip in self._slips(run.period_month) if slip.company_id == run.company_id]
         if not nxt:

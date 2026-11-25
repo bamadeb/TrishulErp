@@ -545,3 +545,46 @@ th {
     justify-items: center;
   }
 }
+
+.state {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+  color: #64748b;
+  font-size: 0.9rem;
+
+  &.error {
+    color: #b91c1c;
+  }
+
+  .retry {
+    border: 1px solid #cbd5e1;
+    border-radius: 0.4rem;
+    background: #fff;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    color: #0754b8;
+  }
+}
+
+.lock-banner {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.5rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 500;
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}

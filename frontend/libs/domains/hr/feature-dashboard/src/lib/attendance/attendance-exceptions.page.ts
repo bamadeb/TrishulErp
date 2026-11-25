@@ -43,6 +43,11 @@ import {
   tap,
 } from 'rxjs';
 import {
+  AttendanceExceptionResolveDialog,
+  ExceptionResolveResult,
+} from './attendance-exception-resolve.dialog';
+import {
+  ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
   AttendanceRegularizeDialog,
   RegularizeSubmitResult,
 } from './attendance-regularize.dialog';
@@ -319,10 +324,7 @@ export class AttendanceExceptionsPage implements OnInit {
           })),
           attendanceDate: target ? parseDisplayDate(target.date) : this.rangeEnd(),
         },
-        width: '36rem',
-        maxWidth: '95vw',
-        autoFocus: 'dialog',
-        panelClass: 'attendance-regularize-panel',
+        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
       })
       .afterClosed()
       .pipe(filter((result): result is RegularizeSubmitResult => !!result))
@@ -371,24 +373,42 @@ export class AttendanceExceptionsPage implements OnInit {
   protected resolve(row?: AttendanceExceptionRow | null): void {
     const target = row ?? this.menuRow();
     if (!target || target.status === 'Resolved') return;
-    this.api
-      .resolveException(target.id, 'Resolved from Attendance Exceptions')
-      .pipe(
-        catchError((err: unknown) => {
-          const message =
-            err instanceof HttpErrorResponse
-              ? extractHttpError(err)
-              : 'Failed to resolve exception.';
-          this.snackBar.open(message, 'OK', { duration: 4000 });
-          return of(null);
-        }),
-      )
-      .subscribe((result) => {
-        if (!result) return;
-        this.snackBar.open(`Resolved exception for ${target.employeeName}.`, 'OK', {
-          duration: 2600,
-        });
-        this.reload$.next();
+    const requireStatus =
+      target.exceptionType === 'Missing Punch' || target.exceptionType === 'Absent';
+    this.dialog
+      .open(AttendanceExceptionResolveDialog, {
+        data: {
+          employeeName: target.employeeName,
+          exceptionType: target.exceptionType,
+          date: target.date,
+          requireStatus,
+        },
+        width: '28rem',
+        maxWidth: '95vw',
+        autoFocus: 'dialog',
+      })
+      .afterClosed()
+      .pipe(filter((result): result is ExceptionResolveResult => !!result))
+      .subscribe((choice) => {
+        this.api
+          .resolveException(target.id, choice.remark, choice.resolvedStatus)
+          .pipe(
+            catchError((err: unknown) => {
+              const message =
+                err instanceof HttpErrorResponse
+                  ? extractHttpError(err)
+                  : 'Failed to resolve exception.';
+              this.snackBar.open(message, 'OK', { duration: 4000 });
+              return of(null);
+            }),
+          )
+          .subscribe((result) => {
+            if (!result) return;
+            this.snackBar.open(`Resolved exception for ${target.employeeName}.`, 'OK', {
+              duration: 2600,
+            });
+            this.reload$.next();
+          });
       });
   }
 

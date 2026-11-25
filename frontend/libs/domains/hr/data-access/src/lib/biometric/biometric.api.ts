@@ -169,6 +169,8 @@ export interface BiometricDashboard {
   };
   punchTrend: BiometricPunchTrendPoint[];
   recentPunches: BiometricPunch[];
+  integrationStatus: 'Ready' | 'Disabled' | 'Blocked';
+  integrationMessage: string;
 }
 
 @Injectable({ providedIn: 'root' })

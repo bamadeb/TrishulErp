@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, aliased
@@ -51,6 +53,7 @@ class ShiftAssignment:
     end_time: time
     grace_minutes: int
     weekly_off_days: str | None
+    half_day_hours: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,8 +188,15 @@ class AttendanceRepository:
                 by_employee[row.employee_id] = row
         return by_employee
 
-    def punches_between(self, start: datetime, end: datetime) -> list[PunchSource]:
-        rows = self._db.execute(
+    def punches_between(
+        self,
+        start: datetime,
+        end: datetime,
+        *,
+        employee_ids: Collection[int] | None = None,
+    ) -> list[PunchSource]:
+        """Load punches in [start, end]. Optionally restrict to specific employees (ESS mine)."""
+        stmt = (
             select(
                 BiometricPunchLog.employee_id,
                 BiometricPunchLog.punched_at,
@@ -196,9 +206,18 @@ class AttendanceRepository:
             .outerjoin(BiometricDevice, BiometricDevice.id == BiometricPunchLog.device_id)
             .where(BiometricPunchLog.is_active == True)  # noqa: E712
             .where(BiometricPunchLog.employee_id.is_not(None))
+            # Demo/sample punches must never affect production attendance.
+            .where(BiometricPunchLog.source != "Demo")
             .where(BiometricPunchLog.punched_at >= start)
             .where(BiometricPunchLog.punched_at <= end)
-            .order_by(BiometricPunchLog.punched_at, BiometricPunchLog.id)
+        )
+        if employee_ids is not None:
+            wanted = list(employee_ids)
+            if not wanted:
+                return []
+            stmt = stmt.where(BiometricPunchLog.employee_id.in_(wanted))
+        rows = self._db.execute(
+            stmt.order_by(BiometricPunchLog.punched_at, BiometricPunchLog.id)
         ).all()
         biometric = [
             PunchSource(
@@ -376,6 +395,7 @@ class AttendanceRepository:
         *,
         start: date,
         end: date,
+        employee_id: int | None = None,
     ) -> list[tuple[AttendanceRegularization, EmployeeDaySource, Attendance | None]]:
         """Active regularization requests with employee master + linked attendance."""
         manager = aliased(Employee)
@@ -383,7 +403,7 @@ class AttendanceRepository:
             func.ltrim(func.rtrim(func.concat(manager.first_name, " ", func.coalesce(manager.last_name, "")))),
             "",
         )
-        rows = self._db.execute(
+        stmt = (
             select(
                 AttendanceRegularization,
                 Employee.id,
@@ -408,7 +428,11 @@ class AttendanceRepository:
             .where(AttendanceRegularization.is_active == True)  # noqa: E712
             .where(Attendance.attendance_date >= start)
             .where(Attendance.attendance_date <= end)
-            .order_by(Attendance.attendance_date.desc(), AttendanceRegularization.id.desc())
+        )
+        if employee_id is not None:
+            stmt = stmt.where(AttendanceRegularization.employee_id == employee_id)
+        rows = self._db.execute(
+            stmt.order_by(Attendance.attendance_date.desc(), AttendanceRegularization.id.desc())
         ).all()
         result: list[tuple[AttendanceRegularization, EmployeeDaySource, Attendance | None]] = []
         for row in rows:
@@ -485,6 +509,55 @@ class AttendanceRepository:
         self._db.refresh(row)
         return row
 
+    def upsert_computed_day(
+        self,
+        *,
+        employee_id: int,
+        day: date,
+        shift_id: int | None,
+        check_in: datetime | None,
+        check_out: datetime | None,
+        worked_hours: Decimal | None,
+        status: str,
+        source: str,
+        actor_id: int | None,
+    ) -> bool:
+        """Insert or update a computed day. Skips rows already regularized. Does not commit."""
+        existing = self.get_attendance(employee_id, day)
+        if existing is not None:
+            if existing.is_regularized:
+                return False
+            existing.shift_id = shift_id
+            existing.check_in_at = check_in
+            existing.check_out_at = check_out
+            existing.worked_hours = worked_hours
+            existing.status = status  # type: ignore[assignment]
+            existing.source = source  # type: ignore[assignment]
+            existing.updated_at = datetime.utcnow()
+            existing.updated_by_user_id = actor_id
+            existing.is_active = True
+            self._db.add(existing)
+            return True
+        row = Attendance(
+            employee_id=employee_id,
+            attendance_date=day,
+            shift_id=shift_id,
+            check_in_at=check_in,
+            check_out_at=check_out,
+            source=source,  # type: ignore[arg-type]
+            worked_hours=worked_hours,
+            status=status,  # type: ignore[arg-type]
+            is_regularized=False,
+            created_at=datetime.utcnow(),
+            created_by_user_id=actor_id,
+            is_active=True,
+        )
+        self._db.add(row)
+        return True
+
+    def flush(self) -> None:
+        self._db.flush()
+
 
 def _employment_status(status: str | None, is_active: bool | None) -> str:
     if status == "Inactive" or is_active is False:
@@ -507,6 +580,7 @@ def resolve_shift(
     if assignment is not None:
         shift = shifts.get(assignment.shift_id)
         if shift is not None:
+            half = float(shift.half_day_hours) if shift.half_day_hours is not None else None
             return ShiftAssignment(
                 shift_id=shift.id,
                 shift_name=shift.name,
@@ -514,6 +588,7 @@ def resolve_shift(
                 end_time=shift.end_time,
                 grace_minutes=int(shift.grace_minutes or 0),
                 weekly_off_days=assignment.weekly_off_days,
+                half_day_hours=half,
             )
         return ShiftAssignment(
             shift_id=assignment.shift_id,
@@ -522,6 +597,7 @@ def resolve_shift(
             end_time=time(18, 0),
             grace_minutes=10,
             weekly_off_days=assignment.weekly_off_days,
+            half_day_hours=None,
         )
     return ShiftAssignment(
         shift_id=None,
@@ -530,4 +606,5 @@ def resolve_shift(
         end_time=time(18, 0),
         grace_minutes=10,
         weekly_off_days="SUN",
+        half_day_hours=None,
     )

@@ -6,6 +6,19 @@
 }
 
 @if (data(); as board) {
+  @if (board.integrationMessage) {
+    <p
+      class="integration-banner"
+      [class.blocked]="board.integrationStatus === 'Blocked'"
+      [class.disabled]="board.integrationStatus === 'Disabled'"
+      role="status"
+    >
+      <mat-icon>info</mat-icon>
+      <span
+        ><strong>{{ board.integrationStatus }}</strong> — {{ board.integrationMessage }}</span
+      >
+    </p>
+  }
   <section class="kpis" aria-label="Biometric summary">
     <article class="kpi">
       <span class="kpi-icon tone-blue"><mat-icon>devices</mat-icon></span>

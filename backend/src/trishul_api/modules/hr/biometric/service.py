@@ -100,6 +100,7 @@ class BiometricService:
             page=1,
             page_size=6,
         )
+        integration_status, integration_message = self._integration_status()
         return BiometricDashboardOut(
             registered_devices=len(devices),
             mapped_employees=self._repo.count_mapped_employees(),
@@ -110,6 +111,22 @@ class BiometricService:
             device_status=status_counts,
             punch_trend=_build_trend(self._repo.punches_for_day(today)),
             recent_punches=[_punch_out(row) for row in recent_rows],
+            integration_status=integration_status,  # type: ignore[arg-type]
+            integration_message=integration_message,
+        )
+
+    def _integration_status(self) -> tuple[str, str]:
+        """Honest vendor-sync readiness — never report Ready when eSSL contract is missing."""
+        if not self._biometric.sync_enabled:
+            return (
+                "Disabled",
+                "Biometric vendor sync is disabled. Attendance uses punches already stored in "
+                "hr.biometric_punch_log (mapped employees only). Sync Now will not invent data.",
+            )
+        return (
+            "Blocked",
+            "eSSL API contract is not implemented. Official vendor documentation is required "
+            "before Sync Now can fetch punches. Sync attempts are logged as Skipped/Failed.",
         )
 
     # --- devices -----------------------------------------------------------------
@@ -374,6 +391,10 @@ class BiometricService:
         log.status = "Success"
         log.finished_at = _utc_now()
         self._repo.commit()
+        # Daily/muster recompute from punch logs; clear attendance master cache after sync.
+        from trishul_api.modules.hr.attendance import cache as attendance_cache
+
+        attendance_cache.invalidate()
         logger.info(
             "biometric.sync.success sync_log_id=%s fetched=%s inserted=%s duplicates=%s",
             sync_log_id,

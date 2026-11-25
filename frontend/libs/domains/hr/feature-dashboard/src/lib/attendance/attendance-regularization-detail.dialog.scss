@@ -1,9 +1,16 @@
 :host {
   display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .dialog {
-  width: min(36rem, calc(100vw - 2rem));
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 1rem 1.1rem 1rem;
   color: #1b2a4a;
 }

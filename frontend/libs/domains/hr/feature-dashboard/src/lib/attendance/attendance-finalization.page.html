@@ -24,40 +24,44 @@
   </div>
 </trishul-page-header>
 
+@if (error()) {
+  <p class="banner error" role="alert">{{ error() }}</p>
+}
+
 <section class="kpis" aria-label="Finalization summary">
   <article class="kpi tone-total">
     <span class="icon"><mat-icon>groups</mat-icon></span>
     <div>
       <span>Total Employees</span>
-      <strong>{{ kpi.totalEmployees | number }}</strong>
+      <strong>{{ kpi().totalEmployees | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-ready">
     <span class="icon"><mat-icon>check_circle</mat-icon></span>
     <div>
       <span>Attendance Ready</span>
-      <strong>{{ kpi.attendanceReady | number }}</strong>
+      <strong>{{ kpi().attendanceReady | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-exceptions">
     <span class="icon"><mat-icon>schedule</mat-icon></span>
     <div>
       <span>With Exceptions</span>
-      <strong>{{ kpi.withExceptions | number }}</strong>
+      <strong>{{ kpi().withExceptions | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-pending">
     <span class="icon"><mat-icon>hourglass_empty</mat-icon></span>
     <div>
       <span>Pending Regularization</span>
-      <strong>{{ kpi.pendingRegularization | number }}</strong>
+      <strong>{{ kpi().pendingRegularization | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-finalized">
     <span class="icon"><mat-icon>lock</mat-icon></span>
     <div>
       <span>Finalized</span>
-      <strong>{{ kpi.finalized | number }}</strong>
+      <strong>{{ kpi().finalized | number }}</strong>
     </div>
   </article>
 </section>
@@ -131,10 +135,11 @@
           matTooltip="Refresh"
           aria-label="Refresh finalization"
           (click)="refresh()"
+          [disabled]="loading()"
         >
           <mat-icon>refresh</mat-icon>
         </button>
-        <button mat-stroked-button type="button" (click)="exportExcel()">
+        <button mat-stroked-button type="button" (click)="exportExcel()" [disabled]="!filteredRows().length">
           <mat-icon>download</mat-icon>
           Export
         </button>
@@ -166,65 +171,71 @@
           </tr>
         </thead>
         <tbody>
-          @for (row of filteredRows(); track row.id) {
+          @if (loading() && !filteredRows().length) {
             <tr>
-              <td class="check">
-                <mat-checkbox
-                  [checked]="isSelected(row.id)"
-                  [attr.aria-label]="'Select ' + row.name"
-                  (change)="toggleRow(row.id, $event.checked)"
-                />
-              </td>
-              <td class="name">{{ row.name }}</td>
-              <td>{{ row.employees | number }}</td>
-              <td>{{ row.present | number }}</td>
-              <td>{{ row.absent | number }}</td>
-              <td>{{ row.leave | number }}</td>
-              <td>{{ row.exceptions | number }}</td>
-              <td class="ready-col">
-                <div class="readiness" [attr.data-tone]="readinessTone(row.readiness)">
-                  <strong>{{ row.readiness }}%</strong>
-                  <span class="bar" aria-hidden="true">
-                    <i [style.width.%]="row.readiness"></i>
+              <td colspan="10"><div class="empty">Loading finalization…</div></td>
+            </tr>
+          } @else {
+            @for (row of filteredRows(); track row.id) {
+              <tr>
+                <td class="check">
+                  <mat-checkbox
+                    [checked]="isSelected(row.id)"
+                    [attr.aria-label]="'Select ' + row.name"
+                    (change)="toggleRow(row.id, $event.checked)"
+                  />
+                </td>
+                <td class="name">{{ row.name }}</td>
+                <td>{{ row.employees | number }}</td>
+                <td>{{ row.present | number }}</td>
+                <td>{{ row.absent | number }}</td>
+                <td>{{ row.leave | number }}</td>
+                <td>{{ row.exceptions | number }}</td>
+                <td class="ready-col">
+                  <div class="readiness" [attr.data-tone]="readinessTone(row.readiness)">
+                    <strong>{{ row.readiness }}%</strong>
+                    <span class="bar" aria-hidden="true">
+                      <i [style.width.%]="row.readiness"></i>
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <span [class]="statusClass(row.status)">
+                    <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
+                    {{ row.status }}
                   </span>
-                </div>
-              </td>
-              <td>
-                <span [class]="statusClass(row.status)">
-                  <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
-                  {{ row.status }}
-                </span>
-              </td>
-              <td class="actions">
-                <button
-                  mat-icon-button
-                  type="button"
-                  matTooltip="View details"
-                  aria-label="View details"
-                  (click)="viewDetails(row)"
-                >
-                  <mat-icon>visibility</mat-icon>
-                </button>
-                <button
-                  mat-icon-button
-                  type="button"
-                  aria-label="More actions"
-                  [matMenuTriggerFor]="rowMenu"
-                  (menuOpened)="menuRow.set(row)"
-                >
-                  <mat-icon>more_vert</mat-icon>
-                </button>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="10">
-                <div class="empty">
-                  <mat-icon>event_busy</mat-icon>
-                  No {{ groupLabel().toLowerCase() }}s match your filters.
-                </div>
-              </td>
-            </tr>
+                </td>
+                <td class="actions">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    matTooltip="View details"
+                    aria-label="View details"
+                    (click)="viewDetails(row)"
+                  >
+                    <mat-icon>visibility</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="More actions"
+                    [matMenuTriggerFor]="rowMenu"
+                    (menuOpened)="menuRow.set(row)"
+                  >
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="10">
+                  <div class="empty">
+                    <mat-icon>event_busy</mat-icon>
+                    No {{ groupLabel().toLowerCase() }}s match your filters.
+                  </div>
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -239,73 +250,103 @@
   <aside class="side" aria-label="Finalization panel">
     <section class="card side-card">
       <h2>Finalization Summary</h2>
-      <dl>
-        <div>
-          <dt>Month</dt>
-          <dd>{{ monthLabel() }}</dd>
-        </div>
-        <div>
-          <dt>Total Employees</dt>
-          <dd>{{ summary.totalEmployees | number }}</dd>
-        </div>
-        <div>
-          <dt>Attendance Ready</dt>
-          <dd>
-            {{ summary.attendanceReady | number }}
-            <em class="ready">{{ summary.attendanceReadyPct }}%</em>
-          </dd>
-        </div>
-        <div>
-          <dt>With Exceptions</dt>
-          <dd>
-            {{ summary.withExceptions | number }}
-            <em class="warn">{{ summary.withExceptionsPct }}%</em>
-          </dd>
-        </div>
-        <div>
-          <dt>Pending Regularization</dt>
-          <dd>
-            {{ summary.pendingRegularization | number }}
-            <em class="pending">{{ summary.pendingRegularizationPct }}%</em>
-          </dd>
-        </div>
-      </dl>
+      @if (summary(); as side) {
+        <dl>
+          <div>
+            <dt>Month</dt>
+            <dd>{{ side.monthLabel }}</dd>
+          </div>
+          <div>
+            <dt>Total Employees</dt>
+            <dd>{{ side.totalEmployees | number }}</dd>
+          </div>
+          <div>
+            <dt>Attendance Ready</dt>
+            <dd>
+              {{ side.attendanceReady | number }}
+              <em class="ready">{{ side.attendanceReadyPct }}%</em>
+            </dd>
+          </div>
+          <div>
+            <dt>With Exceptions</dt>
+            <dd>
+              {{ side.withExceptions | number }}
+              <em class="warn">{{ side.withExceptionsPct }}%</em>
+            </dd>
+          </div>
+          <div>
+            <dt>Pending Regularization</dt>
+            <dd>
+              {{ side.pendingRegularization | number }}
+              <em class="pending">{{ side.pendingRegularizationPct }}%</em>
+            </dd>
+          </div>
+          @if (side.isFinalized) {
+            <div>
+              <dt>Status</dt>
+              <dd><em class="ready">Finalized &amp; locked</em></dd>
+            </div>
+          }
+        </dl>
+      } @else {
+        <p class="side-empty">{{ loading() ? 'Loading…' : 'No summary available.' }}</p>
+      }
     </section>
 
     <section class="card side-card">
       <div class="checklist-head">
         <h2>Pre-Finalization Checklist</h2>
-        <span>{{ checklistDoneCount() }}/{{ checklist().length }}</span>
+        <span>{{ checklistDoneCount() }}/{{ checklist().length || 5 }}</span>
       </div>
       <ul class="checklist">
         @for (item of checklist(); track item.id) {
           <li>
-            <mat-checkbox
-              [checked]="item.done"
-              (change)="toggleChecklist(item.id, $event.checked)"
-            >
+            <mat-checkbox [checked]="item.done" disabled [matTooltip]="item.detail">
               {{ item.label }}
             </mat-checkbox>
+            @if (item.detail) {
+              <small>{{ item.detail }}</small>
+            }
           </li>
+        } @empty {
+          <li class="side-empty">{{ loading() ? 'Checking…' : 'No checklist items.' }}</li>
         }
       </ul>
     </section>
 
-    <button
-      mat-flat-button
-      color="primary"
-      type="button"
-      class="finalize"
-      (click)="finalizeAttendance()"
-    >
-      <mat-icon>lock</mat-icon>
-      Finalize &amp; Lock Attendance
-    </button>
-    <p class="note">
-      <mat-icon>info</mat-icon>
-      Once finalized, attendance for {{ monthLabel() }} will be locked and sent to Payroll for
-      processing.
-    </p>
+    @if (isFinalized()) {
+      <button mat-flat-button color="primary" type="button" class="finalize" disabled>
+        <mat-icon>lock</mat-icon>
+        Attendance Locked
+      </button>
+      <p class="note">
+        <mat-icon>info</mat-icon>
+        Attendance for {{ monthLabel() }} is locked. Payroll can use these figures.
+      </p>
+    } @else if (canLockAttendance) {
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        class="finalize"
+        (click)="finalizeAttendance()"
+        [disabled]="locking() || !canFinalize()"
+      >
+        <mat-icon>lock_open</mat-icon>
+        Finalize &amp; Lock Attendance
+      </button>
+      <p class="note">
+        <mat-icon>info</mat-icon>
+        Once finalized, attendance for {{ monthLabel() }} will be locked and available for Payroll
+        processing. The button enables only when every checklist item passes.
+      </p>
+    } @else {
+      <p class="note" role="status">
+        <mat-icon>info</mat-icon>
+        You can review finalization readiness. Locking this month requires the
+        Finalize Attendance permission.
+      </p>
+    }
   </aside>
 </div>
 

@@ -55,6 +55,7 @@ import {
 } from './attendance-regularization-decision.dialog';
 import { AttendanceRegularizationDetailDialog } from './attendance-regularization-detail.dialog';
 import {
+  ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
   AttendanceRegularizeDialog,
   RegularizeEmployeeOption,
   RegularizeSubmitResult,
@@ -268,9 +269,17 @@ export class AttendanceRegularizationPage implements OnInit {
   }
 
   protected openRegularize(): void {
+    const selected = this.allRows().find((row) => this.selectedIds().has(row.id)) ?? null;
     const today = toIsoDate(new Date());
+    const loadDate = selected?.attendanceDateIso || today;
     this.api
-      .listDaily({ date: today, page: 1, pageSize: 200, statusTab: 'all', includePunches: false })
+      .listDaily({
+        date: loadDate,
+        page: 1,
+        pageSize: 200,
+        statusTab: 'all',
+        includePunches: false,
+      })
       .pipe(
         catchError((err: unknown) => {
           this.snackBar.open(extractHttpError(err, 'Failed to load employees.'), 'OK', {
@@ -283,6 +292,7 @@ export class AttendanceRegularizationPage implements OnInit {
         if (!page) return;
         const employees: RegularizeEmployeeOption[] = page.items.map((row) => ({
           id: row.employeeId,
+          employeeId: row.employeeId,
           employeeCode: row.employeeCode,
           employeeName: row.employeeName,
           department: row.department,
@@ -291,16 +301,35 @@ export class AttendanceRegularizationPage implements OnInit {
           lastOut: formatTime(row.lastOut),
           status: row.status,
         }));
+
+        let prefill: RegularizeEmployeeOption | null = null;
+        if (selected) {
+          prefill =
+            employees.find((row) => row.id === selected.employeeId) ??
+            ({
+              id: selected.employeeId,
+              employeeId: selected.employeeId,
+              employeeCode: selected.employeeCode,
+              employeeName: selected.employeeName,
+              department: selected.department,
+              avatarTone: selected.avatarTone,
+              firstIn: selected.originalIn,
+              lastOut: selected.originalOut,
+            } satisfies RegularizeEmployeeOption);
+          if (!employees.some((row) => row.id === prefill!.id)) {
+            employees.unshift(prefill);
+          }
+        }
+
         this.dialog
           .open(AttendanceRegularizeDialog, {
+            ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
             data: {
               employees,
-              attendanceDate: new Date(),
+              employee: prefill,
+              attendanceDate: selected ? parseIsoDate(selected.attendanceDateIso) : new Date(),
+              lockEmployee: false,
             },
-            width: '36rem',
-            maxWidth: '95vw',
-            autoFocus: 'dialog',
-            panelClass: 'attendance-regularize-panel',
           })
           .afterClosed()
           .pipe(filter((result): result is RegularizeSubmitResult => !!result))
@@ -311,10 +340,8 @@ export class AttendanceRegularizationPage implements OnInit {
   protected viewDetails(row: RegularizationListRow): void {
     this.dialog
       .open(AttendanceRegularizationDetailDialog, {
+        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
         data: { row },
-        width: '36rem',
-        maxWidth: '95vw',
-        autoFocus: 'dialog',
       })
       .afterClosed()
       .subscribe((action: 'approve' | 'reject' | null | undefined) => {
@@ -326,10 +353,8 @@ export class AttendanceRegularizationPage implements OnInit {
   protected approve(row: RegularizationListRow): void {
     this.dialog
       .open(AttendanceRegularizationDecisionDialog, {
+        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
         data: { row, decision: 'approve' },
-        width: '28rem',
-        maxWidth: '95vw',
-        autoFocus: 'dialog',
       })
       .afterClosed()
       .pipe(filter((result): result is RegularizationDecisionResult => !!result))
@@ -357,10 +382,8 @@ export class AttendanceRegularizationPage implements OnInit {
   protected reject(row: RegularizationListRow): void {
     this.dialog
       .open(AttendanceRegularizationDecisionDialog, {
+        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
         data: { row, decision: 'reject' },
-        width: '28rem',
-        maxWidth: '95vw',
-        autoFocus: 'dialog',
       })
       .afterClosed()
       .pipe(filter((result): result is RegularizationDecisionResult => !!result))
@@ -519,6 +542,7 @@ function mapKpi(summary: ApiRegularizationKpi): RegularizationKpi {
 function normalizeRow(row: ApiRegularizationRow): RegularizationListRow {
   return {
     id: row.id,
+    employeeId: row.employeeId,
     employeeCode: row.employeeCode,
     employeeName: row.employeeName,
     department: row.department,
