@@ -218,6 +218,30 @@ def test_the_form_lists_departments_with_their_issue_types(as_user: Callable[[st
     ]
 
 
+def test_a_new_department_gets_the_other_issue_type_and_shows_on_the_form(
+    as_user: Callable[[str], TestClient], db: Engine
+) -> None:
+    insert_row(db, "hr.department", id=3, code="HR", name="HR")
+    insert_row(db, "hr.department", id=4, code="OLD", name="Closed down", is_active=False)
+    insert_row(db, "hr.department", id=5, code="STORE", name="Store")
+    # The Super Admin switched off the Store's only type: it stays off the form, nothing is re-added.
+    insert_row(db, "core.complaint_issue_type", id=5, department_id=5, name="Racks", sort_order=1, is_active=False)
+    client = as_user("raju")
+    options = client.get("/api/v1/core/complaint-departments").json()
+    assert [(d["name"], [t["name"] for t in d["issueTypes"]]) for d in options] == [
+        ("Admin", ["Water supply", "Other"]),
+        ("HR", ["Other"]),
+        ("Service", ["Tools"]),
+    ]
+    # Only once: listing again adds nothing.
+    client.get("/api/v1/core/complaint-departments")
+    issue_types = as_user("super").get("/api/v1/core/complaint-issue-types", params={"status": "all"}).json()
+    assert sorted((t["departmentName"], t["name"]) for t in issue_types if t["departmentId"] in (3, 4, 5)) == [
+        ("HR", "Other"),
+        ("Store", "Racks"),
+    ]
+
+
 def test_raising_a_complaint_numbers_it_records_who_and_tells_the_department_leaders(
     as_user: Callable[[str], TestClient], db: Engine
 ) -> None:

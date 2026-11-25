@@ -48,6 +48,8 @@ from trishul_api.modules.core.complaints.schemas import (
 
 ENTITY_TYPE = "core.complaint"
 DOCUMENT_TYPE = "COMPLAINT"
+DEFAULT_ISSUE_TYPE = "Other"
+DEFAULT_ISSUE_TYPE_DESCRIPTION = "Anything not covered by the other issue types"
 
 _RAISER = aliased(Employee)
 _SORT = {
@@ -108,6 +110,7 @@ class ComplaintService:
 
     def departments(self) -> list[ComplaintDepartmentOption]:
         """Active departments that have at least one active issue type, for the raise form."""
+        self._seed_default_issue_types()
         rows = self._db.execute(
             select(Department.id, Department.code, Department.name, ComplaintIssueType)
             .join(ComplaintIssueType, ComplaintIssueType.department_id == Department.id)
@@ -124,6 +127,34 @@ class ComplaintService:
                 ComplaintIssueTypeOption(id=issue.id, name=issue.name, description=issue.description)
             )
         return list(options.values())
+
+    def _seed_default_issue_types(self) -> None:
+        """Give every active department that has never had an issue type the starting 'Other' type.
+
+        Departments created after migration 0048 would otherwise never reach the raise form. A department whose
+        types the Super Admin has all deactivated is left alone (it has rows, just no active ones).
+        """
+        missing = self._db.scalars(
+            select(Department.id).where(
+                Department.is_active,
+                ~select(ComplaintIssueType.id).where(ComplaintIssueType.department_id == Department.id).exists(),
+            )
+        ).all()
+        if not missing:
+            return
+        now = _now()
+        for department_id in missing:
+            self._db.add(
+                ComplaintIssueType(
+                    department_id=department_id,
+                    name=DEFAULT_ISSUE_TYPE,
+                    description=DEFAULT_ISSUE_TYPE_DESCRIPTION,
+                    sort_order=9999,
+                    created_at=now,
+                    created_by_user_id=self._user.id,
+                )
+            )
+        self._db.commit()
 
     # ------------------------------------------------------------------ raise
 
@@ -478,6 +509,7 @@ class ComplaintService:
     # ------------------------------------------------------------------ issue types
 
     def issue_types(self, query: ComplaintIssueTypeQuery) -> list[ComplaintIssueTypeItem]:
+        self._seed_default_issue_types()
         used = (
             select(func.count(Complaint.id))
             .where(Complaint.issue_type_id == ComplaintIssueType.id)
