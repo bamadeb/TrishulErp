@@ -191,23 +191,24 @@
       </div>
 
       @if (contentTab() === 'punches') {
-        <h2 class="punch-title">Punch Logs ({{ dateLabel() }})</h2>
+        <h2 class="punch-title">Punch Logs</h2>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Employee ID</th>
-                <th>Employee Name</th>
-                <th>Punch Time</th>
-                <th>IN/OUT</th>
-                <th>GPS Location</th>
+                <th>Employee</th>
+                <th>Punch</th>
+                <th>Status</th>
+                <th>Face</th>
+                <th>Location</th>
+                <th>Check</th>
                 <th class="actions-col">Actions</th>
               </tr>
             </thead>
             <tbody>
               @if (punchLoading()) {
                 <tr>
-                  <td colspan="6">
+                  <td colspan="7">
                     <div class="empty">
                       <mat-icon>hourglass_empty</mat-icon>
                       Loading punch logs…
@@ -216,7 +217,7 @@
                 </tr>
               } @else if (punchError()) {
                 <tr>
-                  <td colspan="6">
+                  <td colspan="7">
                     <div class="empty">
                       <mat-icon>error_outline</mat-icon>
                       {{ punchError() }}
@@ -226,34 +227,62 @@
               } @else {
                 @for (row of punchPageRows(); track row.id) {
                   <tr [class.active]="selected()?.employeeId === row.employeeId">
-                    <td class="code">{{ row.employeeCode || '—' }}</td>
                     <td>
                       <div class="person">
                         <span class="avatar" [style.background]="avatarColor(row.employeeId)" aria-hidden="true">
                           {{ initials(row.employeeName || '') }}
                         </span>
-                        <button type="button" class="name" (click)="openPunchDetails(row)">
-                          {{ row.employeeName || '—' }}
-                        </button>
+                        <span class="who-text">
+                          <button type="button" class="name" (click)="openPunchDetails(row)">
+                            {{ row.employeeName || '—' }}
+                          </button>
+                          <small class="muted">{{ row.employeeCode || '—' }}</small>
+                        </span>
                       </div>
                     </td>
-                    <td class="punch-time">{{ punchClock(row) }}</td>
                     <td>
-                      <span class="pill" [class.in]="punchKind(row) === 'IN'" [class.out]="punchKind(row) === 'OUT'">
-                        {{ punchKind(row) }}
+                      <span class="punch-line">
+                        <span class="pill" [class.in]="punchKind(row) === 'IN'" [class.out]="punchKind(row) === 'OUT'">
+                          {{ punchKind(row) }}
+                        </span>
+                        <span class="punch-time">{{ row.effectiveAt | date: 'h:mm a' }}</span>
                       </span>
+                      <small class="muted punch-day">{{ row.attendanceDate | date: 'd MMM y' }}</small>
                     </td>
-                    <td class="gps">
+                    <td>
+                      <span
+                        class="pill"
+                        [class.accepted]="row.status === 'Present'"
+                        [class.rejected]="row.status === 'Rejected'"
+                        [class.pending]="row.status === 'Pending'"
+                      >
+                        {{ punchStatusLabel(row) }}
+                      </span>
+                      @if (row.statusReason) {
+                        <div class="reason">{{ row.statusReason }}</div>
+                      }
+                    </td>
+                    <td>
+                      <span class="face-status">{{ row.faceStatus }}</span>
+                      @if (row.serverScore != null) {
+                        <small class="muted">score {{ row.serverScore | number: '1.2-2' }}</small>
+                      }
+                    </td>
+                    <td>
                       @if (punchMap(row); as map) {
-                        <a [href]="map" target="_blank" rel="noopener">
-                          <strong>{{ row.latitude }}° N, {{ row.longitude }}° E</strong>
-                          @if (row.gpsAccuracyM != null) {
-                            <small>(±{{ row.gpsAccuracyM }} m)</small>
-                          }
+                        <a class="map-link" [href]="map" target="_blank" rel="noopener">
+                          <mat-icon>location_on</mat-icon>
+                          Map
                         </a>
+                        @if (row.gpsAccuracyM != null) {
+                          <small class="muted">±{{ row.gpsAccuracyM | number: '1.0-0' }} m</small>
+                        }
                       } @else {
                         <span class="muted">—</span>
                       }
+                    </td>
+                    <td class="check-cell">
+                      {{ row.challenge || '—' }}: {{ row.challengeResult || '—' }}
                     </td>
                     <td class="actions">
                       <button
@@ -269,10 +298,10 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="6">
+                    <td colspan="7">
                       <div class="empty">
                         <mat-icon>fingerprint</mat-icon>
-                        No mobile punch logs for this date.
+                        No mobile punch logs in this range.
                       </div>
                     </td>
                   </tr>

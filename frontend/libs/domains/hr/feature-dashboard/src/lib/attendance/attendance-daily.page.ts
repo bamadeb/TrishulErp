@@ -1,4 +1,4 @@
-﻿import { DecimalPipe } from '@angular/common';
+﻿import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -102,6 +102,7 @@ const DAY_PAGE_SIZE = 200;
 @Component({
   selector: 'trishul-attendance-daily-page',
   imports: [
+    DatePipe,
     DecimalPipe,
     FormsModule,
     MatButton,
@@ -208,7 +209,7 @@ export class AttendanceDailyPage implements OnInit {
         if (!q) return true;
         return `${row.employeeCode ?? ''} ${row.employeeName ?? ''}`.toLowerCase().includes(q);
       })
-      .sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt) || a.id - b.id);
+      .sort((a, b) => b.effectiveAt.localeCompare(a.effectiveAt) || b.id - a.id);
   });
 
   protected readonly punchDepartments = computed(() =>
@@ -389,6 +390,13 @@ export class AttendanceDailyPage implements OnInit {
     return row.punchType === 'Out' ? 'OUT' : 'IN';
   }
 
+  /** Same labels as Face Attendance punches and review. */
+  protected punchStatusLabel(row: FacePunch): string {
+    if (row.status === 'Present') return 'Accepted';
+    if (row.status === 'Pending') return 'With HR';
+    return row.status;
+  }
+
   protected punchClock(row: FacePunch): string {
     const date = new Date(row.effectiveAt);
     if (Number.isNaN(date.getTime())) return row.effectiveAt;
@@ -463,12 +471,14 @@ export class AttendanceDailyPage implements OnInit {
   private punchRequest = 0;
 
   private loadPunches(): void {
-    const day = toIsoDate(this.selectedDate());
+    const toDate = toIsoDate(this.selectedDate());
+    const start = new Date(this.selectedDate());
+    start.setDate(start.getDate() - 6);
     const request = ++this.punchRequest;
     this.punchLoading.set(true);
     this.punchError.set(null);
     this.faces
-      .listPunches({ fromDate: day, toDate: day, limit: 1000 })
+      .listPunches({ fromDate: toIsoDate(start), toDate, limit: 1000 })
       .pipe(
         catchError((err: unknown) => {
           if (request !== this.punchRequest) return of([] as FacePunch[]);
