@@ -3,7 +3,7 @@
 
 export interface AlertRuleTestMatch {
   entityId: number;
-  entityType: 'svc.service_call' | 'core.machine_unit' | 'svc.service_contract';
+  entityType: 'svc.service_call' | 'core.machine_unit' | 'svc.service_contract' | 'core.complaint';
   message: string;
   recipients: Array<string>;
   title: string;

@@ -52,6 +52,11 @@ export const appRoutes: Route[] = [
           import('@trishul/admin-feature-users').then((m) => m.adminRoutes),
       },
       {
+        path: 'complaints',
+        loadChildren: () =>
+          import('@trishul/admin-feature-users').then((m) => m.complaintRoutes),
+      },
+      {
         path: 'alerts',
         title: 'My alerts',
         canActivate: [permissionGuard('core.alert.view')],

@@ -55,6 +55,8 @@ export function alertLink(
       return ['/service/calls', String(alert.entityId)];
     case 'core.machine_unit':
       return ['/service/machines', String(alert.entityId)];
+    case 'core.complaint':
+      return ['/complaints', String(alert.entityId)];
     default:
       return null;
   }

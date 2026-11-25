@@ -437,6 +437,7 @@ def test_library_needs_the_document_permission(engineer: TestClient, other: Test
 def test_entity_types_name_the_modules_that_use_documents(admin: TestClient) -> None:
     types = {t["entityType"]: t["label"] for t in admin.get(f"{DOCS}/entity-types").json()}
     assert types == {
+        "core.complaint": "Complaint",
         "core.customer": "Customer",
         "core.employee": "Employee",
         "svc.checklist_template": "Inspection checklist",

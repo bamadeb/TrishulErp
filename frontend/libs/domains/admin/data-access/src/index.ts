@@ -21,3 +21,5 @@ export * from './lib/warehouses.api';
 export * from './lib/brands.models';
 export * from './lib/brands.api';
 export * from './lib/configuration.api';
+export * from './lib/complaints.models';
+export * from './lib/complaints.api';

@@ -1,5 +1,8 @@
 import {
   ALERT_RULE_VIEW_PERMISSIONS,
+  COMPLAINT_MANAGE_ALL_PERMISSION,
+  COMPLAINT_MANAGE_PERMISSIONS,
+  COMPLAINT_RAISE_PERMISSION,
   CUSTOMER_VIEW_PERMISSIONS,
   DOCUMENT_VIEW_PERMISSIONS,
   ROLE_VIEW_PERMISSIONS,
@@ -63,6 +66,36 @@ export const navItems: NavItem[] = [
     icon: 'notifications',
     route: '/alerts',
     permissions: ['core.alert.view'],
+  },
+  {
+    label: 'Complaints',
+    icon: 'report',
+    children: [
+      {
+        label: 'Raise complaint',
+        icon: 'add_comment',
+        route: '/complaints/new',
+        permissions: [COMPLAINT_RAISE_PERMISSION],
+      },
+      {
+        label: 'My complaints',
+        icon: 'chat',
+        route: '/complaints/mine',
+        permissions: [COMPLAINT_RAISE_PERMISSION],
+      },
+      {
+        label: 'Department complaints',
+        icon: 'inbox',
+        route: '/complaints/department',
+        permissions: [...COMPLAINT_MANAGE_PERMISSIONS],
+      },
+      {
+        label: 'Issue types',
+        icon: 'category',
+        route: '/complaints/issue-types',
+        permissions: [COMPLAINT_MANAGE_ALL_PERMISSION],
+      },
+    ],
   },
   {
     label: 'Service',

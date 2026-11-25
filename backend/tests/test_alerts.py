@@ -454,6 +454,8 @@ def test_alert_types_catalogue(admin: TestClient) -> None:
         "SVC_CALL_REOPENED",
         "MACHINE_COVERAGE_EXPIRY",
         "SVC_PART_REQUEST",
+        "CMP_COMPLAINT_RAISED",
+        "CMP_COMPLAINT_UPDATED",
     }
     assert types["SVC_CALL_REOPENED"]["trigger"] == "Event"
     assert types["SVC_PART_REQUEST"]["trigger"] == "Event"

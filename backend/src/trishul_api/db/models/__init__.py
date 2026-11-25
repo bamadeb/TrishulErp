@@ -19,6 +19,7 @@ from trishul_api.db.models.biometric import (
     BiometricPunchLog,
     BiometricSyncLog,
 )
+from trishul_api.db.models.complaint import Complaint, ComplaintHistory, ComplaintIssueType
 from trishul_api.db.models.face_attendance import (
     AttendanceAudit,
     AttendanceChallenge,
@@ -75,6 +76,9 @@ __all__ = [
     "BiometricEmployeeMapping",
     "BiometricPunchLog",
     "BiometricSyncLog",
+    "Complaint",
+    "ComplaintHistory",
+    "ComplaintIssueType",
     "ContractVisitDay",
     "EmployeeAttendanceLocation",
     "EmployeeAttendancePolicy",

@@ -443,4 +443,6 @@ def evaluate(db: Session, alert_type: str, scope: Scope, params: dict[str, Any],
         return call_reopened(db, scope, params)
     if alert_type == "SVC_PART_REQUEST":
         return part_requested(db, scope, params)
+    if alert_type.startswith("CMP_"):
+        return []  # complaint alerts are raised by the complaint itself; nothing to match or preview
     return _SCHEDULED[alert_type](db, scope, params, now)

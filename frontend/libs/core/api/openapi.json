@@ -4894,7 +4894,9 @@
                     "SVC_AWAITING_PARTS",
                     "SVC_CALL_REOPENED",
                     "MACHINE_COVERAGE_EXPIRY",
-                    "SVC_PART_REQUEST"
+                    "SVC_PART_REQUEST",
+                    "CMP_COMPLAINT_RAISED",
+                    "CMP_COMPLAINT_UPDATED"
                   ],
                   "type": "string"
                 },
@@ -7000,6 +7002,1100 @@
           }
         },
         "x-access": "Any signed-in user"
+      }
+    },
+    "/core/complaint-access": {
+      "get": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "What the signed-in user may do with complaints (raise, which departments they manage)",
+        "operationId": "get_complaint_access",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintAccessOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/core/complaint-departments": {
+      "get": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "Departments a complaint can be raised to, with their issue types",
+        "operationId": "list_complaint_departments",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ComplaintDepartmentOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Complaint Departments"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/core/complaints": {
+      "post": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "Raise a complaint (then attach files through /core/documents, entityType core.complaint)",
+        "operationId": "create_complaint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "Complaints of the departments the user leads (every department for a Super Admin)",
+        "operationId": "list_complaints",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "Open",
+                      "In Progress",
+                      "On Hold",
+                      "Resolved",
+                      "Closed"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Leave empty for every status.",
+              "title": "Status"
+            },
+            "description": "Leave empty for every status."
+          },
+          {
+            "name": "openOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only Open, In Progress and On Hold.",
+              "default": false,
+              "title": "Openonly"
+            },
+            "description": "Only Open, In Progress and On Hold."
+          },
+          {
+            "name": "departmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Departmentid"
+            }
+          },
+          {
+            "name": "issueTypeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Issuetypeid"
+            }
+          },
+          {
+            "name": "raisedFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Raisedfrom"
+            }
+          },
+          {
+            "name": "raisedTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Raisedto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ComplaintListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/core/my-complaints": {
+      "get": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "The signed-in user's own complaints",
+        "operationId": "list_my_complaints",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "Open",
+                      "In Progress",
+                      "On Hold",
+                      "Resolved",
+                      "Closed"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "openOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Openonly"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ComplaintListItem_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/complaints/{complaintId}": {
+      "get": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "One complaint with the person who raised it and its full history",
+        "operationId": "get_complaint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "complaintId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Complaintid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/core/complaints/{complaintId}/status": {
+      "post": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "Change a complaint's status and/or add a note (the department's leaders)",
+        "operationId": "change_complaint_status",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "complaintId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Complaintid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintStatusChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-access": "Any signed-in user"
+      }
+    },
+    "/core/complaint-issue-types": {
+      "get": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "Issue types per department (Super Admin)",
+        "operationId": "list_complaint_issue_types",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "departmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Departmentid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ComplaintIssueTypeItem"
+                  },
+                  "title": "Response List Complaint Issue Types"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "Add an issue type to a department",
+        "operationId": "create_complaint_issue_type",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintIssueTypeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintIssueTypeItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/complaint-issue-types/{issueTypeId}": {
+      "patch": {
+        "tags": [
+          "Complaints"
+        ],
+        "summary": "Rename, reorder, or switch an issue type off or on",
+        "operationId": "update_complaint_issue_type",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issueTypeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Issuetypeid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintIssueTypeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintIssueTypeItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/core/warehouses": {
@@ -53201,7 +54297,9 @@
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
               "MACHINE_COVERAGE_EXPIRY",
-              "SVC_PART_REQUEST"
+              "SVC_PART_REQUEST",
+              "CMP_COMPLAINT_RAISED",
+              "CMP_COMPLAINT_UPDATED"
             ],
             "title": "Alerttype"
           },
@@ -53306,7 +54404,9 @@
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
               "MACHINE_COVERAGE_EXPIRY",
-              "SVC_PART_REQUEST"
+              "SVC_PART_REQUEST",
+              "CMP_COMPLAINT_RAISED",
+              "CMP_COMPLAINT_UPDATED"
             ],
             "title": "Alerttype"
           },
@@ -53536,7 +54636,9 @@
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
               "MACHINE_COVERAGE_EXPIRY",
-              "SVC_PART_REQUEST"
+              "SVC_PART_REQUEST",
+              "CMP_COMPLAINT_RAISED",
+              "CMP_COMPLAINT_UPDATED"
             ],
             "title": "Alerttype"
           },
@@ -53633,7 +54735,8 @@
             "enum": [
               "svc.service_call",
               "core.machine_unit",
-              "svc.service_contract"
+              "svc.service_contract",
+              "core.complaint"
             ],
             "title": "Entitytype"
           },
@@ -53852,7 +54955,9 @@
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
               "MACHINE_COVERAGE_EXPIRY",
-              "SVC_PART_REQUEST"
+              "SVC_PART_REQUEST",
+              "CMP_COMPLAINT_RAISED",
+              "CMP_COMPLAINT_UPDATED"
             ],
             "title": "Code"
           },
@@ -53881,7 +54986,8 @@
             "enum": [
               "svc.service_call",
               "core.machine_unit",
-              "svc.service_contract"
+              "svc.service_contract",
+              "core.complaint"
             ],
             "title": "Entitytype"
           },
@@ -62140,6 +63246,800 @@
         "type": "object",
         "title": "CompanyUpdate",
         "description": "Only the fields sent are changed."
+      },
+      "ComplaintAccessOut": {
+        "properties": {
+          "canRaise": {
+            "type": "boolean",
+            "title": "Canraise"
+          },
+          "canManageAll": {
+            "type": "boolean",
+            "title": "Canmanageall"
+          },
+          "managedDepartments": {
+            "items": {
+              "$ref": "#/components/schemas/ComplaintDepartmentRef"
+            },
+            "type": "array",
+            "title": "Manageddepartments",
+            "description": "Departments whose complaints the user works (all of them for a Super Admin)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "canRaise",
+          "canManageAll",
+          "managedDepartments"
+        ],
+        "title": "ComplaintAccessOut",
+        "description": "What the signed-in user may do with complaints, for menus and buttons."
+      },
+      "ComplaintCreate": {
+        "properties": {
+          "departmentId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Departmentid"
+          },
+          "issueTypeId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Issuetypeid"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 5,
+            "title": "Description",
+            "description": "What the issue is, in detail."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "departmentId",
+          "issueTypeId",
+          "description"
+        ],
+        "title": "ComplaintCreate"
+      },
+      "ComplaintDepartmentOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "issueTypes": {
+            "items": {
+              "$ref": "#/components/schemas/ComplaintIssueTypeOption"
+            },
+            "type": "array",
+            "title": "Issuetypes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "issueTypes"
+        ],
+        "title": "ComplaintDepartmentOption",
+        "description": "A department a complaint can be raised to, with its active issue types."
+      },
+      "ComplaintDepartmentRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "isHead": {
+            "type": "boolean",
+            "title": "Ishead",
+            "description": "The user is the department's head.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "isHead"
+        ],
+        "title": "ComplaintDepartmentRef"
+      },
+      "ComplaintDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "complaintNo": {
+            "type": "string",
+            "title": "Complaintno"
+          },
+          "departmentId": {
+            "type": "integer",
+            "title": "Departmentid"
+          },
+          "departmentName": {
+            "type": "string",
+            "title": "Departmentname"
+          },
+          "issueTypeId": {
+            "type": "integer",
+            "title": "Issuetypeid"
+          },
+          "issueTypeName": {
+            "type": "string",
+            "title": "Issuetypename"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "In Progress",
+              "On Hold",
+              "Resolved",
+              "Closed"
+            ],
+            "title": "Status"
+          },
+          "raisedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Raisedat"
+          },
+          "raisedVia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raisedvia"
+          },
+          "raisedBy": {
+            "$ref": "#/components/schemas/ComplaintRaisedBy"
+          },
+          "statusChangedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statuschangedat"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolvedat"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closedat"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ComplaintHistoryItem"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "canManage": {
+            "type": "boolean",
+            "title": "Canmanage",
+            "description": "The signed-in user may change the status or add a note."
+          },
+          "canAttach": {
+            "type": "boolean",
+            "title": "Canattach",
+            "description": "The signed-in user may add or remove attachments."
+          },
+          "allowedStatuses": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Open",
+                "In Progress",
+                "On Hold",
+                "Resolved",
+                "Closed"
+              ]
+            },
+            "type": "array",
+            "title": "Allowedstatuses",
+            "description": "Statuses the complaint can move to now (empty once Closed, or if the user cannot manage it)."
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "complaintNo",
+          "departmentId",
+          "departmentName",
+          "issueTypeId",
+          "issueTypeName",
+          "description",
+          "status",
+          "raisedAt",
+          "raisedVia",
+          "raisedBy",
+          "statusChangedAt",
+          "resolvedAt",
+          "closedAt",
+          "history",
+          "canManage",
+          "canAttach",
+          "allowedStatuses",
+          "rowVersion"
+        ],
+        "title": "ComplaintDetail"
+      },
+      "ComplaintHistoryItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "Raised",
+              "Status changed",
+              "Note"
+            ],
+            "title": "Action"
+          },
+          "fromStatus": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Open",
+                  "In Progress",
+                  "On Hold",
+                  "Resolved",
+                  "Closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fromstatus"
+          },
+          "toStatus": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "In Progress",
+              "On Hold",
+              "Resolved",
+              "Closed"
+            ],
+            "title": "Tostatus"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "changedByUserId": {
+            "type": "integer",
+            "title": "Changedbyuserid"
+          },
+          "changedByName": {
+            "type": "string",
+            "title": "Changedbyname"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Changedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "fromStatus",
+          "toStatus",
+          "note",
+          "changedByUserId",
+          "changedByName",
+          "changedAt"
+        ],
+        "title": "ComplaintHistoryItem"
+      },
+      "ComplaintIssueTypeCreate": {
+        "properties": {
+          "departmentId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Departmentid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 2,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "maximum": 9999.0,
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "departmentId",
+          "name"
+        ],
+        "title": "ComplaintIssueTypeCreate"
+      },
+      "ComplaintIssueTypeItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "departmentId": {
+            "type": "integer",
+            "title": "Departmentid"
+          },
+          "departmentName": {
+            "type": "string",
+            "title": "Departmentname"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "title": "Sortorder"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "complaintCount": {
+            "type": "integer",
+            "title": "Complaintcount",
+            "default": 0
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "departmentId",
+          "departmentName",
+          "name",
+          "description",
+          "sortOrder",
+          "isActive",
+          "complaintCount",
+          "rowVersion"
+        ],
+        "title": "ComplaintIssueTypeItem"
+      },
+      "ComplaintIssueTypeOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "title": "ComplaintIssueTypeOption"
+      },
+      "ComplaintIssueTypeUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder"
+          },
+          "isActive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isactive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ComplaintIssueTypeUpdate",
+        "description": "Only the fields sent are changed. The department cannot be changed."
+      },
+      "ComplaintListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "complaintNo": {
+            "type": "string",
+            "title": "Complaintno"
+          },
+          "departmentId": {
+            "type": "integer",
+            "title": "Departmentid"
+          },
+          "departmentName": {
+            "type": "string",
+            "title": "Departmentname"
+          },
+          "issueTypeId": {
+            "type": "integer",
+            "title": "Issuetypeid"
+          },
+          "issueTypeName": {
+            "type": "string",
+            "title": "Issuetypename"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "In Progress",
+              "On Hold",
+              "Resolved",
+              "Closed"
+            ],
+            "title": "Status"
+          },
+          "raisedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Raisedat"
+          },
+          "raisedByUserId": {
+            "type": "integer",
+            "title": "Raisedbyuserid"
+          },
+          "raisedByName": {
+            "type": "string",
+            "title": "Raisedbyname"
+          },
+          "raisedByEmployeeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raisedbyemployeecode"
+          },
+          "statusChangedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statuschangedat"
+          },
+          "attachmentCount": {
+            "type": "integer",
+            "title": "Attachmentcount",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "complaintNo",
+          "departmentId",
+          "departmentName",
+          "issueTypeId",
+          "issueTypeName",
+          "description",
+          "status",
+          "raisedAt",
+          "raisedByUserId",
+          "raisedByName",
+          "raisedByEmployeeCode",
+          "statusChangedAt",
+          "attachmentCount"
+        ],
+        "title": "ComplaintListItem"
+      },
+      "ComplaintRaisedBy": {
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employeeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecode"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
+          "departmentName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departmentname"
+          },
+          "designationName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designationname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "userId",
+          "name",
+          "employeeId",
+          "employeeCode",
+          "mobile",
+          "email",
+          "branchName",
+          "departmentName",
+          "designationName"
+        ],
+        "title": "ComplaintRaisedBy"
+      },
+      "ComplaintStatusChange": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "In Progress",
+              "On Hold",
+              "Resolved",
+              "Closed"
+            ],
+            "title": "Status"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Optional; shown to the person who raised it."
+          },
+          "rowVersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rowversion",
+            "description": "The rowVersion the user saw; if sent and the complaint has changed since, 409."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ComplaintStatusChange",
+        "description": "Change the status, add a note, or both. A note alone keeps the status (send the current one)."
       },
       "ContractEngineerOption": {
         "properties": {
@@ -81256,7 +83156,9 @@
               "SVC_AWAITING_PARTS",
               "SVC_CALL_REOPENED",
               "MACHINE_COVERAGE_EXPIRY",
-              "SVC_PART_REQUEST"
+              "SVC_PART_REQUEST",
+              "CMP_COMPLAINT_RAISED",
+              "CMP_COMPLAINT_UPDATED"
             ],
             "title": "Alerttype"
           },
@@ -81286,7 +83188,8 @@
             "enum": [
               "svc.service_call",
               "core.machine_unit",
-              "svc.service_contract"
+              "svc.service_contract",
+              "core.complaint"
             ],
             "title": "Entitytype"
           },
@@ -83879,6 +85782,37 @@
           "pageSize"
         ],
         "title": "Page[CompanyListItem]"
+      },
+      "Page_ComplaintListItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ComplaintListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[ComplaintListItem]"
       },
       "Page_CreditNoteListItem_": {
         "properties": {
@@ -88747,6 +90681,39 @@
             ],
             "title": "Worklocationname"
           },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "departmentName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departmentname"
+          },
+          "branchName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branchname"
+          },
           "timeTrust": {
             "type": "string",
             "title": "Timetrust"
@@ -88814,6 +90781,9 @@
           "insideGeofence",
           "distanceM",
           "workLocationName",
+          "platform",
+          "departmentName",
+          "branchName",
           "timeTrust",
           "hasPhoto",
           "reviewedByUserId",

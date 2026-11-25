@@ -4,9 +4,9 @@
 export interface MyAlertItem {
   acknowledgedAt: (string | null);
   acknowledgedByName: (string | null);
-  alertType: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | 'SVC_PART_REQUEST';
+  alertType: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | 'SVC_PART_REQUEST' | 'CMP_COMPLAINT_RAISED' | 'CMP_COMPLAINT_UPDATED';
   entityId: number;
-  entityType: 'svc.service_call' | 'core.machine_unit' | 'svc.service_contract';
+  entityType: 'svc.service_call' | 'core.machine_unit' | 'svc.service_contract' | 'core.complaint';
   id: number;
   message: string;
   raisedAt: string;

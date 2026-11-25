@@ -36,6 +36,12 @@ def set_audit_context(session: Session, *, user_id: int | None, source: AuditSou
     session.info[_CONTEXT_KEY] = AuditContext(user_id=user_id, source=source, ip_address=ip_address)
 
 
+def audit_source(session: Session) -> AuditSource | None:
+    """The channel of the request this session serves (Web, Android, ...), or None outside a request."""
+    context: AuditContext | None = session.info.get(_CONTEXT_KEY)
+    return context["source"] if context else None
+
+
 def _ignore_set(target: object, value: object, oldvalue: object, initiator: object) -> None:
     return None
 

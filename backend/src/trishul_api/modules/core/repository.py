@@ -3,7 +3,7 @@ from collections.abc import Set
 from sqlalchemy import case, select
 from sqlalchemy.orm import Session, aliased
 
-from trishul_api.db.models import Branch, LookupType, LookupValue, Principal, Region, Role
+from trishul_api.db.models import Branch, Department, LookupType, LookupValue, Principal, Region, Role
 from trishul_api.modules.core.brands.names import BRAND_COMPANY_NAME
 from trishul_api.modules.core.schemas import BranchRef, LookupValueOut, PrincipalRef
 
@@ -46,6 +46,16 @@ class CoreRepository:
         if ids is not None:
             query = query.where(Principal.id.in_(ids))
         return [PrincipalRef.model_validate(row) for row in self._session.execute(query)]
+
+    def derived_permissions(self, employee_id: int | None) -> frozenset[str]:
+        """Permissions the user has from their position rather than a role, for the apps' menus only (the
+        server checks the position itself): a department head works the department's complaints."""
+        if employee_id is None:
+            return frozenset()
+        head = self._session.scalar(
+            select(Department.id).where(Department.head_employee_id == employee_id, Department.is_active).limit(1)
+        )
+        return frozenset({"core.complaint.manage"}) if head is not None else frozenset()
 
     def role_names(self, codes: Set[str]) -> list[str]:
         """Names of the active roles among `codes`, alphabetically."""

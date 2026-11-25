@@ -32,6 +32,9 @@ class FakeCoreRepository:
     def role_names(self, codes: object) -> list[str]:
         return ["Service Team Lead"]
 
+    def derived_permissions(self, employee_id: object) -> frozenset[str]:
+        return frozenset()
+
     def lookup_values(self, type_code: str) -> list[LookupValueOut] | None:
         if type_code != "CALL_SOURCE":
             return None

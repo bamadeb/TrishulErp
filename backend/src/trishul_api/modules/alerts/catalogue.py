@@ -17,7 +17,7 @@ from trishul_api.modules.service.access import FINISHED_STATUSES
 
 ParamKind = Literal["integer", "multiselect", "boolean"]
 TriggerKind = Literal["Scheduled", "Event"]
-EntityType = Literal["svc.service_call", "core.machine_unit", "svc.service_contract"]
+EntityType = Literal["svc.service_call", "core.machine_unit", "svc.service_contract", "core.complaint"]
 
 # Recipients that come from the record itself rather than from the rule.
 CALL_RECIPIENTS = ("Assigned engineer", "Call logged by")
@@ -167,8 +167,35 @@ CATALOGUE: dict[str, AlertTypeDef] = {
                 ParamDef("coverage", "Coverage", "multiselect", True, list(COVERAGE_KINDS), options=COVERAGE_KINDS),
             ),
         ),
+        # Complaints raise their alerts themselves (modules/core/complaints/alerts.py). The department's
+        # leaders, and the person who raised the complaint, are always told; roles or users added to the rule
+        # are told as well.
+        AlertTypeDef(
+            code="CMP_COMPLAINT_RAISED",
+            name="New complaint to a department",
+            description=(
+                "Raised the moment a complaint is raised to a department; goes to the department's head and to "
+                "its employees who may manage complaints. Resolved once the complaint's status changes."
+            ),
+            module="Complaints",
+            trigger="Event",
+            entity_type="core.complaint",
+        ),
+        AlertTypeDef(
+            code="CMP_COMPLAINT_UPDATED",
+            name="Complaint status changed",
+            description=(
+                "Raised when the department changes a complaint's status or adds a note; goes to the person who "
+                "raised it. Replaced by the next update."
+            ),
+            module="Complaints",
+            trigger="Event",
+            entity_type="core.complaint",
+        ),
     )
 }
+
+COMPLAINT_TYPES = ("CMP_COMPLAINT_RAISED", "CMP_COMPLAINT_UPDATED")
 
 
 def get_type(code: str) -> AlertTypeDef:

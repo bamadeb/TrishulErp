@@ -7,9 +7,9 @@ import { AlertParamDef } from '../models/alert-param-def';
  * One entry of the alert type catalogue: what a rule can alert on and the settings it takes.
  */
 export interface AlertTypeItem {
-  code: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | 'SVC_PART_REQUEST';
+  code: 'SVC_CALL_UNASSIGNED' | 'SVC_SLA_DUE' | 'SVC_STATUS_STALE' | 'SVC_AWAITING_PARTS' | 'SVC_CALL_REOPENED' | 'MACHINE_COVERAGE_EXPIRY' | 'SVC_PART_REQUEST' | 'CMP_COMPLAINT_RAISED' | 'CMP_COMPLAINT_UPDATED';
   description: string;
-  entityType: 'svc.service_call' | 'core.machine_unit' | 'svc.service_contract';
+  entityType: 'svc.service_call' | 'core.machine_unit' | 'svc.service_contract' | 'core.complaint';
   module: string;
   name: string;
   params: Array<AlertParamDef>;

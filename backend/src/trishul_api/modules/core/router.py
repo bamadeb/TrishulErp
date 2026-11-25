@@ -32,7 +32,7 @@ def get_me(user: CurrentUserDep, repo: CoreRepo) -> Me:
         role_names=repo.role_names(user.roles),
         email=user.email,
         default_branch_id=user.default_branch_id,
-        permissions=sorted(user.permissions),
+        permissions=sorted(user.permissions | repo.derived_permissions(user.employee_id)),
         branches=repo.branches(user.branch_ids),
         principals=repo.principals(user.principal_ids),
     )
