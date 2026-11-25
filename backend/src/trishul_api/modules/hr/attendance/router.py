@@ -103,8 +103,10 @@ OptionalMatch = Annotated[bytes | None, Depends(optional_if_match_row_version)]
 def attendance_dashboard(
     attendance: Attendance,
     day: Annotated[date | None, Query(alias="date")] = None,
+    department: Annotated[str | None, Query()] = None,
+    location: Annotated[str | None, Query()] = None,
 ) -> AttendanceDashboardOut:
-    return attendance.dashboard(day or date.today())
+    return attendance.dashboard(day or date.today(), department=department or None, location=location or None)
 
 
 @router.get(

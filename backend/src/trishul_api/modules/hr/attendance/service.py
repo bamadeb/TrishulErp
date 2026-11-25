@@ -15,8 +15,24 @@ from fastapi import HTTPException
 from trishul_api.auth import CurrentUser
 from trishul_api.common.errors import ApiError
 from trishul_api.modules.hr.attendance import cache as attendance_cache
-from trishul_api.db.models import Attendance, AttendanceRegularization, AuditLog, EmployeeShift, Shift
+from trishul_api.db.models import (
+    Attendance,
+    AttendanceAudit,
+    AttendanceRegularization,
+    AuditLog,
+    EmployeeShift,
+    Shift,
+)
 from trishul_api.modules.hr.attendance.finalization_ops import require_day_writable
+from trishul_api.modules.hr.attendance.policy import (
+    GRACE_DAYS_PER_MONTH,
+    OfficialVisit,
+    classify_arrival,
+    expected_net_minutes,
+    grace_days_before,
+    leaves_early,
+    net_worked_minutes,
+)
 from trishul_api.modules.hr.attendance.payload import (
     decode_reason,
     encode_reason,
@@ -49,6 +65,7 @@ from trishul_api.modules.hr.attendance.schemas import (
     DailyAttendanceQuery,
     DailyAttendanceRowOut,
     DashboardDepartmentRowOut,
+    DashboardLocationRowOut,
     DashboardExceptionItemOut,
     DashboardKpiOut,
     DashboardOverviewSliceOut,
@@ -936,20 +953,16 @@ class AttendanceService:
                 remarks or f"Arrived {late_by} minutes after grace.",
             )
 
-        if last_out is not None:
-            rules = self._org_rules()
-            early_grace = int(rules.get("earlyExitGraceMinutes", shift.grace_minutes))
-            early_cutoff = datetime.combine(day, shift.end_time) - timedelta(minutes=max(early_grace, 0))
-            if last_out < early_cutoff:
-                early_by = int((early_cutoff - last_out).total_seconds() // 60)
-                return (
-                    "Early Exit",
-                    first_in,
-                    last_out,
-                    expected_hours,
-                    actual_hours,
-                    f"Left {early_by} minutes before shift end (grace {early_grace} min).",
-                )
+        if last_out is not None and leaves_early(last_out, day, self._official_visits(employee.id, day)):
+            early_by = int((datetime.combine(day, shift.end_time) - last_out).total_seconds() // 60)
+            return (
+                "Early Exit",
+                first_in,
+                last_out,
+                expected_hours,
+                actual_hours,
+                f"Left {max(early_by, 0)} minutes before 5:30 PM.",
+            )
 
         worked = self._parse_hours_minutes(working_hours)
         # Prefer shift half-day threshold; fall back to grace-based short-hours band.
@@ -1035,6 +1048,41 @@ class AttendanceService:
 
         return attendance_cache.get_or_set("attendance:org_rules", _load, ttl_seconds=30.0)
 
+    def _grace_used_before(self, employee_id: int, day: date) -> int:
+        """Grace days already used this calendar month, from actual punches."""
+        key = (day.year, day.month)
+        cached = getattr(self, "_grace_month", None)
+        if cached is None or cached[0] != key:
+            start = date(day.year, day.month, 1)
+            if day.month == 12:
+                end = date(day.year, 12, 31)
+            else:
+                end = date(day.year, day.month + 1, 1) - timedelta(days=1)
+            end = min(end, date.today())
+            start_dt, _ = self._repo.day_bounds(start)
+            _, end_dt = self._repo.day_bounds(end)
+            punches = self._repo.punches_between(start_dt, end_dt)
+            firsts: dict[int, dict[date, datetime]] = defaultdict(dict)
+            for punch in punches:
+                if (punch.punch_type or "").upper() != "IN":
+                    continue
+                current = firsts[punch.employee_id].get(punch.punched_at.date())
+                if current is None or punch.punched_at < current:
+                    firsts[punch.employee_id][punch.punched_at.date()] = punch.punched_at
+            packed = {
+                employee: [(when, at) for when, at in days.items()]
+                for employee, days in firsts.items()
+            }
+            self._grace_month = (key, packed)
+        packed = self._grace_month[1]
+        return grace_days_before(packed.get(employee_id, []), day)
+
+    def _official_visits(self, employee_id: int, day: date) -> list[OfficialVisit]:
+        cached = getattr(self, "_visit_day", None)
+        if cached is None or cached[0] != day:
+            self._visit_day = (day, self._repo.official_visits_on(day))
+        return self._visit_day[1].get(employee_id, [])
+
     def _audit(
         self,
         *,
@@ -1098,8 +1146,10 @@ class AttendanceService:
         punches: list[PunchSource],
     ) -> tuple[datetime | None, datetime | None, bool, str | None, AttendanceDisplayStatus, str]:
         effective = self._effective_shift(shift)
+        visits = self._official_visits(employee.id, day)
+        grace_used = self._grace_used_before(employee.id, day)
         first_in, last_out, first_in_late, working_hours, punch_status, punch_remarks = self._from_punches(
-            day, effective, punches
+            day, effective, punches, grace_used=grace_used, visits=visits
         )
 
         holiday = next(
@@ -1137,6 +1187,9 @@ class AttendanceService:
         day: date,
         shift: ShiftAssignment,
         punches: list[PunchSource],
+        *,
+        grace_used: int = 0,
+        visits: list[OfficialVisit] | None = None,
     ) -> tuple[datetime | None, datetime | None, bool, str | None, AttendanceDisplayStatus, str]:
         if not punches:
             return None, None, False, None, "Absent", ""
@@ -1151,15 +1204,15 @@ class AttendanceService:
             first_in = ins[0].punched_at if ins else ordered[0].punched_at
             last_out = outs[-1].punched_at if outs else None
 
-        grace_deadline = datetime.combine(day, shift.start_time) + timedelta(minutes=shift.grace_minutes)
-        first_in_late = first_in > grace_deadline
-        worked_minutes = self._worked_minutes(ordered)
+        typed = [(p.punched_at, (p.punch_type or "").upper()) for p in ordered]
+        worked_minutes = net_worked_minutes(typed, day, visits)
         working_hours = self._format_hours(worked_minutes)
+        arrival = classify_arrival(first_in, day, grace_used)
+        first_in_late = arrival.attendance_status == "Late"
 
-        has_in = first_in is not None
         has_out = last_out is not None and last_out != first_in
         shift_ended = datetime.combine(day, shift.end_time)
-        if has_in and not has_out:
+        if not has_out:
             status: AttendanceDisplayStatus = "Missing Punch"
             if day < date.today() or datetime.now() >= shift_ended:
                 remarks = "Missing OUT punch"
@@ -1167,14 +1220,10 @@ class AttendanceService:
                 remarks = "Shift in progress / missing OUT"
             return first_in, None, first_in_late, working_hours, status, remarks
 
-        if first_in_late:
-            status = "Late"
-            late_by = int((first_in - grace_deadline).total_seconds() // 60)
-            remarks = f"Late by {late_by} min"
-        else:
-            status = "Present"
-            remarks = ""
-
+        remarks = arrival.remarks
+        if leaves_early(last_out, day, visits):
+            remarks = f"{remarks} Left before 5:30 PM.".strip()
+        status = arrival.attendance_status  # type: ignore[assignment]
         return first_in, last_out, first_in_late, working_hours, status, remarks
 
     def _history_for_employees(
@@ -1264,21 +1313,12 @@ class AttendanceService:
         )
 
     @staticmethod
-    def _worked_minutes(punches: list[PunchSource]) -> int:
+    def _worked_minutes(punches: list[PunchSource], day: date | None = None) -> int:
         ordered = sorted(punches, key=lambda p: p.punched_at)
         typed = [(p.punched_at, (p.punch_type or "").upper()) for p in ordered]
-        total = 0
-        open_in: datetime | None = None
-        for at, kind in typed:
-            if kind == "IN":
-                if open_in is None:
-                    open_in = at
-            elif kind == "OUT" and open_in is not None:
-                total += max(0, int((at - open_in).total_seconds() // 60))
-                open_in = None
-        if total == 0 and len(ordered) >= 2:
-            total = max(0, int((ordered[-1].punched_at - ordered[0].punched_at).total_seconds() // 60))
-        return total
+        if not typed:
+            return 0
+        return net_worked_minutes(typed, day or typed[0][0].date())
 
     @staticmethod
     def _format_hours(minutes: int) -> str | None:
@@ -1478,6 +1518,24 @@ class AttendanceService:
             # Missing Punch: no silent LOP — leave unresolved until explicit resolution.
             return False
         source = "Biometric" if punches else "Manual"
+        if persisted_status == "Half day" and status == "Late":
+            self._repo._db.add(
+                AttendanceAudit(
+                    entity="policy",
+                    entity_id=employee_id,
+                    action="half_day_deduction",
+                    old_json=None,
+                    new_json=json.dumps(
+                        {
+                            "date": day.isoformat(),
+                            "attendanceStatus": status,
+                            "payrollStatus": persisted_status,
+                        }
+                    ),
+                    by_user_id=actor_id,
+                    at=datetime.utcnow(),
+                )
+            )
         persisted = self._repo.upsert_computed_day(
             employee_id=employee_id,
             day=day,
@@ -1532,6 +1590,24 @@ class AttendanceService:
                 )
                 if persisted_status is None:
                     continue
+                if persisted_status == "Half day" and status == "Late":
+                    self._repo._db.add(
+                        AttendanceAudit(
+                            entity="policy",
+                            entity_id=employee.id,
+                            action="half_day_deduction",
+                            old_json=None,
+                            new_json=json.dumps(
+                                {
+                                    "date": day.isoformat(),
+                                    "attendanceStatus": status,
+                                    "payrollStatus": persisted_status,
+                                }
+                            ),
+                            by_user_id=actor.id,
+                            at=datetime.utcnow(),
+                        )
+                    )
                 if self._repo.upsert_computed_day(
                     employee_id=employee.id,
                     day=day,
@@ -1548,11 +1624,24 @@ class AttendanceService:
         self._repo.flush()
         return written
 
-    def dashboard(self, day: date) -> AttendanceDashboardOut:
-        daily_rows = self._all_daily_rows(day)
+    def dashboard(
+        self,
+        day: date,
+        *,
+        department: str | None = None,
+        location: str | None = None,
+    ) -> AttendanceDashboardOut:
+        all_rows = self._all_daily_rows(day)
+        department_options = sorted({r.department for r in all_rows if r.department and r.department != "—"})
+        location_options = sorted({r.location for r in all_rows if r.location and r.location != "—"})
+        daily_rows = [
+            row
+            for row in all_rows
+            if (not department or row.department == department) and (not location or row.location == location)
+        ]
         summary = self._summary(daily_rows)
         total = max(summary.total, 1)
-        present_like = summary.present + summary.late + summary.missing_punch
+        present_like = summary.present
         attendance_rate = round((present_like / total) * 1000) / 10 if summary.total else 0.0
 
         exceptions = self.list_exceptions(
@@ -1562,6 +1651,8 @@ class AttendanceService:
                 page=1,
                 page_size=200,
                 status_tab="pending",
+                department=department,
+                location=location,
             )
         )
         early = exceptions.summary.early_exit
@@ -1576,6 +1667,7 @@ class AttendanceService:
             present_pct=pct(present_like),
             absent=summary.absent,
             absent_pct=pct(summary.absent),
+            on_leave=summary.on_leave,
             late=summary.late,
             late_pct=pct(summary.late),
             early_exit=early,
@@ -1611,9 +1703,36 @@ class AttendanceService:
                 )
             )
 
-        trend: list[DashboardTrendPointOut] = []
-        for offset in range(6, -1, -1):
-            trend_day = day - timedelta(days=offset)
+        by_location: dict[str, list[DailyAttendanceRowOut]] = defaultdict(list)
+        for row in daily_rows:
+            by_location[row.location or "—"].append(row)
+        locations: list[DashboardLocationRowOut] = []
+        for name in sorted(by_location):
+            rows = by_location[name]
+            present = sum(1 for r in rows if r.status in ("Present", "Late", "Missing Punch"))
+            absent = sum(1 for r in rows if r.status == "Absent")
+            emp_count = len(rows)
+            locations.append(
+                DashboardLocationRowOut(
+                    location=name,
+                    employees=emp_count,
+                    present=present,
+                    absent=absent,
+                    attendance_pct=round((present / emp_count) * 1000) / 10 if emp_count else 0.0,
+                )
+            )
+
+        def trend_summary(trend_day: date) -> AttendanceSummaryOut:
+            if trend_day == day:
+                return summary
+            if department or location:
+                rows = [
+                    row
+                    for row in self._all_daily_rows(trend_day)
+                    if (not department or row.department == department)
+                    and (not location or row.location == location)
+                ]
+                return self._summary(rows)
             page = self.list_daily(
                 DailyAttendanceQuery(
                     attendance_date=trend_day,
@@ -1624,14 +1743,23 @@ class AttendanceService:
                     include_punches=False,
                 )
             )
-            t = page.summary.total
-            p = page.summary.present + page.summary.late + page.summary.missing_punch
+            return page.summary
+
+        trend: list[DashboardTrendPointOut] = []
+        for offset in range(6, -1, -1):
+            trend_day = day - timedelta(days=offset)
+            snap = trend_summary(trend_day)
+            t = snap.total
+            p = snap.present
             rate = round((p / t) * 1000) / 10 if t else 0.0
             trend.append(
                 DashboardTrendPointOut(
                     label=trend_day.strftime("%d %b"),
                     percent=rate,
                     date=trend_day,
+                    present=p,
+                    absent=snap.absent,
+                    on_leave=snap.on_leave,
                 )
             )
 
@@ -1679,6 +1807,9 @@ class AttendanceService:
             overview=overview,
             trend=trend,
             departments=departments,
+            locations=locations,
+            department_options=department_options,
+            location_options=location_options,
             exceptions=exception_items,
             exceptions_total=exceptions.pending_count,
             actions=[
@@ -1877,7 +2008,8 @@ def _persist_status(
 
     Returns None for Missing Punch — TTPL policy does not auto-convert unresolved
     missing punches to Absent/LOP; HR must resolve or approve regularization.
-    Late beyond grace persists as Half day (TTPL punctuality clause).
+    Late (grace allowance used, or more than 15 minutes late) persists as Half day.
+    A grace day stays Present here and on the attendance screen.
     """
     if status == "Missing Punch":
         return None
@@ -1962,11 +2094,7 @@ def _shift_label(shift: ShiftAssignment) -> str:
 
 
 def _shift_expected_minutes(shift: ShiftAssignment) -> int:
-    start = datetime.combine(date.today(), shift.start_time)
-    end = datetime.combine(date.today(), shift.end_time)
-    if end <= start:
-        end += timedelta(days=1)
-    return max(0, int((end - start).total_seconds() // 60))
+    return expected_net_minutes(shift.start_time, shift.end_time)
 
 
 def _exception_id(employee_id: int, day: date) -> int:

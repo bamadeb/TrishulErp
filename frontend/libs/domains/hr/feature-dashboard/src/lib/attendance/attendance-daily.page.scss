@@ -227,6 +227,7 @@
 
 table {
   width: 100%;
+  min-width: 72rem;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -264,6 +265,30 @@ th {
   width: 5.5rem;
   font-weight: 600;
   color: #334155;
+}
+
+.name-col {
+  width: 18rem;
+  min-width: 16rem;
+  overflow: visible;
+  white-space: normal;
+
+  .person {
+    align-items: flex-start;
+  }
+
+  .who-text {
+    min-width: 8rem;
+    flex: 1;
+  }
+
+  .name,
+  .who-text {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    text-align: left;
+  }
 }
 
 .shift {

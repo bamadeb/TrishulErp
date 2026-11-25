@@ -262,7 +262,36 @@ th {
 }
 
 .name-col {
-  width: 10rem;
+  width: 14rem;
+  min-width: 12rem;
+  overflow: visible;
+  white-space: normal;
+
+  .person {
+    align-items: flex-start;
+  }
+
+  .name,
+  .who-text {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+.who-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 8rem;
+
+  small {
+    font-size: 11px;
+  }
+}
+
+.muted {
+  color: #94a3b8;
 }
 
 .dept {

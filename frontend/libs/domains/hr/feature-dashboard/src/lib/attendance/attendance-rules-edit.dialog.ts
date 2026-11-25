@@ -8,6 +8,15 @@ import { MatInput } from '@angular/material/input';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { AttendanceRules, AttendanceRulesWrite, WeekdayCode } from '@trishul/hr-data-access';
 
+function ordinal(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`;
+  if (day % 10 === 1) return `${day}st`;
+  if (day % 10 === 2) return `${day}nd`;
+  if (day % 10 === 3) return `${day}rd`;
+  return `${day}th`;
+}
+
 const WEEKDAYS: { id: WeekdayCode; label: string }[] = [
   { id: 'MON', label: 'Mon' },
   { id: 'TUE', label: 'Tue' },
@@ -54,6 +63,11 @@ const WEEKDAYS: { id: WeekdayCode; label: string }[] = [
           <mat-label>Early exit grace (min)</mat-label>
           <input matInput type="number" min="0" max="240" [(ngModel)]="form.earlyExitGraceMinutes" />
         </mat-form-field>
+        <p class="hint">
+          Each employee gets this late-arrival grace on {{ graceDays }} days per calendar month. Those days have no
+          salary deduction. From the {{ nextLateDay }} late-arrival day onwards, half-day salary deduction applies.
+          Grace usage is tracked employee-wise and month-wise, and late arrivals and deductions are retained for payroll.
+        </p>
         <mat-form-field appearance="outline">
           <mat-label>OT after hours</mat-label>
           <input matInput type="number" min="1" max="24" step="0.25" [(ngModel)]="form.otAfterHours" />
@@ -115,12 +129,21 @@ const WEEKDAYS: { id: WeekdayCode; label: string }[] = [
       color: #b3261e;
       margin: 0 0 0.75rem;
     }
+    .hint {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: #475569;
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
   `,
 })
 export class AttendanceRulesEditDialog {
   private readonly ref = inject(MatDialogRef<AttendanceRulesEditDialog, AttendanceRulesWrite | null>);
   private readonly data = inject<AttendanceRules>(MAT_DIALOG_DATA);
   protected readonly weekdays = WEEKDAYS;
+  protected readonly graceDays = this.data.graceDaysPerMonth || 3;
+  protected readonly nextLateDay = ordinal(this.graceDays + 1);
   protected readonly error = signal('');
 
   protected form: AttendanceRulesWrite = {

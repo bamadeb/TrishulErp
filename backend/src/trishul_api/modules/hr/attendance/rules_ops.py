@@ -42,16 +42,18 @@ from trishul_api.modules.hr.attendance.schemas import (
     ShiftWrite,
     WeekdayCode,
 )
+from trishul_api.modules.hr.attendance.policy import GRACE_DAYS_PER_MONTH
 from trishul_api.modules.hr.leave.holiday_ops import api_category
 
 RULES_SETTING_KEY = "hr.attendance.rules"
 _WEEKDAYS: tuple[WeekdayCode, ...] = ("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
 _DEFAULT_RULES: dict[str, Any] = {
-    "standardWorkHours": 8.0,
-    "workingDaysPerWeek": 5,
+    "standardWorkHours": 7.5,
+    "workingDaysPerWeek": 6,
     "lateArrivalGraceMinutes": 15,
-    "earlyExitGraceMinutes": 15,
-    "otAfterHours": 8.0,
+    "earlyExitGraceMinutes": 0,
+    "graceDaysPerMonth": GRACE_DAYS_PER_MONTH,
+    "otAfterHours": 7.5,
     "otApprovalRequired": True,
     # TTPL leave clauses reference Sunday as weekly off; Saturday is configurable per assignment.
     "weeklyOffDays": ["SUN"],
@@ -234,6 +236,7 @@ class ShiftRulesService:
             working_days_per_week=int(payload["workingDaysPerWeek"]),
             late_arrival_grace_minutes=int(payload["lateArrivalGraceMinutes"]),
             early_exit_grace_minutes=int(payload["earlyExitGraceMinutes"]),
+            grace_days_per_month=int(payload.get("graceDaysPerMonth") or GRACE_DAYS_PER_MONTH),
             ot_after_hours=float(payload["otAfterHours"]),
             ot_approval_required=bool(payload["otApprovalRequired"]),
             weekly_off_days=_normalize_weekdays(payload.get("weeklyOffDays") or []),
@@ -255,6 +258,7 @@ class ShiftRulesService:
             "workingDaysPerWeek": int(data.working_days_per_week),
             "lateArrivalGraceMinutes": int(data.late_arrival_grace_minutes),
             "earlyExitGraceMinutes": int(data.early_exit_grace_minutes),
+            "graceDaysPerMonth": GRACE_DAYS_PER_MONTH,
             "otAfterHours": float(data.ot_after_hours),
             "otApprovalRequired": bool(data.ot_approval_required),
             "weeklyOffDays": list(data.weekly_off_days),

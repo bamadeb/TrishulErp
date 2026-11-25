@@ -41,7 +41,6 @@ import { StatusBadge } from '@trishul/shared-ui';
         <trishul-status-badge [status]="data.priority" [severities]="severity" />
       </p>
       <p>{{ data.detail }}</p>
-      <p class="note">Sample request on this page. Nothing is sent to the server.</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button type="button" mat-dialog-close>Close</button>

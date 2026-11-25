@@ -449,6 +449,14 @@ tbody tr:hover {
   dd.link {
     color: #0754b8;
   }
+
+  .policy-note {
+    margin: 0.75rem 0 0;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.45;
+  }
 }
 
 .rule-card[data-tone='blue'] .icon {

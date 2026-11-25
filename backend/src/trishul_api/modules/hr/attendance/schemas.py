@@ -398,6 +398,7 @@ class AttendanceRulesOut(ApiModel):
     working_days_per_week: int
     late_arrival_grace_minutes: int
     early_exit_grace_minutes: int
+    grace_days_per_month: int
     ot_after_hours: float
     ot_approval_required: bool
     weekly_off_days: list[WeekdayCode]
@@ -590,6 +591,7 @@ class DashboardKpiOut(ApiModel):
     present_pct: float
     absent: int
     absent_pct: float
+    on_leave: int = 0
     late: int
     late_pct: float
     early_exit: int
@@ -609,11 +611,22 @@ class DashboardTrendPointOut(ApiModel):
     label: str
     percent: float
     date: date
+    present: int = 0
+    absent: int = 0
+    on_leave: int = 0
 
 
 class DashboardDepartmentRowOut(ApiModel):
     id: int
     department: str
+    employees: int
+    present: int
+    absent: int
+    attendance_pct: float
+
+
+class DashboardLocationRowOut(ApiModel):
+    location: str
     employees: int
     present: int
     absent: int
@@ -644,6 +657,9 @@ class AttendanceDashboardOut(ApiModel):
     overview: list[DashboardOverviewSliceOut]
     trend: list[DashboardTrendPointOut]
     departments: list[DashboardDepartmentRowOut]
+    locations: list[DashboardLocationRowOut] = []
+    department_options: list[str] = []
+    location_options: list[str] = []
     exceptions: list[DashboardExceptionItemOut]
     exceptions_total: int
     actions: list[DashboardQuickActionOut]

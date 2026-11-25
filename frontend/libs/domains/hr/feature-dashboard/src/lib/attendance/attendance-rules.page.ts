@@ -46,6 +46,7 @@ interface RuleBlock {
   icon: string;
   tone: string;
   items: { label: string; value: string; accent?: 'success' | 'link' | 'neutral' }[];
+  note?: string;
 }
 
 const WEEKDAY_LABEL: Record<WeekdayCode, string> = {
@@ -59,6 +60,15 @@ const WEEKDAY_LABEL: Record<WeekdayCode, string> = {
 };
 
 const CODE_TONES = ['#2563eb', '#7c3aed', '#ea580c', '#6366f1', '#0891b2', '#db2777', '#1d4ed8', '#64748b'];
+
+function ordinal(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`;
+  if (day % 10 === 1) return `${day}st`;
+  if (day % 10 === 2) return `${day}nd`;
+  if (day % 10 === 3) return `${day}rd`;
+  return `${day}th`;
+}
 
 /** Shift & Attendance Rules — API-backed (hr.shift, system_setting, employee_shift, holiday). */
 @Component({
@@ -140,6 +150,8 @@ export class AttendanceRulesPage implements OnInit {
     const rules = this.rules();
     if (!rules) return [];
     const offs = rules.weeklyOffDays.map((d) => WEEKDAY_LABEL[d]).join(', ') || 'None';
+    const graceDays = rules.graceDaysPerMonth || 3;
+    const graceMinutes = rules.lateArrivalGraceMinutes;
     return [
       {
         id: 'hours',
@@ -157,9 +169,13 @@ export class AttendanceRulesPage implements OnInit {
         icon: 'hourglass_empty',
         tone: 'amber',
         items: [
-          { label: 'Late Arrival Grace', value: `${rules.lateArrivalGraceMinutes} Minutes` },
+          { label: 'Late Arrival Grace', value: `${graceMinutes} Minutes` },
+          { label: 'Grace Days', value: `${graceDays} Days / Employee / Month` },
+          { label: 'Salary On Grace Days', value: 'No deduction', accent: 'success' },
+          { label: 'From The Next Late Day', value: 'Half-day salary deduction' },
           { label: 'Early Exit Grace', value: `${rules.earlyExitGraceMinutes} Minutes` },
         ],
+        note: `Each employee gets ${graceMinutes} minutes of grace on ${graceDays} days per calendar month. Those ${graceDays} days have no salary deduction. From the ${ordinal(graceDays + 1)} late-arrival day onwards, half-day salary deduction applies. Grace usage is tracked employee-wise and month-wise. Late arrivals and deductions are retained for payroll.`,
       },
       {
         id: 'ot',

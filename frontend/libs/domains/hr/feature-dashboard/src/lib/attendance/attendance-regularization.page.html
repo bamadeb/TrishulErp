@@ -186,8 +186,7 @@
               (change)="togglePage($event.checked)"
             />
           </th>
-          <th class="code">Emp ID</th>
-          <th class="name-col">Employee Name</th>
+          <th class="name-col">Employee</th>
           <th class="dept">Department</th>
           <th class="date">Attendance Date</th>
           <th class="req-type">Request Type</th>
@@ -209,15 +208,17 @@
                 (change)="toggleRow(row.id, $event.checked)"
               />
             </td>
-            <td class="code">{{ row.employeeCode }}</td>
             <td class="name-col">
               <div class="person">
                 <span class="avatar" aria-hidden="true" [style.background]="row.avatarTone">
                   {{ initials(row.employeeName) }}
                 </span>
-                <button type="button" class="name" (click)="viewDetails(row)">
-                  {{ row.employeeName }}
-                </button>
+                <span class="who-text">
+                  <button type="button" class="name" (click)="viewDetails(row)">
+                    {{ row.employeeName }}
+                  </button>
+                  <small class="muted">{{ row.employeeCode }}</small>
+                </span>
               </div>
             </td>
             <td class="dept">{{ row.department }}</td>
@@ -277,7 +278,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="12">
+            <td colspan="11">
               <div class="empty">
                 <mat-icon>event_busy</mat-icon>
                 @if (loading()) {

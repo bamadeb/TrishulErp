@@ -57,13 +57,26 @@ def test_present_and_late_from_punches():
     assert present[4] == "Present"
     assert present[2] is False
 
-    late = service._from_punches(
+    # 9:25 is before the 9:30 office start, so it is on time under the company policy.
+    on_time = service._from_punches(
         day,
         shift,
         [
             PunchSource(1, datetime(2026, 11, 19, 9, 25), "IN", "Gate"),
             PunchSource(1, datetime(2026, 11, 19, 18, 5), "OUT", "Gate"),
         ],
+    )
+    assert on_time[4] == "Present"
+    assert on_time[2] is False
+
+    late = service._from_punches(
+        day,
+        shift,
+        [
+            PunchSource(1, datetime(2026, 11, 19, 9, 50), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 19, 17, 30), "OUT", "Gate"),
+        ],
+        grace_used=0,
     )
     assert late[4] == "Late"
     assert late[2] is True
@@ -84,9 +97,25 @@ def test_missing_punch_and_absent():
     assert absent[4] == "Absent"
 
 
+def _repo_stub():
+    return type(
+        "R",
+        (),
+        {
+            "holiday_applies": lambda self, h, b, s: True,
+            "official_visits_on": lambda self, day: {},
+            "punches_between": lambda self, start, end: [],
+            "day_bounds": lambda self, day: (
+                datetime.combine(day, time.min),
+                datetime.combine(day, time.max),
+            ),
+        },
+    )()
+
+
 def test_weekly_off_without_punches():
     service = AttendanceService.__new__(AttendanceService)
-    service._repo = type("R", (), {"holiday_applies": lambda self, h, b, s: True})()
+    service._repo = _repo_stub()
     sunday = date(2026, 11, 15)  # Sunday
     first_in, last_out, late, hours, status, remarks = service._evaluate(
         day=sunday,
@@ -135,7 +164,7 @@ def test_muster_status_codes_and_hours_parse():
 
 def test_exception_detection_absent_late_missing():
     service = AttendanceService.__new__(AttendanceService)
-    service._repo = type("R", (), {"holiday_applies": lambda self, h, b, s: True})()
+    service._repo = _repo_stub()
     day = date(2026, 11, 19)  # Wednesday
     shift = _shift()
 
@@ -166,7 +195,7 @@ def test_exception_detection_absent_late_missing():
         holidays=[],
         leave=None,
         punches=[
-            PunchSource(1, datetime(2026, 11, 19, 9, 40), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 19, 9, 50), "IN", "Gate"),
             PunchSource(1, datetime(2026, 11, 19, 18, 5), "OUT", "Gate"),
         ],
     )

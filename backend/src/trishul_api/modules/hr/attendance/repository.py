@@ -10,10 +10,13 @@ from decimal import Decimal
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from trishul_api.modules.hr.attendance.payload import decode_reason
+from trishul_api.modules.hr.attendance.policy import ATTENDANCE_PUNCH_STATUS, OfficialVisit
 from trishul_api.db.models import (
     Attendance,
     AttendancePunch,
     AttendanceRegularization,
+    TrkTrip,
     BiometricDevice,
     BiometricPunchLog,
     Branch,
@@ -250,7 +253,8 @@ class AttendanceRepository:
             )
             .outerjoin(WorkLocation, WorkLocation.id == AttendancePunch.work_location_id)
             .where(AttendancePunch.is_active == True)  # noqa: E712
-            .where(AttendancePunch.status == "Present")
+            # Present only. Rejected and Pending punches stay in the table and are not attendance.
+            .where(AttendancePunch.status == ATTENDANCE_PUNCH_STATUS)
             .where(AttendancePunch.effective_at >= start - _IST_OFFSET)
             .where(AttendancePunch.effective_at <= end - _IST_OFFSET)
         ).all()
@@ -558,6 +562,52 @@ class AttendanceRepository:
     def flush(self) -> None:
         self._db.flush()
 
+    def official_visits_on(self, day: date) -> dict[int, list[OfficialVisit]]:
+        """Departure and return from the app trip register and approved regularizations.
+
+        Trip timestamps are UTC. Regularization times are the clock times HR entered.
+        """
+        visits: dict[int, list[OfficialVisit]] = {}
+        start = datetime.combine(day, time.min) - _IST_OFFSET
+        end = datetime.combine(day, time.max) - _IST_OFFSET
+        trips = self._db.execute(
+            select(TrkTrip.employee_id, TrkTrip.start_at, TrkTrip.end_at)
+            .where(TrkTrip.is_active == True)  # noqa: E712
+            .where(TrkTrip.start_at >= start)
+            .where(TrkTrip.start_at <= end)
+        ).all()
+        for employee_id, started, ended in trips:
+            departed = started + _IST_OFFSET
+            returned = ended + _IST_OFFSET if ended is not None else None
+            visits.setdefault(int(employee_id), []).append(OfficialVisit(departed, returned))
+
+        regs = self.list_regularizations(start=day, end=day)
+        for reg, employee, _attendance in regs:
+            if reg.status != "Approved":
+                continue
+            _kind, requested_in, requested_out, _reason, _rejection = decode_reason(reg.reason)
+            left = _clock(day, requested_out)
+            back = _clock(day, requested_in)
+            if left is None or back is None or back <= left:
+                continue
+            # A mid-day window is an official outing. A full-day correction is not.
+            if left.time() <= time(9, 30) and back.time() >= time(17, 30):
+                continue
+            visits.setdefault(employee.id, []).append(OfficialVisit(left, back))
+        return visits
+
+
+def _clock(day: date, value: str | None) -> datetime | None:
+    if not value:
+        return None
+    text = " ".join(str(value).upper().replace(".", "").split())
+    for fmt in ("%H:%M", "%H:%M:%S", "%I:%M %p", "%I:%M%p"):
+        try:
+            return datetime.combine(day, datetime.strptime(text, fmt).time())
+        except ValueError:
+            continue
+    return None
+
 
 def _employment_status(status: str | None, is_active: bool | None) -> str:
     if status == "Inactive" or is_active is False:
@@ -576,7 +626,7 @@ def resolve_shift(
     assignment: EmployeeShift | None,
     shifts: dict[int, Shift],
 ) -> ShiftAssignment:
-    """Use configured shift when present; otherwise General 09:00–18:00 with 10 minutes grace."""
+    """Use the employee's shift, or the office day 09:30–17:30 for every branch."""
     if assignment is not None:
         shift = shifts.get(assignment.shift_id)
         if shift is not None:
@@ -593,18 +643,18 @@ def resolve_shift(
         return ShiftAssignment(
             shift_id=assignment.shift_id,
             shift_name="General",
-            start_time=time(9, 0),
-            end_time=time(18, 0),
-            grace_minutes=10,
+            start_time=time(9, 30),
+            end_time=time(17, 30),
+            grace_minutes=15,
             weekly_off_days=assignment.weekly_off_days,
-            half_day_hours=None,
+            half_day_hours=3.75,
         )
     return ShiftAssignment(
         shift_id=None,
         shift_name="General",
-        start_time=time(9, 0),
-        end_time=time(18, 0),
-        grace_minutes=10,
+        start_time=time(9, 30),
+        end_time=time(17, 30),
+        grace_minutes=15,
         weekly_off_days="SUN",
-        half_day_hours=None,
+        half_day_hours=3.75,
     )

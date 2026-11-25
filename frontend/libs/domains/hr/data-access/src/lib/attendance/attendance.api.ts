@@ -124,9 +124,11 @@ export class AttendanceApi {
     return `${this.config.rootUrl}/hr/attendance`;
   }
 
-  dashboard(date?: string): Observable<AttendanceDashboard> {
+  dashboard(date?: string, department?: string, location?: string): Observable<AttendanceDashboard> {
     let params = new HttpParams();
     if (date) params = params.set('date', date);
+    if (department) params = params.set('department', department);
+    if (location) params = params.set('location', location);
     return this.http.get<AttendanceDashboard>(`${this.base}/dashboard`, { params });
   }
 
@@ -612,6 +614,7 @@ export interface AttendanceRules {
   workingDaysPerWeek: number;
   lateArrivalGraceMinutes: number;
   earlyExitGraceMinutes: number;
+  graceDaysPerMonth: number;
   otAfterHours: number;
   otApprovalRequired: boolean;
   weeklyOffDays: WeekdayCode[];
@@ -797,6 +800,7 @@ export interface AttendanceDashboardKpi {
   presentPct: number;
   absent: number;
   absentPct: number;
+  onLeave?: number;
   late: number;
   latePct: number;
   earlyExit: number;
@@ -816,6 +820,17 @@ export interface AttendanceDashboardTrendPoint {
   label: string;
   percent: number;
   date: string;
+  present?: number;
+  absent?: number;
+  onLeave?: number;
+}
+
+export interface AttendanceDashboardLocationRow {
+  location: string;
+  employees: number;
+  present: number;
+  absent: number;
+  attendancePct: number;
 }
 
 export interface AttendanceDashboardDepartmentRow {
@@ -851,6 +866,9 @@ export interface AttendanceDashboard {
   overview: AttendanceDashboardOverviewSlice[];
   trend: AttendanceDashboardTrendPoint[];
   departments: AttendanceDashboardDepartmentRow[];
+  locations?: AttendanceDashboardLocationRow[];
+  departmentOptions?: string[];
+  locationOptions?: string[];
   exceptions: AttendanceDashboardExceptionItem[];
   exceptionsTotal: number;
   actions: AttendanceDashboardQuickAction[];

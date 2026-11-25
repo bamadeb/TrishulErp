@@ -269,6 +269,9 @@
                   </div>
                 }
               </dl>
+              @if (block.note) {
+                <p class="policy-note">{{ block.note }}</p>
+              }
             </article>
           }
         </div>

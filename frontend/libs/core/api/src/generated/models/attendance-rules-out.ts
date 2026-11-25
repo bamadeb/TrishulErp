@@ -4,6 +4,7 @@
 export interface AttendanceRulesOut {
   autoAttendanceEnabled: boolean;
   earlyExitGraceMinutes: number;
+  graceDaysPerMonth: number;
   holidayCount: number;
   lateArrivalGraceMinutes: number;
   leaveYearLabel: string;

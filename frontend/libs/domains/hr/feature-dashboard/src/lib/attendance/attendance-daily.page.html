@@ -196,7 +196,7 @@
           <table>
             <thead>
               <tr>
-                <th>Employee</th>
+                <th class="name-col">Employee</th>
                 <th>Punch</th>
                 <th>Status</th>
                 <th>Face</th>
@@ -227,7 +227,7 @@
               } @else {
                 @for (row of punchPageRows(); track row.id) {
                   <tr [class.active]="selected()?.employeeId === row.employeeId">
-                    <td>
+                    <td class="name-col">
                       <div class="person">
                         <span class="avatar" [style.background]="avatarColor(row.employeeId)" aria-hidden="true">
                           {{ initials(row.employeeName || '') }}
@@ -324,8 +324,7 @@
                     (change)="togglePage($event.checked)"
                   />
                 </th>
-                <th>Emp ID</th>
-                <th>Employee Name</th>
+                <th class="name-col">Employee</th>
                 <th>Department</th>
                 <th>Shift</th>
                 <th>In Time</th>
@@ -345,15 +344,17 @@
                       (change)="toggleRow(row.id, $event.checked)"
                     />
                   </td>
-                  <td class="code">{{ row.employeeCode }}</td>
-                  <td>
+                  <td class="name-col">
                     <div class="person">
                       <span class="avatar" [style.background]="row.avatarTone" aria-hidden="true">
                         {{ initials(row.employeeName) }}
                       </span>
-                      <button type="button" class="name" (click)="openDetails(row)">
-                        {{ row.employeeName }}
-                      </button>
+                      <span class="who-text">
+                        <button type="button" class="name" (click)="openDetails(row)">
+                          {{ row.employeeName }}
+                        </button>
+                        <small class="muted">{{ row.employeeCode }}</small>
+                      </span>
                     </div>
                   </td>
                   <td>{{ row.department }}</td>
@@ -402,7 +403,7 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="10">
+                  <td colspan="9">
                     <div class="empty">
                       <mat-icon>event_busy</mat-icon>
                       No attendance records match your filters.
@@ -418,8 +419,7 @@
           <table>
             <thead>
               <tr>
-                <th>Emp ID</th>
-                <th>Employee Name</th>
+                <th class="name-col">Employee</th>
                 <th>Date</th>
                 <th>Reason</th>
                 <th>Status</th>
@@ -428,13 +428,15 @@
             <tbody>
               @for (row of pageRequests(); track row.id) {
                 <tr>
-                  <td class="code">{{ row.employeeCode }}</td>
-                  <td>
+                  <td class="name-col">
                     <div class="person">
                       <span class="avatar" [style.background]="row.avatarTone" aria-hidden="true">
                         {{ initials(row.employeeName) }}
                       </span>
-                      <span>{{ row.employeeName }}</span>
+                      <span class="who-text">
+                        <span class="name">{{ row.employeeName }}</span>
+                        <small class="muted">{{ row.employeeCode }}</small>
+                      </span>
                     </div>
                   </td>
                   <td>{{ row.date }}</td>
@@ -445,7 +447,7 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="5">
+                  <td colspan="4">
                     <div class="empty">
                       <mat-icon>inbox</mat-icon>
                       No regularization requests.
