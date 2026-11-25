@@ -52,6 +52,20 @@ def _naive_utc(value: datetime) -> datetime:
     return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo is not None else value
 
 
+def _to_stored_ms(value: datetime) -> datetime:
+    """The time as trk.trip_gps_point.recorded_at (DATETIME2(3)) stores it: rounded to the millisecond,
+    half up, as SQL Server rounds. Comparing anything finer would miss rows the database holds."""
+    micro = (value.microsecond + 500) // 1000 * 1000
+    if micro == 1_000_000:
+        return value.replace(microsecond=0) + timedelta(seconds=1)
+    return value.replace(microsecond=micro)
+
+
+def _to_whole_second(value: datetime) -> datetime:
+    """The time rounded to the second, half up: how DATETIME2(0) stored it before migration 0047."""
+    return (value + timedelta(microseconds=500_000)).replace(microsecond=0)
+
+
 def _unknown_position(latitude: object, longitude: object) -> bool:
     """The app sends 0,0 when the phone had no GPS fix (it is in the Gulf of Guinea, never a real site)."""
     if latitude is None or longitude is None:
@@ -117,12 +131,24 @@ class TripService:
     def upload_gps(self, user: CurrentUser, trip_id: int, batch: GpsBatchInput) -> GpsUploadResult:
         trip = self._own_trip(user, trip_id)
         self._require_open_for_upload(trip, "GPS points")
-        times = [_naive_utc(p.recorded_at) for p in batch.points]
+        # A point's identity is its capture time as the column stores it (milliseconds), so the dedup
+        # below compares exactly what the unique index (trip_id, recorded_at) compares.
+        times = [_to_stored_ms(_naive_utc(p.recorded_at)) for p in batch.points]
         seen = self._repo.existing_gps_times(trip_id, times)
+        # Points stored before recorded_at kept milliseconds (DATETIME2(0) until migration 0047) hold the
+        # phone's time rounded to the second (15:01:56.902 -> 15:01:57). A resent point matches such a row,
+        # once, so an offline trip synced again after the change is not stored twice.
+        whole_seconds = {_to_whole_second(t) for t in times}
+        legacy = self._repo.existing_gps_times(trip_id, sorted(whole_seconds - set(times)))
+        claimed: set[datetime] = set()
         accepted = duplicates = 0
-        for point in batch.points:
-            recorded_at = _naive_utc(point.recorded_at)
+        for point, recorded_at in zip(batch.points, times, strict=True):
             if recorded_at in seen:  # dedup across retries and within the batch
+                duplicates += 1
+                continue
+            second = _to_whole_second(recorded_at)
+            if second in legacy and second not in claimed:
+                claimed.add(second)
                 duplicates += 1
                 continue
             seen.add(recorded_at)

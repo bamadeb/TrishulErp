@@ -179,7 +179,9 @@ class TrkTripGpsPoint(Base):
 
     id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
     trip_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("trk.trip.id"), doc="Trip")
-    recorded_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), doc="Capture time on the device")
+    recorded_at: Mapped[dt.datetime] = mapped_column(
+        mssql.DATETIME2(3), doc="Capture time on the device, to the millisecond (migration 0047)"
+    )
     latitude: Mapped[Decimal] = mapped_column(sa.Numeric(9, 6), doc="Latitude")
     longitude: Mapped[Decimal] = mapped_column(sa.Numeric(9, 6), doc="Longitude")
     accuracy_m: Mapped[Decimal | None] = mapped_column(sa.Numeric(6, 1), doc="Accuracy")
