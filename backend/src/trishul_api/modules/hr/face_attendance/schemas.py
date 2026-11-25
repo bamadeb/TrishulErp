@@ -309,6 +309,29 @@ class FaceTemplateOut(ApiModel):
     review_threshold: Decimal
 
 
+# --- the employee's month (mobile calendar) ------------------------------------------
+
+
+class MyMonthDayOut(ApiModel):
+    """One day of the employee's own calendar, as HR's Daily Attendance and Muster see it."""
+
+    date: date
+    status: str
+    """Present, Late, Missing Punch, Absent, On Leave, Off Day or Holiday."""
+    first_in: datetime | None
+    last_out: datetime | None
+    working_hours: str | None
+
+
+class MyMonthOut(ApiModel):
+    year: int
+    month: int
+    days: list[MyMonthDayOut]
+    """1st of the month up to today (or the month end), oldest first; future days are left out."""
+    totals: dict[str, int]
+    """Days per status in this month so far."""
+
+
 # --- the employee's day (mobile) --------------------------------------------------
 
 

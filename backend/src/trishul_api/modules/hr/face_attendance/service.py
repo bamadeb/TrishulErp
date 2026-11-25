@@ -38,6 +38,8 @@ from trishul_api.modules.hr.face_attendance.schemas import (
     EmployeePolicyOut,
     MyAttendanceTodayOut,
     MyFaceOut,
+    MyMonthDayOut,
+    MyMonthOut,
     MyPunchOut,
     WorkLocationCreate,
     WorkLocationOut,
@@ -414,6 +416,41 @@ class FaceAttendanceService:
                 for p in punches
             ],
         )
+
+    def my_month(self, actor: CurrentUser, year: int, month: int) -> MyMonthOut:
+        """The employee's own attendance calendar, worked out exactly as HR's Daily Attendance does it
+        (biometric and accepted face punches, leave, holidays, shift and weekly off)."""
+        if actor.employee_id is None:
+            raise Forbidden("Your sign-in is not linked to an employee.")
+        first = date(year, month, 1)
+        last = (date(year + (month == 12), month % 12 + 1, 1)) - timedelta(days=1)
+        today = india_date(utc_now())
+        if first > today:
+            return MyMonthOut(year=year, month=month, days=[], totals={})
+        until = min(last, today)
+        # Imported here: the daily-attendance module is the other developer's; this only reads from it.
+        from trishul_api.modules.hr.attendance.service import AttendanceService
+
+        history = AttendanceService(self._db).employee_history(
+            actor.employee_id, until + timedelta(days=1), days=(until - first).days + 1
+        )
+        days = sorted(
+            (
+                MyMonthDayOut(
+                    date=h.date,
+                    status=h.status,
+                    first_in=h.first_in,
+                    last_out=h.last_out,
+                    working_hours=h.working_hours,
+                )
+                for h in history
+            ),
+            key=lambda d: d.date,
+        )
+        totals: dict[str, int] = {}
+        for day in days:
+            totals[day.status] = totals.get(day.status, 0) + 1
+        return MyMonthOut(year=year, month=month, days=days, totals=totals)
 
     def _my_face(self, employee_id: int) -> MyFaceOut:
         face = self._db.scalars(

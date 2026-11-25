@@ -36,6 +36,7 @@ from trishul_api.modules.hr.face_attendance.schemas import (
     FaceRejectIn,
     FaceTemplateOut,
     MyAttendanceTodayOut,
+    MyMonthOut,
     PunchEvidence,
     PunchListItemOut,
     PunchResultOut,
@@ -141,6 +142,20 @@ Match = Annotated[bytes, Depends(if_match_row_version)]
 )
 def get_my_attendance_today(actor: CurrentUserDep, service: FaceAttendance) -> MyAttendanceTodayOut:
     return service.my_today(actor)
+
+
+@router.get(
+    "/me/month",
+    summary="My attendance calendar for a month (same day status as HR's Daily Attendance)",
+    dependencies=[CAN_MARK],
+)
+def get_my_attendance_month(
+    actor: CurrentUserDep,
+    service: FaceAttendance,
+    year: Annotated[int, Query(ge=2020, le=2100)],
+    month: Annotated[int, Query(ge=1, le=12)],
+) -> MyMonthOut:
+    return service.my_month(actor, year, month)
 
 
 # --- work locations --------------------------------------------------------------------
