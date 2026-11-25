@@ -12,7 +12,6 @@ import {
 } from '@trishul/admin-data-access';
 import { NavItem } from '@trishul/core-layout';
 import {
-  BIOMETRIC_MANAGE_PERMISSION,
   EMPLOYEE_MANAGE_PERMISSION,
   EMPLOYEE_VIEW_PERMISSIONS,
   FACE_APPROVE_PERMISSION,
@@ -397,44 +396,6 @@ export const navItems: NavItem[] = [
             icon: 'device_hub',
             route: '/hr/reporting',
             permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
-          },
-        ],
-      },
-      {
-        label: 'Biometric Management',
-        icon: 'fingerprint',
-        route: '/hr/biometric/dashboard',
-        permissions: [BIOMETRIC_MANAGE_PERMISSION],
-        children: [
-          {
-            label: 'Biometric Dashboard',
-            icon: 'insights',
-            route: '/hr/biometric/dashboard',
-            permissions: [BIOMETRIC_MANAGE_PERMISSION],
-          },
-          {
-            label: 'Devices',
-            icon: 'smartphone',
-            route: '/hr/biometric/devices',
-            permissions: [BIOMETRIC_MANAGE_PERMISSION],
-          },
-          {
-            label: 'Employee Mapping',
-            icon: 'group',
-            route: '/hr/biometric/mapping',
-            permissions: [BIOMETRIC_MANAGE_PERMISSION],
-          },
-          {
-            label: 'Punch Logs',
-            icon: 'format_list_bulleted',
-            route: '/hr/biometric/punches',
-            permissions: [BIOMETRIC_MANAGE_PERMISSION],
-          },
-          {
-            label: 'Sync History',
-            icon: 'sync',
-            route: '/hr/biometric/sync-history',
-            permissions: [BIOMETRIC_MANAGE_PERMISSION],
           },
         ],
       },

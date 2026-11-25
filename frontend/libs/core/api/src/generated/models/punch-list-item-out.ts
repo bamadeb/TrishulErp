@@ -29,4 +29,7 @@ export interface PunchListItemOut {
   statusReason: (string | null);
   timeTrust: string;
   workLocationName: (string | null);
+  platform?: (string | null);
+  departmentName?: (string | null);
+  branchName?: (string | null);
 }

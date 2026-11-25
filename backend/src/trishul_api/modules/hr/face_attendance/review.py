@@ -22,6 +22,8 @@ from trishul_api.db.models import (
     AttendanceAudit,
     AttendancePolicy,
     AttendancePunch,
+    Branch,
+    Department,
     Employee,
     EmployeeFace,
     FaceModel,
@@ -155,11 +157,19 @@ class PunchReviewService:
         employee_ids = {r.employee_id for r in rows} or {0}
         location_ids = {r.work_location_id for r in rows if r.work_location_id} or {0}
         employees = {
-            r[0]: (r[1], " ".join(p for p in (r[2], r[3]) if p) or None)
+            r[0]: (r[1], " ".join(p for p in (r[2], r[3]) if p) or None, r[4], r[5])
             for r in self._db.execute(
-                select(Employee.id, Employee.employee_code, Employee.first_name, Employee.last_name).where(
-                    Employee.id.in_(employee_ids)
+                select(
+                    Employee.id,
+                    Employee.employee_code,
+                    Employee.first_name,
+                    Employee.last_name,
+                    Department.name,
+                    Branch.name,
                 )
+                .outerjoin(Department, Department.id == Employee.department_id)
+                .outerjoin(Branch, Branch.id == Employee.branch_id)
+                .where(Employee.id.in_(employee_ids))
             )
         }
         locations = {
@@ -172,8 +182,8 @@ class PunchReviewService:
             PunchListItemOut(
                 id=r.id,
                 employee_id=r.employee_id,
-                employee_code=employees.get(r.employee_id, (None, None))[0],
-                employee_name=employees.get(r.employee_id, (None, None))[1],
+                employee_code=employees.get(r.employee_id, (None, None, None, None))[0],
+                employee_name=employees.get(r.employee_id, (None, None, None, None))[1],
                 attendance_date=r.attendance_date,
                 punch_type=r.punch_type,
                 effective_at=r.effective_at,
@@ -192,6 +202,9 @@ class PunchReviewService:
                 inside_geofence=r.inside_geofence,
                 distance_m=r.distance_m,
                 work_location_name=locations.get(r.work_location_id or 0),
+                platform=r.platform,
+                department_name=employees.get(r.employee_id, (None, None, None, None))[2],
+                branch_name=employees.get(r.employee_id, (None, None, None, None))[3],
                 time_trust=r.time_trust,
                 has_photo=bool(r.photo_s3_key),
                 reviewed_by_user_id=r.reviewed_by_user_id,

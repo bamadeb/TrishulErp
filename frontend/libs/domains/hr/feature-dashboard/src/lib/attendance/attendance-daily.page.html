@@ -101,6 +101,15 @@
         >
           Regularization Requests
         </button>
+        <button
+          type="button"
+          role="tab"
+          [class.on]="contentTab() === 'punches'"
+          [attr.aria-selected]="contentTab() === 'punches'"
+          (click)="setTab('punches')"
+        >
+          Punch Logs
+        </button>
       </div>
 
       <div class="toolbar" aria-label="Attendance toolbar">
@@ -123,7 +132,7 @@
             aria-label="Department"
           >
             <mat-option value="">All Departments</mat-option>
-            @for (item of departments(); track item) {
+            @for (item of (contentTab() === 'punches' ? punchDepartments() : departments()); track item) {
               <mat-option [value]="item">{{ item }}</mat-option>
             }
           </mat-select>
@@ -136,20 +145,27 @@
             aria-label="Location"
           >
             <mat-option value="">All Locations</mat-option>
-            @for (item of locations(); track item) {
+            @for (item of (contentTab() === 'punches' ? punchLocations() : locations()); track item) {
               <mat-option [value]="item">{{ item }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
-          <mat-select [ngModel]="shift()" (ngModelChange)="onShift($event)" aria-label="Shift">
-            <mat-option value="">All Shifts</mat-option>
-            @for (item of shifts(); track item) {
-              <mat-option [value]="item">{{ item }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        @if (contentTab() === 'punches') {
+          <button type="button" class="punch-date" (click)="openPicker()">
+            <mat-icon>calendar_today</mat-icon>
+            {{ dateLabel() }}
+          </button>
+        } @else {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+            <mat-select [ngModel]="shift()" (ngModelChange)="onShift($event)" aria-label="Shift">
+              <mat-option value="">All Shifts</mat-option>
+              @for (item of shifts(); track item) {
+                <mat-option [value]="item">{{ item }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
 
         <div class="toolbar-actions">
           <button
@@ -165,14 +181,107 @@
             <mat-icon>grid_on</mat-icon>
             Export
           </button>
-          <button mat-flat-button color="primary" type="button" (click)="regularize()">
-            <mat-icon>add</mat-icon>
-            Regularize
-          </button>
+          @if (contentTab() !== 'punches') {
+            <button mat-flat-button color="primary" type="button" (click)="regularize()">
+              <mat-icon>add</mat-icon>
+              Regularize
+            </button>
+          }
         </div>
       </div>
 
-      @if (contentTab() !== 'regularization') {
+      @if (contentTab() === 'punches') {
+        <h2 class="punch-title">Punch Logs ({{ dateLabel() }})</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Employee Name</th>
+                <th>Punch Time</th>
+                <th>IN/OUT</th>
+                <th>GPS Location</th>
+                <th class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (punchLoading()) {
+                <tr>
+                  <td colspan="6">
+                    <div class="empty">
+                      <mat-icon>hourglass_empty</mat-icon>
+                      Loading punch logs…
+                    </div>
+                  </td>
+                </tr>
+              } @else if (punchError()) {
+                <tr>
+                  <td colspan="6">
+                    <div class="empty">
+                      <mat-icon>error_outline</mat-icon>
+                      {{ punchError() }}
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                @for (row of punchPageRows(); track row.id) {
+                  <tr [class.active]="selected()?.employeeId === row.employeeId">
+                    <td class="code">{{ row.employeeCode || '—' }}</td>
+                    <td>
+                      <div class="person">
+                        <span class="avatar" [style.background]="avatarColor(row.employeeId)" aria-hidden="true">
+                          {{ initials(row.employeeName || '') }}
+                        </span>
+                        <button type="button" class="name" (click)="openPunchDetails(row)">
+                          {{ row.employeeName || '—' }}
+                        </button>
+                      </div>
+                    </td>
+                    <td class="punch-time">{{ punchClock(row) }}</td>
+                    <td>
+                      <span class="pill" [class.in]="punchKind(row) === 'IN'" [class.out]="punchKind(row) === 'OUT'">
+                        {{ punchKind(row) }}
+                      </span>
+                    </td>
+                    <td class="gps">
+                      @if (punchMap(row); as map) {
+                        <a [href]="map" target="_blank" rel="noopener">
+                          <strong>{{ row.latitude }}° N, {{ row.longitude }}° E</strong>
+                          @if (row.gpsAccuracyM != null) {
+                            <small>(±{{ row.gpsAccuracyM }} m)</small>
+                          }
+                        </a>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td class="actions">
+                      <button
+                        mat-icon-button
+                        type="button"
+                        aria-label="View details"
+                        matTooltip="View details"
+                        (click)="openPunchDetails(row)"
+                      >
+                        <mat-icon>visibility</mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6">
+                      <div class="empty">
+                        <mat-icon>fingerprint</mat-icon>
+                        No mobile punch logs for this date.
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else if (contentTab() !== 'regularization') {
         <div class="table-wrap">
           <table>
             <thead>
@@ -326,7 +435,8 @@
           {{ total() ? page() * pageSize() + 1 : 0 }}
           –
           {{ (page() + 1) * pageSize() > total() ? total() : (page() + 1) * pageSize() }}
-          of {{ total() | number }} records
+          of {{ total() | number }}
+          {{ contentTab() === 'punches' ? 'punch logs' : 'records' }}
         </span>
         <mat-paginator
           class="pager"

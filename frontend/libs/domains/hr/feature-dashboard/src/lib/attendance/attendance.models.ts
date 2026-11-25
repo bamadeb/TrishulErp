@@ -10,7 +10,7 @@ export type AttendanceStatus =
   | 'Holiday'
   | 'WFH';
 
-export type ContentTab = 'records' | 'exceptions' | 'regularization';
+export type ContentTab = 'records' | 'exceptions' | 'regularization' | 'punches';
 
 export interface AttendancePunch {
   kind: 'IN' | 'OUT';

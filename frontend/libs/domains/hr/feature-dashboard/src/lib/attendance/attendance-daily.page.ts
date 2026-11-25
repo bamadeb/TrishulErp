@@ -1,4 +1,4 @@
-import { DecimalPipe } from '@angular/common';
+﻿import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -30,6 +30,8 @@ import {
   AttendanceSummary,
   DailyAttendancePage,
   DailyAttendanceRow as ApiDailyAttendanceRow,
+  FaceAttendanceApi,
+  FacePunch,
   RegularizationRow,
 } from '@trishul/hr-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
@@ -129,6 +131,7 @@ const DAY_PAGE_SIZE = 200;
 })
 export class AttendanceDailyPage implements OnInit {
   private readonly api = inject(AttendanceApi);
+  private readonly faces = inject(FaceAttendanceApi);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
@@ -169,6 +172,9 @@ export class AttendanceDailyPage implements OnInit {
   protected readonly page = signal(0);
   protected readonly pageSize = signal(10);
   protected readonly selectedIds = signal<Set<number>>(new Set());
+  protected readonly punchRows = signal<FacePunch[]>([]);
+  protected readonly punchLoading = signal(false);
+  protected readonly punchError = signal<string | null>(null);
   protected readonly selected = signal<DailyAttendanceRow | null>(null);
   protected readonly menuRow = signal<DailyAttendanceRow | null>(null);
 
@@ -191,11 +197,38 @@ export class AttendanceDailyPage implements OnInit {
     });
   });
 
-  protected readonly total = computed(() =>
-    this.contentTab() === 'regularization'
-      ? this.regularization().length
-      : this.filteredRows().length,
+  protected readonly filteredPunches = computed(() => {
+    const q = this.search().trim().toLowerCase();
+    const department = this.department();
+    const location = this.location();
+    return this.punchRows()
+      .filter((row) => {
+        if (department && (row.departmentName || '') !== department) return false;
+        if (location && (row.branchName || '') !== location) return false;
+        if (!q) return true;
+        return `${row.employeeCode ?? ''} ${row.employeeName ?? ''}`.toLowerCase().includes(q);
+      })
+      .sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt) || a.id - b.id);
+  });
+
+  protected readonly punchDepartments = computed(() =>
+    uniqueSorted(this.punchRows().map((row) => row.departmentName || '').filter(Boolean)),
   );
+
+  protected readonly punchLocations = computed(() =>
+    uniqueSorted(this.punchRows().map((row) => row.branchName || '').filter(Boolean)),
+  );
+
+  protected readonly punchPageRows = computed(() => {
+    const start = this.page() * this.pageSize();
+    return this.filteredPunches().slice(start, start + this.pageSize());
+  });
+
+  protected readonly total = computed(() => {
+    if (this.contentTab() === 'punches') return this.filteredPunches().length;
+    if (this.contentTab() === 'regularization') return this.regularization().length;
+    return this.filteredRows().length;
+  });
 
   protected readonly pageRows = computed(() => {
     const start = this.page() * this.pageSize();
@@ -235,7 +268,7 @@ export class AttendanceDailyPage implements OnInit {
       .subscribe((value) => {
         this.search.set(value);
         this.page.set(0);
-        this.reload$.next();
+        if (this.contentTab() !== 'punches') this.reload$.next();
       });
 
     this.reload$.next();
@@ -243,6 +276,10 @@ export class AttendanceDailyPage implements OnInit {
 
   protected statusIcon(status: AttendanceStatus): string {
     return STATUS_ICON[status] ?? 'info';
+  }
+
+  protected avatarColor(id: number): string {
+    return avatarTone(id);
   }
 
   protected initials(name: string): string {
@@ -261,6 +298,7 @@ export class AttendanceDailyPage implements OnInit {
     this.selectedIds.set(new Set());
     this.selected.set(null);
     this.reload$.next();
+    this.loadPunches();
   }
 
   protected openPicker(): void {
@@ -274,12 +312,14 @@ export class AttendanceDailyPage implements OnInit {
     this.selectedIds.set(new Set());
     this.selected.set(null);
     this.reload$.next();
+    this.loadPunches();
   }
 
   protected setTab(tab: ContentTab): void {
     this.contentTab.set(tab);
     this.page.set(0);
     this.selectedIds.set(new Set());
+    if (tab === 'punches') this.loadPunches();
   }
 
   protected onSearch(value: string): void {
@@ -289,13 +329,13 @@ export class AttendanceDailyPage implements OnInit {
   protected onDepartment(value: string): void {
     this.department.set(value);
     this.page.set(0);
-    this.reload$.next();
+    if (this.contentTab() !== 'punches') this.reload$.next();
   }
 
   protected onLocation(value: string): void {
     this.location.set(value);
     this.page.set(0);
-    this.reload$.next();
+    if (this.contentTab() !== 'punches') this.reload$.next();
   }
 
   protected onShift(value: string): void {
@@ -338,10 +378,129 @@ export class AttendanceDailyPage implements OnInit {
   }
 
   protected refresh(): void {
+    if (this.contentTab() === 'punches') {
+      this.loadPunches();
+      return;
+    }
     this.reload$.next();
   }
 
+  protected punchKind(row: FacePunch): 'IN' | 'OUT' {
+    return row.punchType === 'Out' ? 'OUT' : 'IN';
+  }
+
+  protected punchClock(row: FacePunch): string {
+    const date = new Date(row.effectiveAt);
+    if (Number.isNaN(date.getTime())) return row.effectiveAt;
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(date);
+  }
+
+  protected punchDevice(row: FacePunch): string {
+    const platform = (row.platform || '').toLowerCase();
+    if (platform.includes('ios')) return 'iOS';
+    if (platform.includes('android')) return 'Android';
+    return row.platform || 'Mobile';
+  }
+
+  protected punchVerified(row: FacePunch): string {
+    if (row.status === 'Present') return 'Verified';
+    return row.status;
+  }
+
+  protected punchMap(row: FacePunch): string | null {
+    if (row.latitude == null || row.longitude == null) return null;
+    return `https://www.google.com/maps?q=${row.latitude},${row.longitude}`;
+  }
+
+  protected openPunchDetails(row: FacePunch): void {
+    const history = this.punchRows()
+      .filter((item) => item.employeeId === row.employeeId && item.attendanceDate === row.attendanceDate)
+      .sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt));
+    const firstIn = history.find((item) => item.punchType === 'In');
+    const lastOut = [...history].reverse().find((item) => item.punchType === 'Out');
+    this.selected.set({
+      id: row.employeeId,
+      employeeId: row.employeeId,
+      employeeCode: row.employeeCode || '',
+      employeeName: row.employeeName || '',
+      department: row.departmentName || '—',
+      location: row.branchName || row.workLocationName || '—',
+      shift: '—',
+      employeeType: '',
+      reportingManager: '',
+      firstIn: firstIn ? this.punchClock(firstIn) : null,
+      lastOut: lastOut ? this.punchClock(lastOut) : null,
+      firstInLate: false,
+      workingHours: null,
+      status: 'Present',
+      remarks: this.punchVerified(row),
+      avatarTone: avatarTone(row.employeeId),
+      punches: history.map((item) => ({
+        kind: this.punchKind(item),
+        at: item.effectiveAt,
+        device: `${this.punchDevice(item)} · ${this.punchVerified(item)}`,
+        location:
+          item.latitude != null && item.longitude != null
+            ? {
+                latitude: Number(item.latitude),
+                longitude: Number(item.longitude),
+                accuracyM: item.gpsAccuracyM != null ? Number(item.gpsAccuracyM) : null,
+                place: item.workLocationName,
+                insideOffice: item.insideGeofence,
+                distanceM: item.distanceM != null ? Number(item.distanceM) : null,
+                fakeGps: item.isMockLocation,
+              }
+            : null,
+      })),
+      history: [],
+    });
+  }
+
+  private punchRequest = 0;
+
+  private loadPunches(): void {
+    const day = toIsoDate(this.selectedDate());
+    const request = ++this.punchRequest;
+    this.punchLoading.set(true);
+    this.punchError.set(null);
+    this.faces
+      .listPunches({ fromDate: day, toDate: day, limit: 1000 })
+      .pipe(
+        catchError((err: unknown) => {
+          if (request !== this.punchRequest) return of([] as FacePunch[]);
+          const message =
+            err instanceof HttpErrorResponse
+              ? extractHttpError(err)
+              : 'Failed to load punch logs.';
+          this.punchRows.set([]);
+          this.punchError.set(message);
+          this.snackBar.open(message, 'OK', { duration: 4000 });
+          return of([] as FacePunch[]);
+        }),
+        finalize(() => {
+          if (request === this.punchRequest) this.punchLoading.set(false);
+        }),
+      )
+      .subscribe((rows) => {
+        if (request === this.punchRequest && !this.punchError()) this.punchRows.set(rows);
+      });
+  }
+
   protected exportExcel(): void {
+    if (this.contentTab() === 'punches') {
+      const punches = this.filteredPunches();
+      if (!punches.length) {
+        this.snackBar.open('No punch logs to export.', 'OK', { duration: 2200 });
+        return;
+      }
+      downloadPunchCsv(`punch-logs-${toIsoDate(this.selectedDate())}.csv`, punches);
+      this.snackBar.open(`Exported ${punches.length} punch log(s).`, 'OK', { duration: 2500 });
+      return;
+    }
     const rows = this.filteredRows();
     if (!rows.length) {
       this.snackBar.open('No attendance rows to export.', 'OK', { duration: 2200 });
@@ -629,6 +788,45 @@ function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
   const blob = new Blob([[header.join(','), ...body].join('\n')], {
     type: 'text/csv;charset=utf-8',
   });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+function downloadPunchCsv(filename: string, rows: FacePunch[]): void {
+  const header = [
+    'Employee ID',
+    'Employee Name',
+    'Punch Time',
+    'IN/OUT',
+    'Latitude',
+    'Longitude',
+    'GPS Accuracy (m)',
+  ];
+  const lines = [
+    header.join(','),
+    ...rows.map((row) =>
+      [
+        row.employeeCode || '',
+        row.employeeName || '',
+        row.effectiveAt,
+        row.punchType === 'Out' ? 'OUT' : 'IN',
+        row.latitude ?? '',
+        row.longitude ?? '',
+        row.gpsAccuracyM ?? '',
+      ]
+        .map((value) => csvEscape(String(value)))
+        .join(','),
+    ),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

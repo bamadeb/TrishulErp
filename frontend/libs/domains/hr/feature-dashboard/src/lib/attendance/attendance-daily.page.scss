@@ -392,6 +392,91 @@ tbody tr.active {
   }
 }
 
+.punch-title {
+  margin: 0;
+  padding: 0.75rem 0.95rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f2744;
+}
+
+.punch-date {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  height: 34px;
+  padding: 0 0.7rem;
+  border: 1px solid #d7e2ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #64748b;
+  }
+}
+
+.punch-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #0f2744;
+}
+
+.gps {
+  white-space: normal;
+
+  strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e3a5f;
+  }
+
+  small {
+    color: #64748b;
+  }
+}
+
+.pill {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+
+  mat-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+  }
+
+  &.in,
+  &.source,
+  &.device,
+  &.verified {
+    background: #e8f7ee;
+    color: #15803d;
+  }
+
+  &.out {
+    background: #fde8ee;
+    color: #be123c;
+  }
+
+  &.device.ios {
+    background: #f1f5f9;
+    color: #475569;
+  }
+}
+
 .empty {
   display: grid;
   justify-items: center;

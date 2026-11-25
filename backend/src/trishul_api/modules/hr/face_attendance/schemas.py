@@ -284,6 +284,9 @@ class PunchListItemOut(ApiModel):
     inside_geofence: bool | None
     distance_m: Decimal | None
     work_location_name: str | None
+    platform: str | None = None
+    department_name: str | None = None
+    branch_name: str | None = None
     time_trust: str
     has_photo: bool
     reviewed_by_user_id: int | None
