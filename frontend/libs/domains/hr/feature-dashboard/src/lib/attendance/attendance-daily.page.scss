@@ -422,6 +422,57 @@ tbody tr.active {
   }
 }
 
+.who-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  small {
+    font-size: 11px;
+  }
+}
+
+.punch-line {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.punch-day,
+.face-status,
+.reason,
+.check-cell {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.face-status {
+  color: #0f2744;
+  font-weight: 600;
+}
+
+.reason {
+  max-width: 220px;
+  white-space: normal;
+}
+
+.map-link {
+  display: inline-flex;
+  gap: 0.15rem;
+  align-items: center;
+  color: #0754b8;
+  font-weight: 600;
+  text-decoration: none;
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
 .punch-time {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -466,9 +517,20 @@ tbody tr.active {
     color: #15803d;
   }
 
-  &.out {
+  &.out,
+  &.rejected {
     background: #fde8ee;
     color: #be123c;
+  }
+
+  &.accepted {
+    background: #e8f7ee;
+    color: #15803d;
+  }
+
+  &.pending {
+    background: #fef3c7;
+    color: #b45309;
   }
 
   &.device.ios {
