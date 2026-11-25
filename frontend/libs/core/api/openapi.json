@@ -17522,6 +17522,347 @@
         ]
       }
     },
+    "/hr/attendance/dashboard": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Attendance dashboard KPIs, trend, departments and exceptions for a date",
+        "operationId": "attendance_dashboard",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceDashboardOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/mine": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "ESS: logged-in employee's attendance for a calendar month",
+        "operationId": "my_attendance",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MineAttendancePageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/mine/regularizations": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "ESS: submit regularization for the authenticated employee only",
+        "operationId": "create_mine_regularization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegularizationCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegularizationRowOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/reports/summary": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Attendance reports summary for a month (muster + pending queues + lock)",
+        "operationId": "attendance_reports_summary",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceReportsSummaryOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/hr/attendance/daily": {
       "get": {
         "tags": [
@@ -18672,7 +19013,7 @@
         "tags": [
           "attendance"
         ],
-        "summary": "Create an attendance regularization request",
+        "summary": "HR/Admin: create a regularization request for an employee",
         "operationId": "create_regularization",
         "security": [
           {
@@ -18879,6 +19220,1390 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RegularizationRowOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/shifts": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "List work shifts from hr.shift",
+        "operationId": "list_shifts",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "activeOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Activeonly"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Create a work shift",
+        "operationId": "create_shift",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/shifts/{shiftId}": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Get one work shift",
+        "operationId": "get_shift",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shiftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Shiftid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Update a work shift",
+        "operationId": "update_shift",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shiftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Shiftid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Deactivate a work shift",
+        "operationId": "delete_shift",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shiftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Shiftid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/leave-year": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Current leave year from leave-policy year basis (financial or calendar)",
+        "operationId": "current_leave_year",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaveYearOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/holidays": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Holidays for the current configured leave year (from hr.holiday)",
+        "operationId": "attendance_holidays",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceHolidayPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/rules": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Organization attendance rules (core.system_setting hr.attendance.rules)",
+        "operationId": "get_attendance_rules",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceRulesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Save organization attendance rules",
+        "operationId": "put_attendance_rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendanceRulesWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceRulesOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/shift-assignments/options": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Employees and shifts for assignment forms",
+        "operationId": "shift_assignment_options",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftAssignmentOptions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/shift-assignments": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Employee shift assignments from hr.employee_shift (includes history when currentOnly=false)",
+        "operationId": "list_shift_assignments",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "currentOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Currentonly"
+            }
+          },
+          {
+            "name": "employeeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employeeid"
+            }
+          },
+          {
+            "name": "shiftId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Shiftid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftAssignmentPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Assign a shift (closes overlapping prior assignments to preserve history)",
+        "operationId": "create_shift_assignment",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftAssignmentWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftAssignmentItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/shift-assignments/{assignmentId}": {
+      "patch": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Update a shift assignment",
+        "operationId": "update_shift_assignment",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Assignmentid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftAssignmentWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftAssignmentItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "End / deactivate a shift assignment",
+        "operationId": "delete_shift_assignment",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Assignmentid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/finalization": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Monthly attendance finalization overview by department or location",
+        "operationId": "attendance_finalization",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          },
+          {
+            "name": "groupBy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "department",
+                "location"
+              ],
+              "type": "string",
+              "default": "department",
+              "title": "Groupby"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizationPageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hr/attendance/finalization/lock": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Finalize and lock monthly attendance after checklist validations pass",
+        "operationId": "lock_attendance_finalization",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizationLockOut"
                 }
               }
             }
@@ -53415,6 +55140,84 @@
         ],
         "title": "AttendanceClassWrite"
       },
+      "AttendanceDashboardOut": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "dateLabel": {
+            "type": "string",
+            "title": "Datelabel"
+          },
+          "attendanceRate": {
+            "type": "number",
+            "title": "Attendancerate"
+          },
+          "kpi": {
+            "$ref": "#/components/schemas/DashboardKpiOut"
+          },
+          "overview": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardOverviewSliceOut"
+            },
+            "type": "array",
+            "title": "Overview"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardTrendPointOut"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardDepartmentRowOut"
+            },
+            "type": "array",
+            "title": "Departments"
+          },
+          "exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardExceptionItemOut"
+            },
+            "type": "array",
+            "title": "Exceptions"
+          },
+          "exceptionsTotal": {
+            "type": "integer",
+            "title": "Exceptionstotal"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardQuickActionOut"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
+          "isMonthFinalized": {
+            "type": "boolean",
+            "title": "Ismonthfinalized"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "dateLabel",
+          "attendanceRate",
+          "kpi",
+          "overview",
+          "trend",
+          "departments",
+          "exceptions",
+          "exceptionsTotal",
+          "actions",
+          "isMonthFinalized"
+        ],
+        "title": "AttendanceDashboardOut"
+      },
       "AttendanceEmployeeOut": {
         "properties": {
           "employeeId": {
@@ -53890,6 +55693,85 @@
           "workingHours"
         ],
         "title": "AttendanceHistoryOut"
+      },
+      "AttendanceHolidayItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "holidayDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Holidaydate"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "holidayType": {
+            "type": "string",
+            "enum": [
+              "National",
+              "Festival",
+              "Optional"
+            ],
+            "title": "Holidaytype"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "National",
+              "Regional",
+              "Optional"
+            ],
+            "title": "Category"
+          },
+          "appliesTo": {
+            "type": "string",
+            "title": "Appliesto"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "holidayDate",
+          "name",
+          "holidayType",
+          "category",
+          "appliesTo",
+          "isActive"
+        ],
+        "title": "AttendanceHolidayItem"
+      },
+      "AttendanceHolidayPage": {
+        "properties": {
+          "leaveYear": {
+            "$ref": "#/components/schemas/LeaveYearOut"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceHolidayItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "leaveYear",
+          "items",
+          "total"
+        ],
+        "title": "AttendanceHolidayPage"
       },
       "AttendancePolicyCreate": {
         "properties": {
@@ -54424,6 +56306,261 @@
           "location"
         ],
         "title": "AttendancePunchOut"
+      },
+      "AttendanceReportsSummaryOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "monthLabel": {
+            "type": "string",
+            "title": "Monthlabel"
+          },
+          "totalEmployees": {
+            "type": "integer",
+            "title": "Totalemployees"
+          },
+          "present": {
+            "type": "integer",
+            "title": "Present"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "onLeave": {
+            "type": "integer",
+            "title": "Onleave"
+          },
+          "wfh": {
+            "type": "integer",
+            "title": "Wfh"
+          },
+          "pendingExceptions": {
+            "type": "integer",
+            "title": "Pendingexceptions"
+          },
+          "pendingRegularizations": {
+            "type": "integer",
+            "title": "Pendingregularizations"
+          },
+          "isMonthFinalized": {
+            "type": "boolean",
+            "title": "Ismonthfinalized"
+          },
+          "finalizedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalizedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "monthLabel",
+          "totalEmployees",
+          "present",
+          "late",
+          "absent",
+          "onLeave",
+          "wfh",
+          "pendingExceptions",
+          "pendingRegularizations",
+          "isMonthFinalized",
+          "finalizedAt"
+        ],
+        "title": "AttendanceReportsSummaryOut"
+      },
+      "AttendanceRulesOut": {
+        "properties": {
+          "standardWorkHours": {
+            "type": "number",
+            "title": "Standardworkhours"
+          },
+          "workingDaysPerWeek": {
+            "type": "integer",
+            "title": "Workingdaysperweek"
+          },
+          "lateArrivalGraceMinutes": {
+            "type": "integer",
+            "title": "Latearrivalgraceminutes"
+          },
+          "earlyExitGraceMinutes": {
+            "type": "integer",
+            "title": "Earlyexitgraceminutes"
+          },
+          "otAfterHours": {
+            "type": "number",
+            "title": "Otafterhours"
+          },
+          "otApprovalRequired": {
+            "type": "boolean",
+            "title": "Otapprovalrequired"
+          },
+          "weeklyOffDays": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "MON",
+                "TUE",
+                "WED",
+                "THU",
+                "FRI",
+                "SAT",
+                "SUN"
+              ]
+            },
+            "type": "array",
+            "title": "Weeklyoffdays"
+          },
+          "weeklyOffAppliesTo": {
+            "type": "string",
+            "title": "Weeklyoffappliesto"
+          },
+          "autoAttendanceEnabled": {
+            "type": "boolean",
+            "title": "Autoattendanceenabled"
+          },
+          "manualAttendanceEnabled": {
+            "type": "boolean",
+            "title": "Manualattendanceenabled"
+          },
+          "leaveYearLabel": {
+            "type": "string",
+            "title": "Leaveyearlabel"
+          },
+          "holidayCount": {
+            "type": "integer",
+            "title": "Holidaycount"
+          },
+          "rowVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "standardWorkHours",
+          "workingDaysPerWeek",
+          "lateArrivalGraceMinutes",
+          "earlyExitGraceMinutes",
+          "otAfterHours",
+          "otApprovalRequired",
+          "weeklyOffDays",
+          "weeklyOffAppliesTo",
+          "autoAttendanceEnabled",
+          "manualAttendanceEnabled",
+          "leaveYearLabel",
+          "holidayCount",
+          "rowVersion"
+        ],
+        "title": "AttendanceRulesOut"
+      },
+      "AttendanceRulesWrite": {
+        "properties": {
+          "standardWorkHours": {
+            "type": "number",
+            "maximum": 24.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Standardworkhours"
+          },
+          "workingDaysPerWeek": {
+            "type": "integer",
+            "maximum": 7.0,
+            "minimum": 1.0,
+            "title": "Workingdaysperweek"
+          },
+          "lateArrivalGraceMinutes": {
+            "type": "integer",
+            "maximum": 240.0,
+            "minimum": 0.0,
+            "title": "Latearrivalgraceminutes"
+          },
+          "earlyExitGraceMinutes": {
+            "type": "integer",
+            "maximum": 240.0,
+            "minimum": 0.0,
+            "title": "Earlyexitgraceminutes"
+          },
+          "otAfterHours": {
+            "type": "number",
+            "maximum": 24.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Otafterhours"
+          },
+          "otApprovalRequired": {
+            "type": "boolean",
+            "title": "Otapprovalrequired"
+          },
+          "weeklyOffDays": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "MON",
+                "TUE",
+                "WED",
+                "THU",
+                "FRI",
+                "SAT",
+                "SUN"
+              ]
+            },
+            "type": "array",
+            "title": "Weeklyoffdays"
+          },
+          "weeklyOffAppliesTo": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Weeklyoffappliesto",
+            "default": "All Employees"
+          },
+          "autoAttendanceEnabled": {
+            "type": "boolean",
+            "title": "Autoattendanceenabled"
+          },
+          "manualAttendanceEnabled": {
+            "type": "boolean",
+            "title": "Manualattendanceenabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "standardWorkHours",
+          "workingDaysPerWeek",
+          "lateArrivalGraceMinutes",
+          "earlyExitGraceMinutes",
+          "otAfterHours",
+          "otApprovalRequired",
+          "weeklyOffDays",
+          "autoAttendanceEnabled",
+          "manualAttendanceEnabled"
+        ],
+        "title": "AttendanceRulesWrite"
       },
       "AttendanceSummaryOut": {
         "properties": {
@@ -55096,6 +57233,21 @@
             },
             "type": "array",
             "title": "Recentpunches"
+          },
+          "integrationStatus": {
+            "type": "string",
+            "enum": [
+              "Ready",
+              "Disabled",
+              "Blocked"
+            ],
+            "title": "Integrationstatus",
+            "default": "Disabled"
+          },
+          "integrationMessage": {
+            "type": "string",
+            "title": "Integrationmessage",
+            "default": ""
           }
         },
         "type": "object",
@@ -55108,7 +57260,9 @@
           "syncFailures",
           "deviceStatus",
           "punchTrend",
-          "recentPunches"
+          "recentPunches",
+          "integrationStatus",
+          "integrationMessage"
         ],
         "title": "BiometricDashboardOut"
       },
@@ -63544,6 +65698,225 @@
         "title": "Dashboard",
         "description": "Sections the user's permissions allow; a missing section is None."
       },
+      "DashboardDepartmentRowOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          },
+          "employees": {
+            "type": "integer",
+            "title": "Employees"
+          },
+          "present": {
+            "type": "integer",
+            "title": "Present"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "attendancePct": {
+            "type": "number",
+            "title": "Attendancepct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "department",
+          "employees",
+          "present",
+          "absent",
+          "attendancePct"
+        ],
+        "title": "DashboardDepartmentRowOut"
+      },
+      "DashboardExceptionItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "tone": {
+            "type": "string",
+            "title": "Tone"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon"
+          },
+          "route": {
+            "type": "string",
+            "title": "Route"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "count",
+          "tone",
+          "icon",
+          "route"
+        ],
+        "title": "DashboardExceptionItemOut"
+      },
+      "DashboardKpiOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "present": {
+            "type": "integer",
+            "title": "Present"
+          },
+          "presentPct": {
+            "type": "number",
+            "title": "Presentpct"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "absentPct": {
+            "type": "number",
+            "title": "Absentpct"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "latePct": {
+            "type": "number",
+            "title": "Latepct"
+          },
+          "earlyExit": {
+            "type": "integer",
+            "title": "Earlyexit"
+          },
+          "earlyExitPct": {
+            "type": "number",
+            "title": "Earlyexitpct"
+          },
+          "shortHours": {
+            "type": "integer",
+            "title": "Shorthours"
+          },
+          "shortHoursPct": {
+            "type": "number",
+            "title": "Shorthourspct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "present",
+          "presentPct",
+          "absent",
+          "absentPct",
+          "late",
+          "latePct",
+          "earlyExit",
+          "earlyExitPct",
+          "shortHours",
+          "shortHoursPct"
+        ],
+        "title": "DashboardKpiOut"
+      },
+      "DashboardOverviewSliceOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "percent": {
+            "type": "number",
+            "title": "Percent"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "count",
+          "percent",
+          "color"
+        ],
+        "title": "DashboardOverviewSliceOut"
+      },
+      "DashboardQuickActionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon"
+          },
+          "route": {
+            "type": "string",
+            "title": "Route"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "icon",
+          "route"
+        ],
+        "title": "DashboardQuickActionOut"
+      },
+      "DashboardTrendPointOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "percent": {
+            "type": "number",
+            "title": "Percent"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "percent",
+          "date"
+        ],
+        "title": "DashboardTrendPointOut"
+      },
       "DashboardVisit": {
         "properties": {
           "serviceCallId": {
@@ -68821,6 +71194,349 @@
           "name"
         ],
         "title": "FilterOption"
+      },
+      "FinalizationChecklistItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "done",
+          "detail"
+        ],
+        "title": "FinalizationChecklistItemOut"
+      },
+      "FinalizationGroupRowOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employees": {
+            "type": "integer",
+            "title": "Employees"
+          },
+          "present": {
+            "type": "integer",
+            "title": "Present"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "leave": {
+            "type": "integer",
+            "title": "Leave"
+          },
+          "exceptions": {
+            "type": "integer",
+            "title": "Exceptions"
+          },
+          "pendingRegularization": {
+            "type": "integer",
+            "title": "Pendingregularization"
+          },
+          "readiness": {
+            "type": "integer",
+            "title": "Readiness"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Ready",
+              "Review",
+              "Pending"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "employees",
+          "present",
+          "absent",
+          "leave",
+          "exceptions",
+          "pendingRegularization",
+          "readiness",
+          "status"
+        ],
+        "title": "FinalizationGroupRowOut"
+      },
+      "FinalizationKpiOut": {
+        "properties": {
+          "totalEmployees": {
+            "type": "integer",
+            "title": "Totalemployees"
+          },
+          "attendanceReady": {
+            "type": "integer",
+            "title": "Attendanceready"
+          },
+          "withExceptions": {
+            "type": "integer",
+            "title": "Withexceptions"
+          },
+          "pendingRegularization": {
+            "type": "integer",
+            "title": "Pendingregularization"
+          },
+          "finalized": {
+            "type": "integer",
+            "title": "Finalized"
+          }
+        },
+        "type": "object",
+        "required": [
+          "totalEmployees",
+          "attendanceReady",
+          "withExceptions",
+          "pendingRegularization",
+          "finalized"
+        ],
+        "title": "FinalizationKpiOut"
+      },
+      "FinalizationLockOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "monthLabel": {
+            "type": "string",
+            "title": "Monthlabel"
+          },
+          "isFinalized": {
+            "type": "boolean",
+            "title": "Isfinalized"
+          },
+          "finalizedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalizedat"
+          },
+          "finalizedByUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalizedbyuserid"
+          },
+          "employeeCount": {
+            "type": "integer",
+            "title": "Employeecount"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "persistedDays": {
+            "type": "integer",
+            "title": "Persisteddays",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "monthLabel",
+          "isFinalized",
+          "finalizedAt",
+          "finalizedByUserId",
+          "employeeCount",
+          "message",
+          "persistedDays"
+        ],
+        "title": "FinalizationLockOut"
+      },
+      "FinalizationPageOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "groupBy": {
+            "type": "string",
+            "enum": [
+              "department",
+              "location"
+            ],
+            "title": "Groupby"
+          },
+          "kpi": {
+            "$ref": "#/components/schemas/FinalizationKpiOut"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/FinalizationSummaryOut"
+          },
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/FinalizationChecklistItemOut"
+            },
+            "type": "array",
+            "title": "Checklist"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/FinalizationGroupRowOut"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "canFinalize": {
+            "type": "boolean",
+            "title": "Canfinalize"
+          },
+          "isFinalized": {
+            "type": "boolean",
+            "title": "Isfinalized"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "groupBy",
+          "kpi",
+          "summary",
+          "checklist",
+          "groups",
+          "canFinalize",
+          "isFinalized"
+        ],
+        "title": "FinalizationPageOut"
+      },
+      "FinalizationSummaryOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "monthLabel": {
+            "type": "string",
+            "title": "Monthlabel"
+          },
+          "totalEmployees": {
+            "type": "integer",
+            "title": "Totalemployees"
+          },
+          "attendanceReady": {
+            "type": "integer",
+            "title": "Attendanceready"
+          },
+          "attendanceReadyPct": {
+            "type": "number",
+            "title": "Attendancereadypct"
+          },
+          "withExceptions": {
+            "type": "integer",
+            "title": "Withexceptions"
+          },
+          "withExceptionsPct": {
+            "type": "number",
+            "title": "Withexceptionspct"
+          },
+          "pendingRegularization": {
+            "type": "integer",
+            "title": "Pendingregularization"
+          },
+          "pendingRegularizationPct": {
+            "type": "number",
+            "title": "Pendingregularizationpct"
+          },
+          "isFinalized": {
+            "type": "boolean",
+            "title": "Isfinalized"
+          },
+          "finalizedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalizedat"
+          },
+          "finalizedByUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalizedbyuserid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "monthLabel",
+          "totalEmployees",
+          "attendanceReady",
+          "attendanceReadyPct",
+          "withExceptions",
+          "withExceptionsPct",
+          "pendingRegularization",
+          "pendingRegularizationPct",
+          "isFinalized",
+          "finalizedAt",
+          "finalizedByUserId"
+        ],
+        "title": "FinalizationSummaryOut"
       },
       "GpsBatchInput": {
         "properties": {
@@ -75280,6 +77996,45 @@
         ],
         "title": "LeaveTypeWrite"
       },
+      "LeaveYearOut": {
+        "properties": {
+          "yearBasis": {
+            "type": "string",
+            "enum": [
+              "FINANCIAL",
+              "CALENDAR"
+            ],
+            "title": "Yearbasis"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Startdate"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Enddate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "yearBasis",
+          "year",
+          "label",
+          "startDate",
+          "endDate"
+        ],
+        "title": "LeaveYearOut"
+      },
       "LocationCreate": {
         "properties": {
           "branchId": {
@@ -77147,6 +79902,194 @@
         ],
         "title": "MineApprovalStep",
         "description": "One step on the approval timeline for a submitted request."
+      },
+      "MineAttendanceDayOut": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Present",
+              "Late",
+              "Missing Punch",
+              "Absent",
+              "On Leave",
+              "Off Day",
+              "Holiday"
+            ],
+            "title": "Status"
+          },
+          "firstIn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstin"
+          },
+          "lastOut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastout"
+          },
+          "workingHours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workinghours"
+          },
+          "shift": {
+            "type": "string",
+            "title": "Shift"
+          },
+          "remarks": {
+            "type": "string",
+            "title": "Remarks",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "status",
+          "firstIn",
+          "lastOut",
+          "workingHours",
+          "shift",
+          "remarks"
+        ],
+        "title": "MineAttendanceDayOut"
+      },
+      "MineAttendancePageOut": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "monthLabel": {
+            "type": "string",
+            "title": "Monthlabel"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MineAttendanceSummaryOut"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MineAttendanceDayOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "regularizations": {
+            "items": {
+              "$ref": "#/components/schemas/RegularizationRowOut"
+            },
+            "type": "array",
+            "title": "Regularizations",
+            "default": []
+          },
+          "isMonthFinalized": {
+            "type": "boolean",
+            "title": "Ismonthfinalized"
+          },
+          "canRegularize": {
+            "type": "boolean",
+            "title": "Canregularize",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "year",
+          "month",
+          "monthLabel",
+          "summary",
+          "items",
+          "regularizations",
+          "isMonthFinalized",
+          "canRegularize"
+        ],
+        "title": "MineAttendancePageOut"
+      },
+      "MineAttendanceSummaryOut": {
+        "properties": {
+          "present": {
+            "type": "integer",
+            "title": "Present"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "onLeave": {
+            "type": "integer",
+            "title": "Onleave"
+          },
+          "offDay": {
+            "type": "integer",
+            "title": "Offday"
+          },
+          "holiday": {
+            "type": "integer",
+            "title": "Holiday"
+          },
+          "missingPunch": {
+            "type": "integer",
+            "title": "Missingpunch"
+          }
+        },
+        "type": "object",
+        "required": [
+          "present",
+          "late",
+          "absent",
+          "onLeave",
+          "offDay",
+          "holiday",
+          "missingPunch"
+        ],
+        "title": "MineAttendanceSummaryOut"
       },
       "MineBalances": {
         "properties": {
@@ -89002,6 +91945,23 @@
               }
             ],
             "title": "Remark"
+          },
+          "resolvedStatus": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Present",
+                  "Absent",
+                  "Half day",
+                  "On duty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolvedstatus"
           }
         },
         "additionalProperties": false,
@@ -95808,6 +98768,445 @@
           "maxPendingCalls"
         ],
         "title": "ServiceSettingsUpdate"
+      },
+      "ShiftAssignmentEmployeeOption": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeCode",
+          "employeeName",
+          "department"
+        ],
+        "title": "ShiftAssignmentEmployeeOption"
+      },
+      "ShiftAssignmentItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          },
+          "shiftId": {
+            "type": "integer",
+            "title": "Shiftid"
+          },
+          "shiftCode": {
+            "type": "string",
+            "title": "Shiftcode"
+          },
+          "shiftName": {
+            "type": "string",
+            "title": "Shiftname"
+          },
+          "weeklyOffDays": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "MON",
+                "TUE",
+                "WED",
+                "THU",
+                "FRI",
+                "SAT",
+                "SUN"
+              ]
+            },
+            "type": "array",
+            "title": "Weeklyoffdays"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Fromdate"
+          },
+          "toDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todate"
+          },
+          "isCurrent": {
+            "type": "boolean",
+            "title": "Iscurrent"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "department",
+          "shiftId",
+          "shiftCode",
+          "shiftName",
+          "weeklyOffDays",
+          "fromDate",
+          "toDate",
+          "isCurrent",
+          "isActive",
+          "rowVersion"
+        ],
+        "title": "ShiftAssignmentItem"
+      },
+      "ShiftAssignmentOptions": {
+        "properties": {
+          "employees": {
+            "items": {
+              "$ref": "#/components/schemas/ShiftAssignmentEmployeeOption"
+            },
+            "type": "array",
+            "title": "Employees"
+          },
+          "shifts": {
+            "items": {
+              "$ref": "#/components/schemas/ShiftItem"
+            },
+            "type": "array",
+            "title": "Shifts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employees",
+          "shifts"
+        ],
+        "title": "ShiftAssignmentOptions"
+      },
+      "ShiftAssignmentPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShiftAssignmentItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "ShiftAssignmentPage"
+      },
+      "ShiftAssignmentWrite": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Employeeid"
+          },
+          "shiftId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Shiftid"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Fromdate"
+          },
+          "toDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todate"
+          },
+          "weeklyOffDays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "MON",
+                    "TUE",
+                    "WED",
+                    "THU",
+                    "FRI",
+                    "SAT",
+                    "SUN"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weeklyoffdays"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "employeeId",
+          "shiftId",
+          "fromDate"
+        ],
+        "title": "ShiftAssignmentWrite"
+      },
+      "ShiftItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "time",
+            "title": "Starttime"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "time",
+            "title": "Endtime"
+          },
+          "workHours": {
+            "type": "string",
+            "title": "Workhours"
+          },
+          "graceMinutes": {
+            "type": "integer",
+            "title": "Graceminutes"
+          },
+          "halfDayHours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Halfdayhours"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "isOvernight": {
+            "type": "boolean",
+            "title": "Isovernight"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "startTime",
+          "endTime",
+          "workHours",
+          "graceMinutes",
+          "halfDayHours",
+          "isActive",
+          "isOvernight",
+          "rowVersion"
+        ],
+        "title": "ShiftItem"
+      },
+      "ShiftPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShiftItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ShiftSummary"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "summary",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "ShiftPage"
+      },
+      "ShiftSummary": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "inactive": {
+            "type": "integer",
+            "title": "Inactive"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "active",
+          "inactive"
+        ],
+        "title": "ShiftSummary"
+      },
+      "ShiftWrite": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "time",
+            "title": "Starttime"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "time",
+            "title": "Endtime"
+          },
+          "graceMinutes": {
+            "type": "integer",
+            "maximum": 240.0,
+            "minimum": 0.0,
+            "title": "Graceminutes",
+            "default": 10
+          },
+          "halfDayHours": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 24.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Halfdayhours"
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "startTime",
+          "endTime"
+        ],
+        "title": "ShiftWrite"
       },
       "StartTripInput": {
         "properties": {

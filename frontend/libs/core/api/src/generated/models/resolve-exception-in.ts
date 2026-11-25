@@ -3,4 +3,5 @@
 
 export interface ResolveExceptionIn {
   remark?: (string | null);
+  resolvedStatus?: ('Present' | 'Absent' | 'Half day' | 'On duty' | null);
 }

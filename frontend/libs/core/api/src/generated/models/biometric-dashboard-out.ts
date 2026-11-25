@@ -6,6 +6,8 @@ import { DeviceStatusCounts } from '../models/device-status-counts';
 import { PunchTrendPoint } from '../models/punch-trend-point';
 export interface BiometricDashboardOut {
   deviceStatus: DeviceStatusCounts;
+  integrationMessage: string;
+  integrationStatus: 'Ready' | 'Disabled' | 'Blocked';
   lastSyncAt: (string | null);
   lastSyncStatus: ('Pending' | 'Running' | 'Success' | 'Failed' | 'Skipped' | null);
   mappedEmployees: number;
