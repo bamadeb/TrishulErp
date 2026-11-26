@@ -4,6 +4,7 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy import Select, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from trishul_api.auth import CurrentUser
@@ -22,6 +23,7 @@ from trishul_api.db.models import (
     Department,
     Designation,
     Employee,
+    NumberSeries,
 )
 from trishul_api.modules.core.complaints import alerts
 from trishul_api.modules.core.complaints.access import ComplaintAccess, complaint_access
@@ -48,6 +50,8 @@ from trishul_api.modules.core.complaints.schemas import (
 
 ENTITY_TYPE = "core.complaint"
 DOCUMENT_TYPE = "COMPLAINT"
+SERIES_SUFFIX = "/CMP/"
+"""A branch's complaint numbers: <branch code>/CMP/00001, as migration 0048 set them up."""
 DEFAULT_ISSUE_TYPE = "Other"
 DEFAULT_ISSUE_TYPE_DESCRIPTION = "Anything not covered by the other issue types"
 
@@ -170,6 +174,7 @@ class ComplaintService:
             )
         company_id, branch_id = self._raiser_company()
         now = _now()
+        self._ensure_series(company_id, branch_id, now)
         complaint = Complaint(
             company_id=company_id,
             complaint_no=next_document_no(
@@ -211,6 +216,44 @@ class ComplaintService:
         )
         self._db.commit()
         return self.get(complaint.id)
+
+    def _ensure_series(self, company_id: int, branch_id: int, now: datetime) -> None:
+        """A branch added after migration 0048 has no COMPLAINT series: create it on its first complaint, in the
+        format the migration used (<branch code>/CMP/00001). A branch that has any COMPLAINT row, even an
+        inactive one an administrator switched off, is left alone. Two first complaints at once: the unique
+        index on the series lets one insert win, and the other simply uses that series."""
+        exists = self._db.scalar(
+            select(NumberSeries.id)
+            .where(
+                NumberSeries.branch_id == branch_id,
+                NumberSeries.document_type == DOCUMENT_TYPE,
+                NumberSeries.principal_id.is_(None),
+                NumberSeries.fiscal_year_id.is_(None),
+            )
+            .limit(1)
+        )
+        if exists is not None:
+            return
+        branch = self._db.get(Branch, branch_id)
+        if branch is None:
+            return
+        try:
+            with self._db.begin_nested():
+                self._db.add(
+                    NumberSeries(
+                        company_id=company_id,
+                        branch_id=branch_id,
+                        document_type=DOCUMENT_TYPE,
+                        prefix=f"{branch.code[:15]}{SERIES_SUFFIX}",
+                        next_number=1,
+                        padding=5,
+                        is_active=True,
+                        created_at=now,
+                        created_by_user_id=self._user.id,
+                    )
+                )
+        except IntegrityError:
+            pass  # created by a complaint raised at the same moment
 
     def _raiser_company(self) -> tuple[int, int]:
         """The company and branch the complaint belongs to (its number comes from the branch's series): the
