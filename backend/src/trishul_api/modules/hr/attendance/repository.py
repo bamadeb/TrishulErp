@@ -581,10 +581,47 @@ class AttendanceRepository:
             returned = ended + _IST_OFFSET if ended is not None else None
             visits.setdefault(int(employee_id), []).append(OfficialVisit(departed, returned))
 
-        regs = self.list_regularizations(start=day, end=day)
-        for reg, employee, _attendance in regs:
-            if reg.status != "Approved":
+        self._add_regularization_visits(visits, self.list_regularizations(start=day, end=day))
+        return visits
+
+    def official_visits_between(
+        self, start: date, end: date
+    ) -> dict[date, dict[int, list[OfficialVisit]]]:
+        """One trip query and one regularization query for the whole range.
+
+        Same rules as ``official_visits_on``, grouped by attendance date so a month
+        view does not repeat those queries for every day.
+        """
+        by_day: dict[date, dict[int, list[OfficialVisit]]] = {}
+        window_start = datetime.combine(start, time.min) - _IST_OFFSET
+        window_end = datetime.combine(end, time.max) - _IST_OFFSET
+        trips = self._db.execute(
+            select(TrkTrip.employee_id, TrkTrip.start_at, TrkTrip.end_at)
+            .where(TrkTrip.is_active == True)  # noqa: E712
+            .where(TrkTrip.start_at >= window_start)
+            .where(TrkTrip.start_at <= window_end)
+        ).all()
+        for employee_id, started, ended in trips:
+            if started is None or employee_id is None:
                 continue
+            departed = started + _IST_OFFSET
+            returned = ended + _IST_OFFSET if ended is not None else None
+            day_visits = by_day.setdefault(departed.date(), {})
+            day_visits.setdefault(int(employee_id), []).append(OfficialVisit(departed, returned))
+        flat: dict[int, list[OfficialVisit]] = {}
+        self._add_regularization_visits(flat, self.list_regularizations(start=start, end=end), by_day)
+        return by_day
+
+    @staticmethod
+    def _add_regularization_visits(
+        visits: dict[int, list[OfficialVisit]],
+        regs: list[tuple[AttendanceRegularization, EmployeeDaySource, Attendance | None]],
+        by_day: dict[date, dict[int, list[OfficialVisit]]] | None = None,
+    ) -> None:
+        for reg, employee, attendance in regs:
+            if reg.status != "Approved" or attendance is None:
+                continue
+            day = attendance.attendance_date
             _kind, requested_in, requested_out, _reason, _rejection = decode_reason(reg.reason)
             left = _clock(day, requested_out)
             back = _clock(day, requested_in)
@@ -593,8 +630,8 @@ class AttendanceRepository:
             # A mid-day window is an official outing. A full-day correction is not.
             if left.time() <= time(9, 30) and back.time() >= time(17, 30):
                 continue
-            visits.setdefault(employee.id, []).append(OfficialVisit(left, back))
-        return visits
+            target = visits if by_day is None else by_day.setdefault(day, {})
+            target.setdefault(employee.id, []).append(OfficialVisit(left, back))
 
 
 def _clock(day: date, value: str | None) -> datetime | None:

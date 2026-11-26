@@ -1,16 +1,21 @@
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   inject,
+  NgZone,
   OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import { MatDatepicker, MatDatepickerInput } from '@angular/material/datepicker';
 import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -23,12 +28,15 @@ import { AuthStore } from '@trishul/core-auth';
 import {
   ATTENDANCE_FINALIZE_PERMISSION,
   AttendanceApi,
+  FinalizationAssignee,
   FinalizationChecklistItem,
+  FinalizationFollowupWrite,
   FinalizationGroupBy,
   FinalizationGroupRow,
   FinalizationKpi,
   FinalizationRowStatus,
   FinalizationSummary,
+  FollowupStatus,
 } from '@trishul/hr-data-access';
 import { PageHeader, confirmAction } from '@trishul/shared-ui';
 import { filter } from 'rxjs';
@@ -62,6 +70,7 @@ const EMPTY_KPI: FinalizationKpi = {
   selector: 'trishul-attendance-finalization-page',
   imports: [
     DecimalPipe,
+    DatePipe,
     FormsModule,
     MatButton,
     MatCheckbox,
@@ -69,6 +78,8 @@ const EMPTY_KPI: FinalizationKpi = {
     MatIcon,
     MatIconButton,
     MatInput,
+    MatDatepicker,
+    MatDatepickerInput,
     MatMenu,
     MatMenuItem,
     MatMenuTrigger,
@@ -79,6 +90,7 @@ const EMPTY_KPI: FinalizationKpi = {
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideNativeDateAdapter()],
   templateUrl: './attendance-finalization.page.html',
   styleUrl: './attendance-finalization.page.scss',
 })
@@ -88,6 +100,9 @@ export class AttendanceFinalizationPage implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  private readonly zone = inject(NgZone);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly picker = viewChild(MatDatepicker);
 
   protected readonly canLockAttendance = this.auth.hasPermission(ATTENDANCE_FINALIZE_PERMISSION);
 
@@ -105,17 +120,25 @@ export class AttendanceFinalizationPage implements OnInit {
   protected readonly loading = signal(false);
   protected readonly error = signal('');
   protected readonly locking = signal(false);
+  protected readonly savingId = signal<string | null>(null);
+  protected readonly reminding = signal(false);
 
   protected readonly kpi = signal<FinalizationKpi>(EMPTY_KPI);
   protected readonly summary = signal<FinalizationSummary | null>(null);
   protected readonly checklist = signal<FinalizationChecklistItem[]>([]);
   protected readonly groups = signal<FinalizationGroupRow[]>([]);
+  protected readonly assignees = signal<FinalizationAssignee[]>([]);
+  protected readonly openItemId = signal<string | null>(null);
+  protected readonly sideTab = signal<'tasks' | 'history'>('tasks');
+  protected readonly drafts = signal<Record<string, FollowupDraft>>({});
   protected readonly canFinalize = signal(false);
   protected readonly isFinalized = signal(false);
 
   protected readonly monthLabel = computed(
     () => `${MONTH_LABELS[this.monthIndex()]!} ${this.year()}`,
   );
+
+  protected readonly pickedMonth = computed(() => new Date(this.year(), this.monthIndex(), 1));
 
   protected readonly groupLabel = computed(() =>
     this.contentTab() === 'department' ? 'Department' : 'Location',
@@ -152,6 +175,27 @@ export class AttendanceFinalizationPage implements OnInit {
     () => this.checklist().filter((item) => item.done).length,
   );
 
+  protected readonly pendingGroups = computed(
+    () => this.groups().filter((row) => row.status === 'Pending').length,
+  );
+
+  protected readonly overallStatus = computed(() => {
+    if (this.isFinalized()) return 'Finalized';
+    if (this.checklist().length > 0 && this.checklist().every((item) => item.done)) return 'Ready';
+    return 'In Progress';
+  });
+
+  protected readonly notificationHistory = computed(() =>
+    this.checklist()
+      .flatMap((item) =>
+        item.reminders.map((entry) => ({
+          ...entry,
+          task: taskTitle(item.id),
+        })),
+      )
+      .sort((left, right) => right.id - left.id),
+  );
+
   ngOnInit(): void {
     this.reload();
   }
@@ -169,6 +213,19 @@ export class AttendanceFinalizationPage implements OnInit {
     const date = new Date(this.year(), this.monthIndex() + delta, 1);
     this.year.set(date.getFullYear());
     this.monthIndex.set(date.getMonth());
+    this.selectedIds.set(new Set());
+    this.reload();
+  }
+
+  protected openPicker(): void {
+    this.picker()?.open();
+  }
+
+  protected onMonthPicked(value: Date, picker: MatDatepicker<Date>): void {
+    picker.close();
+    if (value.getFullYear() === this.year() && value.getMonth() === this.monthIndex()) return;
+    this.year.set(value.getFullYear());
+    this.monthIndex.set(value.getMonth());
     this.selectedIds.set(new Set());
     this.reload();
   }
@@ -324,6 +381,174 @@ export class AttendanceFinalizationPage implements OnInit {
       });
   }
 
+  protected followupClass(status: FollowupStatus): string {
+    return `followup ${status.toLowerCase().replace(' ', '-')}`;
+  }
+
+  protected taskTitle(id: string): string {
+    return taskTitle(id);
+  }
+
+  protected ownerText(item: FinalizationChecklistItem): string {
+    if (item.ownerName) return item.ownerName;
+    switch (item.id) {
+      case 'exceptions':
+        return 'HR Attendance Officer';
+      case 'regularization':
+        return 'Reporting Managers';
+      case 'ready':
+        return 'Department Heads';
+      case 'pending':
+        return 'HR / Responsible Manager';
+      default:
+        return '';
+    }
+  }
+
+  protected openLabel(id: string): string {
+    switch (id) {
+      case 'exceptions':
+        return 'Open Exceptions';
+      case 'regularization':
+        return 'Open Requests';
+      case 'ready':
+        return 'Open Departments';
+      case 'pending':
+        return 'View Missing Data';
+      default:
+        return 'Open';
+    }
+  }
+
+  protected taskCount(item: FinalizationChecklistItem): number | null {
+    if (item.done) return null;
+    if (item.id === 'exceptions') return this.kpi().withExceptions;
+    if (item.id === 'regularization') return this.kpi().pendingRegularization;
+    if (item.id === 'ready') return this.groups().filter((row) => row.status !== 'Ready').length;
+    return null;
+  }
+
+  protected dueText(item: FinalizationChecklistItem): string {
+    if (item.done) return '';
+    return formatDue(item.dueDate || this.defaultDue());
+  }
+
+  protected alertState(item: FinalizationChecklistItem): 'sent' | 'failed' | null {
+    if (item.reminders.some((entry) => entry.status === 'Sent')) return 'sent';
+    if (item.reminders.some((entry) => entry.status === 'Failed')) return 'failed';
+    return null;
+  }
+
+  private defaultDue(): string {
+    const today = new Date();
+    const inViewedMonth =
+      today.getFullYear() === this.year() && today.getMonth() === this.monthIndex();
+    const due = inViewedMonth ? today : new Date(this.year(), this.monthIndex() + 1, 0);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}`;
+  }
+
+  protected toggleItem(id: string): void {
+    this.openItemId.update((current) => (current === id ? null : id));
+  }
+
+  protected draft(id: string): FollowupDraft {
+    return this.drafts()[id] ?? { ownerUserId: null, dueDate: '', comment: '' };
+  }
+
+  protected patchDraft(id: string, patch: Partial<FollowupDraft>): void {
+    this.drafts.update((current) => ({
+      ...current,
+      [id]: {
+        ...(current[id] ?? { ownerUserId: null, dueDate: '', comment: '' }),
+        ...patch,
+      },
+    }));
+  }
+
+  protected openModule(item: FinalizationChecklistItem): void {
+    if (!item.route) return;
+    const year = this.year();
+    const month = this.monthIndex() + 1;
+    const last = new Date(year, month, 0).getDate();
+    const pad = (value: number) => String(value).padStart(2, '0');
+    void this.router.navigate([item.route], {
+      queryParams: {
+        year,
+        month,
+        from: `${year}-${pad(month)}-01`,
+        to: `${year}-${pad(month)}-${pad(last)}`,
+      },
+    });
+  }
+
+  protected saveFollowup(item: FinalizationChecklistItem): void {
+    const draft = this.draft(item.id);
+    const body: FinalizationFollowupWrite = {
+      year: this.year(),
+      month: this.monthIndex() + 1,
+      checklistId: item.id,
+      ownerUserId: draft.ownerUserId,
+      dueDate: draft.dueDate || null,
+      comment: draft.comment,
+    };
+    this.savingId.set(item.id);
+    this.api.saveFinalizationFollowup(body).subscribe({
+      next: (updated) => {
+        this.zone.run(() => {
+          this.checklist.update((items) => items.map((entry) => (entry.id === updated.id ? updated : entry)));
+          this.savingId.set(null);
+          this.snackBar.open('Follow-up saved. Checklist completion still comes from attendance records.', 'OK', {
+            duration: 2800,
+          });
+          this.cdr.markForCheck();
+        });
+      },
+      error: (err: unknown) => {
+        this.zone.run(() => {
+          this.savingId.set(null);
+          this.snackBar.open(problem(err, 'Could not save the follow-up.'), 'OK', { duration: 4000 });
+          this.cdr.markForCheck();
+        });
+      },
+    });
+  }
+
+  protected remind(item?: FinalizationChecklistItem): void {
+    const label = item ? item.label : 'every open checklist item';
+    confirmAction(this.dialog, {
+      title: item ? 'Send reminder?' : 'Remind all open items?',
+      message: `This records a reminder for ${label}. It does not approve requests or resolve exceptions. A reminder already recorded today for the same person is skipped.`,
+      confirmText: item ? 'Send Reminder' : 'Remind All',
+    })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        this.reminding.set(true);
+        this.api
+          .remindFinalization({
+            year: this.year(),
+            month: this.monthIndex() + 1,
+            checklistId: item?.id ?? null,
+          })
+          .subscribe({
+            next: (result) => {
+              this.zone.run(() => {
+                this.reminding.set(false);
+                this.snackBar.open(result.message, 'OK', { duration: 4500 });
+                this.reload();
+              });
+            },
+            error: (err: unknown) => {
+              this.zone.run(() => {
+                this.reminding.set(false);
+                this.snackBar.open(problem(err, 'Could not send reminders.'), 'OK', { duration: 4000 });
+                this.cdr.markForCheck();
+              });
+            },
+          });
+      });
+  }
+
   protected statusClass(status: FinalizationRowStatus): string {
     switch (status) {
       case 'Ready':
@@ -365,26 +590,82 @@ export class AttendanceFinalizationPage implements OnInit {
       })
       .subscribe({
         next: (page) => {
-          this.kpi.set(page.kpi);
-          this.summary.set(page.summary);
-          this.checklist.set(page.checklist);
-          this.groups.set(page.groups);
-          this.canFinalize.set(page.canFinalize);
-          this.isFinalized.set(page.isFinalized);
-          this.loading.set(false);
+          this.zone.run(() => {
+            this.kpi.set(page.kpi);
+            this.summary.set(page.summary);
+            this.checklist.set(page.checklist);
+            this.groups.set(page.groups);
+            this.assignees.set(page.assignees ?? []);
+            this.drafts.set(draftsFrom(page.checklist));
+            this.canFinalize.set(page.canFinalize);
+            this.isFinalized.set(page.isFinalized);
+            this.loading.set(false);
+            this.cdr.markForCheck();
+          });
         },
         error: (err: unknown) => {
-          this.loading.set(false);
-          this.kpi.set(EMPTY_KPI);
-          this.summary.set(null);
-          this.checklist.set([]);
-          this.groups.set([]);
-          this.canFinalize.set(false);
-          this.isFinalized.set(false);
-          this.error.set(problem(err, 'Attendance finalization could not be loaded.'));
+          this.zone.run(() => {
+            this.loading.set(false);
+            this.kpi.set(EMPTY_KPI);
+            this.summary.set(null);
+            this.checklist.set([]);
+            this.groups.set([]);
+            this.assignees.set([]);
+            this.drafts.set({});
+            this.canFinalize.set(false);
+            this.isFinalized.set(false);
+            this.error.set(problem(err, 'Attendance finalization could not be loaded.'));
+            this.cdr.markForCheck();
+          });
         },
       });
   }
+}
+
+function taskTitle(id: string): string {
+  switch (id) {
+    case 'processed':
+      return 'Attendance Processing';
+    case 'exceptions':
+      return 'Exception Review';
+    case 'regularization':
+      return 'Regularization Approval';
+    case 'ready':
+      return 'Department Verification';
+    case 'pending':
+      return 'Attendance Data Validation';
+    default:
+      return id;
+  }
+}
+
+function formatDue(iso: string): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  if (!year || !month || !day) return iso;
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day));
+}
+
+function draftsFrom(items: FinalizationChecklistItem[]): Record<string, FollowupDraft> {
+  return Object.fromEntries(
+    items.map((item) => [
+      item.id,
+      {
+        ownerUserId: item.ownerUserId,
+        dueDate: item.dueDate ?? '',
+        comment: item.comment ?? '',
+      },
+    ]),
+  );
+}
+
+interface FollowupDraft {
+  ownerUserId: number | null;
+  dueDate: string;
+  comment: string;
 }
 
 function csv(value: string): string {

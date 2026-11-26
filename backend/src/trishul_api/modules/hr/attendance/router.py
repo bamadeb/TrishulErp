@@ -24,9 +24,13 @@ from trishul_api.modules.hr.attendance.schemas import (
     AttendanceRulesWrite,
     DailyAttendancePageOut,
     DailyAttendanceQuery,
+    FinalizationChecklistItemOut,
+    FinalizationFollowupWrite,
     FinalizationLockOut,
     FinalizationPageOut,
     FinalizationQuery,
+    FinalizationRemindResult,
+    FinalizationRemindWrite,
     LeaveYearOut,
     MineAttendancePageOut,
     MonthlyMusterPageOut,
@@ -37,6 +41,8 @@ from trishul_api.modules.hr.attendance.schemas import (
     RegularizationQuery,
     RegularizationRowOut,
     ResolveExceptionIn,
+    ShiftAssignmentBulkResult,
+    ShiftAssignmentBulkWrite,
     ShiftAssignmentItem,
     ShiftAssignmentListQuery,
     ShiftAssignmentOptions,
@@ -392,6 +398,17 @@ def create_shift_assignment(
     return rules.create_assignment(actor, data)
 
 
+@router.post(
+    "/shift-assignments/bulk",
+    summary="Assign one shift to selected employees or every active employee",
+    dependencies=[CAN_MANAGE_SHIFTS],
+)
+def create_shift_assignments(
+    data: ShiftAssignmentBulkWrite, actor: CurrentUserDep, rules: Rules
+) -> ShiftAssignmentBulkResult:
+    return rules.assign_many(actor, data)
+
+
 @router.patch(
     "/shift-assignments/{assignmentId}",
     summary="Update a shift assignment",
@@ -443,3 +460,28 @@ def lock_attendance_finalization(
     month: Annotated[int, Query(ge=1, le=12)],
 ) -> FinalizationLockOut:
     return finalization.finalize(actor, year, month)
+
+
+@router.put(
+    "/finalization/follow-up",
+    summary="Assign an owner, due date and comment on a finalization checklist item",
+    dependencies=[CAN_MANAGE],
+)
+def save_finalization_followup(
+    actor: CurrentUserDep,
+    finalization: Finalization,
+    body: FinalizationFollowupWrite,
+) -> FinalizationChecklistItemOut:
+    return finalization.save_followup(actor, body)
+
+
+@router.post(
+    "/finalization/reminders",
+    summary="Record reminders for open finalization checklist items without resolving them",
+    dependencies=[CAN_MANAGE],
+)
+def remind_finalization(
+    finalization: Finalization,
+    body: FinalizationRemindWrite,
+) -> FinalizationRemindResult:
+    return finalization.remind(body)

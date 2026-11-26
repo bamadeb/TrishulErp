@@ -65,6 +65,8 @@ export interface DailyAttendanceRow {
   workingHours: string | null;
   status: AttendanceStatus;
   remarks: string;
+  lateArrivalMinutes: number | null;
+  earlyExitMinutes: number | null;
   punches: AttendancePunch[];
   history: AttendanceHistoryItem[];
 }
@@ -302,6 +304,14 @@ export class AttendanceApi {
     return this.http.post<FinalizationLockResult>(`${this.base}/finalization/lock`, {}, { params });
   }
 
+  saveFinalizationFollowup(body: FinalizationFollowupWrite): Observable<FinalizationChecklistItem> {
+    return this.http.put<FinalizationChecklistItem>(`${this.base}/finalization/follow-up`, body);
+  }
+
+  remindFinalization(body: FinalizationRemindWrite): Observable<FinalizationRemindResult> {
+    return this.http.post<FinalizationRemindResult>(`${this.base}/finalization/reminders`, body);
+  }
+
   getRules(): Observable<AttendanceRules> {
     return this.http.get<AttendanceRules>(`${this.base}/rules`);
   }
@@ -331,6 +341,10 @@ export class AttendanceApi {
 
   createShiftAssignment(body: ShiftAssignmentWrite): Observable<ShiftAssignmentItem> {
     return this.http.post<ShiftAssignmentItem>(`${this.base}/shift-assignments`, body);
+  }
+
+  assignShiftToEmployees(body: ShiftAssignmentBulkWrite): Observable<ShiftAssignmentBulkResult> {
+    return this.http.post<ShiftAssignmentBulkResult>(`${this.base}/shift-assignments/bulk`, body);
   }
 
   updateShiftAssignment(
@@ -631,6 +645,7 @@ export interface AttendanceRulesWrite {
   workingDaysPerWeek: number;
   lateArrivalGraceMinutes: number;
   earlyExitGraceMinutes: number;
+  graceDaysPerMonth: number;
   otAfterHours: number;
   otApprovalRequired: boolean;
   weeklyOffDays: WeekdayCode[];
@@ -671,6 +686,19 @@ export interface ShiftAssignmentWrite {
   toDate?: string | null;
   weeklyOffDays?: WeekdayCode[] | null;
   isActive: boolean;
+}
+
+export interface ShiftAssignmentBulkWrite {
+  shiftId: number;
+  fromDate: string;
+  toDate?: string | null;
+  weeklyOffDays?: WeekdayCode[] | null;
+  allEmployees: boolean;
+  employeeIds: number[];
+}
+
+export interface ShiftAssignmentBulkResult {
+  assigned: number;
 }
 
 export interface ShiftAssignmentPage {
@@ -719,6 +747,30 @@ export interface AttendanceHolidayPage {
 
 export type FinalizationGroupBy = 'department' | 'location';
 export type FinalizationRowStatus = 'Ready' | 'Review' | 'Pending';
+export type FollowupStatus = 'Pending' | 'In Progress' | 'Completed' | 'Overdue';
+
+export interface FinalizationTarget {
+  employeeId: number;
+  employeeCode: string;
+  employeeName: string;
+  detail: string;
+  recipientUserId: number | null;
+  recipientName: string;
+}
+
+export interface FinalizationReminder {
+  id: number;
+  sentAt: string | null;
+  recipientName: string;
+  status: string;
+  errorMessage: string | null;
+  message: string;
+}
+
+export interface FinalizationAssignee {
+  userId: number;
+  name: string;
+}
 
 export interface FinalizationQuery {
   year: number;
@@ -755,6 +807,14 @@ export interface FinalizationChecklistItem {
   label: string;
   done: boolean;
   detail: string;
+  route: string;
+  status: FollowupStatus;
+  ownerUserId: number | null;
+  ownerName: string;
+  dueDate: string | null;
+  comment: string;
+  targets: FinalizationTarget[];
+  reminders: FinalizationReminder[];
 }
 
 export interface FinalizationGroupRow {
@@ -778,8 +838,31 @@ export interface FinalizationPage {
   summary: FinalizationSummary;
   checklist: FinalizationChecklistItem[];
   groups: FinalizationGroupRow[];
+  assignees: FinalizationAssignee[];
   canFinalize: boolean;
   isFinalized: boolean;
+}
+
+export interface FinalizationFollowupWrite {
+  year: number;
+  month: number;
+  checklistId: string;
+  ownerUserId: number | null;
+  dueDate: string | null;
+  comment: string;
+}
+
+export interface FinalizationRemindWrite {
+  year: number;
+  month: number;
+  checklistId?: string | null;
+}
+
+export interface FinalizationRemindResult {
+  sent: number;
+  skipped: number;
+  failed: number;
+  message: string;
 }
 
 export interface FinalizationLockResult {

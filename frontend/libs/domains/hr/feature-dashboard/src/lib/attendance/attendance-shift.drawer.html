@@ -1,0 +1,59 @@
+<aside class="drawer" aria-label="Shift details">
+  <header>
+    <strong class="heading">Shift Details</strong>
+    <button mat-icon-button type="button" aria-label="Close shift details" (click)="closed.emit()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  @if (loading()) {
+    <p class="state">Loading shift…</p>
+  } @else if (error()) {
+    <p class="state">{{ error() }}</p>
+  } @else if (shift(); as item) {
+    <div class="profile">
+      <strong>{{ item.name }}</strong>
+      <small>{{ item.code }}</small>
+      <span class="badge" [class.off]="!item.isActive">{{ item.isActive ? 'Active' : 'Inactive' }}</span>
+    </div>
+
+    <dl>
+      <div><dt>Start</dt><dd>{{ clock(item.startTime) }}</dd></div>
+      <div><dt>End</dt><dd>{{ clock(item.endTime) }}</dd></div>
+      <div><dt>Break</dt><dd>{{ breakLabel() }}</dd></div>
+      <div><dt>Net hours</dt><dd>{{ netHours() }}</dd></div>
+      <div><dt>Overnight</dt><dd>{{ item.isOvernight ? 'Yes' : 'No' }}</dd></div>
+      <div><dt>Assigned</dt><dd>{{ assignedCount() }}</dd></div>
+    </dl>
+
+    <section class="assignment">
+      <h3>This employee</h3>
+      @if (employeeName()) {
+        <p class="who">{{ employeeName() }}</p>
+      }
+      @if (assignment(); as row) {
+        <dl>
+          <div><dt>From</dt><dd>{{ dateLabel(row.fromDate) }}</dd></div>
+          <div><dt>To</dt><dd>{{ dateLabel(row.toDate) }}</dd></div>
+          <div><dt>Status</dt><dd>{{ row.isCurrent ? 'Current' : 'Not current' }}</dd></div>
+          <div>
+            <dt>Weekly off</dt>
+            <dd>{{ row.weeklyOffDays.length ? row.weeklyOffDays.join(', ') : '—' }}</dd>
+          </div>
+        </dl>
+      } @else {
+        <p class="state">No assignment on file for this employee.</p>
+      }
+    </section>
+  }
+
+  <footer>
+    @if (canManage) {
+      <button mat-flat-button color="primary" type="button" (click)="manageShifts()">
+        <mat-icon>schedule</mat-icon>
+        Manage Shifts
+      </button>
+    }
+    <button mat-stroked-button type="button" (click)="closed.emit()">Close</button>
+  </footer>
+</aside>

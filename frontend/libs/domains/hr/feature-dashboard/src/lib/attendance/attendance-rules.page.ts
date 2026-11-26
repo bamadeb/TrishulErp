@@ -222,7 +222,7 @@ export class AttendanceRulesPage implements OnInit {
         tone: 'green',
         items: [
           {
-            label: 'Auto Attendance (Biometric/Device)',
+            label: 'Auto Attendance (App)',
             value: rules.autoAttendanceEnabled ? 'Enabled' : 'Disabled',
             accent: rules.autoAttendanceEnabled ? 'success' : 'neutral',
           },
@@ -367,6 +367,29 @@ export class AttendanceRulesPage implements OnInit {
     });
   }
 
+  protected activateShift(row?: ShiftItem | null): void {
+    if (!this.canManageShifts) return;
+    const target = row ?? this.menuShift();
+    if (!target) return;
+    this.api
+      .updateShift(target.id, target.rowVersion, {
+        code: target.code,
+        name: target.name,
+        startTime: target.startTime,
+        endTime: target.endTime,
+        graceMinutes: target.graceMinutes,
+        halfDayHours: target.halfDayHours,
+        isActive: true,
+      })
+      .subscribe({
+        next: () => {
+          this.snackBar.open('Shift activated.', 'OK', { duration: 2200 });
+          this.reloadShifts();
+        },
+        error: (err: unknown) => this.snackBar.open(problem(err, 'Could not activate shift.'), 'OK', { duration: 3500 }),
+      });
+  }
+
   protected editRules(): void {
     if (!this.canManageRules) return;
     const current = this.rules();
@@ -448,7 +471,7 @@ export class AttendanceRulesPage implements OnInit {
 
   private openShiftDialog(mode: 'add' | 'edit', shift: ShiftItem | null): void {
     this.dialog
-      .open(ShiftFormDialog, { data: { mode, shift }, width: '32rem' })
+      .open(ShiftFormDialog, { data: { mode, shift }, width: '26rem', maxHeight: 'none' })
       .afterClosed()
       .subscribe((body) => {
         if (!body) return;
@@ -485,22 +508,30 @@ export class AttendanceRulesPage implements OnInit {
         },
       })
       .afterClosed()
-      .subscribe((body) => {
-        if (!body) return;
+      .subscribe((result) => {
+        if (!result) return;
+        const done = (message: string) => {
+          this.snackBar.open(message, 'OK', { duration: 2200 });
+          this.reloadAssignments();
+        };
+        const failed = (err: unknown) =>
+          this.snackBar.open(problem(err, 'Could not save assignment.'), 'OK', { duration: 4000 });
+        if (result.kind === 'many') {
+          this.api.assignShiftToEmployees(result.body).subscribe({
+            next: (saved) => done(`Shift assigned to ${saved.assigned} employee(s).`),
+            error: failed,
+          });
+          return;
+        }
         const req =
           mode === 'edit' && assignment
-            ? this.api.updateShiftAssignment(assignment.id, assignment.rowVersion, body)
-            : this.api.createShiftAssignment(body);
+            ? this.api.updateShiftAssignment(assignment.id, assignment.rowVersion, result.body)
+            : this.api.createShiftAssignment(result.body);
         req.subscribe({
-          next: () => {
-            this.snackBar.open(mode === 'edit' ? 'Assignment updated.' : 'Shift assigned.', 'OK', {
-              duration: 2200,
-            });
-            this.reloadAssignments();
-          },
-          error: (err: unknown) =>
-            this.snackBar.open(problem(err, 'Could not save assignment.'), 'OK', { duration: 4000 }),
+          next: () => done(mode === 'edit' ? 'Assignment updated.' : 'Shift assigned.'),
+          error: failed,
         });
+        return;
       });
   }
 

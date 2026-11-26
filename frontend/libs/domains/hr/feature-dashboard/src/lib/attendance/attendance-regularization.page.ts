@@ -29,6 +29,7 @@ import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
+import { ActivatedRoute } from '@angular/router';
 import {
   AttendanceApi,
   RegularizationKpi as ApiRegularizationKpi,
@@ -126,6 +127,7 @@ export class AttendanceRegularizationPage implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   private readonly reload$ = new Subject<void>();
   private readonly search$ = new Subject<string>();
 
@@ -137,7 +139,7 @@ export class AttendanceRegularizationPage implements OnInit {
   protected readonly kpi = signal<RegularizationKpi>(EMPTY_KPI);
 
   private readonly now = new Date();
-  protected readonly contentTab = signal<RegularizationTab>('pending');
+  protected readonly contentTab = signal<RegularizationTab>('all');
   protected readonly search = signal('');
   protected readonly department = signal('');
   protected readonly location = signal('');
@@ -191,7 +193,15 @@ export class AttendanceRegularizationPage implements OnInit {
       )
       .subscribe();
 
+    this.applyRouteRange();
     this.reload$.next();
+  }
+
+  private applyRouteRange(): void {
+    const from = this.route.snapshot.queryParamMap.get('from');
+    const to = this.route.snapshot.queryParamMap.get('to');
+    if (from) this.rangeStart.set(parseIsoDate(from));
+    if (to) this.rangeEnd.set(parseIsoDate(to));
   }
 
   protected setTab(tab: RegularizationTab): void {

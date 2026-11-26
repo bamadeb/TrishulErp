@@ -32,6 +32,10 @@ VECTOR_SIZE = 128
 _DETECT_SCORE = 0.8
 # Large photos are scaled down first: a face needs far fewer pixels than a 12 MP camera gives.
 _MAX_SIDE = 1280
+# YuNet looks for the face on a copy no bigger than this. It is trained on small faces: a close-up whose face
+# is 450+ px wide scores below the 0.85 quality line (a clear selfie at 1280 scored 0.84, the same photo at
+# 640 scored 0.92) and picks up stray low-score "faces". The box is scaled back for the full-size photo.
+_DETECT_MAX_SIDE = 640
 
 FloatVector = NDArray[np.float32]
 
@@ -94,9 +98,18 @@ class OpenCvFaceEngine:
             raise ImageUnreadable("The photo could not be processed.")
         jpeg = encoded.tobytes()
 
+        detect_scale = min(1.0, _DETECT_MAX_SIDE / max(height, width))
+        small = picture
+        if detect_scale < 1.0:
+            size = (round(width * detect_scale), round(height * detect_scale))
+            small = cv2.resize(picture, size, interpolation=cv2.INTER_AREA)
+
         with self._lock:
-            self._detector.setInputSize((width, height))
-            _, faces = self._detector.detect(picture)
+            self._detector.setInputSize((small.shape[1], small.shape[0]))
+            _, faces = self._detector.detect(small)
+            if faces is not None and detect_scale < 1.0:
+                faces = np.array(faces, dtype=np.float32)
+                faces[:, :14] = faces[:, :14] / detect_scale  # box and 5 landmarks, back in full-size pixels
             if faces is None or len(faces) == 0:
                 return FaceAnalysis(0, None, None, None, None, None, jpeg)
             if len(faces) > 1:

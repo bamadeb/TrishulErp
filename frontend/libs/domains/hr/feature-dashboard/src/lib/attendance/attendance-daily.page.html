@@ -1,4 +1,4 @@
-<div class="shell" [class.with-drawer]="!!selected()">
+<div class="shell" [class.with-drawer]="!!selected() || !!shiftFocus()">
   <div class="content">
     <trishul-page-header
       title="Daily Attendance"
@@ -310,9 +310,9 @@
             </tbody>
           </table>
         </div>
-      } @else if (contentTab() !== 'regularization') {
+      } @else {
         <div class="table-wrap">
-          <table>
+          <table class="records">
             <thead>
               <tr>
                 <th class="check">
@@ -327,10 +327,12 @@
                 <th class="name-col">Employee</th>
                 <th>Department</th>
                 <th>Shift</th>
-                <th>In Time</th>
-                <th>Out Time</th>
-                <th>Worked Hours</th>
-                <th>Attendance Status</th>
+                <th class="clock">In Time</th>
+                <th class="clock">Out Time</th>
+                <th class="hours">Worked Hours</th>
+                <th class="status-col">Status</th>
+                <th class="mins">Late Arrival</th>
+                <th class="mins">Early Exit</th>
                 <th class="actions-col">Actions</th>
               </tr>
             </thead>
@@ -350,36 +352,46 @@
                         {{ initials(row.employeeName) }}
                       </span>
                       <span class="who-text">
-                        <button type="button" class="name" (click)="openDetails(row)">
+                        <button type="button" class="name" [title]="row.employeeName" (click)="openDetails(row)">
                           {{ row.employeeName }}
                         </button>
                         <small class="muted">{{ row.employeeCode }}</small>
                       </span>
                     </div>
                   </td>
-                  <td>{{ row.department }}</td>
-                  <td class="shift">{{ row.shift }}</td>
-                  <td>
+                  <td [title]="row.department">{{ row.department }}</td>
+                  <td class="shift">
+                    @if (shiftLabel(row.shift)) {
+                      <button type="button" class="shift-link" (click)="openShift(row)">
+                        {{ shiftLabel(row.shift) }}
+                      </button>
+                    } @else {
+                      <span class="muted">—</span>
+                    }
+                  </td>
+                  <td class="clock">
                     @if (row.firstIn) {
                       <span class="time" [class.late]="row.firstInLate">{{ row.firstIn }}</span>
                     } @else {
                       <span class="muted">—</span>
                     }
                   </td>
-                  <td>
+                  <td class="clock">
                     @if (row.lastOut) {
                       <span class="time">{{ row.lastOut }}</span>
                     } @else {
                       <span class="muted">—</span>
                     }
                   </td>
-                  <td>{{ row.workingHours || '—' }}</td>
-                  <td>
+                  <td class="hours">{{ row.workingHours || '—' }}</td>
+                  <td class="status-col">
                     <span class="status" [attr.data-status]="row.status">
                       <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
                       {{ row.status }}
                     </span>
                   </td>
+                  <td class="mins">{{ minuteLabel(row.lateArrivalMinutes) }}</td>
+                  <td class="mins">{{ minuteLabel(row.earlyExitMinutes) }}</td>
                   <td class="actions">
                     <button
                       mat-icon-button
@@ -403,54 +415,10 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="9">
+                  <td colspan="11">
                     <div class="empty">
                       <mat-icon>event_busy</mat-icon>
                       No attendance records match your filters.
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      } @else {
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th class="name-col">Employee</th>
-                <th>Date</th>
-                <th>Reason</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of pageRequests(); track row.id) {
-                <tr>
-                  <td class="name-col">
-                    <div class="person">
-                      <span class="avatar" [style.background]="row.avatarTone" aria-hidden="true">
-                        {{ initials(row.employeeName) }}
-                      </span>
-                      <span class="who-text">
-                        <span class="name">{{ row.employeeName }}</span>
-                        <small class="muted">{{ row.employeeCode }}</small>
-                      </span>
-                    </div>
-                  </td>
-                  <td>{{ row.date }}</td>
-                  <td>{{ row.reason }}</td>
-                  <td>
-                    <trishul-status-badge [status]="row.status" [severities]="severities" />
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="4">
-                    <div class="empty">
-                      <mat-icon>inbox</mat-icon>
-                      No regularization requests.
                     </div>
                   </td>
                 </tr>
@@ -482,12 +450,20 @@
     </section>
   </div>
 
-  @if (selected(); as row) {
+  @if (shiftFocus(); as shift) {
+    <trishul-attendance-shift-drawer
+      [shiftName]="shift.name"
+      [employeeId]="shift.employeeId"
+      [employeeName]="shift.employeeName"
+      (closed)="closeShift()"
+    />
+  } @else if (selected(); as row) {
     <trishul-attendance-daily-drawer
       [row]="row"
       [selectedDate]="selectedDate()"
       (closed)="closeDetails()"
       (regularize)="regularize($event)"
+      (shiftOpen)="openShift($event)"
     />
   }
 </div>

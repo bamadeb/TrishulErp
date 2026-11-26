@@ -1,6 +1,7 @@
 """Who may see and work which complaints.
 
-* Anyone with core.complaint.raise raises complaints and sees their own (and only their own) complaints.
+* Every signed-in user raises complaints and sees their own (and only their own) complaints, whatever their role
+  (core.complaint.raise is still granted to every role but no longer checked).
 * A department's leaders see and work the department's complaints. The leaders are the department's head
   (hr.department.head_employee_id) and every employee of the department whose role has core.complaint.manage.
 * core.complaint.manage_all (Super Admin) sees and works every department's complaints and maintains the

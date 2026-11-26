@@ -21,7 +21,14 @@
 
   <div class="meta">
     <span><mat-icon>calendar_today</mat-icon>{{ selectedDate() | date: 'EEE, d MMM y' }}</span>
-    <span class="shift">Shift: {{ row().shift }}</span>
+    <button
+      type="button"
+      class="shift-link"
+      [disabled]="!row().shift || row().shift === '—'"
+      (click)="shiftOpen.emit(row())"
+    >
+      Shift: {{ row().shift }}
+    </button>
   </div>
 
   <div class="body">
@@ -31,6 +38,14 @@
       <div><dt>Out Time</dt><dd>{{ row().lastOut || '—' }}</dd></div>
       <div><dt>Worked Hours</dt><dd>{{ row().workingHours || '—' }}</dd></div>
       <div><dt>Status</dt><dd>{{ row().status }}</dd></div>
+      <div>
+        <dt>Remarks</dt>
+        <dd>{{ row().remarks.trim() || 'No remarks available' }}</dd>
+      </div>
+      @if (exceptionType()) {
+        <div><dt>Exception</dt><dd>{{ exceptionType() }}</dd></div>
+        <div><dt>Review</dt><dd>{{ exceptionStatus() }}</dd></div>
+      }
     </dl>
 
     @if (row().punches.length) {

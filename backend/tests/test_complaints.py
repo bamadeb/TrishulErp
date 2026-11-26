@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from trishul_api.auth import CurrentUser, get_current_user, get_db
 from trishul_api.config import Settings
 from trishul_api.db import set_audit_context
-from trishul_api.db.models import Alert, AlertRecipient, Complaint, ComplaintHistory
+from trishul_api.db.models import Alert, AlertRecipient, Complaint, ComplaintHistory, NumberSeries
 from trishul_api.main import create_app
 from trishul_api.modules.core.documents import storage
 
@@ -64,6 +64,8 @@ PEOPLE: dict[str, CurrentUser] = {
         id=15, employee_id=None, display_name="Admin", default_branch_id=1, permissions=frozenset({RAISE, MANAGE_ALL})
     ),
     "nobody": make_user(id=16, employee_id=None, default_branch_id=None, permissions=frozenset()),
+    # Raju's colleague in Service whose role grants nothing about complaints.
+    "norole": make_user(id=17, employee_id=105, display_name="Biju Sethi", permissions=frozenset()),
 }
 
 
@@ -81,6 +83,7 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Engine:
         (102, "EMP0102", "Meera", ADMIN_DEPT),
         (103, "EMP0103", "Sunil", ADMIN_DEPT),
         (104, "EMP0104", "Asha", SERVICE),
+        (105, "EMP0105", "Biju", SERVICE),
     ]:
         insert_row(
             engine,
@@ -102,6 +105,7 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Engine:
         (13, 103, "sunil"),
         (14, 104, "asha"),
         (15, None, "admin"),
+        (17, 105, "biju"),
     ]:
         insert_row(
             engine,
@@ -261,6 +265,106 @@ def test_raising_a_complaint_numbers_it_records_who_and_tells_the_department_lea
     assert _raise(as_user("raju"), "Second complaint about the water")["complaintNo"] == "BHADRAK/CMP/00002"
 
 
+def test_the_number_comes_from_the_branch_even_when_the_employee_names_another_company(
+    as_user: Callable[[str], TestClient], db: Engine
+) -> None:
+    # On RDS some employees' company differs from their branch's company: the series is the branch's.
+    insert_row(db, "core.company", id=2, code="TREAD", legal_name="Trishul Tread Pvt Ltd")
+    insert_row(
+        db,
+        "core.employee",
+        id=106,
+        company_id=2,
+        branch_id=1,
+        department_id=SERVICE,
+        designation_id=1,
+        employee_code="EMP0106",
+        first_name="Mixed",
+        mobile="9876543210",
+        status="Active",
+        is_active=True,
+    )
+    insert_row(db, "core.app_user", id=18, employee_id=106, username="mixed", is_active=True, is_locked=False)
+    PEOPLE["mixed"] = make_user(id=18, employee_id=106, display_name="Mixed", permissions=frozenset())
+    try:
+        created = as_user("mixed").post(
+            "/api/v1/core/complaints",
+            json={"departmentId": ADMIN_DEPT, "issueTypeId": WATER, "description": "Fan not working"},
+        )
+    finally:
+        PEOPLE.pop("mixed")
+    assert created.status_code == 201, created.text
+    assert created.json()["complaintNo"] == "BHADRAK/CMP/00001"
+    with Session(db) as s:
+        assert s.get(Complaint, created.json()["id"]).company_id == 1  # type: ignore[union-attr]
+
+
+def _new_branch_user(db: Engine, branch_id: int, code: str) -> None:
+    insert_row(db, "core.branch", id=branch_id, company_id=1, code=code, name=code.title())
+    employee_id, user_id = 200 + branch_id, 300 + branch_id
+    insert_row(
+        db,
+        "core.employee",
+        id=employee_id,
+        company_id=1,
+        branch_id=branch_id,
+        department_id=SERVICE,
+        designation_id=1,
+        employee_code=f"EMP{employee_id}",
+        first_name="New",
+        mobile="9876543210",
+        status="Active",
+        is_active=True,
+    )
+    insert_row(
+        db, "core.app_user", id=user_id, employee_id=employee_id, username=code.lower(), is_active=True, is_locked=False
+    )
+    PEOPLE[code.lower()] = make_user(id=user_id, employee_id=employee_id, display_name="New", permissions=frozenset())
+
+
+def test_a_new_branch_gets_its_complaint_series_on_its_first_complaint(
+    as_user: Callable[[str], TestClient], db: Engine
+) -> None:
+    _new_branch_user(db, 5, "ANGUL")
+    body = {"departmentId": ADMIN_DEPT, "issueTypeId": WATER, "description": "No water in the store"}
+    try:
+        first = as_user("angul").post("/api/v1/core/complaints", json=body)
+        second = as_user("angul").post("/api/v1/core/complaints", json=body)
+    finally:
+        PEOPLE.pop("angul")
+    assert first.status_code == 201, first.text
+    assert [first.json()["complaintNo"], second.json()["complaintNo"]] == ["ANGUL/CMP/00001", "ANGUL/CMP/00002"]
+    with Session(db) as s:
+        series = s.scalars(select(NumberSeries).where(NumberSeries.branch_id == 5)).all()
+        assert [(x.document_type, x.company_id, x.next_number) for x in series] == [("COMPLAINT", 1, 3)]
+
+
+def test_a_series_an_administrator_switched_off_is_not_recreated(
+    as_user: Callable[[str], TestClient], db: Engine
+) -> None:
+    _new_branch_user(db, 6, "KOIRA")
+    insert_row(
+        db,
+        "core.number_series",
+        company_id=1,
+        branch_id=6,
+        document_type="COMPLAINT",
+        prefix="KOIRA/CMP/",
+        next_number=1,
+        padding=5,
+        is_active=False,
+    )
+    try:
+        response = as_user("koira").post(
+            "/api/v1/core/complaints",
+            json={"departmentId": ADMIN_DEPT, "issueTypeId": WATER, "description": "No water in the store"},
+        )
+    finally:
+        PEOPLE.pop("koira")
+    assert response.status_code == 400
+    assert "No number series" in response.json()["detail"]
+
+
 def test_an_issue_type_of_another_department_is_refused(as_user: Callable[[str], TestClient]) -> None:
     response = as_user("raju").post(
         "/api/v1/core/complaints",
@@ -280,10 +384,21 @@ def test_a_short_description_or_unknown_field_is_refused(as_user: Callable[[str]
     )
 
 
-def test_without_the_raise_permission_nothing_can_be_raised(as_user: Callable[[str], TestClient]) -> None:
-    client = as_user("nobody")
-    assert client.get("/api/v1/core/complaint-departments").status_code == 403
-    assert client.get("/api/v1/core/my-complaints").status_code == 403
+def test_every_signed_in_user_may_raise_and_see_their_own_whatever_their_role(
+    as_user: Callable[[str], TestClient],
+) -> None:
+    # "dev": an employee whose role has no complaint permission at all.
+    client = as_user("norole")
+    assert client.get("/api/v1/core/complaint-access").json()["canRaise"] is True
+    assert client.get("/api/v1/core/complaint-departments").status_code == 200
+    created = client.post(
+        "/api/v1/core/complaints",
+        json={"departmentId": ADMIN_DEPT, "issueTypeId": WATER, "description": "The canteen tap is leaking"},
+    )
+    assert created.status_code == 201, created.text
+    mine = client.get("/api/v1/core/my-complaints").json()
+    assert [c["complaintNo"] for c in mine["items"]] == [created.json()["complaintNo"]]
+    assert client.get(f"/api/v1/core/complaints/{created.json()['id']}").status_code == 200
 
 
 def test_without_a_head_the_departments_managers_are_told(as_user: Callable[[str], TestClient], db: Engine) -> None:
@@ -424,6 +539,17 @@ def test_a_stale_row_version_is_a_conflict(as_user: Callable[[str], TestClient],
         s.commit()
     response = as_user("meera").post(url, json={"status": "In Progress", "rowVersion": complaint["rowVersion"]})
     assert response.status_code == 409
+
+
+def test_the_row_version_the_user_saw_is_accepted(as_user: Callable[[str], TestClient]) -> None:
+    # Web and mobile send back the base64 rowVersion from the detail; it must match, not always conflict.
+    complaint = _raise(as_user("raju"))
+    url = f"/api/v1/core/complaints/{complaint['id']}/status"
+    leader = as_user("meera")
+    shown = leader.get(f"/api/v1/core/complaints/{complaint['id']}").json()
+    response = leader.post(url, json={"status": "In Progress", "rowVersion": shown["rowVersion"]})
+    assert response.status_code == 200, response.text
+    assert leader.post(url, json={"status": "On Hold", "rowVersion": "not base64!"}).status_code == 422
 
 
 def test_history_is_written_for_every_change(as_user: Callable[[str], TestClient], db: Engine) -> None:

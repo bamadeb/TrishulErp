@@ -1,3 +1,5 @@
+<div class="shell" [class.with-drawer]="!!detail() || !!shiftFocus()">
+  <div class="content">
 <nav class="crumbs" aria-label="Breadcrumb">
   <span>Home</span>
   <mat-icon>chevron_right</mat-icon>
@@ -16,7 +18,7 @@
     </button>
     <button type="button" class="range-btn" disabled>
       <mat-icon>calendar_today</mat-icon>
-      <span>{{ rangeLabel }}</span>
+      <span>{{ rangeLabel() }}</span>
     </button>
     <button mat-icon-button type="button" aria-label="Next range" (click)="shiftRange(1)">
       <mat-icon>chevron_right</mat-icon>
@@ -29,42 +31,42 @@
     <span class="icon"><mat-icon>notification_important</mat-icon></span>
     <div>
       <span>Total Exceptions</span>
-      <strong>{{ kpi.total | number }}</strong>
+      <strong>{{ kpi().total | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-missing">
     <span class="icon"><mat-icon>fingerprint</mat-icon></span>
     <div>
       <span>Missing Punch</span>
-      <strong>{{ kpi.missingPunch | number }}</strong>
+      <strong>{{ kpi().missingPunch | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-late">
     <span class="icon"><mat-icon>schedule</mat-icon></span>
     <div>
       <span>Late Arrival</span>
-      <strong>{{ kpi.lateArrival | number }}</strong>
+      <strong>{{ kpi().lateArrival | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-early">
     <span class="icon"><mat-icon>logout</mat-icon></span>
     <div>
       <span>Early Exit</span>
-      <strong>{{ kpi.earlyExit | number }}</strong>
+      <strong>{{ kpi().earlyExit | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-short">
     <span class="icon"><mat-icon>timer</mat-icon></span>
     <div>
       <span>Short Hours</span>
-      <strong>{{ kpi.shortHours | number }}</strong>
+      <strong>{{ kpi().shortHours | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-absent">
     <span class="icon"><mat-icon>person_off</mat-icon></span>
     <div>
       <span>Absent</span>
-      <strong>{{ kpi.absent | number }}</strong>
+      <strong>{{ kpi().absent | number }}</strong>
     </div>
   </article>
 </section>
@@ -214,7 +216,7 @@
       </thead>
       <tbody>
         @for (row of pageRows(); track row.id) {
-          <tr>
+          <tr [class.active]="detailException()?.id === row.id">
             <td class="check">
               <mat-checkbox
                 [checked]="isSelected(row.id)"
@@ -237,7 +239,15 @@
             </td>
             <td>{{ row.department }}</td>
             <td>{{ row.date }}</td>
-            <td class="shift">{{ row.shift }}</td>
+            <td class="shift">
+              @if (shiftLabel(row.shift)) {
+                <button type="button" class="shift-link" (click)="openShift(row)">
+                  {{ shiftLabel(row.shift) }}
+                </button>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
             <td>
               @if (row.firstIn) {
                 <span class="time">{{ row.firstIn }}</span>
@@ -291,8 +301,16 @@
           <tr>
             <td colspan="12">
               <div class="empty">
-                <mat-icon>event_busy</mat-icon>
-                No exceptions match your filters.
+                @if (loading()) {
+                  <mat-icon>hourglass_empty</mat-icon>
+                  Loading exceptions…
+                } @else if (error()) {
+                  <mat-icon>error_outline</mat-icon>
+                  {{ error() }}
+                } @else {
+                  <mat-icon>event_busy</mat-icon>
+                  No exceptions match your filters.
+                }
               </div>
             </td>
           </tr>
@@ -320,6 +338,26 @@
     />
   </div>
 </section>
+  </div>
+  @if (detail(); as row) {
+    <trishul-attendance-daily-drawer
+      [row]="row"
+      [selectedDate]="detailDate() ?? rangeEnd()"
+      [exceptionType]="detailException()?.exceptionType ?? null"
+      [exceptionStatus]="detailException()?.status ?? null"
+      (closed)="closeDetails()"
+      (regularize)="regularize(detailException())"
+      (shiftOpen)="openShiftFromDetail()"
+    />
+  } @else if (shiftFocus(); as shift) {
+    <trishul-attendance-shift-drawer
+      [shiftName]="shift.name"
+      [employeeId]="shift.employeeId"
+      [employeeName]="shift.employeeName"
+      (closed)="closeShift()"
+    />
+  }
+</div>
 
 <mat-menu #rowMenu="matMenu">
   <button mat-menu-item type="button" (click)="viewDetails()">

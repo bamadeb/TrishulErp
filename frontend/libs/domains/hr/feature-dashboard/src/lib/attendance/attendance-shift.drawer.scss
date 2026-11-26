@@ -1,0 +1,135 @@
+:host {
+  display: flex;
+  flex: 0 0 clamp(300px, 28vw, 340px);
+  flex-direction: column;
+  width: clamp(300px, 28vw, 340px);
+  max-width: 360px;
+  max-height: calc(100vh - 6.5rem);
+  position: sticky;
+  top: 0.5rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: #1b2a4a;
+}
+
+.drawer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e6edf6;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(15 40 80 / 8%);
+}
+
+header,
+footer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  padding: 0.7rem 0.85rem;
+}
+
+header {
+  border-bottom: 1px solid #e6edf6;
+}
+
+footer {
+  margin-top: auto;
+  border-top: 1px solid #e6edf6;
+
+  button {
+    min-width: 0;
+  }
+}
+
+.heading {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.profile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: center;
+  padding: 0.85rem 0.9rem 0.35rem;
+
+  strong {
+    font-size: 0.95rem;
+  }
+
+  small {
+    color: #64748b;
+  }
+}
+
+.badge {
+  margin-left: auto;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #e8f7ee;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+
+  &.off {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+}
+
+dl {
+  margin: 0;
+  padding: 0.2rem 0.9rem 0.4rem;
+}
+
+dl div {
+  display: grid;
+  grid-template-columns: 6.4rem 1fr;
+  gap: 0.35rem;
+  padding: 0.34rem 0;
+  border-bottom: 1px solid #eef3f9;
+  font-size: 12px;
+}
+
+dt {
+  color: #64748b;
+}
+
+dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.assignment {
+  padding: 0.7rem 0.9rem 0.9rem;
+
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+}
+
+.who {
+  margin: 0 0 0.35rem;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.state {
+  margin: 0;
+  padding: 0.85rem 0.9rem;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.assignment .state {
+  padding: 0.35rem 0 0;
+}

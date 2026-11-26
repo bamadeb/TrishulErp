@@ -23,27 +23,27 @@ export interface ShiftFormData {
         <p class="err">{{ error() }}</p>
       }
       <div class="grid">
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Code</mat-label>
           <input matInput maxlength="10" [(ngModel)]="form.code" name="code" required />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Name</mat-label>
           <input matInput maxlength="60" [(ngModel)]="form.name" name="name" required />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>In time</mat-label>
           <input matInput type="time" [(ngModel)]="form.startTime" name="startTime" required />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Out time</mat-label>
           <input matInput type="time" [(ngModel)]="form.endTime" name="endTime" required />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Grace (minutes)</mat-label>
           <input matInput type="number" min="0" max="240" [(ngModel)]="form.graceMinutes" name="grace" />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Half-day hours</mat-label>
           <input
             matInput
@@ -64,18 +64,85 @@ export interface ShiftFormData {
     </mat-dialog-actions>
   `,
   styles: `
+    :host {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    h2[mat-dialog-title] {
+      margin: 0;
+      padding: 12px 16px 0;
+      font-size: 1.05rem;
+      line-height: 1.3;
+    }
+
+    :host mat-dialog-content.mat-mdc-dialog-content {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      max-height: none;
+      box-sizing: border-box;
+      overflow: visible;
+      padding: 10px 16px 4px;
+    }
+
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem 0.75rem;
-      margin-bottom: 0.75rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem 0.65rem;
+      width: 100%;
+      min-width: 0;
+      margin-bottom: 0.45rem;
     }
+
+    mat-form-field {
+      width: 100%;
+      min-width: 0;
+    }
+
+    :host ::ng-deep .mdc-floating-label--float-above {
+      background: #fff;
+      padding: 0 4px;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    mat-slide-toggle {
+      --mat-slide-toggle-track-height: 20px;
+      --mat-slide-toggle-track-width: 36px;
+      --mat-slide-toggle-track-shape: 10px;
+      --mat-slide-toggle-with-icon-handle-size: 16px;
+      --mat-slide-toggle-pressed-handle-size: 16px;
+      --mat-slide-toggle-unselected-handle-size: 16px;
+      --mat-slide-toggle-selected-handle-size: 16px;
+      font-size: 13px;
+    }
+
+    :host ::ng-deep .mdc-switch__icons {
+      display: none;
+    }
+
     .err {
+      margin: 0 0 0.4rem;
       color: #b3261e;
-      margin: 0 0 0.75rem;
+      font-size: 0.75rem;
     }
-    mat-dialog-content {
-      min-width: min(28rem, 90vw);
+
+    mat-dialog-actions {
+      justify-content: flex-end;
+      gap: 0.35rem;
+      min-height: 0;
+      margin: 0;
+      padding: 4px 16px 12px;
+    }
+
+    mat-dialog-actions button {
+      min-width: 0;
+      height: 32px;
+      padding: 0 12px;
+      font-size: 13px;
+      line-height: 32px;
     }
   `,
 })
