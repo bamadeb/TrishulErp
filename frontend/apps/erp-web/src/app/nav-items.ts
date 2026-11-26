@@ -20,6 +20,7 @@ import {
   FACE_ATTENDANCE_VIEW_PERMISSIONS,
   FACE_PUNCH_VIEW_PERMISSIONS,
   FACE_REGISTER_PERMISSION,
+  LEAVE_REQUEST_PERMISSIONS,
   LEAVE_VIEW_PERMISSIONS,
 } from '@trishul/hr-data-access';
 import {
@@ -386,7 +387,13 @@ export const navItems: NavItem[] = [
   {
     label: 'HR Management',
     icon: 'diversity_3',
-    permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+    // Also for roles without employee view (team lead, engineer) so they reach My Leave, leave approvals and
+    // face attendance; each link below still needs its own permission, and the group hides when none is left.
+    permissions: [
+      ...EMPLOYEE_VIEW_PERMISSIONS,
+      ...LEAVE_VIEW_PERMISSIONS,
+      ...FACE_ATTENDANCE_VIEW_PERMISSIONS,
+    ],
     children: [
       {
         label: 'HR Dashboard',
@@ -525,17 +532,19 @@ export const navItems: NavItem[] = [
         icon: 'event_available',
         route: '/hr/leave/dashboard',
         permissions: [...LEAVE_VIEW_PERMISSIONS],
+        // Everyone with leave view: My Leave and the holidays. Approvers: Leave Requests. The HR screens
+        // keep needing employee view as well, as when the whole HR menu did.
         children: [
-          { label: 'Leave Dashboard', icon: 'insights', route: '/hr/leave/dashboard' },
+          { label: 'Leave Dashboard', icon: 'insights', route: '/hr/leave/dashboard', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
           { label: 'My Leave', icon: 'person', route: '/hr/leave/mine' },
-          { label: 'Employee Leaves', icon: 'groups', route: '/hr/leave/employees' },
-          { label: 'Leave Requests', icon: 'fact_check', route: '/hr/leave/requests' },
-          { label: 'Leave Balance', icon: 'account_balance_wallet', route: '/hr/leave/balances' },
-          { label: 'Leave Calendar', icon: 'calendar_month', route: '/hr/leave/calendar' },
-          { label: 'Leave Policies', icon: 'policy', route: '/hr/leave/policies' },
-          { label: 'Leave Types', icon: 'category', route: '/hr/leave/types' },
+          { label: 'Employee Leaves', icon: 'groups', route: '/hr/leave/employees', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
+          { label: 'Leave Requests', icon: 'fact_check', route: '/hr/leave/requests', permissions: [...LEAVE_REQUEST_PERMISSIONS] },
+          { label: 'Leave Balance', icon: 'account_balance_wallet', route: '/hr/leave/balances', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
+          { label: 'Leave Calendar', icon: 'calendar_month', route: '/hr/leave/calendar', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
+          { label: 'Leave Policies', icon: 'policy', route: '/hr/leave/policies', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
+          { label: 'Leave Types', icon: 'category', route: '/hr/leave/types', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
           { label: 'Holiday Calendar', icon: 'celebration', route: '/hr/leave/holidays' },
-          { label: 'Leave Reports', icon: 'assessment', route: '/hr/leave/reports' },
+          { label: 'Leave Reports', icon: 'assessment', route: '/hr/leave/reports', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
         ],
       },
       {

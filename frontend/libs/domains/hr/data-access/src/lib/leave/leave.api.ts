@@ -5,6 +5,13 @@ import { ApiConfiguration, withRowVersion } from '@trishul/core-api';
 
 export const LEAVE_VIEW_PERMISSIONS = ['hr.leave.view', 'hr.leave.manage'] as const;
 export const LEAVE_MANAGE_PERMISSION = 'hr.leave.manage';
+/** The Leave Requests queue: approvers (team lead), HR, and employee-view roles as before. */
+export const LEAVE_REQUEST_PERMISSIONS = [
+  'hr.leave.approve',
+  'hr.leave.manage',
+  'core.employee.view',
+  'core.employee.manage',
+] as const;
 
 export interface LeaveTypeItem {
   id: number;

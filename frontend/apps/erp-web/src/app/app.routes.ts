@@ -11,7 +11,11 @@ import {
   NotFoundPage,
   Shell,
 } from '@trishul/core-layout';
-import { EMPLOYEE_VIEW_PERMISSIONS } from '@trishul/hr-data-access';
+import {
+  EMPLOYEE_VIEW_PERMISSIONS,
+  FACE_ATTENDANCE_VIEW_PERMISSIONS,
+  LEAVE_VIEW_PERMISSIONS,
+} from '@trishul/hr-data-access';
 import { DashboardPage } from './dashboard.page';
 
 export const appRoutes: Route[] = [
@@ -64,7 +68,14 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'hr',
-        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)],
+        // Leave and face-attendance users too (team lead, engineer); every HR screen checks its own permission.
+        canActivate: [
+          permissionGuard(
+            ...EMPLOYEE_VIEW_PERMISSIONS,
+            ...LEAVE_VIEW_PERMISSIONS,
+            ...FACE_ATTENDANCE_VIEW_PERMISSIONS,
+          ),
+        ],
         loadChildren: () =>
           import('@trishul/hr-feature-dashboard').then((m) => m.hrRoutes),
       },
