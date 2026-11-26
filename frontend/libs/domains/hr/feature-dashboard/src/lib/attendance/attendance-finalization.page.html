@@ -1,15 +1,18 @@
 <nav class="crumbs" aria-label="Breadcrumb">
-  <span>Home</span>
+  <span>HR</span>
   <mat-icon>chevron_right</mat-icon>
   <span>Attendance</span>
   <mat-icon>chevron_right</mat-icon>
-  <strong>Attendance Finalization</strong>
+  <strong>Finalization</strong>
 </nav>
 
 <trishul-page-header
-  title="Attendance Finalization"
-  subtitle="Finalize and lock monthly attendance for payroll processing."
+  [title]="'Attendance Finalization – ' + monthLabel()"
+  subtitle="Review attendance, resolve exceptions and complete monthly closing for payroll."
 >
+  <span class="overall" [class.ready]="overallStatus() === 'Ready'" [class.locked]="overallStatus() === 'Finalized'">
+    {{ overallStatus() }}
+  </span>
   <div class="month-nav" aria-label="Finalization month">
     <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)">
       <mat-icon>chevron_left</mat-icon>
@@ -40,7 +43,7 @@
     <span class="icon"><mat-icon>check_circle</mat-icon></span>
     <div>
       <span>Attendance Ready</span>
-      <strong>{{ kpi().attendanceReady | number }}</strong>
+      <strong>{{ kpi().attendanceReady | number }} <em>({{ summary()?.attendanceReadyPct ?? 0 }}%)</em></strong>
     </div>
   </article>
   <article class="kpi tone-exceptions">
@@ -58,10 +61,10 @@
     </div>
   </article>
   <article class="kpi tone-finalized">
-    <span class="icon"><mat-icon>lock</mat-icon></span>
+    <span class="icon"><mat-icon>apartment</mat-icon></span>
     <div>
-      <span>Finalized</span>
-      <strong>{{ kpi().finalized | number }}</strong>
+      <span>{{ groupLabel() }}s Pending</span>
+      <strong>{{ pendingGroups() | number }}</strong>
     </div>
   </article>
 </section>
@@ -247,107 +250,170 @@
     </div>
   </section>
 
-  <aside class="side" aria-label="Finalization panel">
-    <section class="card side-card">
-      <h2>Finalization Summary</h2>
-      @if (summary(); as side) {
-        <dl>
-          <div>
-            <dt>Month</dt>
-            <dd>{{ side.monthLabel }}</dd>
-          </div>
-          <div>
-            <dt>Total Employees</dt>
-            <dd>{{ side.totalEmployees | number }}</dd>
-          </div>
-          <div>
-            <dt>Attendance Ready</dt>
-            <dd>
-              {{ side.attendanceReady | number }}
-              <em class="ready">{{ side.attendanceReadyPct }}%</em>
-            </dd>
-          </div>
-          <div>
-            <dt>With Exceptions</dt>
-            <dd>
-              {{ side.withExceptions | number }}
-              <em class="warn">{{ side.withExceptionsPct }}%</em>
-            </dd>
-          </div>
-          <div>
-            <dt>Pending Regularization</dt>
-            <dd>
-              {{ side.pendingRegularization | number }}
-              <em class="pending">{{ side.pendingRegularizationPct }}%</em>
-            </dd>
-          </div>
-          @if (side.isFinalized) {
-            <div>
-              <dt>Status</dt>
-              <dd><em class="ready">Finalized &amp; locked</em></dd>
-            </div>
-          }
-        </dl>
-      } @else {
-        <p class="side-empty">{{ loading() ? 'Loading…' : 'No summary available.' }}</p>
-      }
-    </section>
+  <aside class="side" aria-label="Closing tasks">
+    <div class="side-tabs" role="tablist">
+      <button type="button" role="tab" [class.on]="sideTab() === 'tasks'" (click)="sideTab.set('tasks')">
+        Closing Tasks
+      </button>
+      <button type="button" role="tab" [class.on]="sideTab() === 'history'" (click)="sideTab.set('history')">
+        Notification History
+      </button>
+    </div>
 
-    <section class="card side-card">
-      <div class="checklist-head">
-        <h2>Pre-Finalization Checklist</h2>
-        <span>{{ checklistDoneCount() }}/{{ checklist().length || 5 }}</span>
-      </div>
-      <ul class="checklist">
+    @if (sideTab() === 'tasks') {
+      <div class="task-list">
         @for (item of checklist(); track item.id) {
+          <article class="task" [class.done]="item.done" [class.warn]="!item.done && item.id !== 'pending'" [class.info]="item.id === 'pending' && !item.done">
+            <div class="task-top">
+              <span class="task-icon">
+                <mat-icon>{{ item.done ? 'check_circle' : item.id === 'pending' ? 'info' : 'warning' }}</mat-icon>
+              </span>
+              <div class="task-copy">
+                <div class="task-title">
+                  <strong>{{ taskTitle(item.id) }}</strong>
+                  @if (item.done) {
+                    <span class="pill ok">Completed</span>
+                  } @else if (taskCount(item); as count) {
+                    <span class="pill warn">{{ count }} Pending</span>
+                  } @else {
+                    <span [class]="followupClass(item.status)">{{ item.status }}</span>
+                  }
+                </div>
+                <p>{{ item.detail }}</p>
+                @if (!item.done && ownerText(item)) {
+                  <p class="meta">Owner: {{ ownerText(item) }}</p>
+                  <div class="badges">
+                    <span class="pill auto">Auto-assigned</span>
+                    @if (alertState(item) === 'sent') {
+                      <span class="pill sent">Alert Sent</span>
+                    } @else if (alertState(item) === 'failed') {
+                      <span class="pill failed">Not sent</span>
+                    }
+                  </div>
+                  @if (dueText(item)) {
+                    <p class="meta">Due: {{ dueText(item) }}</p>
+                  }
+                } @else if (item.done) {
+                  <p class="meta">No action required</p>
+                }
+              </div>
+            </div>
+            <div class="task-links">
+              @if (item.route && !item.done) {
+                <button type="button" class="link" (click)="openModule(item)">
+                  {{ openLabel(item.id) }}
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              }
+              <button type="button" class="link quiet" (click)="toggleItem(item.id)">
+                {{ openItemId() === item.id ? 'Hide' : 'Assign' }}
+              </button>
+            </div>
+            @if (openItemId() === item.id) {
+              <div class="follow-panel">
+                <label>
+                  Task owner
+                  <select
+                    [ngModel]="draft(item.id).ownerUserId?.toString() ?? ''"
+                    (ngModelChange)="patchDraft(item.id, { ownerUserId: $event === '' ? null : +$event })"
+                  >
+                    <option value="">Unassigned</option>
+                    @for (person of assignees(); track person.userId) {
+                      <option [value]="person.userId">{{ person.name }}</option>
+                    }
+                  </select>
+                </label>
+                <label>
+                  Due date
+                  <input
+                    type="date"
+                    [ngModel]="draft(item.id).dueDate"
+                    (ngModelChange)="patchDraft(item.id, { dueDate: $event })"
+                  />
+                </label>
+                <label>
+                  Comment
+                  <textarea
+                    rows="2"
+                    maxlength="500"
+                    [ngModel]="draft(item.id).comment"
+                    (ngModelChange)="patchDraft(item.id, { comment: $event })"
+                  ></textarea>
+                </label>
+                <button mat-stroked-button type="button" (click)="saveFollowup(item)" [disabled]="savingId() === item.id">
+                  Save assignment
+                </button>
+                @if (item.targets.length) {
+                  <ul class="targets">
+                    @for (target of item.targets; track target.employeeId + target.employeeName) {
+                      <li>
+                        <strong>{{ target.employeeName || target.detail }}</strong>
+                        <span>{{ target.detail }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
+          </article>
+        } @empty {
+          <p class="side-empty">{{ loading() ? 'Checking…' : 'No closing tasks.' }}</p>
+        }
+      </div>
+    } @else {
+      <ul class="history-list">
+        @for (entry of notificationHistory(); track entry.id) {
           <li>
-            <mat-checkbox [checked]="item.done" disabled [matTooltip]="item.detail">
-              {{ item.label }}
-            </mat-checkbox>
-            @if (item.detail) {
-              <small>{{ item.detail }}</small>
+            <strong>{{ entry.task }}</strong>
+            <span>{{ entry.recipientName }} · {{ entry.status }}</span>
+            @if (entry.sentAt) {
+              <span>{{ entry.sentAt | date: 'dd MMM yyyy, h:mm a' }}</span>
+            }
+            @if (entry.errorMessage) {
+              <span class="fail">{{ entry.errorMessage }}</span>
             }
           </li>
         } @empty {
-          <li class="side-empty">{{ loading() ? 'Checking…' : 'No checklist items.' }}</li>
+          <li class="side-empty">No notifications recorded for {{ monthLabel() }}.</li>
         }
       </ul>
-    </section>
+    }
+
+    <button
+      mat-stroked-button
+      type="button"
+      class="remind-all"
+      (click)="remind()"
+      [disabled]="reminding() || isFinalized() || !checklist().some((item) => !item.done)"
+    >
+      <mat-icon>notifications</mat-icon>
+      Remind All Pending Tasks
+    </button>
 
     @if (isFinalized()) {
-      <button mat-flat-button color="primary" type="button" class="finalize" disabled>
+      <button mat-flat-button type="button" class="finalize" disabled>
         <mat-icon>lock</mat-icon>
         Attendance Locked
       </button>
-      <p class="note">
-        <mat-icon>info</mat-icon>
-        Attendance for {{ monthLabel() }} is locked. Payroll can use these figures.
-      </p>
     } @else if (canLockAttendance) {
       <button
         mat-flat-button
-        color="primary"
         type="button"
         class="finalize"
         (click)="finalizeAttendance()"
         [disabled]="locking() || !canFinalize()"
       >
-        <mat-icon>lock_open</mat-icon>
+        <mat-icon>lock</mat-icon>
         Finalize &amp; Lock Attendance
       </button>
-      <p class="note">
-        <mat-icon>info</mat-icon>
-        Once finalized, attendance for {{ monthLabel() }} will be locked and available for Payroll
-        processing. The button enables only when every checklist item passes.
-      </p>
     } @else {
       <p class="note" role="status">
         <mat-icon>info</mat-icon>
-        You can review finalization readiness. Locking this month requires the
-        Finalize Attendance permission.
+        Locking this month requires the Finalize Attendance permission.
       </p>
     }
   </aside>
+
 </div>
 
 <mat-menu #rowMenu="matMenu">

@@ -29,6 +29,8 @@ from trishul_api.modules.hr.attendance.schemas import (
     AttendanceRulesWrite,
     LeaveYearBasis,
     LeaveYearOut,
+    ShiftAssignmentBulkResult,
+    ShiftAssignmentBulkWrite,
     ShiftAssignmentEmployeeOption,
     ShiftAssignmentItem,
     ShiftAssignmentListQuery,
@@ -258,7 +260,7 @@ class ShiftRulesService:
             "workingDaysPerWeek": int(data.working_days_per_week),
             "lateArrivalGraceMinutes": int(data.late_arrival_grace_minutes),
             "earlyExitGraceMinutes": int(data.early_exit_grace_minutes),
-            "graceDaysPerMonth": GRACE_DAYS_PER_MONTH,
+            "graceDaysPerMonth": int(data.grace_days_per_month),
             "otAfterHours": float(data.ot_after_hours),
             "otApprovalRequired": bool(data.ot_approval_required),
             "weeklyOffDays": list(data.weekly_off_days),
@@ -497,6 +499,46 @@ class ShiftRulesService:
         self._db.expire_all()
         invalidate_attendance_cache("employees:", "shifts:")
         return self.get_assignment(created_id)
+
+    def assign_many(self, actor: CurrentUser, data: ShiftAssignmentBulkWrite) -> ShiftAssignmentBulkResult:
+        """Assign one shift to the chosen employees, or to every active employee."""
+        if data.all_employees:
+            employee_ids = [employee.id for employee in self.assignment_options().employees]
+        else:
+            employee_ids = list(dict.fromkeys(data.employee_ids))
+        if not employee_ids:
+            raise ApiError("Select at least one employee, or assign the shift to all active employees.")
+        shift = self._db.get(Shift, data.shift_id)
+        if shift is None or not shift.is_active:
+            raise ApiError("Select a valid active shift.")
+        if data.to_date is not None and data.to_date < data.from_date:
+            raise ApiError("Assignment end date cannot be before the start date.")
+        for employee_id in employee_ids:
+            employee = self._db.get(Employee, employee_id)
+            if employee is None or not employee.is_active:
+                raise ApiError("Select a valid employee.")
+        weekly = (
+            _encode_weekdays(data.weekly_off_days)
+            if data.weekly_off_days is not None
+            else self._default_weekly_off()
+        )
+        for employee_id in employee_ids:
+            self._close_overlapping(actor, employee_id, data.from_date, data.to_date, exclude_id=None)
+            self._db.execute(
+                EmployeeShift.__table__.insert().values(
+                    employee_id=employee_id,
+                    shift_id=data.shift_id,
+                    weekly_off_days=weekly,
+                    from_date=data.from_date,
+                    to_date=data.to_date,
+                    is_active=True,
+                    created_by_user_id=actor.id,
+                )
+            )
+        self._db.commit()
+        self._db.expire_all()
+        invalidate_attendance_cache("employees:", "shifts:")
+        return ShiftAssignmentBulkResult(assigned=len(employee_ids))
 
     def update_assignment(
         self, actor: CurrentUser, assignment_id: int, expected: bytes, data: ShiftAssignmentWrite

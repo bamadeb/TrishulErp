@@ -88,6 +88,8 @@ class DailyAttendanceRowOut(ApiModel):
     working_hours: str | None = None
     status: AttendanceDisplayStatus
     remarks: str = ""
+    late_arrival_minutes: int | None = None
+    early_exit_minutes: int | None = None
     punches: list[AttendancePunchOut] = Field(default_factory=list)
     history: list[AttendanceHistoryOut] = Field(default_factory=list)
 
@@ -415,6 +417,7 @@ class AttendanceRulesWrite(InputModel):
     working_days_per_week: int = Field(alias="workingDaysPerWeek", ge=1, le=7)
     late_arrival_grace_minutes: int = Field(alias="lateArrivalGraceMinutes", ge=0, le=240)
     early_exit_grace_minutes: int = Field(alias="earlyExitGraceMinutes", ge=0, le=240)
+    grace_days_per_month: int = Field(3, alias="graceDaysPerMonth", ge=0, le=31)
     ot_after_hours: float = Field(alias="otAfterHours", gt=0, le=24)
     ot_approval_required: bool = Field(alias="otApprovalRequired")
     weekly_off_days: list[WeekdayCode] = Field(alias="weeklyOffDays")
@@ -438,6 +441,21 @@ class ShiftAssignmentWrite(InputModel):
     to_date: date | None = Field(None, alias="toDate")
     weekly_off_days: list[WeekdayCode] | None = Field(None, alias="weeklyOffDays")
     is_active: bool = True
+
+
+class ShiftAssignmentBulkWrite(InputModel):
+    """Same shift for one employee, a chosen list, or every active employee."""
+
+    shift_id: int = Field(alias="shiftId", gt=0)
+    from_date: date = Field(alias="fromDate")
+    to_date: date | None = Field(None, alias="toDate")
+    weekly_off_days: list[WeekdayCode] | None = Field(None, alias="weeklyOffDays")
+    all_employees: bool = Field(False, alias="allEmployees")
+    employee_ids: list[int] = Field(default_factory=list, alias="employeeIds")
+
+
+class ShiftAssignmentBulkResult(ApiModel):
+    assigned: int
 
 
 class ShiftAssignmentItem(ApiModel):
@@ -536,11 +554,47 @@ class FinalizationSummaryOut(ApiModel):
     finalized_by_user_id: int | None = None
 
 
+FollowupStatus = Literal["Pending", "In Progress", "Completed", "Overdue"]
+
+
+class FinalizationTargetOut(ApiModel):
+    """One employee still blocking a checklist item, with the person who should be reminded."""
+
+    employee_id: int
+    employee_code: str
+    employee_name: str
+    detail: str
+    recipient_user_id: int | None = None
+    recipient_name: str = ""
+
+
+class FinalizationReminderOut(ApiModel):
+    id: int
+    sent_at: UtcDateTime | None = None
+    recipient_name: str
+    status: str
+    error_message: str | None = None
+    message: str = ""
+
+
+class FinalizationAssigneeOut(ApiModel):
+    user_id: int
+    name: str
+
+
 class FinalizationChecklistItemOut(ApiModel):
     id: str
     label: str
     done: bool
     detail: str = ""
+    route: str = ""
+    status: FollowupStatus = "Pending"
+    owner_user_id: int | None = None
+    owner_name: str = ""
+    due_date: date | None = None
+    comment: str = ""
+    targets: list[FinalizationTargetOut] = []
+    reminders: list[FinalizationReminderOut] = []
 
 
 class FinalizationGroupRowOut(ApiModel):
@@ -564,8 +618,31 @@ class FinalizationPageOut(ApiModel):
     summary: FinalizationSummaryOut
     checklist: list[FinalizationChecklistItemOut]
     groups: list[FinalizationGroupRowOut]
+    assignees: list[FinalizationAssigneeOut] = []
     can_finalize: bool
     is_finalized: bool
+
+
+class FinalizationFollowupWrite(InputModel):
+    year: int = Field(ge=2000, le=2100)
+    month: int = Field(ge=1, le=12)
+    checklist_id: str = Field(min_length=1, max_length=40)
+    owner_user_id: int | None = None
+    due_date: date | None = None
+    comment: str = Field("", max_length=500)
+
+
+class FinalizationRemindWrite(InputModel):
+    year: int = Field(ge=2000, le=2100)
+    month: int = Field(ge=1, le=12)
+    checklist_id: str | None = Field(None, max_length=40)
+
+
+class FinalizationRemindResult(ApiModel):
+    sent: int
+    skipped: int
+    failed: int
+    message: str
 
 
 class FinalizationLockOut(ApiModel):

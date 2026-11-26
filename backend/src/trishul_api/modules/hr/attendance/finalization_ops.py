@@ -18,24 +18,34 @@ from sqlalchemy.orm import Session
 
 from trishul_api.auth import CurrentUser
 from trishul_api.common.errors import ApiError, Conflict
-from trishul_api.db.models import SystemSetting
+from trishul_api.db.models import AppUser, Department, Employee, Notification, SystemSetting
 from trishul_api.modules.hr.attendance.schemas import (
     AttendanceExceptionsQuery,
+    FinalizationAssigneeOut,
     FinalizationChecklistItemOut,
+    FinalizationFollowupWrite,
     FinalizationGroupBy,
     FinalizationGroupRowOut,
     FinalizationKpiOut,
     FinalizationLockOut,
     FinalizationPageOut,
     FinalizationQuery,
+    FinalizationRemindResult,
+    FinalizationRemindWrite,
+    FinalizationReminderOut,
     FinalizationRowStatus,
     FinalizationSummaryOut,
+    FinalizationTargetOut,
+    FollowupStatus,
     MonthlyMusterQuery,
     MusterEmployeeRowOut,
     RegularizationQuery,
 )
 SETTING_PREFIX = "hr.attendance.finalization."
 _SETTING_PREFIX = SETTING_PREFIX
+_FOLLOWUP_ENTITY = "hr.attendance.followup"
+_REMINDER_ENTITY = "hr.attendance.reminder"
+_CHECKLIST_IDS = frozenset({"processed", "exceptions", "regularization", "ready", "pending"})
 _MONTH_LABELS = (
     "Jan",
     "Feb",
@@ -67,8 +77,10 @@ class FinalizationService:
         label = f"{_MONTH_LABELS[month - 1]} {year}"
 
         employees = self._all_muster_employees(year, month)
-        pending_exception_ids = self._pending_exception_employee_ids(start, end)
-        pending_reg_ids = self._pending_regularization_employee_ids(start, end)
+        exception_people = self._pending_exception_people(start, end)
+        regularization_people = self._pending_regularization_people(start, end)
+        pending_exception_ids = set(exception_people)
+        pending_reg_ids = set(regularization_people)
 
         groups = self._group_rows(
             employees,
@@ -113,6 +125,31 @@ class FinalizationService:
             groups=groups,
             end=end,
         )
+        contacts = self._contacts()
+        department_groups = (
+            groups
+            if query.group_by == "department"
+            else self._group_rows(
+                employees,
+                pending_exception_ids,
+                pending_reg_ids,
+                group_by="department",
+            )
+        )
+        checklist = self._attach_followups(
+            checklist,
+            year=year,
+            month=month,
+            targets={
+                "exceptions": self._exception_targets(exception_people, contacts),
+                "regularization": self._regularization_targets(regularization_people, contacts),
+                "ready": self._department_targets(department_groups, contacts),
+                "pending": self._missing_targets(
+                    employees, pending_exception_ids, pending_reg_ids, contacts
+                ),
+                "processed": [],
+            },
+        )
         can_finalize = (not is_finalized) and all(item.done for item in checklist) and total > 0
 
         return FinalizationPageOut(
@@ -129,6 +166,7 @@ class FinalizationService:
             summary=summary,
             checklist=checklist,
             groups=groups,
+            assignees=self._assignees(contacts),
             can_finalize=can_finalize,
             is_finalized=is_finalized,
         )
@@ -198,8 +236,8 @@ class FinalizationService:
                 break
         return items
 
-    def _pending_exception_employee_ids(self, start: date, end: date) -> set[int]:
-        ids: set[int] = set()
+    def _pending_exception_people(self, start: date, end: date) -> dict[int, dict[str, Any]]:
+        people: dict[int, dict[str, Any]] = {}
         page = 1
         while True:
             result = self._attendance.list_exceptions(
@@ -212,16 +250,26 @@ class FinalizationService:
                 )
             )
             for row in result.items:
-                ids.add(row.employee_id)
+                slot = people.setdefault(
+                    row.employee_id,
+                    {
+                        "code": row.employee_code,
+                        "name": row.employee_name,
+                        "count": 0,
+                        "types": set(),
+                    },
+                )
+                slot["count"] += 1
+                slot["types"].add(row.exception_type)
             if page * 200 >= result.total or not result.items:
                 break
             page += 1
             if page > 50:
                 break
-        return ids
+        return people
 
-    def _pending_regularization_employee_ids(self, start: date, end: date) -> set[int]:
-        ids: set[int] = set()
+    def _pending_regularization_people(self, start: date, end: date) -> dict[int, dict[str, Any]]:
+        people: dict[int, dict[str, Any]] = {}
         page = 1
         while True:
             result = self._attendance.list_regularizations(
@@ -234,13 +282,17 @@ class FinalizationService:
                 )
             )
             for row in result.items:
-                ids.add(row.employee_id)
+                slot = people.setdefault(
+                    row.employee_id,
+                    {"code": row.employee_code, "name": row.employee_name, "count": 0},
+                )
+                slot["count"] += 1
             if page * 200 >= result.total or not result.items:
                 break
             page += 1
             if page > 50:
                 break
-        return ids
+        return people
 
     def _group_rows(
         self,
@@ -329,6 +381,7 @@ class FinalizationService:
                 label="Attendance processed for all employees",
                 done=processed,
                 detail=detail_processed,
+                route="/hr/attendance/monthly-muster",
             ),
             FinalizationChecklistItemOut(
                 id="exceptions",
@@ -339,6 +392,7 @@ class FinalizationService:
                     if exceptions_done
                     else f"{len(pending_exception_ids)} employee(s) still have pending exceptions."
                 ),
+                route="/hr/attendance/exceptions",
             ),
             FinalizationChecklistItemOut(
                 id="regularization",
@@ -349,6 +403,7 @@ class FinalizationService:
                     if regs_done
                     else f"{len(pending_reg_ids)} employee(s) still have pending requests."
                 ),
+                route="/hr/attendance/regularization",
             ),
             FinalizationChecklistItemOut(
                 id="ready",
@@ -359,6 +414,7 @@ class FinalizationService:
                     if all_ready
                     else f"{sum(1 for g in groups if g.status != 'Ready')} group(s) still need review."
                 ),
+                route="/hr/attendance/monthly-muster",
             ),
             FinalizationChecklistItemOut(
                 id="pending",
@@ -369,8 +425,431 @@ class FinalizationService:
                     if no_pending
                     else f"{sum(1 for g in groups if g.status == 'Pending')} group(s) are Pending."
                 ),
+                route="/hr/attendance/monthly-muster",
             ),
         ]
+
+    def save_followup(self, actor: CurrentUser, body: FinalizationFollowupWrite) -> FinalizationChecklistItemOut:
+        if body.checklist_id not in _CHECKLIST_IDS:
+            raise ApiError("Unknown checklist item.")
+        if body.owner_user_id is not None:
+            owner = self._db.get(AppUser, body.owner_user_id)
+            if owner is None or not owner.is_active:
+                raise ApiError("Choose an active user as the task owner.")
+        row = self._task_row(body.year, body.month, body.checklist_id)
+        payload = {
+            "checklistId": body.checklist_id,
+            "dueDate": body.due_date.isoformat() if body.due_date else None,
+            "comment": body.comment.strip(),
+            "savedByUserId": actor.id,
+        }
+        if row is None:
+            self._db.add(
+                Notification(
+                    channel="Email",
+                    recipient_user_id=body.owner_user_id,
+                    entity_type=_FOLLOWUP_ENTITY,
+                    entity_id=_month_key(body.year, body.month),
+                    payload=json.dumps(payload, separators=(",", ":")),
+                    status="Queued",
+                )
+            )
+        else:
+            row.recipient_user_id = body.owner_user_id
+            row.payload = json.dumps(payload, separators=(",", ":"))
+            row.status = "Queued"
+        self._db.commit()
+        page = self.overview(FinalizationQuery(year=body.year, month=body.month, group_by="department"))
+        item = next(entry for entry in page.checklist if entry.id == body.checklist_id)
+        return item
+
+    def remind(self, body: FinalizationRemindWrite) -> FinalizationRemindResult:
+        page = self.overview(FinalizationQuery(year=body.year, month=body.month, group_by="department"))
+        if body.checklist_id and body.checklist_id not in _CHECKLIST_IDS:
+            raise ApiError("Unknown checklist item.")
+        chosen = [
+            item
+            for item in page.checklist
+            if body.checklist_id is None or item.id == body.checklist_id
+        ]
+        sent = skipped = failed = 0
+        today = datetime.now(UTC).date()
+        existing = self._reminder_rows(body.year, body.month)
+        seen = {
+            (self._payload(row).get("checklistId"), row.recipient_user_id, _sent_day(row.sent_at))
+            for row in existing
+        }
+        for item in chosen:
+            if item.done:
+                continue
+            recipients = self._reminder_recipients(item)
+            if not recipients:
+                failed += 1
+                self._db.add(
+                    self._reminder_notification(
+                        body.year,
+                        body.month,
+                        item.id,
+                        None,
+                        "No owner",
+                        "Failed",
+                        f"No owner or recipient is available for {item.label}.",
+                        item.detail,
+                    )
+                )
+                continue
+            for user_id, name, email in recipients:
+                key = (item.id, user_id, today)
+                if key in seen:
+                    skipped += 1
+                    continue
+                seen.add(key)
+                if not email:
+                    failed += 1
+                    status = "Failed"
+                    error = f"{name} has no email address."
+                else:
+                    # core.notification is the delivery log. This server has no mail transport.
+                    failed += 1
+                    status = "Failed"
+                    error = "Email transport is not configured. The reminder was recorded and was not sent."
+                self._db.add(
+                    self._reminder_notification(
+                        body.year,
+                        body.month,
+                        item.id,
+                        user_id,
+                        name,
+                        status,
+                        error,
+                        _reminder_text(item.label, item.detail, page.summary.month_label),
+                    )
+                )
+        self._db.commit()
+        return FinalizationRemindResult(
+            sent=sent,
+            skipped=skipped,
+            failed=failed,
+            message=_remind_message(sent, skipped, failed),
+        )
+
+    def _contacts(self) -> dict[str, Any]:
+        employees: dict[int, dict[str, Any]] = {}
+        for row in self._db.execute(
+            select(
+                Employee.id,
+                Employee.employee_code,
+                Employee.first_name,
+                Employee.last_name,
+                Employee.email,
+                Employee.reporting_manager_id,
+            ).where(Employee.is_active == True)  # noqa: E712
+        ).all():
+            name = " ".join(part for part in (row[2], row[3]) if part).strip() or row[1]
+            employees[int(row[0])] = {
+                "code": row[1],
+                "name": name,
+                "email": row[4],
+                "manager_id": int(row[5]) if row[5] is not None else None,
+            }
+        users_by_employee: dict[int, dict[str, Any]] = {}
+        users_by_id: dict[int, dict[str, Any]] = {}
+        for row in self._db.execute(
+            select(AppUser.id, AppUser.employee_id, AppUser.email, AppUser.username, AppUser.is_active)
+        ).all():
+            if not row[4]:
+                continue
+            slot = {
+                "user_id": int(row[0]),
+                "employee_id": int(row[1]) if row[1] is not None else None,
+                "email": row[2],
+                "username": row[3],
+            }
+            users_by_id[slot["user_id"]] = slot
+            if slot["employee_id"] is not None:
+                users_by_employee[slot["employee_id"]] = slot
+        heads = {
+            str(name): int(head_id)
+            for name, head_id in self._db.execute(
+                select(Department.name, Department.head_employee_id).where(
+                    Department.is_active == True,  # noqa: E712
+                    Department.head_employee_id.is_not(None),
+                )
+            ).all()
+            if head_id is not None
+        }
+        return {
+            "employees": employees,
+            "users_by_employee": users_by_employee,
+            "users_by_id": users_by_id,
+            "heads": heads,
+        }
+
+    def _assignees(self, contacts: dict[str, Any]) -> list[FinalizationAssigneeOut]:
+        employees: dict[int, dict[str, Any]] = contacts["employees"]
+        items: list[FinalizationAssigneeOut] = []
+        for user in contacts["users_by_id"].values():
+            employee = employees.get(user["employee_id"]) if user["employee_id"] else None
+            name = employee["name"] if employee else user["username"]
+            items.append(FinalizationAssigneeOut(user_id=user["user_id"], name=name))
+        items.sort(key=lambda item: item.name.lower())
+        return items
+
+    def _target(
+        self,
+        contacts: dict[str, Any],
+        employee_id: int,
+        code: str,
+        name: str,
+        detail: str,
+        *,
+        recipient_employee_id: int | None = None,
+    ) -> FinalizationTargetOut:
+        recipient_id = recipient_employee_id if recipient_employee_id is not None else employee_id
+        user = contacts["users_by_employee"].get(recipient_id)
+        recipient_name = ""
+        if user is not None:
+            employee = contacts["employees"].get(recipient_id)
+            recipient_name = employee["name"] if employee else user["username"]
+        return FinalizationTargetOut(
+            employee_id=employee_id,
+            employee_code=code,
+            employee_name=name,
+            detail=detail,
+            recipient_user_id=user["user_id"] if user else None,
+            recipient_name=recipient_name,
+        )
+
+    def _exception_targets(
+        self, people: dict[int, dict[str, Any]], contacts: dict[str, Any]
+    ) -> list[FinalizationTargetOut]:
+        targets: list[FinalizationTargetOut] = []
+        for employee_id, person in sorted(people.items(), key=lambda item: item[1]["name"]):
+            kinds = ", ".join(sorted(person["types"]))
+            manager_id = (contacts["employees"].get(employee_id) or {}).get("manager_id")
+            targets.append(
+                self._target(
+                    contacts,
+                    employee_id,
+                    person["code"],
+                    person["name"],
+                    f"{person['count']} pending ({kinds})",
+                    recipient_employee_id=manager_id or employee_id,
+                )
+            )
+            if len(targets) >= 25:
+                break
+        return targets
+
+    def _regularization_targets(
+        self, people: dict[int, dict[str, Any]], contacts: dict[str, Any]
+    ) -> list[FinalizationTargetOut]:
+        targets: list[FinalizationTargetOut] = []
+        for employee_id, person in sorted(people.items(), key=lambda item: item[1]["name"]):
+            manager_id = (contacts["employees"].get(employee_id) or {}).get("manager_id")
+            targets.append(
+                self._target(
+                    contacts,
+                    employee_id,
+                    person["code"],
+                    person["name"],
+                    f"{person['count']} pending request(s) for the reporting manager",
+                    recipient_employee_id=manager_id,
+                )
+            )
+            if len(targets) >= 25:
+                break
+        return targets
+
+    def _department_targets(
+        self, groups: list[FinalizationGroupRowOut], contacts: dict[str, Any]
+    ) -> list[FinalizationTargetOut]:
+        targets: list[FinalizationTargetOut] = []
+        for group in groups:
+            if group.status == "Ready":
+                continue
+            head_id = contacts["heads"].get(group.name)
+            head = contacts["employees"].get(head_id) if head_id else None
+            if head is None:
+                targets.append(
+                    FinalizationTargetOut(
+                        employee_id=0,
+                        employee_code="",
+                        employee_name=group.name,
+                        detail=f"{group.status}, {group.readiness}% ready. No department head is assigned.",
+                    )
+                )
+            else:
+                targets.append(
+                    self._target(
+                        contacts,
+                        head_id,
+                        head["code"],
+                        head["name"],
+                        f"{group.name}: {group.status}, {group.readiness}% ready",
+                        recipient_employee_id=head_id,
+                    )
+                )
+        return targets
+
+    def _missing_targets(
+        self,
+        employees: list[MusterEmployeeRowOut],
+        pending_exception_ids: set[int],
+        pending_reg_ids: set[int],
+        contacts: dict[str, Any],
+    ) -> list[FinalizationTargetOut]:
+        targets: list[FinalizationTargetOut] = []
+        for member in employees:
+            reasons: list[str] = []
+            if member.employee_id in pending_exception_ids:
+                reasons.append("pending exception")
+            if member.employee_id in pending_reg_ids:
+                reasons.append("pending regularization")
+            if not reasons and member.absent > 0 and member.absent >= max(member.present, 1):
+                reasons.append(f"{member.absent} absent day(s) and no completed attendance")
+            if not reasons:
+                continue
+            manager_id = (contacts["employees"].get(member.employee_id) or {}).get("manager_id")
+            targets.append(
+                self._target(
+                    contacts,
+                    member.employee_id,
+                    member.employee_code,
+                    member.employee_name,
+                    "; ".join(reasons),
+                    recipient_employee_id=manager_id or member.employee_id,
+                )
+            )
+            if len(targets) >= 25:
+                break
+        return targets
+
+    def _attach_followups(
+        self,
+        checklist: list[FinalizationChecklistItemOut],
+        *,
+        year: int,
+        month: int,
+        targets: dict[str, list[FinalizationTargetOut]],
+    ) -> list[FinalizationChecklistItemOut]:
+        tasks = {
+            str(self._payload(row).get("checklistId")): row
+            for row in self._rows(_FOLLOWUP_ENTITY, year, month)
+        }
+        reminders = self._reminder_rows(year, month)
+        contacts = self._contacts()
+        enriched: list[FinalizationChecklistItemOut] = []
+        for item in checklist:
+            task = tasks.get(item.id)
+            payload = self._payload(task) if task is not None else {}
+            due = _parse_date(payload.get("dueDate"))
+            owner_id = task.recipient_user_id if task is not None else None
+            owner = contacts["users_by_id"].get(owner_id) if owner_id else None
+            owner_name = ""
+            if owner is not None:
+                employee = contacts["employees"].get(owner["employee_id"]) if owner["employee_id"] else None
+                owner_name = employee["name"] if employee else owner["username"]
+            history = [
+                FinalizationReminderOut(
+                    id=row.id,
+                    sent_at=_as_utc(row.sent_at),
+                    recipient_name=str(self._payload(row).get("recipientName") or "Recipient"),
+                    status=row.status,
+                    error_message=row.error_message,
+                    message=str(self._payload(row).get("message") or ""),
+                )
+                for row in reminders
+                if self._payload(row).get("checklistId") == item.id
+            ]
+            history.sort(key=lambda entry: entry.id, reverse=True)
+            item.targets = targets.get(item.id, [])
+            item.reminders = history[:8]
+            item.owner_user_id = owner_id
+            item.owner_name = owner_name
+            item.due_date = due
+            item.comment = str(payload.get("comment") or "")
+            item.status = _followup_status(item.done, due, owner_id is not None, bool(history))
+            enriched.append(item)
+        return enriched
+
+    def _rows(self, entity_type: str, year: int, month: int) -> list[Notification]:
+        return list(
+            self._db.scalars(
+                select(Notification).where(
+                    Notification.entity_type == entity_type,
+                    Notification.entity_id == _month_key(year, month),
+                )
+            ).all()
+        )
+
+    def _task_row(self, year: int, month: int, checklist_id: str) -> Notification | None:
+        for row in self._rows(_FOLLOWUP_ENTITY, year, month):
+            if self._payload(row).get("checklistId") == checklist_id:
+                return row
+        return None
+
+    def _reminder_rows(self, year: int, month: int) -> list[Notification]:
+        return self._rows(_REMINDER_ENTITY, year, month)
+
+    def _reminder_recipients(
+        self, item: FinalizationChecklistItemOut
+    ) -> list[tuple[int, str, str | None]]:
+        if item.owner_user_id is not None:
+            user = self._db.get(AppUser, item.owner_user_id)
+            if user is None or not user.is_active:
+                return []
+            return [(user.id, user.username, user.email)]
+        found: dict[int, str] = {}
+        for target in item.targets:
+            if target.recipient_user_id is not None and target.recipient_name:
+                found[target.recipient_user_id] = target.recipient_name
+        if not found:
+            return []
+        users = {
+            row.id: row
+            for row in self._db.scalars(select(AppUser).where(AppUser.id.in_(found))).all()
+        }
+        return [
+            (user_id, found[user_id], users[user_id].email if user_id in users else None)
+            for user_id in found
+            if user_id in users and users[user_id].is_active
+        ]
+
+    def _reminder_notification(
+        self,
+        year: int,
+        month: int,
+        checklist_id: str,
+        user_id: int | None,
+        name: str,
+        status: str,
+        error: str | None,
+        message: str,
+    ) -> Notification:
+        return Notification(
+            channel="Email",
+            recipient_user_id=user_id,
+            entity_type=_REMINDER_ENTITY,
+            entity_id=_month_key(year, month),
+            payload=json.dumps(
+                {"checklistId": checklist_id, "recipientName": name, "message": message},
+                separators=(",", ":"),
+            ),
+            status=status,
+            sent_at=datetime.now(UTC).replace(tzinfo=None),
+            error_message=(error or None),
+        )
+
+    @staticmethod
+    def _payload(row: Notification | None) -> dict[str, Any]:
+        if row is None or not row.payload:
+            return {}
+        try:
+            data = json.loads(row.payload)
+        except json.JSONDecodeError:
+            return {}
+        return data if isinstance(data, dict) else {}
 
     def _setting_key(self, year: int, month: int) -> str:
         return f"{_SETTING_PREFIX}{year:04d}-{month:02d}"
@@ -455,6 +934,53 @@ def require_day_writable(db: Session, day: date) -> None:
     raise ApiError(
         f"Attendance for {label} is finalized and locked. "
         "Regularization, exception resolution, and other attendance changes are not allowed."
+    )
+
+
+def _month_key(year: int, month: int) -> int:
+    return year * 100 + month
+
+
+def _parse_date(value: object) -> date | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _sent_day(value: datetime | None) -> date | None:
+    stamped = _as_utc(value)
+    return stamped.date() if stamped else None
+
+
+def _followup_status(done: bool, due: date | None, has_owner: bool, reminded: bool) -> FollowupStatus:
+    if done:
+        return "Completed"
+    if due is not None and due < date.today():
+        return "Overdue"
+    if has_owner or reminded:
+        return "In Progress"
+    return "Pending"
+
+
+def _reminder_text(label: str, detail: str, month_label: str) -> str:
+    return f"Attendance follow-up for {month_label}: {label}. {detail}".strip()
+
+
+def _remind_message(sent: int, skipped: int, failed: int) -> str:
+    return (
+        f"{sent} reminder(s) sent, {skipped} duplicate(s) skipped, {failed} failed. "
+        "Failed reminders stay in the notification history."
     )
 
 

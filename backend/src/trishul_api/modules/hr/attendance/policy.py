@@ -51,6 +51,33 @@ class OfficialVisit:
     returned_at: datetime | None
 
 
+def shift_bounds(day: date, start: time, end: time) -> tuple[datetime, datetime]:
+    """Shift window. An end at or before the start finishes on the next day."""
+    start_at = datetime.combine(day, start)
+    end_at = datetime.combine(day, end)
+    if end <= start:
+        end_at += timedelta(days=1)
+    return start_at, end_at
+
+
+def punches_for_shift_day(punches: list, day: date, start: time, end: time) -> list:
+    """Punches that belong to this shift.
+
+    A day shift keeps punches on that calendar date. An overnight shift also
+    keeps the punches after midnight up to the end of the shift.
+    """
+    start_at, end_at = shift_bounds(day, start, end)
+    lo = start_at - timedelta(hours=3)
+    hi = end_at + timedelta(hours=2)
+    return [punch for punch in punches if lo <= _punched_at(punch) <= hi]
+
+
+def _punched_at(punch) -> datetime:
+    if isinstance(punch, datetime):
+        return punch
+    return punch[0] if isinstance(punch, tuple) else punch.punched_at
+
+
 def expected_net_minutes(
     start: time = OFFICE_START,
     end: time = OFFICE_END,
@@ -58,14 +85,14 @@ def expected_net_minutes(
     lunch_end: time = LUNCH_END,
 ) -> int:
     day = date(2000, 1, 1)
-    span = _minutes(datetime.combine(day, start), datetime.combine(day, end))
+    start_at, end_at = shift_bounds(day, start, end)
     lunch = _overlap(
-        datetime.combine(day, start),
-        datetime.combine(day, end),
+        start_at,
+        end_at,
         datetime.combine(day, lunch_start),
         datetime.combine(day, lunch_end),
     )
-    return max(0, span - lunch)
+    return max(0, _minutes(start_at, end_at) - lunch)
 
 
 def punch_intervals(punches: list[tuple[datetime, str]]) -> list[tuple[datetime, datetime]]:
@@ -89,14 +116,20 @@ def net_worked_minutes(
     punches: list[tuple[datetime, str]],
     day: date,
     visits: list[OfficialVisit] | None = None,
+    *,
+    shift_start: time = OFFICE_START,
+    shift_end: time = OFFICE_END,
 ) -> int:
     """IN/OUT time, plus official visits, minus lunch that falls inside a punch interval."""
     intervals = punch_intervals(punches)
     lunch_start = datetime.combine(day, LUNCH_START)
     lunch_end = datetime.combine(day, LUNCH_END)
+    window_start, window_end = shift_bounds(day, shift_start, shift_end)
+    lunch_in_shift = _overlap(window_start, window_end, lunch_start, lunch_end) > 0
     worked = 0
     for start, end in intervals:
-        worked += _minutes(start, end) - _overlap(start, end, lunch_start, lunch_end)
+        lunch_cut = _overlap(start, end, lunch_start, lunch_end) if lunch_in_shift else 0
+        worked += _minutes(start, end) - lunch_cut
     for visit in visits or []:
         if visit.returned_at is None or visit.returned_at <= visit.departed_at:
             continue
@@ -110,39 +143,52 @@ def net_worked_minutes(
 def grace_days_before(
     first_ins: list[tuple[date, datetime]],
     day: date,
+    *,
+    shift_start: time = OFFICE_START,
+    grace_minutes: int = GRACE_MINUTES,
+    shift_starts: dict[date, time] | None = None,
 ) -> int:
-    """How many earlier days this month used the 15-minute arrival grace."""
+    """How many earlier days this month used the arrival grace for that day's shift."""
     used = 0
     for earlier, first_in in sorted(first_ins):
         if earlier >= day or earlier.year != day.year or earlier.month != day.month:
             continue
-        if _uses_grace(first_in, earlier):
+        start = (shift_starts or {}).get(earlier, shift_start)
+        if _uses_grace(first_in, earlier, start, grace_minutes):
             used += 1
     return used
 
 
-def classify_arrival(first_in: datetime, day: date, grace_used_before: int) -> Arrival:
-    start = datetime.combine(day, OFFICE_START)
-    deadline = start + timedelta(minutes=GRACE_MINUTES)
+def classify_arrival(
+    first_in: datetime,
+    day: date,
+    grace_used_before: int,
+    *,
+    shift_start: time = OFFICE_START,
+    grace_minutes: int = GRACE_MINUTES,
+    grace_days: int = GRACE_DAYS_PER_MONTH,
+) -> Arrival:
+    start = datetime.combine(day, shift_start)
+    deadline = start + timedelta(minutes=grace_minutes)
     if first_in <= start:
         return Arrival("Present", "Present", False, 0, "")
     if first_in <= deadline:
         late_by = _minutes(start, first_in)
-        if grace_used_before < GRACE_DAYS_PER_MONTH:
+        if grace_used_before < grace_days:
             number = grace_used_before + 1
             return Arrival(
                 "Present",
                 "Present",
                 True,
                 late_by,
-                f"Grace day {number} of {GRACE_DAYS_PER_MONTH} ({late_by} min).",
+                f"Grace day {number} of {grace_days} ({late_by} min).",
             )
         return Arrival(
             "Late",
             "Half day",
             False,
             late_by,
-            f"Grace allowance of {GRACE_DAYS_PER_MONTH} days is used. Half-day salary deduction.",
+            f"Grace allowance of {grace_days} days is used. Half-day salary deduction.",
         )
     late_by = _minutes(deadline, first_in)
     return Arrival(
@@ -150,26 +196,63 @@ def classify_arrival(first_in: datetime, day: date, grace_used_before: int) -> A
         "Half day",
         False,
         late_by,
-        f"Late by {late_by} min after the 15-minute grace. Half-day salary deduction.",
+        f"Late by {late_by} min after the {grace_minutes}-minute grace. Half-day salary deduction.",
     )
 
 
-def leaves_early(last_out: datetime | None, day: date, visits: list[OfficialVisit] | None = None) -> bool:
+def early_exit_minutes(
+    last_out: datetime | None,
+    day: date,
+    visits: list[OfficialVisit] | None = None,
+    *,
+    shift_start: time = OFFICE_START,
+    shift_end: time = OFFICE_END,
+    early_grace_minutes: int = 0,
+) -> int:
+    """Minutes left before the shift end, after early-exit grace and official visits.
+
+    ``0`` means the employee did not leave early. The same window as ``leaves_early``.
+    """
     if last_out is None:
-        return False
-    end = datetime.combine(day, OFFICE_END)
+        return 0
+    _, end = shift_bounds(day, shift_start, shift_end)
+    deadline = end - timedelta(minutes=max(0, early_grace_minutes))
     effective = last_out
     for visit in visits or []:
         if visit.departed_at <= end and (visit.returned_at is None or visit.returned_at >= end):
-            return False
+            return 0
         if visit.returned_at is not None and visit.returned_at > effective:
             effective = visit.returned_at
-    return effective < end
+    if effective >= deadline:
+        return 0
+    return _minutes(effective, deadline)
 
 
-def _uses_grace(first_in: datetime, day: date) -> bool:
-    start = datetime.combine(day, OFFICE_START)
-    deadline = start + timedelta(minutes=GRACE_MINUTES)
+def leaves_early(
+    last_out: datetime | None,
+    day: date,
+    visits: list[OfficialVisit] | None = None,
+    *,
+    shift_start: time = OFFICE_START,
+    shift_end: time = OFFICE_END,
+    early_grace_minutes: int = 0,
+) -> bool:
+    return (
+        early_exit_minutes(
+            last_out,
+            day,
+            visits,
+            shift_start=shift_start,
+            shift_end=shift_end,
+            early_grace_minutes=early_grace_minutes,
+        )
+        > 0
+    )
+
+
+def _uses_grace(first_in: datetime, day: date, shift_start: time = OFFICE_START, grace_minutes: int = GRACE_MINUTES) -> bool:
+    start = datetime.combine(day, shift_start)
+    deadline = start + timedelta(minutes=grace_minutes)
     return start < first_in <= deadline
 
 

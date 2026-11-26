@@ -18,6 +18,10 @@ export class AttendanceDailyDrawer {
   readonly selectedDate = input.required<Date>();
   readonly closed = output<void>();
   readonly regularize = output<DailyAttendanceRow>();
+  readonly shiftOpen = output<DailyAttendanceRow>();
+  /** Set when this drawer is opened from Attendance Exceptions. */
+  readonly exceptionType = input<string | null>(null);
+  readonly exceptionStatus = input<string | null>(null);
 
   protected readonly severities: Partial<Record<string, StatusSeverity>> = {
     Present: 'success',

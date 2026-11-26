@@ -284,7 +284,10 @@
       <div class="section-head">
         <div>
           <h2>Shift Assignment</h2>
-          <p>Employee-to-shift mappings from the database. New assignments close overlapping ones and keep history.</p>
+          <p>
+            Assign General, or any other shift, to one employee, several employees, or every active employee.
+            A new assignment closes the previous one and keeps the history.
+          </p>
         </div>
         <button
           mat-flat-button
@@ -439,8 +442,15 @@
     <mat-icon>edit</mat-icon>
     Edit
   </button>
-  <button mat-menu-item type="button" *trishulHasPermission="shiftManage" (click)="deleteShift()">
-    <mat-icon>delete</mat-icon>
-    Deactivate
-  </button>
+  @if (menuShift()?.isActive) {
+    <button mat-menu-item type="button" *trishulHasPermission="shiftManage" (click)="deleteShift()">
+      <mat-icon>pause_circle</mat-icon>
+      Deactivate
+    </button>
+  } @else {
+    <button mat-menu-item type="button" *trishulHasPermission="shiftManage" (click)="activateShift()">
+      <mat-icon>play_circle</mat-icon>
+      Activate
+    </button>
+  }
 </mat-menu>

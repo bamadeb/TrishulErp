@@ -29,42 +29,42 @@
     <span class="icon"><mat-icon>groups</mat-icon></span>
     <div>
       <span>Total Employees</span>
-      <strong>{{ kpi.total | number }}</strong>
+      <strong>{{ kpi().total | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-present">
     <span class="icon"><mat-icon>check_circle</mat-icon></span>
     <div>
       <span>Present</span>
-      <strong>{{ kpi.present | number }}</strong>
+      <strong>{{ kpi().present | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-late">
     <span class="icon"><mat-icon>schedule</mat-icon></span>
     <div>
       <span>Late</span>
-      <strong>{{ kpi.late | number }}</strong>
+      <strong>{{ kpi().late | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-absent">
     <span class="icon"><mat-icon>cancel</mat-icon></span>
     <div>
       <span>Absent</span>
-      <strong>{{ kpi.absent | number }}</strong>
+      <strong>{{ kpi().absent | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-leave">
     <span class="icon"><mat-icon>flight_takeoff</mat-icon></span>
     <div>
       <span>On Leave</span>
-      <strong>{{ kpi.onLeave | number }}</strong>
+      <strong>{{ kpi().onLeave | number }}</strong>
     </div>
   </article>
   <article class="kpi tone-wfh">
     <span class="icon"><mat-icon>home</mat-icon></span>
     <div>
       <span>Work From Home</span>
-      <strong>{{ kpi.wfh | number }}</strong>
+      <strong>{{ kpi().wfh | number }}</strong>
     </div>
   </article>
 </section>

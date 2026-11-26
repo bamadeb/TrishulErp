@@ -1,6 +1,6 @@
 """Company working-hours policy: 9:30–5:30, lunch, grace, and official visits."""
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from trishul_api.modules.hr.attendance.policy import (
     NET_MINUTES,
@@ -11,6 +11,7 @@ from trishul_api.modules.hr.attendance.policy import (
     leaves_early,
     net_worked_minutes,
     punch_counts_for_attendance,
+    punches_for_shift_day,
 )
 
 DAY = date(2026, 11, 25)
@@ -91,6 +92,51 @@ def test_official_visit_counts_as_work_and_is_not_an_early_exit() -> None:
     with_visit = net_worked_minutes(typed, DAY, [visit])
     assert with_visit - without == 5 * 60
     assert leaves_early(at(16, 0), DAY, [OfficialVisit(at(16, 0), at(17, 30))]) is False
+
+
+def test_evening_shift_uses_its_own_start_and_the_shared_grace_rule() -> None:
+    start = datetime(2026, 11, 25, 14, 0).time()
+    on_time = classify_arrival(at(14, 0), DAY, 0, shift_start=start, grace_minutes=15, grace_days=3)
+    assert on_time.attendance_status == "Present"
+    assert on_time.uses_grace is False
+    grace = classify_arrival(at(14, 10), DAY, 0, shift_start=start, grace_minutes=15, grace_days=3)
+    assert grace.attendance_status == "Present"
+    assert grace.payroll_status == "Present"
+    assert grace.uses_grace is True
+    deducted = classify_arrival(at(14, 20), DAY, 0, shift_start=start, grace_minutes=15, grace_days=3)
+    assert deducted.attendance_status == "Late"
+    assert deducted.payroll_status == "Half day"
+
+
+def test_night_shift_crosses_midnight_without_the_day_shift_lunch() -> None:
+    start = datetime(2026, 11, 25, 22, 0).time()
+    end = datetime(2026, 11, 26, 6, 0).time()
+    assert expected_net_minutes(start, end) == 8 * 60
+    typed = [
+        (at(22, 0), "IN"),
+        (at(6, 0, date(2026, 11, 26)), "OUT"),
+    ]
+    assert net_worked_minutes(typed, DAY, shift_start=start, shift_end=end) == 8 * 60
+    assert leaves_early(at(6, 0, date(2026, 11, 26)), DAY, shift_start=start, shift_end=end) is False
+    assert leaves_early(at(5, 0, date(2026, 11, 26)), DAY, shift_start=start, shift_end=end) is True
+    assert classify_arrival(at(22, 10), DAY, 1, shift_start=start).uses_grace is True
+
+
+def test_overnight_out_punch_stays_on_the_shift_that_started_the_previous_evening() -> None:
+    night_in = at(22, 0)
+    night_out = at(6, 0, date(2026, 11, 26))
+    morning_in = at(9, 30, date(2026, 11, 26))
+    punches = [night_in, night_out, morning_in]
+    night = punches_for_shift_day(punches, DAY, time(22, 0), time(6, 0))
+    assert night == [night_in, night_out]
+    day_shift = punches_for_shift_day(punches, date(2026, 11, 26), time(9, 30), time(17, 30))
+    assert night_out not in day_shift
+    assert morning_in in day_shift
+
+
+def test_early_exit_grace_is_measured_from_the_shift_end() -> None:
+    assert leaves_early(at(17, 20), DAY, shift_end=time(17, 30), early_grace_minutes=15) is False
+    assert leaves_early(at(17, 0), DAY, shift_end=time(17, 30), early_grace_minutes=15) is True
 
 
 def test_rejected_and_pending_punches_are_not_attendance() -> None:

@@ -52,6 +52,8 @@ export interface DailyAttendanceRow {
   workingHours: string | null;
   status: AttendanceStatus;
   remarks: string;
+  lateArrivalMinutes: number | null;
+  earlyExitMinutes: number | null;
   avatarTone: string;
   punches: AttendancePunch[];
   history: AttendanceHistoryItem[];
@@ -71,6 +73,7 @@ export interface RegularizationRequest {
   employeeCode: string;
   employeeName: string;
   date: string;
+  requestType: string;
   reason: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   avatarTone: string;
@@ -190,6 +193,7 @@ export interface AttendanceExceptionRow {
   department: string;
   location: string;
   date: string;
+  dateIso: string;
   shift: string;
   firstIn: string | null;
   lastOut: string | null;

@@ -2,14 +2,17 @@ import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   DestroyRef,
+  NgZone,
   OnInit,
   computed,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -112,10 +115,13 @@ export class AttendanceMusterPage implements OnInit {
   private readonly api = inject(AttendanceApi);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly zone = inject(NgZone);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly reload$ = new Subject<void>();
   private readonly search$ = new Subject<string>();
 
-  protected kpi: AttendanceKpi = EMPTY_KPI;
+  protected readonly kpi = signal<AttendanceKpi>(EMPTY_KPI);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly allRows = signal<MusterEmployeeRow[]>([]);
@@ -192,7 +198,22 @@ export class AttendanceMusterPage implements OnInit {
       )
       .subscribe();
 
+    this.applyRouteMonth();
     this.reload$.next();
+  }
+
+  private applyRouteMonth(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const year = Number(params.get('year'));
+    const month = Number(params.get('month'));
+    if (year >= 2000 && month >= 1 && month <= 12) {
+      this.year.set(year);
+      this.monthIndex.set(month - 1);
+    }
+    const department = params.get('department');
+    const location = params.get('location');
+    if (department) this.department.set(department);
+    if (location) this.location.set(location);
   }
 
   protected shiftMonth(delta: number): void {
@@ -342,24 +363,35 @@ export class AttendanceMusterPage implements OnInit {
           err instanceof HttpErrorResponse
             ? extractHttpError(err)
             : 'Failed to load monthly muster.';
-        this.error.set(message);
-        this.allRows.set([]);
-        this.kpi = EMPTY_KPI;
-        this.departments.set([]);
-        this.locations.set([]);
-        this.snackBar.open(message, 'OK', { duration: 4000 });
+        this.zone.run(() => {
+          this.error.set(message);
+          this.allRows.set([]);
+          this.kpi.set(EMPTY_KPI);
+          this.departments.set([]);
+          this.locations.set([]);
+          this.snackBar.open(message, 'OK', { duration: 4000 });
+          this.cdr.markForCheck();
+        });
         return of(null);
       }),
-      finalize(() => this.loading.set(false)),
+      finalize(() => {
+        this.zone.run(() => {
+          this.loading.set(false);
+          this.cdr.markForCheck();
+        });
+      }),
     );
   }
 
   private applyPage(page: MonthlyMusterPage): void {
-    this.kpi = mapKpi(page.summary);
-    this.departments.set(page.filterOptions.departments);
-    this.locations.set(page.filterOptions.locations);
-    this.allRows.set(page.items.map(normalizeRow));
-    this.error.set(null);
+    this.zone.run(() => {
+      this.kpi.set(mapKpi(page.summary));
+      this.departments.set(page.filterOptions?.departments ?? []);
+      this.locations.set(page.filterOptions?.locations ?? []);
+      this.allRows.set((page.items ?? []).map(normalizeRow));
+      this.error.set(null);
+      this.cdr.markForCheck();
+    });
   }
 }
 

@@ -2,8 +2,11 @@ import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   DestroyRef,
+  HostListener,
+  NgZone,
   OnInit,
   computed,
   inject,
@@ -22,10 +25,12 @@ import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
+import { ActivatedRoute } from '@angular/router';
 import {
   AttendanceApi,
   AttendanceExceptionRow as ApiExceptionRow,
   AttendanceExceptionsList,
+  DailyAttendanceRow as ApiDailyAttendanceRow,
   ExceptionKpi as ApiExceptionKpi,
 } from '@trishul/hr-data-access';
 import { PageHeader } from '@trishul/shared-ui';
@@ -51,8 +56,12 @@ import {
   AttendanceRegularizeDialog,
   RegularizeSubmitResult,
 } from './attendance-regularize.dialog';
+import { AttendanceDailyDrawer } from './attendance-daily.drawer';
+import { AttendanceShiftDrawer } from './attendance-shift.drawer';
 import {
   AttendanceExceptionRow,
+  AttendanceStatus,
+  DailyAttendanceRow,
   EXCEPTION_TYPES,
   ExceptionKpi,
   ExceptionReviewStatus,
@@ -90,8 +99,6 @@ const EMPTY_KPI: ExceptionKpi = {
   absent: 0,
 };
 
-const PAGE_SIZE = 200;
-
 /** Attendance Exceptions — wired to GET /hr/attendance/exceptions (UI structure unchanged). */
 @Component({
   selector: 'trishul-attendance-exceptions-page',
@@ -113,6 +120,8 @@ const PAGE_SIZE = 200;
     MatSelect,
     MatTooltip,
     PageHeader,
+    AttendanceDailyDrawer,
+    AttendanceShiftDrawer,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './attendance-exceptions.page.html',
@@ -123,11 +132,17 @@ export class AttendanceExceptionsPage implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly zone = inject(NgZone);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly reload$ = new Subject<void>();
   private readonly search$ = new Subject<string>();
+  private readonly detail$ = new Subject<AttendanceExceptionRow>();
+  private ignoreOutsideClick = false;
 
-  protected kpi: ExceptionKpi = EMPTY_KPI;
-  protected rangeLabel = '';
+  protected readonly kpi = signal<ExceptionKpi>(EMPTY_KPI);
+  protected readonly rangeLabel = signal('');
+  protected readonly error = signal<string | null>(null);
   protected readonly exceptionTypes = EXCEPTION_TYPES;
   protected readonly loading = signal(false);
   protected readonly allRows = signal<AttendanceExceptionRow[]>([]);
@@ -135,6 +150,7 @@ export class AttendanceExceptionsPage implements OnInit {
   protected readonly locations = signal<string[]>([]);
   protected readonly pendingCount = signal(0);
   protected readonly resolvedCount = signal(0);
+  protected readonly serverTotal = signal(0);
 
   private readonly now = new Date();
   protected readonly rangeStart = signal(new Date(this.now.getFullYear(), this.now.getMonth(), 1));
@@ -152,21 +168,25 @@ export class AttendanceExceptionsPage implements OnInit {
   protected readonly pageSize = signal(10);
   protected readonly selectedIds = signal<Set<number>>(new Set());
   protected readonly menuRow = signal<AttendanceExceptionRow | null>(null);
+  protected readonly shiftFocus = signal<{
+    name: string;
+    employeeId: number;
+    employeeName: string;
+  } | null>(null);
+  protected readonly detail = signal<DailyAttendanceRow | null>(null);
+  protected readonly detailDate = signal<Date | null>(null);
+  protected readonly detailException = signal<AttendanceExceptionRow | null>(null);
 
   protected readonly tabCounts = computed(() => ({
-    all: this.kpi.total,
+    all: this.kpi().total,
     pending: this.pendingCount(),
     resolved: this.resolvedCount(),
   }));
 
-  protected readonly filtered = computed(() => this.allRows());
+  protected readonly total = computed(() => this.serverTotal());
 
-  protected readonly total = computed(() => this.filtered().length);
-
-  protected readonly pageRows = computed(() => {
-    const start = this.page() * this.pageSize();
-    return this.filtered().slice(start, start + this.pageSize());
-  });
+  /** The API already returns one page. Do not slice it again. */
+  protected readonly pageRows = computed(() => this.allRows());
 
   protected readonly allPageSelected = computed(() => {
     const rows = this.pageRows();
@@ -190,19 +210,85 @@ export class AttendanceExceptionsPage implements OnInit {
 
     this.reload$
       .pipe(
-        tap(() => this.loading.set(true)),
+        tap(() => {
+          this.loading.set(true);
+          this.error.set(null);
+          this.allRows.set([]);
+        }),
         switchMap(() => this.loadRange$()),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
 
+    this.applyRouteRange();
     this.reload$.next();
+    this.syncRangeLabel();
+
+    this.detail$
+      .pipe(
+        switchMap((row) =>
+          this.api
+            .listDaily({
+              date: row.dateIso,
+              search: row.employeeCode,
+              page: 1,
+              pageSize: 20,
+              statusTab: 'all',
+              includePunches: true,
+              includeHistory: false,
+            })
+            .pipe(
+              map((page) => ({
+                id: row.id,
+                item: page.items.find((item) => item.employeeId === row.employeeId) ?? null,
+              })),
+              catchError(() => of({ id: row.id, item: null as ApiDailyAttendanceRow | null })),
+            ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(({ id, item }) => {
+        const current = this.detailException();
+        if (!current || current.id !== id || !item) return;
+        this.detail.set(toAttendanceRow(item, current));
+        this.cdr.markForCheck();
+      });
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (!this.detail()) return;
+    if (this.ignoreOutsideClick) {
+      this.ignoreOutsideClick = false;
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest(
+        'trishul-attendance-daily-drawer, .name, [aria-label="View details"], .cdk-overlay-container',
+      )
+    ) {
+      return;
+    }
+    this.closeDetails();
   }
 
   protected setTab(tab: ExceptionTab): void {
+    const status: ExceptionReviewStatus | '' =
+      tab === 'pending' ? 'Pending' : tab === 'resolved' ? 'Resolved' : '';
+    if (tab === this.contentTab() && status === this.status()) return;
     this.contentTab.set(tab);
+    this.status.set(status);
     this.page.set(0);
+    this.selectedIds.set(new Set());
     this.reload$.next();
+  }
+
+  private applyRouteRange(): void {
+    const from = this.route.snapshot.queryParamMap.get('from');
+    const to = this.route.snapshot.queryParamMap.get('to');
+    if (from) this.rangeStart.set(parseIsoDate(from));
+    if (to) this.rangeEnd.set(parseIsoDate(to));
   }
 
   protected shiftRange(delta: number): void {
@@ -216,6 +302,7 @@ export class AttendanceExceptionsPage implements OnInit {
         : endOfMonth;
     this.rangeStart.set(next);
     this.rangeEnd.set(end);
+    this.syncRangeLabel();
     this.page.set(0);
     this.selectedIds.set(new Set());
     this.reload$.next();
@@ -226,32 +313,47 @@ export class AttendanceExceptionsPage implements OnInit {
   }
 
   protected onDepartment(value: string): void {
-    this.department.set(value);
+    const next = value ?? '';
+    if (next === this.department()) return;
+    this.department.set(next);
     this.page.set(0);
     this.reload$.next();
   }
 
   protected onLocation(value: string): void {
-    this.location.set(value);
+    const next = value ?? '';
+    if (next === this.location()) return;
+    this.location.set(next);
     this.page.set(0);
     this.reload$.next();
   }
 
   protected onExceptionType(value: ExceptionType | ''): void {
-    this.exceptionType.set(value);
+    const next = value ?? '';
+    if (next === this.exceptionType()) return;
+    this.exceptionType.set(next);
     this.page.set(0);
     this.reload$.next();
   }
 
   protected onStatus(value: ExceptionReviewStatus | ''): void {
-    this.status.set(value);
+    const next = value ?? '';
+    if (next === this.status()) return;
+    this.status.set(next);
+    const tab: ExceptionTab =
+      next === 'Pending' ? 'pending' : next === 'Resolved' ? 'resolved' : 'all';
+    this.contentTab.set(tab);
     this.page.set(0);
+    this.selectedIds.set(new Set());
     this.reload$.next();
   }
 
   protected onPage(event: PageEvent): void {
+    if (event.pageIndex === this.page() && event.pageSize === this.pageSize()) return;
     this.page.set(event.pageIndex);
     this.pageSize.set(event.pageSize);
+    this.selectedIds.set(new Set());
+    this.reload$.next();
   }
 
   protected isSelected(id: number): boolean {
@@ -283,16 +385,41 @@ export class AttendanceExceptionsPage implements OnInit {
   }
 
   protected exportExcel(): void {
-    const rows = this.filtered();
-    if (!rows.length) {
-      this.snackBar.open('No exceptions to export.', 'OK', { duration: 2200 });
-      return;
-    }
-    downloadCsv(
-      `attendance-exceptions-${toIsoDate(this.rangeStart())}_${toIsoDate(this.rangeEnd())}.csv`,
-      rows,
-    );
-    this.snackBar.open(`Exported ${rows.length} exception(s).`, 'OK', { duration: 2200 });
+    const pageSize = 200;
+    this.api
+      .listExceptions(this.listQuery(1, pageSize))
+      .pipe(
+        switchMap((first) => {
+          const items = Array.isArray(first?.items) ? first.items : [];
+          const size = Math.max(first?.pageSize || pageSize, 1);
+          const pages = Math.max(1, Math.ceil((first?.total || items.length) / size));
+          if (pages <= 1) return of(items);
+          const rest = Array.from({ length: pages - 1 }, (_, index) =>
+            this.api.listExceptions(this.listQuery(index + 2, pageSize)),
+          );
+          return forkJoin(rest).pipe(
+            map((extra) => [...items, ...extra.flatMap((page) => page.items ?? [])]),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (items) => {
+          const rows = items
+            .filter((row) => row.exceptionType !== ('Present' as ExceptionType))
+            .map(normalizeRow);
+          if (!rows.length) {
+            this.snackBar.open('No exceptions to export.', 'OK', { duration: 2200 });
+            return;
+          }
+          downloadCsv(
+            `attendance-exceptions-${toIsoDate(this.rangeStart())}_${toIsoDate(this.rangeEnd())}.csv`,
+            rows,
+          );
+          this.snackBar.open(`Exported ${rows.length} exception(s).`, 'OK', { duration: 2200 });
+        },
+        error: () => this.snackBar.open('Failed to export exceptions.', 'OK', { duration: 3000 }),
+      });
   }
 
   protected regularize(row?: AttendanceExceptionRow | null): void {
@@ -363,11 +490,45 @@ export class AttendanceExceptionsPage implements OnInit {
   protected viewDetails(row?: AttendanceExceptionRow | null): void {
     const target = row ?? this.menuRow();
     if (!target) return;
-    this.snackBar.open(
-      `${target.employeeName}: ${target.exceptionType} · ${target.remark || 'No remark'}`,
-      'OK',
-      { duration: 4000 },
-    );
+    this.ignoreOutsideClick = true;
+    this.shiftFocus.set(null);
+    this.detailException.set(target);
+    this.detailDate.set(parseIsoDate(target.dateIso));
+    this.detail.set(attendanceFromException(target));
+    this.detail$.next(target);
+    queueMicrotask(() => {
+      this.ignoreOutsideClick = false;
+    });
+  }
+
+  protected closeDetails(): void {
+    this.detail.set(null);
+    this.detailDate.set(null);
+    this.detailException.set(null);
+  }
+
+  protected openShift(row: AttendanceExceptionRow): void {
+    const name = shiftDisplayName(row.shift);
+    if (!name) return;
+    this.closeDetails();
+    this.shiftFocus.set({
+      name,
+      employeeId: row.employeeId,
+      employeeName: row.employeeName,
+    });
+  }
+
+  protected openShiftFromDetail(): void {
+    const row = this.detailException();
+    if (row) this.openShift(row);
+  }
+
+  protected closeShift(): void {
+    this.shiftFocus.set(null);
+  }
+
+  protected shiftLabel(value: string): string {
+    return shiftDisplayName(value);
   }
 
   protected resolve(row?: AttendanceExceptionRow | null): void {
@@ -412,8 +573,8 @@ export class AttendanceExceptionsPage implements OnInit {
       });
   }
 
-  protected initials(name: string): string {
-    return name
+  protected initials(name: string | null | undefined): string {
+    return (name || '')
       .split(/\s+/)
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? '')
@@ -448,10 +609,39 @@ export class AttendanceExceptionsPage implements OnInit {
   }
 
   private loadRange$() {
-    const base = {
+    return this.api.listExceptions(this.listQuery(this.page() + 1, this.pageSize())).pipe(
+      tap((page) => this.applyPage(page)),
+      catchError((err: unknown) => {
+        const message =
+          err instanceof HttpErrorResponse
+            ? extractHttpError(err)
+            : 'Failed to load attendance exceptions.';
+        this.zone.run(() => {
+          this.allRows.set([]);
+          this.serverTotal.set(0);
+          this.kpi.set(EMPTY_KPI);
+          this.pendingCount.set(0);
+          this.resolvedCount.set(0);
+          this.departments.set([]);
+          this.locations.set([]);
+          this.error.set(message);
+          this.cdr.markForCheck();
+        });
+        this.snackBar.open(message, 'OK', { duration: 4000 });
+        return of(null);
+      }),
+      finalize(() => {
+        this.zone.run(() => this.loading.set(false));
+      }),
+    );
+  }
+
+  private listQuery(page: number, pageSize: number) {
+    return {
       from: toIsoDate(this.rangeStart()),
       to: toIsoDate(this.rangeEnd()),
-      pageSize: PAGE_SIZE,
+      page,
+      pageSize,
       statusTab: this.contentTab(),
       search: this.search() || undefined,
       department: this.department() || undefined,
@@ -459,60 +649,75 @@ export class AttendanceExceptionsPage implements OnInit {
       exceptionType: this.exceptionType() || undefined,
       status: this.status() || undefined,
     };
+  }
 
-    return this.api.listExceptions({ ...base, page: 1 }).pipe(
-      switchMap((first) => {
-        const pages = Math.max(1, Math.ceil(first.total / Math.max(first.pageSize, 1)));
-        if (pages <= 1) return of(first);
-        const rest = Array.from({ length: pages - 1 }, (_, index) =>
-          this.api.listExceptions({ ...base, page: index + 2 }),
-        );
-        return forkJoin(rest).pipe(
-          map((extra) => ({
-            ...first,
-            items: [...first.items, ...extra.flatMap((page) => page.items)],
-          })),
-        );
-      }),
-      tap((page) => this.applyPage(page)),
-      catchError((err: unknown) => {
-        const message =
-          err instanceof HttpErrorResponse
-            ? extractHttpError(err)
-            : 'Failed to load attendance exceptions.';
-        this.allRows.set([]);
-        this.kpi = EMPTY_KPI;
-        this.pendingCount.set(0);
-        this.resolvedCount.set(0);
-        this.departments.set([]);
-        this.locations.set([]);
-        this.snackBar.open(message, 'OK', { duration: 4000 });
-        return of(null);
-      }),
-      finalize(() => this.loading.set(false)),
-    );
+  private syncRangeLabel(): void {
+    const start = this.rangeStart();
+    const end = this.rangeEnd();
+    this.rangeLabel.set(`${formatDisplayDate(toIsoDate(start))} – ${formatDisplayDate(toIsoDate(end))}`);
   }
 
   private applyPage(result: AttendanceExceptionsList): void {
-    this.kpi = mapKpi(result.summary);
-    this.pendingCount.set(result.pendingCount);
-    this.resolvedCount.set(result.resolvedCount);
-    this.departments.set(result.filterOptions.departments);
-    this.locations.set(result.filterOptions.locations);
-    this.rangeLabel = `${formatDisplayDate(result.dateFrom)} – ${formatDisplayDate(result.dateTo)}`;
-    this.allRows.set(result.items.map(normalizeRow));
+    this.zone.run(() => {
+      const summary = result?.summary;
+      const items = result?.items;
+      if (!summary || !Array.isArray(items)) {
+        this.error.set('The exceptions response could not be read.');
+        this.kpi.set(EMPTY_KPI);
+        this.allRows.set([]);
+        this.serverTotal.set(0);
+        this.cdr.markForCheck();
+        return;
+      }
+      const total = numberOrZero(result.total);
+      if (items.length === 0 && total > 0 && this.page() > 0) {
+        this.serverTotal.set(total);
+        this.page.set(0);
+        this.reload$.next();
+        return;
+      }
+      this.error.set(null);
+      this.serverTotal.set(total);
+      this.kpi.set(mapKpi(summary));
+      this.pendingCount.set(numberOrZero(result.pendingCount));
+      this.resolvedCount.set(numberOrZero(result.resolvedCount));
+      this.departments.set(result.filterOptions?.departments ?? []);
+      this.locations.set(result.filterOptions?.locations ?? []);
+      if (result.dateFrom && result.dateTo) {
+        this.rangeLabel.set(
+          `${formatDisplayDate(String(result.dateFrom))} – ${formatDisplayDate(String(result.dateTo))}`,
+        );
+      }
+      this.allRows.set(
+        items
+          .filter((row) => row.exceptionType !== ('Present' as ExceptionType))
+          .map(normalizeRow),
+      );
+      this.cdr.markForCheck();
+    });
   }
 }
 
+function shiftDisplayName(value: string | null | undefined): string {
+  const name = (value ?? '').split('(')[0]?.trim() ?? '';
+  return name === '—' || name === '-' ? '' : name;
+}
+
 function mapKpi(summary: ApiExceptionKpi): ExceptionKpi {
+  const raw = summary as ApiExceptionKpi & Record<string, unknown>;
   return {
-    total: summary.total,
-    missingPunch: summary.missingPunch,
-    lateArrival: summary.lateArrival,
-    earlyExit: summary.earlyExit,
-    shortHours: summary.shortHours,
-    absent: summary.absent,
+    total: numberOrZero(raw.total),
+    missingPunch: numberOrZero(raw.missingPunch ?? raw['missing_punch']),
+    lateArrival: numberOrZero(raw.lateArrival ?? raw['late_arrival']),
+    earlyExit: numberOrZero(raw.earlyExit ?? raw['early_exit']),
+    shortHours: numberOrZero(raw.shortHours ?? raw['short_hours']),
+    absent: numberOrZero(raw.absent),
   };
+}
+
+function numberOrZero(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function normalizeRow(row: ApiExceptionRow): AttendanceExceptionRow {
@@ -524,6 +729,7 @@ function normalizeRow(row: ApiExceptionRow): AttendanceExceptionRow {
     department: row.department,
     location: row.location,
     date: formatDisplayDate(row.date),
+    dateIso: String(row.date).slice(0, 10),
     shift: row.shift,
     firstIn: formatTime(row.firstIn),
     lastOut: formatTime(row.lastOut),
@@ -559,6 +765,69 @@ function formatDisplayDate(value: string): string {
 function parseIsoDate(value: string): Date {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year!, (month ?? 1) - 1, day ?? 1);
+}
+
+function attendanceFromException(row: AttendanceExceptionRow): DailyAttendanceRow {
+  return {
+    id: row.employeeId,
+    employeeId: row.employeeId,
+    employeeCode: row.employeeCode,
+    employeeName: row.employeeName,
+    department: row.department,
+    location: row.location,
+    shift: shiftDisplayName(row.shift) || row.shift,
+    employeeType: '',
+    reportingManager: '',
+    firstIn: row.firstIn,
+    lastOut: row.lastOut,
+    firstInLate: row.exceptionType === 'Late Arrival',
+    workingHours: row.actualHours,
+    status: attendanceStatusFor(row.exceptionType),
+    remarks: row.remark,
+    lateArrivalMinutes: null,
+    earlyExitMinutes: null,
+    avatarTone: row.avatarTone,
+    punches: [],
+    history: [],
+  };
+}
+
+function toAttendanceRow(row: ApiDailyAttendanceRow, source: AttendanceExceptionRow): DailyAttendanceRow {
+  return {
+    id: row.id,
+    employeeId: row.employeeId,
+    employeeCode: row.employeeCode,
+    employeeName: row.employeeName,
+    department: row.department,
+    location: row.location,
+    shift: shiftDisplayName(row.shift) || row.shift,
+    employeeType: row.employeeType,
+    reportingManager: row.reportingManager,
+    firstIn: formatTime(row.firstIn),
+    lastOut: formatTime(row.lastOut),
+    firstInLate: row.firstInLate,
+    workingHours: row.workingHours,
+    status: row.status,
+    remarks: row.remarks,
+    lateArrivalMinutes: row.lateArrivalMinutes ?? null,
+    earlyExitMinutes: row.earlyExitMinutes ?? null,
+    avatarTone: source.avatarTone,
+    punches: row.punches ?? [],
+    history: [],
+  };
+}
+
+function attendanceStatusFor(type: ExceptionType): AttendanceStatus {
+  switch (type) {
+    case 'Absent':
+      return 'Absent';
+    case 'Late Arrival':
+      return 'Late';
+    case 'Missing Punch':
+      return 'Missing Punch';
+    default:
+      return 'Present';
+  }
 }
 
 function parseDisplayDate(value: string): Date {

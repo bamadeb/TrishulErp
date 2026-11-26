@@ -56,9 +56,10 @@ def test_present_and_late_from_punches():
     )
     assert present[4] == "Present"
     assert present[2] is False
+    assert service._day_variance == (0, 0)
 
-    # 9:25 is before the 9:30 office start, so it is on time under the company policy.
-    on_time = service._from_punches(
+    # 9:25 is after this shift's 9:00 start plus 10 minutes of grace.
+    late_for_shift = service._from_punches(
         day,
         shift,
         [
@@ -66,8 +67,22 @@ def test_present_and_late_from_punches():
             PunchSource(1, datetime(2026, 11, 19, 18, 5), "OUT", "Gate"),
         ],
     )
-    assert on_time[4] == "Present"
-    assert on_time[2] is False
+    assert late_for_shift[4] == "Late"
+    assert late_for_shift[2] is True
+    assert service._day_variance == (15, 0)
+
+    # 9:05 is inside the 10-minute grace and still counts as on time.
+    grace = service._from_punches(
+        day,
+        shift,
+        [
+            PunchSource(1, datetime(2026, 11, 19, 9, 5), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 19, 18, 0), "OUT", "Gate"),
+        ],
+        grace_used=0,
+    )
+    assert grace[4] == "Present"
+    assert service._day_variance == (0, 0)
 
     late = service._from_punches(
         day,
@@ -80,6 +95,7 @@ def test_present_and_late_from_punches():
     )
     assert late[4] == "Late"
     assert late[2] is True
+    assert service._day_variance == (40, 30)
 
 
 def test_missing_punch_and_absent():
@@ -92,9 +108,26 @@ def test_missing_punch_and_absent():
         [PunchSource(1, datetime(2026, 11, 19, 9, 1), "IN", "Gate")],
     )
     assert missing[4] == "Missing Punch"
+    assert "Missing OUT punch" in missing[5]
+    assert service._day_variance[1] is None
+    assert service._day_variance[0] == 0
+    assert "In 9:01 AM" in missing[5]
+    assert "General" in missing[5]
 
     absent = service._from_punches(day, shift, [])
     assert absent[4] == "Absent"
+    assert "No punches and no approved leave" in absent[5]
+    assert service._day_variance == (None, None)
+    assert "General" in absent[5]
+
+    missing_in = service._from_punches(
+        day,
+        shift,
+        [PunchSource(1, datetime(2026, 11, 19, 18, 2), "OUT", "Gate")],
+    )
+    assert missing_in[4] == "Missing Punch"
+    assert "Missing IN punch" in missing_in[5]
+    assert missing_in[0] is None
 
 
 def _repo_stub():

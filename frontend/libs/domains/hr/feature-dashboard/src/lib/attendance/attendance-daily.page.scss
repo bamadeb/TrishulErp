@@ -144,6 +144,7 @@
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   padding: 0 0.85rem;
   border-bottom: 1px solid #eef3f9;
@@ -220,23 +221,87 @@
   }
 }
 
+table.records {
+  min-width: 0;
+
+  th,
+  td {
+    padding: 0.32rem 0.3rem;
+  }
+
+  .name-col {
+    width: 17%;
+    min-width: 0;
+  }
+
+  .shift {
+    width: 8%;
+  }
+
+  .clock {
+    width: 5.6rem;
+  }
+
+  .hours {
+    width: 7.6rem;
+  }
+
+  th.hours {
+    letter-spacing: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .status-col {
+    width: 12%;
+    overflow: visible;
+  }
+
+  .mins {
+    width: 6.5%;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  th.mins {
+    letter-spacing: 0;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  .actions-col,
+  .actions {
+    width: 4.6rem;
+  }
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
 }
 
+@media (min-width: 1200px) {
+  .table-wrap:has(table.records) {
+    overflow-x: hidden;
+  }
+}
+
 table {
   width: 100%;
-  min-width: 72rem;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
 }
 
+table:not(.records) {
+  min-width: 72rem;
+}
+
 th,
 td {
   box-sizing: border-box;
-  padding: 0.45rem 0.5rem;
+  padding: 0.38rem 0.4rem;
   border-bottom: 1px solid #eef3f9;
   text-align: left;
   vertical-align: middle;
@@ -268,8 +333,7 @@ th {
 }
 
 .name-col {
-  width: 18rem;
-  min-width: 16rem;
+  width: 14rem;
   overflow: visible;
   white-space: normal;
 
@@ -294,6 +358,22 @@ th {
 .shift {
   white-space: normal;
   line-height: 1.2;
+}
+
+.shift-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #0754b8;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .actions-col,

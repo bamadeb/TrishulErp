@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -34,7 +35,7 @@ import {
   FacePunch,
   RegularizationRow,
 } from '@trishul/hr-data-access';
-import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
+import { PageHeader, StatusSeverity } from '@trishul/shared-ui';
 import {
   Subject,
   catchError,
@@ -49,6 +50,7 @@ import {
   tap,
 } from 'rxjs';
 import { AttendanceDailyDrawer } from './attendance-daily.drawer';
+import { AttendanceShiftDrawer } from './attendance-shift.drawer';
 import {
   ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
   AttendanceRegularizeData,
@@ -122,8 +124,8 @@ const DAY_PAGE_SIZE = 200;
     MatSelect,
     MatTooltip,
     PageHeader,
-    StatusBadge,
     AttendanceDailyDrawer,
+    AttendanceShiftDrawer,
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -132,6 +134,7 @@ const DAY_PAGE_SIZE = 200;
 })
 export class AttendanceDailyPage implements OnInit {
   private readonly api = inject(AttendanceApi);
+  private readonly router = inject(Router);
   private readonly faces = inject(FaceAttendanceApi);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
@@ -177,6 +180,11 @@ export class AttendanceDailyPage implements OnInit {
   protected readonly punchLoading = signal(false);
   protected readonly punchError = signal<string | null>(null);
   protected readonly selected = signal<DailyAttendanceRow | null>(null);
+  protected readonly shiftFocus = signal<{
+    name: string;
+    employeeId: number;
+    employeeName: string;
+  } | null>(null);
   protected readonly menuRow = signal<DailyAttendanceRow | null>(null);
 
   protected readonly dateLabel = computed(() =>
@@ -279,6 +287,11 @@ export class AttendanceDailyPage implements OnInit {
     return STATUS_ICON[status] ?? 'info';
   }
 
+  protected minuteLabel(value: number | null | undefined): string {
+    if (value == null) return '—';
+    return `${value} min`;
+  }
+
   protected avatarColor(id: number): string {
     return avatarTone(id);
   }
@@ -317,6 +330,14 @@ export class AttendanceDailyPage implements OnInit {
   }
 
   protected setTab(tab: ContentTab): void {
+    if (tab === 'exceptions') {
+      void this.router.navigateByUrl('/hr/attendance/exceptions');
+      return;
+    }
+    if (tab === 'regularization') {
+      void this.router.navigateByUrl('/hr/attendance/regularization');
+      return;
+    }
     this.contentTab.set(tab);
     this.page.set(0);
     this.selectedIds.set(new Set());
@@ -371,11 +392,26 @@ export class AttendanceDailyPage implements OnInit {
   }
 
   protected openDetails(row: DailyAttendanceRow): void {
+    this.shiftFocus.set(null);
     this.selected.set(row);
   }
 
   protected closeDetails(): void {
     this.selected.set(null);
+  }
+
+  protected openShift(row: { shift: string; employeeId: number; employeeName: string }): void {
+    const name = shiftDisplayName(row.shift);
+    if (!name) return;
+    this.shiftFocus.set({ name, employeeId: row.employeeId, employeeName: row.employeeName });
+  }
+
+  protected closeShift(): void {
+    this.shiftFocus.set(null);
+  }
+
+  protected shiftLabel(value: string): string {
+    return shiftDisplayName(value) || '—';
   }
 
   protected refresh(): void {
@@ -446,6 +482,8 @@ export class AttendanceDailyPage implements OnInit {
       workingHours: null,
       status: 'Present',
       remarks: this.punchVerified(row),
+      lateArrivalMinutes: null,
+      earlyExitMinutes: null,
       avatarTone: avatarTone(row.employeeId),
       punches: history.map((item) => ({
         kind: this.punchKind(item),
@@ -602,31 +640,52 @@ export class AttendanceDailyPage implements OnInit {
       shift: this.shift() || undefined,
     };
 
-    const regs$ = this.api
-      .listRegularizations({
-        from: date,
-        to: date,
-        page: 1,
-        pageSize: 200,
-        statusTab: 'all',
-      })
-      .pipe(
-        catchError(() =>
-          of({
-            items: [] as RegularizationRow[],
-            total: 0,
-            page: 1,
-            pageSize: 200,
-            pendingCount: 0,
-            approvedCount: 0,
-            rejectedCount: 0,
-            dateFrom: date,
-            dateTo: date,
-            summary: { total: 0, pending: 0, approved: 0, rejected: 0 },
-            filterOptions: { departments: [], locations: [], requestTypes: [] },
-          }),
-        ),
-      );
+    const monthStart = toIsoDate(new Date(this.selectedDate().getFullYear(), this.selectedDate().getMonth(), 1));
+    const regQuery = {
+      from: monthStart,
+      to: date,
+      pageSize: DAY_PAGE_SIZE,
+      statusTab: 'all' as const,
+      search: this.search() || undefined,
+      department: this.department() || undefined,
+      location: this.location() || undefined,
+    };
+    const emptyRegs = {
+      items: [] as RegularizationRow[],
+      total: 0,
+      page: 1,
+      pageSize: DAY_PAGE_SIZE,
+      pendingCount: 0,
+      approvedCount: 0,
+      rejectedCount: 0,
+      dateFrom: monthStart,
+      dateTo: date,
+      summary: { total: 0, pending: 0, approved: 0, rejected: 0 },
+      filterOptions: { departments: [], locations: [], requestTypes: [] },
+    };
+    const regs$ = this.api.listRegularizations({ ...regQuery, page: 1 }).pipe(
+      switchMap((first) => {
+        const pages = Math.max(1, Math.ceil(first.total / Math.max(first.pageSize, 1)));
+        if (pages <= 1) return of(first);
+        const rest = Array.from({ length: pages - 1 }, (_, index) =>
+          this.api.listRegularizations({ ...regQuery, page: index + 2 }),
+        );
+        return forkJoin(rest).pipe(
+          map((extra) => ({
+            ...first,
+            items: [...first.items, ...extra.flatMap((page) => page.items)],
+          })),
+        );
+      }),
+      catchError((err: unknown) => {
+        const message =
+          err instanceof HttpErrorResponse
+            ? extractHttpError(err)
+            : 'Failed to load regularization requests.';
+        this.snackBar.open(message, 'OK', { duration: 4000 });
+        return of(emptyRegs);
+      }),
+    );
 
     return forkJoin({
       daily: this.api.listDaily({ ...base, page: 1 }).pipe(
@@ -654,6 +713,7 @@ export class AttendanceDailyPage implements OnInit {
             employeeCode: row.employeeCode,
             employeeName: row.employeeName,
             date: formatDisplayDate(row.attendanceDate),
+            requestType: row.requestType,
             reason: row.reason,
             status: row.status,
             avatarTone: avatarTone(row.employeeId || row.id),
@@ -722,6 +782,8 @@ function normalizeRow(row: ApiDailyAttendanceRow): DailyAttendanceRow {
     workingHours: row.workingHours,
     status: row.status,
     remarks: row.remarks,
+    lateArrivalMinutes: row.lateArrivalMinutes ?? null,
+    earlyExitMinutes: row.earlyExitMinutes ?? null,
     avatarTone: avatarTone(row.employeeId || row.id),
     punches: row.punches ?? [],
     history: (row.history ?? []).map((item) => ({
@@ -745,6 +807,11 @@ function formatTime(value: string | null | undefined): string | null {
   }).format(date);
 }
 
+function shiftDisplayName(value: string | null | undefined): string {
+  const name = (value ?? '').split('(')[0]?.trim() ?? '';
+  return name === '—' || name === '-' ? '' : name;
+}
+
 function avatarTone(id: number): string {
   return AVATAR_TONES[Math.abs(id) % AVATAR_TONES.length]!;
 }
@@ -757,10 +824,11 @@ function toIsoDate(value: Date): string {
 }
 
 function formatDisplayDate(value: string): string {
-  const date = new Date(value);
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  const date = new Date(year!, (month ?? 1) - 1, day ?? 1);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
+    day: '2-digit',
     month: 'short',
     year: 'numeric',
   }).format(date);
@@ -777,6 +845,8 @@ function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
     'Out Time',
     'Worked Hours',
     'Status',
+    'Late Arrival',
+    'Early Exit',
     'Remarks',
   ];
   const body = rows.map((row) =>
@@ -790,6 +860,8 @@ function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
       row.lastOut ?? '',
       row.workingHours ?? '',
       row.status,
+      row.lateArrivalMinutes == null ? '' : String(row.lateArrivalMinutes),
+      row.earlyExitMinutes == null ? '' : String(row.earlyExitMinutes),
       row.remarks,
     ]
       .map(csvEscape)
