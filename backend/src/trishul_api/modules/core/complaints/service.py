@@ -24,7 +24,7 @@ from trishul_api.db.models import (
     Employee,
 )
 from trishul_api.modules.core.complaints import alerts
-from trishul_api.modules.core.complaints.access import RAISE, ComplaintAccess, complaint_access
+from trishul_api.modules.core.complaints.access import ComplaintAccess, complaint_access
 from trishul_api.modules.core.complaints.schemas import (
     OPEN_STATUSES,
     STATUSES,
@@ -103,7 +103,7 @@ class ComplaintService:
             for r in self._db.execute(statement)
         ]
         return ComplaintAccessOut(
-            can_raise=self._user.can(RAISE),
+            can_raise=True,  # every signed-in user may raise a complaint
             can_manage_all=access.all_departments,
             managed_departments=departments if access.manages_any else [],
         )

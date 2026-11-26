@@ -64,6 +64,8 @@ PEOPLE: dict[str, CurrentUser] = {
         id=15, employee_id=None, display_name="Admin", default_branch_id=1, permissions=frozenset({RAISE, MANAGE_ALL})
     ),
     "nobody": make_user(id=16, employee_id=None, default_branch_id=None, permissions=frozenset()),
+    # Raju's colleague in Service whose role grants nothing about complaints.
+    "norole": make_user(id=17, employee_id=105, display_name="Biju Sethi", permissions=frozenset()),
 }
 
 
@@ -81,6 +83,7 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Engine:
         (102, "EMP0102", "Meera", ADMIN_DEPT),
         (103, "EMP0103", "Sunil", ADMIN_DEPT),
         (104, "EMP0104", "Asha", SERVICE),
+        (105, "EMP0105", "Biju", SERVICE),
     ]:
         insert_row(
             engine,
@@ -102,6 +105,7 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Engine:
         (13, 103, "sunil"),
         (14, 104, "asha"),
         (15, None, "admin"),
+        (17, 105, "biju"),
     ]:
         insert_row(
             engine,
@@ -280,10 +284,21 @@ def test_a_short_description_or_unknown_field_is_refused(as_user: Callable[[str]
     )
 
 
-def test_without_the_raise_permission_nothing_can_be_raised(as_user: Callable[[str], TestClient]) -> None:
-    client = as_user("nobody")
-    assert client.get("/api/v1/core/complaint-departments").status_code == 403
-    assert client.get("/api/v1/core/my-complaints").status_code == 403
+def test_every_signed_in_user_may_raise_and_see_their_own_whatever_their_role(
+    as_user: Callable[[str], TestClient],
+) -> None:
+    # "dev": an employee whose role has no complaint permission at all.
+    client = as_user("norole")
+    assert client.get("/api/v1/core/complaint-access").json()["canRaise"] is True
+    assert client.get("/api/v1/core/complaint-departments").status_code == 200
+    created = client.post(
+        "/api/v1/core/complaints",
+        json={"departmentId": ADMIN_DEPT, "issueTypeId": WATER, "description": "The canteen tap is leaking"},
+    )
+    assert created.status_code == 201, created.text
+    mine = client.get("/api/v1/core/my-complaints").json()
+    assert [c["complaintNo"] for c in mine["items"]] == [created.json()["complaintNo"]]
+    assert client.get(f"/api/v1/core/complaints/{created.json()['id']}").status_code == 200
 
 
 def test_without_a_head_the_departments_managers_are_told(as_user: Callable[[str], TestClient], db: Engine) -> None:

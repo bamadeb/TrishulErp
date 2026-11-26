@@ -1,8 +1,9 @@
 """Complaint endpoints. Attachments go through /core/documents with entityType 'core.complaint'.
 
-Department complaints are open to every signed-in user at the route: a department head leads complaints without
-any permission code, so the service decides (403 if the user leads no department, 404 for a complaint they may
-not open).
+Raising a complaint and seeing one's own are open to every signed-in user, whatever their role: anyone can have
+a complaint. Department complaints are open at the route too: a department head leads complaints without any
+permission code, so the service decides (403 if the user leads no department, 404 for a complaint they may not
+open).
 """
 
 from typing import Annotated
@@ -14,7 +15,7 @@ from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
 from trishul_api.common.schemas import Page
 from trishul_api.modules.core.complaints import documents  # noqa: F401  (registers the attachment target)
-from trishul_api.modules.core.complaints.access import MANAGE_ALL, RAISE
+from trishul_api.modules.core.complaints.access import MANAGE_ALL
 from trishul_api.modules.core.complaints.schemas import (
     ComplaintAccessOut,
     ComplaintCreate,
@@ -33,7 +34,6 @@ from trishul_api.modules.core.complaints.service import ComplaintService
 
 router = APIRouter(prefix="/core", tags=["Complaints"])
 
-CAN_RAISE = Depends(require_permission(RAISE))
 CAN_MANAGE_ALL = Depends(require_permission(MANAGE_ALL))
 
 ComplaintId = Annotated[int, Path(alias="complaintId", gt=0)]
@@ -59,7 +59,7 @@ def get_complaint_access(complaints: Complaints) -> ComplaintAccessOut:
 @router.get(
     "/complaint-departments",
     summary="Departments a complaint can be raised to, with their issue types",
-    dependencies=[CAN_RAISE],
+    openapi_extra=SIGNED_IN_USERS,
 )
 def list_complaint_departments(complaints: Complaints) -> list[ComplaintDepartmentOption]:
     return complaints.departments()
@@ -69,7 +69,7 @@ def list_complaint_departments(complaints: Complaints) -> list[ComplaintDepartme
     "/complaints",
     summary="Raise a complaint (then attach files through /core/documents, entityType core.complaint)",
     status_code=201,
-    dependencies=[CAN_RAISE],
+    openapi_extra=SIGNED_IN_USERS,
 )
 def create_complaint(data: ComplaintCreate, complaints: Complaints, response: Response) -> ComplaintDetail:
     created = complaints.create(data)
@@ -77,7 +77,7 @@ def create_complaint(data: ComplaintCreate, complaints: Complaints, response: Re
     return created
 
 
-@router.get("/my-complaints", summary="The signed-in user's own complaints", dependencies=[CAN_RAISE])
+@router.get("/my-complaints", summary="The signed-in user's own complaints", openapi_extra=SIGNED_IN_USERS)
 def list_my_complaints(query: Annotated[MyComplaintQuery, Query()], complaints: Complaints) -> Page[ComplaintListItem]:
     return complaints.mine(query)
 

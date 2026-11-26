@@ -1,7 +1,6 @@
 import {
   ALERT_RULE_VIEW_PERMISSIONS,
   COMPLAINT_MANAGE_PERMISSIONS,
-  COMPLAINT_RAISE_PERMISSION,
   CUSTOMER_VIEW_PERMISSIONS,
   DOCUMENT_VIEW_PERMISSIONS,
   ROLE_VIEW_PERMISSIONS,
@@ -72,11 +71,11 @@ export const navItems: NavItem[] = [
     icon: 'report',
     children: [
       // Raise complaint is the button on My complaints; Issue types is the button on Department complaints.
+      // Every signed-in user may raise a complaint and see their own, whatever their role.
       {
         label: 'My complaints',
         icon: 'chat',
         route: '/complaints/mine',
-        permissions: [COMPLAINT_RAISE_PERMISSION],
       },
       {
         label: 'Department complaints',
