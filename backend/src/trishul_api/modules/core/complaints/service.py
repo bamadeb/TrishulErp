@@ -214,13 +214,17 @@ class ComplaintService:
 
     def _raiser_company(self) -> tuple[int, int]:
         """The company and branch the complaint belongs to (its number comes from the branch's series): the
-        raiser's employee record, else their default branch."""
+        raiser's employee branch, else their default branch. The company is always the branch's own: the
+        series is the branch's, and an employee record can name another company than its branch's."""
+        candidates: list[int] = []
         if self._user.employee_id is not None:
             employee = self._db.get(Employee, self._user.employee_id)
             if employee is not None and employee.branch_id is not None:
-                return employee.company_id, employee.branch_id
+                candidates.append(employee.branch_id)
         if self._user.default_branch_id is not None:
-            branch = self._db.get(Branch, self._user.default_branch_id)
+            candidates.append(self._user.default_branch_id)
+        for branch_id in candidates:
+            branch = self._db.get(Branch, branch_id)
             if branch is not None:
                 return branch.company_id, branch.id
         raise ApiError("Your account is not linked to an employee or a branch, so it cannot raise complaints.")

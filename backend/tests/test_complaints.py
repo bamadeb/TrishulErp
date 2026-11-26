@@ -265,6 +265,40 @@ def test_raising_a_complaint_numbers_it_records_who_and_tells_the_department_lea
     assert _raise(as_user("raju"), "Second complaint about the water")["complaintNo"] == "BHADRAK/CMP/00002"
 
 
+def test_the_number_comes_from_the_branch_even_when_the_employee_names_another_company(
+    as_user: Callable[[str], TestClient], db: Engine
+) -> None:
+    # On RDS some employees' company differs from their branch's company: the series is the branch's.
+    insert_row(db, "core.company", id=2, code="TREAD", legal_name="Trishul Tread Pvt Ltd")
+    insert_row(
+        db,
+        "core.employee",
+        id=106,
+        company_id=2,
+        branch_id=1,
+        department_id=SERVICE,
+        designation_id=1,
+        employee_code="EMP0106",
+        first_name="Mixed",
+        mobile="9876543210",
+        status="Active",
+        is_active=True,
+    )
+    insert_row(db, "core.app_user", id=18, employee_id=106, username="mixed", is_active=True, is_locked=False)
+    PEOPLE["mixed"] = make_user(id=18, employee_id=106, display_name="Mixed", permissions=frozenset())
+    try:
+        created = as_user("mixed").post(
+            "/api/v1/core/complaints",
+            json={"departmentId": ADMIN_DEPT, "issueTypeId": WATER, "description": "Fan not working"},
+        )
+    finally:
+        PEOPLE.pop("mixed")
+    assert created.status_code == 201, created.text
+    assert created.json()["complaintNo"] == "BHADRAK/CMP/00001"
+    with Session(db) as s:
+        assert s.get(Complaint, created.json()["id"]).company_id == 1  # type: ignore[union-attr]
+
+
 def test_an_issue_type_of_another_department_is_refused(as_user: Callable[[str], TestClient]) -> None:
     response = as_user("raju").post(
         "/api/v1/core/complaints",
