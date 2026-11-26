@@ -17,13 +17,21 @@
     <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)">
       <mat-icon>chevron_left</mat-icon>
     </button>
-    <button type="button" class="month-btn" disabled>
+    <button type="button" class="month-btn" (click)="openPicker()" aria-label="Choose month">
       <mat-icon>calendar_month</mat-icon>
       <span>{{ monthLabel() }}</span>
     </button>
     <button mat-icon-button type="button" aria-label="Next month" (click)="shiftMonth(1)">
       <mat-icon>chevron_right</mat-icon>
     </button>
+    <input
+      matInput
+      class="month-hidden"
+      [matDatepicker]="picker"
+      [ngModel]="pickedMonth()"
+      aria-label="Finalization month"
+    />
+    <mat-datepicker #picker startView="year" (monthSelected)="onMonthPicked($event, picker)" />
   </div>
 </trishul-page-header>
 

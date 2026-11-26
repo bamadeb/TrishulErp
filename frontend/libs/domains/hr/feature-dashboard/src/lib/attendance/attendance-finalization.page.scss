@@ -125,6 +125,14 @@
   }
 }
 
+.month-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .month-nav {
   display: inline-flex;
   gap: 0.15rem;
@@ -144,7 +152,11 @@
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
-  cursor: default;
+  cursor: pointer;
+
+  &:hover {
+    background: #f7faff;
+  }
 
   mat-icon {
     width: 16px;

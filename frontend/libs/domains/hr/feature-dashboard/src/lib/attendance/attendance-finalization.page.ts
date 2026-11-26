@@ -8,11 +8,14 @@ import {
   NgZone,
   OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import { MatDatepicker, MatDatepickerInput } from '@angular/material/datepicker';
 import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -75,6 +78,8 @@ const EMPTY_KPI: FinalizationKpi = {
     MatIcon,
     MatIconButton,
     MatInput,
+    MatDatepicker,
+    MatDatepickerInput,
     MatMenu,
     MatMenuItem,
     MatMenuTrigger,
@@ -85,6 +90,7 @@ const EMPTY_KPI: FinalizationKpi = {
     PageHeader,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideNativeDateAdapter()],
   templateUrl: './attendance-finalization.page.html',
   styleUrl: './attendance-finalization.page.scss',
 })
@@ -96,6 +102,7 @@ export class AttendanceFinalizationPage implements OnInit {
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly picker = viewChild(MatDatepicker);
 
   protected readonly canLockAttendance = this.auth.hasPermission(ATTENDANCE_FINALIZE_PERMISSION);
 
@@ -130,6 +137,8 @@ export class AttendanceFinalizationPage implements OnInit {
   protected readonly monthLabel = computed(
     () => `${MONTH_LABELS[this.monthIndex()]!} ${this.year()}`,
   );
+
+  protected readonly pickedMonth = computed(() => new Date(this.year(), this.monthIndex(), 1));
 
   protected readonly groupLabel = computed(() =>
     this.contentTab() === 'department' ? 'Department' : 'Location',
@@ -204,6 +213,19 @@ export class AttendanceFinalizationPage implements OnInit {
     const date = new Date(this.year(), this.monthIndex() + delta, 1);
     this.year.set(date.getFullYear());
     this.monthIndex.set(date.getMonth());
+    this.selectedIds.set(new Set());
+    this.reload();
+  }
+
+  protected openPicker(): void {
+    this.picker()?.open();
+  }
+
+  protected onMonthPicked(value: Date, picker: MatDatepicker<Date>): void {
+    picker.close();
+    if (value.getFullYear() === this.year() && value.getMonth() === this.monthIndex()) return;
+    this.year.set(value.getFullYear());
+    this.monthIndex.set(value.getMonth());
     this.selectedIds.set(new Set());
     this.reload();
   }
