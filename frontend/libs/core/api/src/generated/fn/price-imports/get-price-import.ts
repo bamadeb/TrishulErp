@@ -7,17 +7,16 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { BodyApplyItemImport } from '../../models/body-apply-item-import';
-import { ItemImportResult } from '../../models/item-import-result';
+import { PriceImportBatch } from '../../models/price-import-batch';
 
-export interface ApplyItemImport$Params {
-      body: BodyApplyItemImport
+export interface GetPriceImport$Params {
+  importId: number;
 }
 
-export function applyItemImport(http: HttpClient, rootUrl: string, params: ApplyItemImport$Params, context?: HttpContext): Observable<StrictHttpResponse<ItemImportResult>> {
-  const rb = new RequestBuilder(rootUrl, applyItemImport.PATH, 'post');
+export function getPriceImport(http: HttpClient, rootUrl: string, params: GetPriceImport$Params, context?: HttpContext): Observable<StrictHttpResponse<PriceImportBatch>> {
+  const rb = new RequestBuilder(rootUrl, getPriceImport.PATH, 'get');
   if (params) {
-    rb.body(params.body, 'multipart/form-data');
+    rb.path('importId', params.importId, {});
   }
 
   return http.request(
@@ -25,9 +24,9 @@ export function applyItemImport(http: HttpClient, rootUrl: string, params: Apply
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<ItemImportResult>;
+      return r as StrictHttpResponse<PriceImportBatch>;
     })
   );
 }
 
-applyItemImport.PATH = '/inv/items/import';
+getPriceImport.PATH = '/inv/price-imports/{importId}';

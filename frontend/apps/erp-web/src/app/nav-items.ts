@@ -9,6 +9,7 @@ import {
   TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
   BRAND_MANAGE_PERMISSION,
+  PRICE_APPROVE_PERMISSION,
   SERVICE_CONFIG_PERMISSION,
   TRACKING_CONFIG_PERMISSION,
   WAREHOUSE_VIEW_PERMISSIONS,
@@ -27,7 +28,9 @@ import {
   INV_ADJUSTMENT_VIEW_PERMISSIONS,
   INV_ANY_PERMISSIONS,
   INV_GRN_VIEW_PERMISSIONS,
+  INV_ITEM_IMPORT_PERMISSIONS,
   INV_ITEM_VIEW_PERMISSIONS,
+  INV_PRICE_IMPORT_PERMISSIONS,
   INV_STOCK_USER_PERMISSIONS,
   INV_STOCK_VIEW,
   INV_TRANSFER_VIEW_PERMISSIONS,
@@ -164,6 +167,24 @@ export const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'Warehouse Management',
+    icon: 'warehouse',
+    children: [
+      {
+        label: 'Warehouses & branches',
+        icon: 'warehouse',
+        route: '/admin/warehouses',
+        permissions: [...WAREHOUSE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Storage locations',
+        icon: 'shelves',
+        route: '/inventory/locations',
+        permissions: [...INV_ANY_PERMISSIONS],
+      },
+    ],
+  },
+  {
     label: 'Inventory',
     icon: 'inventory_2',
     children: [
@@ -172,6 +193,18 @@ export const navItems: NavItem[] = [
         icon: 'category',
         route: '/inventory/items',
         permissions: [...INV_ANY_PERMISSIONS],
+      },
+      {
+        label: 'Item import',
+        icon: 'upload_file',
+        route: '/inventory/item-imports',
+        permissions: [...INV_ITEM_IMPORT_PERMISSIONS],
+      },
+      {
+        label: 'Price import',
+        icon: 'price_change',
+        route: '/inventory/items/import',
+        permissions: [...INV_PRICE_IMPORT_PERMISSIONS],
       },
       {
         label: 'Stock by batch',
@@ -202,12 +235,6 @@ export const navItems: NavItem[] = [
         icon: 'tune',
         route: '/inventory/adjustments',
         permissions: [...INV_ADJUSTMENT_VIEW_PERMISSIONS],
-      },
-      {
-        label: 'Locations & racks',
-        icon: 'shelves',
-        route: '/inventory/locations',
-        permissions: [...INV_ANY_PERMISSIONS],
       },
       {
         label: 'Item setup',
@@ -367,6 +394,7 @@ export const navItems: NavItem[] = [
           BRAND_MANAGE_PERMISSION,
           TRACKING_CONFIG_PERMISSION,
           SERVICE_CONFIG_PERMISSION,
+          PRICE_APPROVE_PERMISSION,
         ],
       },
       {
@@ -386,12 +414,6 @@ export const navItems: NavItem[] = [
         icon: 'folder_open',
         route: '/admin/documents',
         permissions: [...DOCUMENT_VIEW_PERMISSIONS],
-      },
-      {
-        label: 'Warehouses',
-        icon: 'warehouse',
-        route: '/admin/warehouses',
-        permissions: [...WAREHOUSE_VIEW_PERMISSIONS],
       },
     ],
   },
@@ -538,16 +560,48 @@ export const navItems: NavItem[] = [
         route: '/hr/leave/dashboard',
         permissions: [...LEAVE_VIEW_PERMISSIONS],
         children: [
-          { label: 'Leave Dashboard', icon: 'insights', route: '/hr/leave/dashboard' },
+          {
+            label: 'Leave Dashboard',
+            icon: 'insights',
+            route: '/hr/leave/dashboard',
+          },
           { label: 'My Leave', icon: 'person', route: '/hr/leave/mine' },
-          { label: 'Employee Leaves', icon: 'groups', route: '/hr/leave/employees' },
-          { label: 'Leave Requests', icon: 'fact_check', route: '/hr/leave/requests' },
-          { label: 'Leave Balance', icon: 'account_balance_wallet', route: '/hr/leave/balances' },
-          { label: 'Leave Calendar', icon: 'calendar_month', route: '/hr/leave/calendar' },
-          { label: 'Leave Policies', icon: 'policy', route: '/hr/leave/policies' },
+          {
+            label: 'Employee Leaves',
+            icon: 'groups',
+            route: '/hr/leave/employees',
+          },
+          {
+            label: 'Leave Requests',
+            icon: 'fact_check',
+            route: '/hr/leave/requests',
+          },
+          {
+            label: 'Leave Balance',
+            icon: 'account_balance_wallet',
+            route: '/hr/leave/balances',
+          },
+          {
+            label: 'Leave Calendar',
+            icon: 'calendar_month',
+            route: '/hr/leave/calendar',
+          },
+          {
+            label: 'Leave Policies',
+            icon: 'policy',
+            route: '/hr/leave/policies',
+          },
           { label: 'Leave Types', icon: 'category', route: '/hr/leave/types' },
-          { label: 'Holiday Calendar', icon: 'celebration', route: '/hr/leave/holidays' },
-          { label: 'Leave Reports', icon: 'assessment', route: '/hr/leave/reports' },
+          {
+            label: 'Holiday Calendar',
+            icon: 'celebration',
+            route: '/hr/leave/holidays',
+          },
+          {
+            label: 'Leave Reports',
+            icon: 'assessment',
+            route: '/hr/leave/reports',
+          },
         ],
       },
       {

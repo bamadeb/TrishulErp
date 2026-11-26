@@ -2,6 +2,7 @@ import { Route } from '@angular/router';
 import {
   ALERT_RULE_MANAGE_PERMISSION,
   BRAND_MANAGE_PERMISSION,
+  PRICE_APPROVE_PERMISSION,
   SERVICE_CONFIG_PERMISSION,
   TRACKING_CONFIG_PERMISSION,
   ALERT_RULE_VIEW_PERMISSIONS,
@@ -61,6 +62,7 @@ export const adminRoutes: Route[] = [
         BRAND_MANAGE_PERMISSION,
         TRACKING_CONFIG_PERMISSION,
         SERVICE_CONFIG_PERMISSION,
+        PRICE_APPROVE_PERMISSION,
       ),
     ],
     component: ConfigurationPage,
@@ -151,8 +153,10 @@ export const adminRoutes: Route[] = [
   },
   {
     path: 'warehouses',
-    title: 'Warehouses',
+    title: 'Warehouses & branch mapping',
     canActivate: [permissionGuard(...WAREHOUSE_VIEW_PERMISSIONS)],
     component: WarehouseMapPage,
   },
+  // Branch mapping is part of the Warehouses page (each warehouse with the branches it supplies).
+  { path: 'branch-mapping', redirectTo: 'warehouses', pathMatch: 'full' },
 ];

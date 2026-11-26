@@ -22,6 +22,7 @@ import {
   ConversionOut,
   ConversionUpdate,
   ItemDetail,
+  ItemPriceChange,
   ItemPrices,
   MovementRow,
   PurchasePriceCreate,
@@ -36,6 +37,7 @@ import {
   createUomConversion,
   getItem,
   getItemPrices,
+  listItemPriceHistory,
   listMovements,
   listPriceLists,
   listStock,
@@ -453,6 +455,63 @@ import {
                 </tbody>
               </table>
             </section>
+            <section class="card">
+              <h2>Price history</h2>
+              <table class="plain">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>By</th>
+                    <th>Selling price (₹)</th>
+                    <th>Purchase price (₹)</th>
+                    <th>MRP (₹)</th>
+                    <th>Source</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (h of priceHistory(); track h.id) {
+                    <tr>
+                      <td class="nowrap">
+                        {{ h.changedAt | date: 'dd MMM yyyy, HH:mm' }}
+                      </td>
+                      <td>{{ h.changedByName ?? '—' }}</td>
+                      <td class="nowrap">
+                        {{ change(h.oldSelling, h.newSelling) }}
+                        @if (h.priceListName && h.newSelling !== null) {
+                          <div class="muted">{{ h.priceListName }}</div>
+                        }
+                      </td>
+                      <td class="nowrap">
+                        {{ change(h.oldPurchase, h.newPurchase) }}
+                      </td>
+                      <td class="nowrap">{{ change(h.oldMrp, h.newMrp) }}</td>
+                      <td>
+                        @if (h.importId) {
+                          <a
+                            class="name"
+                            [routerLink]="[
+                              '/inventory/items/import',
+                              h.importId,
+                            ]"
+                            >{{ h.batchNo }}</a
+                          >
+                        } @else {
+                          {{ h.source }}
+                        }
+                      </td>
+                      <td>{{ h.reason ?? '—' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="7" class="empty">
+                        No price changes recorded yet.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
           </mat-tab>
           <mat-tab label="Unit conversions">
             <section class="card">
@@ -535,6 +594,8 @@ export class ItemDetailPage {
   protected readonly item = signal<ItemDetail | null>(null);
   protected readonly stock = signal<StockRow[]>([]);
   protected readonly prices = signal<ItemPrices | null>(null);
+  /** The latest price changes (import or by hand), newest first. */
+  protected readonly priceHistory = signal<ItemPriceChange[]>([]);
   protected readonly conversions = signal<ConversionOut[]>([]);
   protected readonly movements = signal<MovementRow[]>([]);
   protected readonly movementTotal = signal(0);
@@ -582,6 +643,22 @@ export class ItemDetailPage {
       .call(getItemPrices, { itemId: this.id })
       .pipe(catchError(() => EMPTY))
       .subscribe((p) => this.prices.set(p));
+    this.loadPriceHistory();
+  }
+
+  private loadPriceHistory(): void {
+    this.api
+      .call(listItemPriceHistory, { itemId: this.id, pageSize: 50 })
+      .pipe(catchError(() => EMPTY))
+      .subscribe((page) => this.priceHistory.set(page.items));
+  }
+
+  /** "500.00 → 550.00", or "—" when that price did not change. */
+  protected change(old: string | null, now: string | null): string {
+    if (old === null && now === null) return '—';
+    const show = (v: string | null) =>
+      v === null ? 'none' : Number(v).toFixed(2);
+    return `${show(old)} → ${show(now)}`;
   }
 
   private loadConversions(): void {
@@ -690,7 +767,10 @@ export class ItemDetailPage {
         ),
         filter((saved): saved is ItemPrices => !!saved),
       )
-      .subscribe((saved) => this.prices.set(saved));
+      .subscribe((saved) => {
+        this.prices.set(saved);
+        this.loadPriceHistory();
+      });
   }
 
   protected editSalesPrice(price: SalesPriceOut): void {
@@ -727,7 +807,10 @@ export class ItemDetailPage {
         ),
     })
       .pipe(filter((saved): saved is ItemPrices => !!saved))
-      .subscribe((saved) => this.prices.set(saved));
+      .subscribe((saved) => {
+        this.prices.set(saved);
+        this.loadPriceHistory();
+      });
   }
 
   private purchaseFields(
@@ -804,7 +887,10 @@ export class ItemDetailPage {
         ),
         filter((saved): saved is ItemPrices => !!saved),
       )
-      .subscribe((saved) => this.prices.set(saved));
+      .subscribe((saved) => {
+        this.prices.set(saved);
+        this.loadPriceHistory();
+      });
   }
 
   protected editPurchasePrice(price: PurchasePriceOut): void {
@@ -833,7 +919,10 @@ export class ItemDetailPage {
         ),
     })
       .pipe(filter((saved): saved is ItemPrices => !!saved))
-      .subscribe((saved) => this.prices.set(saved));
+      .subscribe((saved) => {
+        this.prices.set(saved);
+        this.loadPriceHistory();
+      });
   }
 
   // ---------------------------------------------------------------- unit conversions

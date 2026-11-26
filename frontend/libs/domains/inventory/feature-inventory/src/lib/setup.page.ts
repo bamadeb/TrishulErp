@@ -92,6 +92,11 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
     .indent {
       display: inline-block;
     }
+    .sub-arrow {
+      color: var(--mat-sys-on-surface-variant);
+      vertical-align: middle;
+      margin-right: 0.25rem;
+    }
     h2 {
       display: flex;
       align-items: center;
@@ -140,7 +145,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
                       [style.width.rem]="c.level * 1.5"
                     ></span>
                     @if (c.level) {
-                      <mat-icon class="muted" inline
+                      <mat-icon class="sub-arrow" inline
                         >subdirectory_arrow_right</mat-icon
                       >
                     }

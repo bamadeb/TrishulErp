@@ -17,6 +17,9 @@ import {
   BRAND_MANAGE_PERMISSION,
   BrandApi,
   BrandItem,
+  PRICE_APPROVE_PERMISSION,
+  PriceSettings,
+  PriceSettingsApi,
   SERVICE_CONFIG_PERMISSION,
   ServiceSettingsApi,
   TRACKING_CONFIG_PERMISSION,
@@ -53,6 +56,7 @@ export class ConfigurationPage {
   private readonly brandApi = inject(BrandApi);
   private readonly serviceApi = inject(ServiceSettingsApi);
   private readonly trackingApi = inject(TrackingConfigApi);
+  private readonly priceApi = inject(PriceSettingsApi);
   private readonly snackBar = inject(MatSnackBar);
   private readonly auth = inject(AuthStore);
 
@@ -66,6 +70,13 @@ export class ConfigurationPage {
   protected readonly canService = this.auth.hasPermission(
     SERVICE_CONFIG_PERMISSION,
   );
+  protected readonly canPrices = this.auth.hasPermission(
+    PRICE_APPROVE_PERMISSION,
+  );
+  /** Price change limit as saved (with its row version), and what is typed in the box. */
+  protected readonly priceSettings = signal<PriceSettings | null>(null);
+  protected readonly priceLimitDraft = signal('');
+  protected readonly savingPrices = signal(false);
   /** Pending-call limit as saved, and what is typed in the box. */
   protected readonly maxPending = signal<number | null>(null);
   protected readonly maxPendingDraft = signal('');
@@ -90,6 +101,54 @@ export class ConfigurationPage {
     if (this.canBrands) this.loadBrands();
     if (this.canTracking) this.loadParameters();
     if (this.canService) this.loadServiceSettings();
+    if (this.canPrices) this.loadPriceSettings();
+  }
+
+  // ------------------------------------------------------------------ price change limit
+
+  protected readonly priceLimitDirty = computed(() => {
+    const text = this.priceLimitDraft().trim();
+    const saved = this.priceSettings();
+    return (
+      text !== '' &&
+      saved !== null &&
+      Number(text) !== Number(saved.maxChangePct)
+    );
+  });
+
+  protected savePriceLimit(): void {
+    const current = this.priceSettings();
+    const value = Number(this.priceLimitDraft().trim());
+    if (current === null) return;
+    if (Number.isNaN(value) || value < 0 || value > 1000) {
+      this.snackBar.open('Enter a percentage from 0 to 1000.', 'OK', {
+        duration: 4000,
+      });
+      return;
+    }
+    this.savingPrices.set(true);
+    this.priceApi.update(current, value).subscribe({
+      next: (saved) => {
+        this.priceSettings.set(saved);
+        this.priceLimitDraft.set(String(Number(saved.maxChangePct)));
+        this.savingPrices.set(false);
+        this.snackBar.open('Price change limit saved', 'OK', {
+          duration: 3000,
+        });
+      },
+      // The global interceptor shows the error (e.g. someone changed it meanwhile): load it again.
+      error: () => {
+        this.savingPrices.set(false);
+        this.loadPriceSettings();
+      },
+    });
+  }
+
+  private loadPriceSettings(): void {
+    this.priceApi.get().subscribe((s) => {
+      this.priceSettings.set(s);
+      this.priceLimitDraft.set(String(Number(s.maxChangePct)));
+    });
   }
 
   // ------------------------------------------------------------------ service settings
@@ -113,7 +172,9 @@ export class ConfigurationPage {
         this.maxPending.set(saved.maxPendingCalls);
         this.maxPendingDraft.set(String(saved.maxPendingCalls));
         this.savingService.set(false);
-        this.snackBar.open('Pending-call limit saved', 'OK', { duration: 3000 });
+        this.snackBar.open('Pending-call limit saved', 'OK', {
+          duration: 3000,
+        });
       },
       error: () => this.savingService.set(false),
     });

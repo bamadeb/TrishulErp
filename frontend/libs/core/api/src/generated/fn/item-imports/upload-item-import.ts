@@ -7,15 +7,15 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { BodyPreviewItemImport } from '../../models/body-preview-item-import';
-import { ItemImportPreview } from '../../models/item-import-preview';
+import { BodyUploadItemImport } from '../../models/body-upload-item-import';
+import { ItemImportBatch } from '../../models/item-import-batch';
 
-export interface PreviewItemImport$Params {
-      body: BodyPreviewItemImport
+export interface UploadItemImport$Params {
+      body: BodyUploadItemImport
 }
 
-export function previewItemImport(http: HttpClient, rootUrl: string, params: PreviewItemImport$Params, context?: HttpContext): Observable<StrictHttpResponse<ItemImportPreview>> {
-  const rb = new RequestBuilder(rootUrl, previewItemImport.PATH, 'post');
+export function uploadItemImport(http: HttpClient, rootUrl: string, params: UploadItemImport$Params, context?: HttpContext): Observable<StrictHttpResponse<ItemImportBatch>> {
+  const rb = new RequestBuilder(rootUrl, uploadItemImport.PATH, 'post');
   if (params) {
     rb.body(params.body, 'multipart/form-data');
   }
@@ -25,9 +25,9 @@ export function previewItemImport(http: HttpClient, rootUrl: string, params: Pre
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<ItemImportPreview>;
+      return r as StrictHttpResponse<ItemImportBatch>;
     })
   );
 }
 
-previewItemImport.PATH = '/inv/items/import/preview';
+uploadItemImport.PATH = '/inv/item-imports';

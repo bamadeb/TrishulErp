@@ -1,14 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from trishul_api.auth import CurrentUserDep, DbSession, ScopeDep, require_permission
 from trishul_api.common.concurrency import if_match_row_version
-from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, ApiError, problem_response
+from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE
 from trishul_api.common.schemas import Page
 from trishul_api.modules.inv.common import ANY_INVENTORY, ITEM_MANAGE, ITEM_VIEW
-from trishul_api.modules.inv.item_import import ItemImportService
-from trishul_api.modules.inv.item_import_schemas import ItemImportPreview, ItemImportResult, PriceField
 from trishul_api.modules.inv.item_schemas import (
     ItemCreate,
     ItemDetail,
@@ -47,64 +45,6 @@ Items = Annotated[ItemService, Depends(_service)]
 @router.get("/items", summary="Items with stock on hand, filtered and paged", dependencies=[CAN_SEARCH])
 def list_items(query: Annotated[ItemQuery, Query()], scope: ScopeDep, items: Items) -> Page[ItemListItem]:
     return items.search(scope, query)
-
-
-_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-UploadCategory = Annotated[int | None, Form(alias="categoryId")]
-UploadUom = Annotated[int | None, Form(alias="uomId")]
-UploadPriceField = Annotated[PriceField, Form(alias="priceField")]
-_BAD_FILE = {400: problem_response("The file is not the item price file.")}
-
-
-def _read_upload(file: UploadFile) -> bytes:
-    content = file.file.read()
-    if not content:
-        raise ApiError("The uploaded file is empty.")
-    if len(content) > _MAX_UPLOAD_BYTES:
-        raise ApiError("That file is too large (10 MB at most).")
-    return content
-
-
-# Declared before /items/{itemId} so "import" is not parsed as an item id.
-@router.post(
-    "/items/import/preview",
-    summary="Dry run of an item price file: what would be created or changed, and what is wrong with it",
-    dependencies=[CAN_MANAGE],
-    responses=_BAD_FILE,
-)
-def preview_item_import(
-    actor: CurrentUserDep,
-    scope: ScopeDep,
-    db: DbSession,
-    file: Annotated[UploadFile, File(description="The item price .xlsx")],
-    category_id: UploadCategory = None,
-    uom_id: UploadUom = None,
-    price_field: UploadPriceField = "mrp",
-) -> ItemImportPreview:
-    return ItemImportService(db, actor).preview(
-        _read_upload(file), file.filename or "upload.xlsx", scope, category_id, uom_id, price_field
-    )
-
-
-@router.post(
-    "/items/import",
-    summary="Import an item price file: create new items, update prices and missing HSN codes of existing ones",
-    status_code=201,
-    dependencies=[CAN_MANAGE],
-    responses=_BAD_FILE,
-)
-def apply_item_import(
-    actor: CurrentUserDep,
-    scope: ScopeDep,
-    db: DbSession,
-    file: Annotated[UploadFile, File(description="The item price .xlsx")],
-    category_id: UploadCategory = None,
-    uom_id: UploadUom = None,
-    price_field: UploadPriceField = "mrp",
-) -> ItemImportResult:
-    return ItemImportService(db, actor).apply(
-        _read_upload(file), file.filename or "upload.xlsx", scope, category_id, uom_id, price_field
-    )
 
 
 # Declared before /items/{itemId} so "form-options" is not parsed as an item id.
