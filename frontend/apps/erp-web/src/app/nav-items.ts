@@ -1,6 +1,5 @@
 import {
   ALERT_RULE_VIEW_PERMISSIONS,
-  COMPLAINT_MANAGE_ALL_PERMISSION,
   COMPLAINT_MANAGE_PERMISSIONS,
   COMPLAINT_RAISE_PERMISSION,
   CUSTOMER_VIEW_PERMISSIONS,
@@ -71,12 +70,7 @@ export const navItems: NavItem[] = [
     label: 'Complaints',
     icon: 'report',
     children: [
-      {
-        label: 'Raise complaint',
-        icon: 'add_comment',
-        route: '/complaints/new',
-        permissions: [COMPLAINT_RAISE_PERMISSION],
-      },
+      // Raise complaint is the button on My complaints; Issue types is the button on Department complaints.
       {
         label: 'My complaints',
         icon: 'chat',
@@ -88,12 +82,6 @@ export const navItems: NavItem[] = [
         icon: 'inbox',
         route: '/complaints/department',
         permissions: [...COMPLAINT_MANAGE_PERMISSIONS],
-      },
-      {
-        label: 'Issue types',
-        icon: 'category',
-        route: '/complaints/issue-types',
-        permissions: [COMPLAINT_MANAGE_ALL_PERMISSION],
       },
     ],
   },
