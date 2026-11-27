@@ -408,14 +408,8 @@ export const navItems: NavItem[] = [
   {
     label: 'HR Management',
     icon: 'diversity_3',
-    // Admin/HR plus leave/face roles without employee view (team lead, engineer).
-    // Employees/managers with only attendance.mark / view.team use My ESS / My Approvals instead.
-    // Each link below still needs its own permission; the group hides when none is left.
-    permissions: [
-      ...EMPLOYEE_VIEW_PERMISSIONS,
-      ...LEAVE_VIEW_PERMISSIONS,
-      ...FACE_ATTENDANCE_VIEW_PERMISSIONS,
-    ],
+    // Admin / HR only (core.employee.view | manage). Hidden from Employee, Manager, and other roles.
+    permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
     children: [
       {
         label: 'HR Dashboard',
@@ -547,8 +541,8 @@ export const navItems: NavItem[] = [
         label: 'Leave Management',
         icon: 'event_available',
         route: '/hr/leave/dashboard',
-        permissions: [...LEAVE_VIEW_PERMISSIONS],
-        // My Leave lives under My ESS. Approvers: Leave Requests. Other leave admin screens need employee view.
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+        // Admin/HR leave admin screens. My Leave lives under My ESS for all roles.
         children: [
           { label: 'Leave Dashboard', icon: 'insights', route: '/hr/leave/dashboard', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
           { label: 'Employee Leaves', icon: 'groups', route: '/hr/leave/employees', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
@@ -557,7 +551,7 @@ export const navItems: NavItem[] = [
           { label: 'Leave Calendar', icon: 'calendar_month', route: '/hr/leave/calendar', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
           { label: 'Leave Policies', icon: 'policy', route: '/hr/leave/policies', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
           { label: 'Leave Types', icon: 'category', route: '/hr/leave/types', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
-          { label: 'Holiday Calendar', icon: 'celebration', route: '/hr/leave/holidays' },
+          { label: 'Holiday Calendar', icon: 'celebration', route: '/hr/leave/holidays', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
           { label: 'Leave Reports', icon: 'assessment', route: '/hr/leave/reports', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
         ],
       },
