@@ -53,6 +53,13 @@ export interface DailyAttendanceRow {
   lastOut: string | null;
   firstInLate: boolean;
   workingHours: string | null;
+  workingHoursDetail: string | null;
+  currentPunch: 'IN' | 'OUT' | null;
+  currentPunchSince: string | null;
+  requiredHours: string | null;
+  shortfall: string | null;
+  openInAt: string | null;
+  closedWorkedMinutes: number;
   status: AttendanceStatus;
   remarks: string;
   lateArrivalMinutes: number | null;

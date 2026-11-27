@@ -186,7 +186,7 @@
         <div><dt>Location</dt><dd>{{ row().location }}</dd></div>
         <div><dt>In Time</dt><dd>{{ row().firstIn || '—' }}</dd></div>
         <div><dt>Out Time</dt><dd>{{ row().lastOut || '—' }}</dd></div>
-        <div><dt>Worked Hours</dt><dd>{{ row().workingHours || '—' }}</dd></div>
+        <div><dt>Worked Hours</dt><dd>{{ workedHoursLabel() }}</dd></div>
         <div><dt>Status</dt><dd>{{ row().status }}</dd></div>
         <div>
           <dt>Remarks</dt>
@@ -240,10 +240,6 @@
     </div>
 
     <footer>
-      <button mat-flat-button color="primary" type="button" (click)="regularize.emit(row())">
-        <mat-icon>edit</mat-icon>
-        Regularize
-      </button>
       <button mat-stroked-button type="button" (click)="closed.emit()">Close</button>
     </footer>
   </aside>

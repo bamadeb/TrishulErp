@@ -41,6 +41,8 @@ class Me(ApiModel):
     """Names of the user's active roles, e.g. "Service Team Lead"; shown beside their name."""
     email: str | None
     default_branch_id: int | None
+    employee_id: int | None = None
+    """Linked core.employee id for ESS screens; None for office accounts with no employee row."""
     permissions: list[str]
     branches: list[BranchRef]
     principals: list[PrincipalRef]

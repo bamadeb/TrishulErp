@@ -87,6 +87,7 @@ const currentUser: CurrentUser = {
   roleNames: ['Administrator'],
   email: 'demo.admin@example.com',
   defaultBranchId: 1,
+  employeeId: null,
   permissions: ['*'],
   branches: [
     { id: 1, code: 'PUN', name: 'Pune', branchType: 'Branch', warehouseId: null, warehouseName: null, regionId: null, regionName: null },

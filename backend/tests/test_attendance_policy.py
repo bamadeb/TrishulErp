@@ -11,7 +11,10 @@ from trishul_api.modules.hr.attendance.policy import (
     leaves_early,
     net_worked_minutes,
     punch_counts_for_attendance,
+    punch_sessions,
     punches_for_shift_day,
+    session_worked_minutes,
+    shift_gross_minutes,
 )
 
 DAY = date(2026, 11, 25)
@@ -83,6 +86,35 @@ def test_early_exit_before_five_thirty() -> None:
 def test_missing_out_is_not_a_completed_day() -> None:
     typed = [(at(9, 30), "IN")]
     assert net_worked_minutes(typed, DAY) == 0
+
+
+def test_session_worked_minutes_sums_closed_pairs_and_live_open_in() -> None:
+    """Jyoti: 09:36→11:57 + open IN from 12:00 → at 12:50 = 3h 11m."""
+    typed = [
+        (datetime(2026, 11, 27, 9, 36), "IN"),
+        (datetime(2026, 11, 27, 11, 57), "OUT"),
+        (datetime(2026, 11, 27, 12, 0), "IN"),
+    ]
+    pairs, open_in = punch_sessions(typed)
+    assert len(pairs) == 1 and open_in == datetime(2026, 11, 27, 12, 0)
+    total, parts, _ = session_worked_minutes(typed, now=datetime(2026, 11, 27, 12, 50))
+    assert parts == [2 * 60 + 21, 50]
+    assert total == 3 * 60 + 11
+    assert shift_gross_minutes() == 8 * 60
+    assert shift_gross_minutes() - total == 4 * 60 + 49
+
+
+def test_session_worked_minutes_freezes_when_checked_out() -> None:
+    """Parsuram: 09:26→12:47 = 3h 21m, currently OUT."""
+    typed = [
+        (datetime(2026, 11, 27, 9, 26), "IN"),
+        (datetime(2026, 11, 27, 12, 47), "OUT"),
+    ]
+    total, parts, open_in = session_worked_minutes(typed, now=datetime(2026, 11, 27, 13, 0))
+    assert open_in is None
+    assert parts == [3 * 60 + 21]
+    assert total == 3 * 60 + 21
+    assert shift_gross_minutes() - total == 4 * 60 + 39
 
 
 def test_official_visit_counts_as_work_and_is_not_an_early_exit() -> None:

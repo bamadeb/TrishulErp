@@ -334,16 +334,21 @@
                   />
                 </th>
                 <th class="name-col">Employee</th>
-                <th>Department</th>
-                <th>Shift</th>
+                <th class="dept-col">Department</th>
+                <th class="shift-col">Shift</th>
                 @if (multiDay()) {
-                  <th>Date</th>
+                  <th class="date-col">Date</th>
                 }
-                <th class="clock">In Time</th>
-                <th class="clock">Out Time</th>
-                <th class="hours">Worked Hours</th>
+                <th class="clock">First IN</th>
+                <th class="clock">Last OUT</th>
+                <th class="hours" matTooltip="Sum of accepted IN–OUT sessions; live while currently IN">
+                  Worked Hours
+                  <mat-icon class="hint" aria-hidden="true">info</mat-icon>
+                </th>
+                <th class="punch-col">Current Punch</th>
+                <th class="req-col">Required Hours</th>
+                <th class="short-col">Shortfall</th>
                 <th class="status-col">Status</th>
-                <th class="reg-col">Regularization</th>
                 <th class="mins">Late Arrival</th>
                 <th class="mins">Early Exit</th>
                 <th class="actions-col">Actions</th>
@@ -372,11 +377,14 @@
                       </span>
                     </div>
                   </td>
-                  <td [title]="row.department">{{ row.department }}</td>
-                  <td class="shift">
-                    @if (shiftLabel(row.shift)) {
+                  <td class="dept-col" [title]="row.department">{{ row.department }}</td>
+                  <td class="shift-col shift">
+                    @if (shiftParts(row.shift); as parts) {
                       <button type="button" class="shift-link" (click)="openShift(row)">
-                        {{ shiftLabel(row.shift) }}
+                        <strong class="shift-name">{{ parts.name }}</strong>
+                        @if (parts.hours) {
+                          <small class="shift-hours">{{ parts.hours }}</small>
+                        }
                       </button>
                     } @else {
                       <span class="muted">—</span>
@@ -387,39 +395,76 @@
                   }
                   <td class="clock">
                     @if (row.firstIn) {
-                      <span class="time" [class.late]="row.firstInLate">{{ row.firstIn }}</span>
+                      <span class="time in" [class.late]="row.firstInLate">{{ row.firstIn }}</span>
                     } @else {
                       <span class="muted">—</span>
                     }
                   </td>
                   <td class="clock">
                     @if (row.lastOut) {
-                      <span class="time">{{ row.lastOut }}</span>
+                      <span class="time out">{{ row.lastOut }}</span>
                     } @else {
                       <span class="muted">—</span>
                     }
                   </td>
-                  <td class="hours">{{ row.workingHours || '—' }}</td>
+                  <td class="hours hours-cell">
+                    <strong class="worked">{{ hoursFor(row) }}</strong>
+                    @if (hoursDetail(row); as detail) {
+                      <small class="session-parts">({{ detail }})</small>
+                    }
+                  </td>
+                  <td class="punch-col">
+                    @if (row.currentPunch === 'IN') {
+                      <button
+                        type="button"
+                        class="punch-badge in"
+                        aria-label="View attendance details"
+                        matTooltip="View attendance details"
+                        (click)="openDetails(row)"
+                      >
+                        <i aria-hidden="true"></i>
+                        IN – In Progress
+                      </button>
+                      @if (punchSinceLabel(row)) {
+                        <small class="since">
+                          {{ punchSinceLabel(row) }}
+                          <mat-icon class="since-hint" matTooltip="Live session — worked hours update every minute">info</mat-icon>
+                        </small>
+                      }
+                    } @else if (row.currentPunch === 'OUT') {
+                      <button
+                        type="button"
+                        class="punch-badge out"
+                        aria-label="View attendance details"
+                        matTooltip="View attendance details"
+                        (click)="openDetails(row)"
+                      >
+                        <i aria-hidden="true"></i>
+                        OUT – Checked Out
+                      </button>
+                      @if (punchSinceLabel(row)) {
+                        <small class="since">{{ punchSinceLabel(row) }}</small>
+                      }
+                    } @else {
+                      <span class="muted">—</span>
+                    }
+                  </td>
+                  <td class="req-col">{{ row.requiredHours || '—' }}</td>
+                  <td class="short-col">
+                    @if (shortfallFor(row); as short) {
+                      <span class="shortfall">{{ short }}</span>
+                    } @else {
+                      <span class="muted">—</span>
+                    }
+                  </td>
                   <td class="status-col">
                     <span class="status" [attr.data-status]="row.status">
                       <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
                       {{ row.status }}
                     </span>
                   </td>
-                  <td class="reg-col">
-                    @if (regFor(row.employeeId, row.dateIso); as reg) {
-                      <span class="status" [attr.data-status]="reg.status">
-                        @if (reg.status === 'Approved') {
-                          <mat-icon>check_circle</mat-icon>
-                        }
-                        {{ reg.status }}
-                      </span>
-                    } @else {
-                      <span class="muted">—</span>
-                    }
-                  </td>
                   <td class="mins">{{ minuteLabel(row.lateArrivalMinutes) }}</td>
-                  <td class="mins">{{ minuteLabel(row.earlyExitMinutes) }}</td>
+                  <td class="mins">{{ earlyExitLabel(row.earlyExitMinutes) }}</td>
                   <td class="actions">
                     <button
                       mat-icon-button
@@ -443,7 +488,7 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td [attr.colspan]="multiDay() ? 13 : 12">
+                  <td [attr.colspan]="multiDay() ? 15 : 14">
                     <div class="empty">
                       <mat-icon>event_busy</mat-icon>
                       No attendance records match your filters.
@@ -489,8 +534,8 @@
     <trishul-attendance-daily-drawer
       [row]="row"
       [selectedDate]="rowDate(row)"
-      [request]="regFor(row.employeeId, row.dateIso)"
-      [showRequestForm]="!regFor(row.employeeId, row.dateIso)"
+      [request]="null"
+      [showRequestForm]="false"
       (closed)="closeDetails()"
       (regularize)="regularize($event)"
       (submitted)="onDrawerSubmitted()"

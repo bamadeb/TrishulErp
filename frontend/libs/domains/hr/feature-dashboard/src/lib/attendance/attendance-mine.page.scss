@@ -148,38 +148,76 @@ tr.clickable {
 }
 
 .table-wrap {
-  overflow: hidden;
+  width: 100%;
+  overflow-x: auto;
 }
 
 table {
   width: 100%;
+  min-width: 56rem;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.82rem;
 
   th,
   td {
-    padding: 0.65rem 0.55rem;
+    box-sizing: border-box;
+    padding: 0.5rem 0.45rem;
     border-bottom: 1px solid #eef2f7;
     text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    vertical-align: top;
   }
 
-  th:nth-child(1), td:nth-child(1) { width: 6.4rem; }
-  th:nth-child(2), td:nth-child(2) { width: 8.2rem; }
-  th:nth-child(3), td:nth-child(3) { width: 9.2rem; }
-  th:nth-child(4), td:nth-child(4),
-  th:nth-child(5), td:nth-child(5),
-  th:nth-child(6), td:nth-child(6) { width: 4.4rem; }
-  th:nth-child(8), td:nth-child(8) { width: 8.4rem; }
+  /* Date | Status | Punch | Shift | Hours | Remarks | Request */
+  th:nth-child(1),
+  td:nth-child(1) {
+    width: 6.75rem;
+  }
+
+  th:nth-child(2),
+  td:nth-child(2) {
+    width: 8rem;
+  }
+
+  th:nth-child(3),
+  td:nth-child(3) {
+    width: 9.5rem;
+  }
+
+  th:nth-child(4),
+  td:nth-child(4) {
+    width: 8.75rem;
+  }
+
+  th:nth-child(5),
+  td:nth-child(5) {
+    width: 8.5rem;
+  }
+
+  th:nth-child(6),
+  td:nth-child(6) {
+    width: auto;
+    min-width: 8rem;
+  }
+
+  th:nth-child(7),
+  td:nth-child(7) {
+    width: 8.25rem;
+  }
 
   th {
     color: #64748b;
     font-size: 0.72rem;
     font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
     background: #f8fafc;
+  }
+
+  td {
+    overflow: visible;
+    white-space: normal;
   }
 }
 
@@ -206,7 +244,181 @@ table {
   }
 }
 
-.remarks { white-space: nowrap; }
+.shift-cell {
+  overflow: visible;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.shift-name {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.shift-hours {
+  display: block;
+  margin-top: 0.1rem;
+  color: #94a3b8;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.remarks {
+  white-space: normal;
+}
+
+.remarks-btn {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:not(:disabled):hover {
+    color: #0754b8;
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0754b8;
+    outline-offset: 2px;
+  }
+}
+
+.muted {
+  color: #94a3b8;
+}
+
+.late {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.hours-cell {
+  overflow: visible;
+  white-space: normal;
+}
+
+.hours-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:not(:disabled):hover .worked {
+    color: #0754b8;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0754b8;
+    outline-offset: 2px;
+  }
+}
+
+.worked {
+  display: block;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.session-parts {
+  display: block;
+  margin-top: 0.15rem;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.punch-status {
+  white-space: nowrap;
+}
+
+.punch-badge {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.22rem 0.55rem;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+
+  i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+
+  &.in {
+    background: #e8f8ee;
+    color: #15803d;
+
+    &:hover {
+      background: #d7f3e2;
+    }
+  }
+
+  &.out {
+    background: #eef2f6;
+    color: #475569;
+
+    &:hover {
+      background: #e2e8f0;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0754b8;
+    outline-offset: 2px;
+  }
+}
+
+.since {
+  display: block;
+  margin-top: 0.2rem;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+}
 
 .action {
   display: inline-flex;

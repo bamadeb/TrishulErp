@@ -81,13 +81,12 @@
         <thead>
           <tr>
             <th>Date</th>
-            <th>Status</th>
+            <th>Attendance Status</th>
+            <th>Punch Status</th>
             <th>Shift</th>
-            <th>In</th>
-            <th>Out</th>
             <th>Hours</th>
             <th>Remarks</th>
-            <th>Action</th>
+            <th>Request Status</th>
           </tr>
         </thead>
         <tbody>
@@ -96,47 +95,105 @@
               <td>{{ row.date }}</td>
               <td>
                 <span class="status-cell">
-                  <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
-                  <trishul-status-badge [status]="row.status" [severities]="severities" />
+                  <mat-icon>{{ statusIcon(attendanceStatusLabel(row)) }}</mat-icon>
+                  @if (attendanceStatusLabel(row) === '—') {
+                    <span class="muted">—</span>
+                  } @else {
+                    <trishul-status-badge [status]="attendanceStatusLabel(row)" [severities]="severities" />
+                  }
                 </span>
               </td>
-              <td>{{ row.shift }}</td>
-              <td>{{ row.firstIn || '—' }}</td>
-              <td>{{ row.lastOut || '—' }}</td>
-              <td>{{ row.workingHours || '—' }}</td>
-              <td class="remarks" [title]="row.remarks || ''">{{ shortRemark(row.remarks) }}</td>
+              <td class="punch-status">
+                @if (punchStatusLabel(row); as punch) {
+                  <button
+                    type="button"
+                    class="punch-badge"
+                    [class.in]="row.currentPunch === 'IN'"
+                    [class.out]="row.currentPunch === 'OUT'"
+                    aria-label="View punch details"
+                    title="View punch details"
+                    (click)="$event.stopPropagation(); openPunchDetails(row)"
+                  >
+                    <i aria-hidden="true"></i>
+                    {{ punch }}
+                  </button>
+                  @if (row.currentPunchSince) {
+                    <small class="since">Since {{ formatClock(row.currentPunchSince) }}</small>
+                  }
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td class="shift-cell">
+                @if (shiftParts(row.shift); as parts) {
+                  <strong class="shift-name">{{ parts.name }}</strong>
+                  @if (parts.hours) {
+                    <small class="shift-hours">{{ parts.hours }}</small>
+                  }
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td class="hours-cell">
+                <button
+                  type="button"
+                  class="hours-btn"
+                  [disabled]="!canViewDetails(row)"
+                  aria-label="View attendance details"
+                  title="View attendance details"
+                  (click)="$event.stopPropagation(); openPunchDetails(row)"
+                >
+                  <strong class="worked">{{ hoursFor(row) }}</strong>
+                  @if (hoursDetail(row); as detail) {
+                    <small class="session-parts">({{ detail }})</small>
+                  }
+                </button>
+              </td>
+              <td class="remarks">
+                <button
+                  type="button"
+                  class="remarks-btn"
+                  [disabled]="!canViewDetails(row)"
+                  [title]="row.remarks || 'View attendance details'"
+                  aria-label="View attendance details"
+                  (click)="$event.stopPropagation(); openPunchDetails(row)"
+                >
+                  {{ shortRemark(row.remarks) }}
+                </button>
+              </td>
               <td>
-                @switch (dayAction(row)) {
-                  @case ('request') {
-                    <button type="button" class="action request" (click)="$event.stopPropagation(); openRegularize(row)">
-                      <mat-icon>edit_calendar</mat-icon>
-                      Request
-                    </button>
-                  }
-                  @case ('compOff') {
-                    <button type="button" class="action comp-off" (click)="$event.stopPropagation(); openCompOff(row)">
-                      <mat-icon>event_available</mat-icon>
-                      Request Comp Off
-                    </button>
-                  }
-                  @case ('unavailable') {
-                    <span class="action muted"><mat-icon>block</mat-icon> Not Available</span>
-                  }
-                  @case ('submitted') {
-                    <trishul-status-badge [status]="requestFor(row.date)!.status" [severities]="severities" />
-                  }
-                  @case ('resolved') {
-                    <trishul-status-badge status="Resolved" [severities]="severities" />
-                  }
-                  @default {
-                    <span class="action muted"><mat-icon>remove_circle_outline</mat-icon> Not Applicable</span>
+                @if (requestStatus(row); as reqStatus) {
+                  <trishul-status-badge [status]="reqStatus" [severities]="severities" />
+                } @else {
+                  @switch (dayAction(row)) {
+                    @case ('request') {
+                      <button type="button" class="action request" (click)="$event.stopPropagation(); openRegularize(row)">
+                        <mat-icon>edit_calendar</mat-icon>
+                        Request
+                      </button>
+                    }
+                    @case ('compOff') {
+                      <button type="button" class="action comp-off" (click)="$event.stopPropagation(); openCompOff(row)">
+                        <mat-icon>event_available</mat-icon>
+                        Request Comp Off
+                      </button>
+                    }
+                    @case ('unavailable') {
+                      <span class="action muted"><mat-icon>block</mat-icon> Not Available</span>
+                    }
+                    @case ('resolved') {
+                      <trishul-status-badge status="Resolved" [severities]="severities" />
+                    }
+                    @default {
+                      <span class="action muted"><mat-icon>remove_circle_outline</mat-icon> Not Applicable</span>
+                    }
                   }
                 }
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="8"><div class="state">No attendance days for this month.</div></td>
+              <td colspan="7"><div class="state">No attendance days for this month.</div></td>
             </tr>
           }
         </tbody>
@@ -152,7 +209,8 @@
   <trishul-attendance-daily-drawer
     [row]="detailAttendance()!"
     [selectedDate]="detailDate()"
-    [request]="requestFor(day.date) ?? null"
+    [request]="null"
+    [showRequestForm]="false"
     (closed)="detailDay.set(null)"
   />
 }

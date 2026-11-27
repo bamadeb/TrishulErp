@@ -406,6 +406,39 @@ def test_daily_attendance_reads_accepted_face_punches_in_indian_time() -> None:
     assert out["at"] == "2026-11-21T09:02:00+05:30"
 
 
+def test_punches_between_employee_ids_excludes_other_face_punches() -> None:
+    """ESS My Attendance must not mix another employee's accepted face punches into the month view."""
+    from trishul_api.modules.hr.attendance.repository import AttendanceRepository
+
+    other = EMPLOYEE + 1
+    engine = sqlite_engine(["hr.biometric_device", "hr.biometric_punch_log", "hr.attendance_punch", "hr.work_location"])
+    for employee_id, uuid, hour in (
+        (EMPLOYEE, "self-in", 3),
+        (other, "other-in", 4),
+    ):
+        insert_row(
+            engine,
+            "hr.attendance_punch",
+            client_uuid=uuid,
+            employee_id=employee_id,
+            attendance_date=date(2026, 11, 21),
+            punch_type="In",
+            effective_at=datetime(2026, 11, 21, hour, 0),
+            status="Present",
+            time_trust="Server",
+            capture_mode="Online",
+        )
+
+    with Session(engine) as s:
+        repo = AttendanceRepository(s)
+        start, end = repo.day_bounds(date(2026, 11, 21))
+        scoped = repo.punches_between(start, end, employee_ids={EMPLOYEE})
+        everyone = repo.punches_between(start, end)
+
+    assert [p.employee_id for p in scoped] == [EMPLOYEE]
+    assert {p.employee_id for p in everyone} == {EMPLOYEE, other}
+
+
 def test_employee_list_shows_policy_locations_and_face(client: TestClient, db: Engine) -> None:
     insert_row(
         db,

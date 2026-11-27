@@ -356,6 +356,7 @@ export class FaPunchesPage implements OnInit {
         status: this.status(),
         fromDate: this.fromDate(),
         toDate: this.toDate(),
+        mineOnly: this.ownLogs(),
         limit: 500,
       })
       .subscribe({
