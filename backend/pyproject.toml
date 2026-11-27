@@ -7,7 +7,10 @@ dependencies = [
     "alembic>=1.20.1",
     "apscheduler>=3.10,<4",
     "boto3>=1.43.119",
+    "defusedxml>=0.7.1",
     "fastapi>=0.161.1",
+    # The eSSL biometric client (modules/hr/biometric/client.py) imports it at startup.
+    "httpx2>=2.16.0",
     "opencv-python-headless>=4.10",
     "openpyxl>=3.1.5",
     "pydantic-settings>=2.16.1",
@@ -31,7 +34,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "boto3-stubs[cognito-idp,secretsmanager]>=1.43.119",
-    "httpx2>=2.16.0",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "ruff>=0.17.2",

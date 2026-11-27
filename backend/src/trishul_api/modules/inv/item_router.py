@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, Uploa
 
 from trishul_api.auth import CurrentUserDep, DbSession, ScopeDep, require_permission
 from trishul_api.common.concurrency import if_match_row_version
-from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, ApiError, problem_response
+from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, problem_response
 from trishul_api.common.schemas import Page
+from trishul_api.common.uploads import check_workbook_archive, read_upload
 from trishul_api.modules.inv.common import ANY_INVENTORY, ITEM_MANAGE, ITEM_VIEW
 from trishul_api.modules.inv.item_import import ItemImportService
 from trishul_api.modules.inv.item_import_schemas import ItemImportPreview, ItemImportResult, PriceField
@@ -57,11 +58,8 @@ _BAD_FILE = {400: problem_response("The file is not the item price file.")}
 
 
 def _read_upload(file: UploadFile) -> bytes:
-    content = file.file.read()
-    if not content:
-        raise ApiError("The uploaded file is empty.")
-    if len(content) > _MAX_UPLOAD_BYTES:
-        raise ApiError("That file is too large (10 MB at most).")
+    content = read_upload(file, _MAX_UPLOAD_BYTES, "That file is too large (10 MB at most).")
+    check_workbook_archive(content)
     return content
 
 

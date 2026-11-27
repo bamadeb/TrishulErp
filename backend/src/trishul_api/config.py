@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     download_signing_key: str = ""
     download_link_minutes: int = 15
     log_level: str = "INFO"
+    # Per-session / per-address request limits (common/rate_limit.py). Leave on outside local experiments.
+    rate_limit_enabled: bool = True
 
     # Database (Amazon RDS for SQL Server)
     db_host: str = "localhost"
@@ -113,6 +115,9 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Set TRISHUL_COGNITO_USER_POOL_ID and TRISHUL_COGNITO_APP_CLIENT_ID, or TRISHUL_COGNITO_SECRET_ID"
             )
+        if self.environment in ("uat", "prod") and len(self.download_signing_key) < 32:
+            # A blank key means a per-process random one, and a short one can be guessed offline.
+            raise ValueError("Set TRISHUL_DOWNLOAD_SIGNING_KEY to a random value of at least 32 characters")
         if self.auth_mode == "dev" and not self.dev_username:
             raise ValueError("Set TRISHUL_DEV_USERNAME to a core.app_user username for dev sign-in")
         return self

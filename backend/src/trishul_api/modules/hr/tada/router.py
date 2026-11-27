@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query, Response
 
 from trishul_api.auth import CurrentUserDep, DbSession, require_permission
+from trishul_api.common.downloads import file_response_headers
 from trishul_api.common.errors import NOT_FOUND_RESPONSE
 from trishul_api.modules.hr.tada.schemas import (
     TadaBulkResult,
@@ -134,12 +135,8 @@ def create_tada_trip_decision(
 )
 def get_tada_document(attachment_id: AttachmentId, tada: Tada) -> Response:
     raw, content_type, file_name = tada.document(attachment_id)
-    safe_name = file_name.replace('"', "").replace("\r", "").replace("\n", "")
-    return Response(
-        content=raw,
-        media_type=content_type,
-        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
-    )
+    media_type, headers = file_response_headers(file_name, content_type, inline=True)
+    return Response(content=raw, media_type=media_type, headers=headers)
 
 
 @router.get("/tada/rates", summary="Configured bike and car TA rates", dependencies=[CAN_VIEW])

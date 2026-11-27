@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, Uploa
 
 from trishul_api.auth import SIGNED_IN_USERS, CurrentUserDep, DbSession, require_permission
 from trishul_api.common.concurrency import if_match_row_version
+from trishul_api.common.downloads import file_response_headers
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, ApiError
 from trishul_api.common.schemas import Page
 from trishul_api.modules.core.documents import storage, targets  # noqa: F401  (registers the modules)
@@ -118,17 +119,8 @@ def get_document_content(
     inline: Annotated[bool, Query()] = False,
 ) -> Response:
     row, raw = service.download(user, document_id)
-    disposition = "inline" if inline else "attachment"
-    quoted = row.file_name.replace('"', "'")
-    return Response(
-        content=raw,
-        media_type=row.content_type or "application/octet-stream",
-        headers={
-            "Content-Disposition": f'{disposition}; filename="{quoted}"',
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "private, no-store",
-        },
-    )
+    media_type, headers = file_response_headers(row.file_name, row.content_type, inline=inline)
+    return Response(content=raw, media_type=media_type, headers=headers)
 
 
 @router.patch(
