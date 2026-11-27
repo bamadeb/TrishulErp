@@ -1,7 +1,7 @@
 """My Leave reads and writes against the existing employee, leave and holiday tables.
 
-Contact details, a document reference, the half-day part, and Comp-Off expiry are not columns
-on these tables. Those values are validated where the screen sends them and are not stored.
+Contact details, a document reference, and the half-day part are not columns on these tables.
+Those values are validated where the screen sends them and are not stored.
 """
 
 from datetime import UTC, date, datetime, timedelta
@@ -52,6 +52,15 @@ from trishul_api.modules.hr.leave.mine_schemas import (
 
 _ZERO = Decimal("0.0")
 _HALF = Decimal("0.5")
+_ANNUAL = {"AL", "EL", "PL"}
+
+
+def _counts_intervening(code: str, name: str) -> bool:
+    """Annual leave counts holidays and weekly offs inside the selected range. Casual leave does not."""
+    if code.strip().upper() in _ANNUAL:
+        return True
+    label = name.lower()
+    return "annual" in label or "privilege" in label or "earned" in label
 _DOCUMENT = "LEAVE_REQUEST"
 _WEEKDAY = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
 
@@ -92,7 +101,10 @@ class LeaveMineRepository:
         )
 
     def balances(self, actor: CurrentUser, financial_year: int) -> MineBalances:
+        from trishul_api.modules.hr.leave.comp_off_ops import comp_off_totals, expire_due
+
         employee = self._employee(actor)
+        expire_due(self._db, employee_id=employee.id, as_of=date.today())
         start, end = _year_bounds(financial_year)
         latest = self._latest_balances(employee.id, financial_year)
         pending = self._pending_days(employee.id, start, end)
@@ -106,17 +118,27 @@ class LeaveMineRepository:
             if row is None and leave_type.id not in rules:
                 continue
             rule = rules.get(leave_type.id)
+            credited = row.accrued if row else _ZERO
+            availed = row.availed if row else _ZERO
+            available = row.closing if row else _ZERO
+            expired = None
+            if leave_type.code == "CO":
+                totals = comp_off_totals(self._db, employee.id, financial_year)
+                credited = totals["earned"] or _ZERO
+                availed = totals["used"] or _ZERO
+                available = totals["available"] or _ZERO
+                expired = totals["expired"] or _ZERO
             items.append(
                 MineBalance(
                     leave_type_id=leave_type.id,
                     code=leave_type.code,
                     name=leave_type.name,
                     opening=(row.opening if row else _ZERO),
-                    credited=(row.accrued if row else _ZERO),
-                    availed=(row.availed if row else _ZERO),
+                    credited=credited,
+                    availed=availed,
                     pending=pending.get(leave_type.id, _ZERO),
-                    available=(row.closing if row else _ZERO),
-                    expired=None,
+                    available=available,
+                    expired=expired,
                     max_backdate_days=rule.max_backdate_days if rule else None,
                     backdate_requires_authorization=rule.backdate_requires_authorization if rule else False,
                 )
@@ -124,16 +146,21 @@ class LeaveMineRepository:
         return MineBalances(financial_year=financial_year, items=items)
 
     def comp_off(self, actor: CurrentUser, financial_year: int) -> MineCompOff:
-        board = self.balances(actor, financial_year)
-        row = next((item for item in board.items if item.code == "CO"), None)
-        earned = (row.opening + row.credited) if row else _ZERO
+        from trishul_api.modules.hr.leave.comp_off_ops import comp_off_totals, expire_due, list_lines
+        from trishul_api.modules.hr.leave.mine_schemas import MineCompOffLine
+
+        employee = self._employee(actor)
+        expire_due(self._db, employee_id=employee.id, as_of=date.today())
+        totals = comp_off_totals(self._db, employee.id, financial_year)
+        lines = [MineCompOffLine.model_validate(row) for row in list_lines(self._db, employee.id, financial_year)]
+        expiring = totals["expiring"]
         return MineCompOff(
-            earned=earned,
-            available=row.available if row else _ZERO,
-            used=row.availed if row else _ZERO,
-            expiring=None,
-            expiry_tracked=False,
-            lines=[],
+            earned=totals["earned"] or _ZERO,
+            available=totals["available"] or _ZERO,
+            used=totals["used"] or _ZERO,
+            expiring=None if not expiring else expiring,
+            expiry_tracked=True,
+            lines=lines,
         )
 
     def holidays(self, actor: CurrentUser, query: MineHolidayQuery) -> list[MineHoliday]:
@@ -237,7 +264,7 @@ class LeaveMineRepository:
         setting = self._db.get(LeaveTypeSetting, leave_type.id)
         if data.is_half_day and setting is not None and not setting.half_day_allowed:
             raise LeaveRuleError("This leave type does not allow a half day.")
-        days = self._days(employee, data.from_date, data.to_date, data.is_half_day)
+        days = self._days(employee, data.from_date, data.to_date, data.is_half_day, leave_type.code, leave_type.name)
         if setting is not None and setting.max_consecutive_days is not None and days > setting.max_consecutive_days:
             raise LeaveRuleError(f"This leave type allows at most {setting.max_consecutive_days} consecutive days.")
         return days
@@ -252,7 +279,19 @@ class LeaveMineRepository:
         previous = row.status
         row.updated_by_user_id = actor.id
         if previous == "Approved":
-            self._restore(employee.id, row)
+            leave_type = self._db.get(LeaveType, row.leave_type_id)
+            if leave_type is not None and leave_type.code == "CO":
+                from trishul_api.modules.hr.leave.comp_off_ops import restore
+
+                restore(
+                    self._db,
+                    employee_id=employee.id,
+                    leave_type_id=row.leave_type_id,
+                    leave_request_id=row.id,
+                    user_id=actor.id,
+                )
+            else:
+                self._restore(employee.id, row)
         row.status = "Cancelled"
         self.settle_approval(row.id, actor, "Cancelled", "Cancelled")
         self._history(row.id, previous, "Cancelled", "Cancelled", actor.id)
@@ -308,11 +347,18 @@ class LeaveMineRepository:
             raise LeaveRuleError("The minimum continuous service for this leave has not been completed.")
         if self._confirmed_on(employee.id, data.from_date) is None and not policy.applies_during_probation:
             raise LeaveRuleError("Employee not confirmed.")
-        days = self._days(employee, data.from_date, data.to_date, data.is_half_day)
+        days = self._days(employee, data.from_date, data.to_date, data.is_half_day, leave_type.code, leave_type.name)
         if setting is not None and setting.max_consecutive_days is not None and days > setting.max_consecutive_days:
             raise LeaveRuleError(f"This leave type allows at most {setting.max_consecutive_days} consecutive days.")
         self._overlap(employee.id, data, current_id)
-        if leave_type.is_paid and not policy.negative_balance_allowed:
+        if leave_type.code == "CO":
+            from trishul_api.modules.hr.leave.comp_off_ops import assert_available
+
+            pending = self._pending_days(employee.id, *_year_bounds(_financial_year(data.from_date)), skip_id=current_id)
+            assert_available(
+                self._db, employee.id, leave_type.id, data.from_date, days, pending.get(leave_type.id, _ZERO)
+            )
+        elif leave_type.is_paid and not policy.negative_balance_allowed:
             self._enough(employee.id, leave_type.id, data.from_date, days, current_id)
         return days
 
@@ -394,17 +440,20 @@ class LeaveMineRepository:
             )
         )
 
-    def _days(self, employee: Employee, start: date, end: date, half: bool) -> Decimal:
+    def _days(
+        self, employee: Employee, start: date, end: date, half: bool, leave_code: str = "", leave_name: str = ""
+    ) -> Decimal:
         off = self._weekly_off(employee.id, start)
         holidays = self._holiday_dates(employee.branch_id, start, end)
         if half:
             if start.weekday() in off or start in holidays:
                 raise LeaveRuleError("Invalid half-day request.")
             return _HALF
+        annual = _counts_intervening(leave_code, leave_name)
         cursor = start
         count = 0
         while cursor <= end:
-            if cursor.weekday() not in off and cursor not in holidays:
+            if annual or (cursor.weekday() not in off and cursor not in holidays):
                 count += 1
             cursor += timedelta(days=1)
         if count == 0:

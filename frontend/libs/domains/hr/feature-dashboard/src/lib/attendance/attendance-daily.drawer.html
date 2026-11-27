@@ -1,99 +1,250 @@
-<aside class="drawer" aria-label="Attendance details">
-  <header>
-    <strong class="heading">Attendance Details</strong>
-    <button mat-icon-button type="button" aria-label="Close details" (click)="closed.emit()">
-      <mat-icon>close</mat-icon>
-    </button>
-  </header>
+@if (request(); as reg) {
+  <aside class="drawer" aria-label="Regularization details">
+    <header>
+      <strong class="heading">Regularization Details</strong>
+      <button mat-icon-button type="button" aria-label="Close" (click)="closed.emit()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </header>
 
-  <div class="profile">
-    <span class="avatar" [style.background]="row().avatarTone" aria-hidden="true">
-      {{ initials(row().employeeName) }}
-    </span>
-    <div class="copy">
-      <div class="title">
-        <strong>{{ row().employeeName }}</strong>
-        <trishul-status-badge [status]="row().status" [severities]="severities" />
-      </div>
-      <small>{{ row().employeeCode }} · {{ row().department }}</small>
-    </div>
-  </div>
-
-  <div class="meta">
-    <span><mat-icon>calendar_today</mat-icon>{{ selectedDate() | date: 'EEE, d MMM y' }}</span>
-    <button
-      type="button"
-      class="shift-link"
-      [disabled]="!row().shift || row().shift === '—'"
-      (click)="shiftOpen.emit(row())"
-    >
-      Shift: {{ row().shift }}
-    </button>
-  </div>
-
-  <div class="body">
-    <dl>
-      <div><dt>Location</dt><dd>{{ row().location }}</dd></div>
-      <div><dt>In Time</dt><dd>{{ row().firstIn || '—' }}</dd></div>
-      <div><dt>Out Time</dt><dd>{{ row().lastOut || '—' }}</dd></div>
-      <div><dt>Worked Hours</dt><dd>{{ row().workingHours || '—' }}</dd></div>
-      <div><dt>Status</dt><dd>{{ row().status }}</dd></div>
+    <div class="reg-top" [attr.data-status]="reg.status">
       <div>
-        <dt>Remarks</dt>
-        <dd>{{ row().remarks.trim() || 'No remarks available' }}</dd>
+        <strong>
+          <mat-icon>{{ reg.status === 'Approved' ? 'check_circle' : reg.status === 'Rejected' ? 'cancel' : 'schedule' }}</mat-icon>
+          {{ reg.status === 'Pending' ? 'Pending Approval' : reg.status }}
+        </strong>
+        <small>Attendance Date: {{ reg.attendanceDate | date: 'd MMM y' }}</small>
       </div>
-      @if (exceptionType()) {
-        <div><dt>Exception</dt><dd>{{ exceptionType() }}</dd></div>
-        <div><dt>Review</dt><dd>{{ exceptionStatus() }}</dd></div>
-      }
-    </dl>
+      <span>Request ID: {{ requestCode(reg.id) }}</span>
+    </div>
 
-    @if (row().punches.length) {
-      <h3 class="punches-title">Punches</h3>
-      <ul class="punches">
-        @for (punch of row().punches; track $index) {
-          <li>
-            <div class="punch-head">
-              <strong>{{ punch.kind === 'OUT' ? 'Check-out' : 'Check-in' }}</strong>
-              <span>{{ punch.at | date: 'h:mm a' }}</span>
-              <small>{{ punch.device }}</small>
-            </div>
-            @if (punch.location; as where) {
-              <div class="punch-where">
-                <mat-icon>{{ where.fakeGps ? 'gps_off' : 'location_on' }}</mat-icon>
-                <div>
-                  <a [href]="mapLink(where.latitude, where.longitude)" target="_blank" rel="noopener">
-                    {{ where.latitude }}, {{ where.longitude }}
-                  </a>
-                  <small>
-                    @if (where.insideOffice === true) {
-                      At {{ where.place }}
-                    } @else if (where.place && where.distanceM !== null) {
-                      {{ formatDistance(where.distanceM) }} from {{ where.place }}
-                    } @else {
-                      Field
-                    }
-                    @if (where.accuracyM !== null) {
-                      · GPS ±{{ where.accuracyM | number: '1.0-0' }} m
-                    }
-                  </small>
-                  @if (where.fakeGps) {
-                    <small class="warn">Fake-location app detected</small>
-                  }
+    <div class="tabs">
+      <button type="button" [class.on]="detailTab() === 'details'" (click)="detailTab.set('details')">Details</button>
+      <button type="button" [class.on]="detailTab() === 'punches'" (click)="detailTab.set('punches')">Punch Logs</button>
+      <button type="button" [class.on]="detailTab() === 'history'" (click)="detailTab.set('history')">Approval History</button>
+    </div>
+
+    <div class="body">
+      @if (detailTab() === 'details') {
+        <h3 class="punches-title">Attendance Comparison</h3>
+        <div class="compare">
+          <section class="compare-card original">
+            <h4>Original (System)</h4>
+            <p><span>IN</span><strong>{{ clock(reg.originalIn) }}</strong></p>
+            <p><span>OUT</span><strong>{{ clock(reg.originalOut) }}</strong></p>
+            <p><span>Status</span><strong>{{ reg.originalStatus || row().status }}</strong></p>
+          </section>
+          <section class="compare-card updated" [class.pending]="reg.status !== 'Approved'">
+            <h4>{{ reg.status === 'Approved' ? 'Approved (Updated)' : 'Requested' }}</h4>
+            <p><span>IN</span><strong>{{ clock(reg.requestedIn) }}</strong></p>
+            <p><span>OUT</span><strong>{{ clock(reg.requestedOut) }}</strong></p>
+            <p><span>Status</span><strong>{{ reg.requestedStatus || 'Present' }}</strong></p>
+          </section>
+        </div>
+        <dl>
+          <div><dt>Request Type</dt><dd>{{ reg.requestType }}</dd></div>
+          <div><dt>Reason</dt><dd>{{ reg.reason || '—' }}</dd></div>
+          <div><dt>Attachment</dt><dd>{{ reg.attachmentName || 'None' }}</dd></div>
+          <div><dt>Reporting Manager</dt><dd>{{ reg.reportingManager || '—' }}</dd></div>
+        </dl>
+        <p class="note" [attr.data-status]="reg.status">
+          <mat-icon>info</mat-icon>
+          @if (reg.status === 'Approved') {
+            Attendance has been updated based on the approved regularization request.
+          } @else if (reg.status === 'Rejected') {
+            {{ reg.rejectionReason || 'The reporting manager rejected this request.' }}
+          } @else {
+            This request is pending approval from the designated approver.
+          }
+        </p>
+      } @else if (detailTab() === 'punches') {
+        <h3 class="punches-title">Punch Log Details (Actual Punches)</h3>
+        @if (row().punches.length) {
+          <ul class="punches">
+            @for (punch of row().punches; track $index) {
+              <li>
+                <div class="punch-head">
+                  <strong>{{ punch.kind === 'OUT' ? 'Check-out' : 'Check-in' }}</strong>
+                  <span>{{ punch.at | date: 'h:mm a' }}</span>
+                  <small>{{ punch.device }}</small>
                 </div>
-              </div>
+                @if (punch.location; as where) {
+                  <div class="punch-where">
+                    <mat-icon>{{ where.fakeGps ? 'gps_off' : 'location_on' }}</mat-icon>
+                    <div>
+                      <a [href]="mapLink(where.latitude, where.longitude)" target="_blank" rel="noopener">
+                        {{ where.latitude }}, {{ where.longitude }}
+                      </a>
+                      <small>
+                        @if (where.insideOffice === true) {
+                          At {{ where.place }}
+                        } @else if (where.place && where.distanceM !== null) {
+                          {{ formatDistance(where.distanceM) }} from {{ where.place }}
+                        } @else {
+                          Field
+                        }
+                        @if (where.accuracyM !== null) {
+                          · GPS ±{{ where.accuracyM | number: '1.0-0' }} m
+                        }
+                      </small>
+                    </div>
+                  </div>
+                }
+              </li>
             }
-          </li>
+          </ul>
+        } @else {
+          <p class="muted">No punch logs for this date.</p>
         }
-      </ul>
-    }
-  </div>
+      } @else {
+        <ol class="history">
+          <li class="done">
+            <strong>Request submitted</strong>
+            <small>{{ reg.submittedOn | date: 'd MMM y, h:mm a' }}</small>
+            <p>{{ reg.employeeName }} submitted {{ reg.requestType }}.</p>
+          </li>
+          <li [class.done]="reg.status === 'Approved'" [class.current]="reg.status === 'Pending'" [class.bad]="reg.status === 'Rejected'">
+            <strong>
+              @if (reg.status === 'Approved') {
+                Approved by reporting manager
+              } @else if (reg.status === 'Rejected') {
+                Rejected by reporting manager
+              } @else {
+                Pending with reporting manager
+              }
+            </strong>
+            <p>
+              @if (reg.status === 'Pending') {
+                Waiting for {{ reg.reportingManager || 'the reporting manager' }}.
+              } @else if (reg.status === 'Rejected') {
+                {{ reg.rejectionReason || 'Rejected.' }}
+              } @else {
+                {{ reg.reportingManager || 'The reporting manager' }} approved the requested punches.
+              }
+            </p>
+          </li>
+          <li [class.done]="reg.status === 'Approved'">
+            <strong>Attendance update</strong>
+            <p>{{ reg.status === 'Approved' ? 'Daily attendance was recalculated from the approved punches.' : 'Updates after approval.' }}</p>
+          </li>
+        </ol>
+      }
+    </div>
 
-  <footer>
-    <button mat-flat-button color="primary" type="button" (click)="regularize.emit(row())">
-      <mat-icon>edit</mat-icon>
-      Regularize
-    </button>
-    <button mat-stroked-button type="button" (click)="closed.emit()">Close</button>
-  </footer>
-</aside>
+    <footer>
+      <button mat-stroked-button type="button" (click)="closed.emit()">Close</button>
+    </footer>
+  </aside>
+} @else if (showRequestForm()) {
+  @for (id of [row().id]; track id) {
+    <trishul-attendance-regularize-drawer
+      [embedded]="true"
+      [onBehalf]="true"
+      [employees]="[{ employeeId: row().employeeId, employeeCode: row().employeeCode, employeeName: row().employeeName }]"
+      [forEmployeeId]="row().employeeId"
+      [initialDate]="dateIso()"
+      (closed)="closed.emit()"
+      (submitted)="submitted.emit()"
+    />
+  }
+} @else {
+  <aside class="drawer" aria-label="Attendance details">
+    <header>
+      <strong class="heading">Attendance Details</strong>
+      <button mat-icon-button type="button" aria-label="Close details" (click)="closed.emit()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </header>
+
+    <div class="profile">
+      <span class="avatar" [style.background]="row().avatarTone" aria-hidden="true">
+        {{ initials(row().employeeName) }}
+      </span>
+      <div class="copy">
+        <div class="title">
+          <strong>{{ row().employeeName }}</strong>
+          <trishul-status-badge [status]="row().status" [severities]="severities" />
+        </div>
+        <small>{{ row().employeeCode }} · {{ row().department }}</small>
+      </div>
+    </div>
+
+    <div class="meta">
+      <span><mat-icon>calendar_today</mat-icon>{{ selectedDate() | date: 'EEE, d MMM y' }}</span>
+      <button
+        type="button"
+        class="shift-link"
+        [disabled]="!row().shift || row().shift === '—'"
+        (click)="shiftOpen.emit(row())"
+      >
+        Shift: {{ row().shift }}
+      </button>
+    </div>
+
+    <div class="body">
+      <dl>
+        <div><dt>Location</dt><dd>{{ row().location }}</dd></div>
+        <div><dt>In Time</dt><dd>{{ row().firstIn || '—' }}</dd></div>
+        <div><dt>Out Time</dt><dd>{{ row().lastOut || '—' }}</dd></div>
+        <div><dt>Worked Hours</dt><dd>{{ row().workingHours || '—' }}</dd></div>
+        <div><dt>Status</dt><dd>{{ row().status }}</dd></div>
+        <div>
+          <dt>Remarks</dt>
+          <dd>{{ row().remarks.trim() || 'No remarks available' }}</dd>
+        </div>
+        @if (exceptionType()) {
+          <div><dt>Exception</dt><dd>{{ exceptionType() }}</dd></div>
+          <div><dt>Review</dt><dd>{{ exceptionReviewLabel(exceptionStatus()) }}</dd></div>
+        }
+      </dl>
+
+      @if (row().punches.length) {
+        <h3 class="punches-title">Punches</h3>
+        <ul class="punches">
+          @for (punch of row().punches; track $index) {
+            <li>
+              <div class="punch-head">
+                <strong>{{ punch.kind === 'OUT' ? 'Check-out' : 'Check-in' }}</strong>
+                <span>{{ punch.at | date: 'h:mm a' }}</span>
+                <small>{{ punch.device }}</small>
+              </div>
+              @if (punch.location; as where) {
+                <div class="punch-where">
+                  <mat-icon>{{ where.fakeGps ? 'gps_off' : 'location_on' }}</mat-icon>
+                  <div>
+                    <a [href]="mapLink(where.latitude, where.longitude)" target="_blank" rel="noopener">
+                      {{ where.latitude }}, {{ where.longitude }}
+                    </a>
+                    <small>
+                      @if (where.insideOffice === true) {
+                        At {{ where.place }}
+                      } @else if (where.place && where.distanceM !== null) {
+                        {{ formatDistance(where.distanceM) }} from {{ where.place }}
+                      } @else {
+                        Field
+                      }
+                      @if (where.accuracyM !== null) {
+                        · GPS ±{{ where.accuracyM | number: '1.0-0' }} m
+                      }
+                    </small>
+                    @if (where.fakeGps) {
+                      <small class="warn">Fake-location app detected</small>
+                    }
+                  </div>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <footer>
+      <button mat-flat-button color="primary" type="button" (click)="regularize.emit(row())">
+        <mat-icon>edit</mat-icon>
+        Regularize
+      </button>
+      <button mat-stroked-button type="button" (click)="closed.emit()">Close</button>
+    </footer>
+  </aside>
+}

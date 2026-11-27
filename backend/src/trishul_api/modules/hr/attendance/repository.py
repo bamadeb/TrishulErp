@@ -21,6 +21,7 @@ from trishul_api.db.models import (
     BiometricPunchLog,
     Branch,
     Department,
+    Designation,
     Employee,
     EmployeeShift,
     Holiday,
@@ -370,6 +371,17 @@ class AttendanceRepository:
         ).all()
         return {(int(employee_id), day) for employee_id, day in rows}
 
+    def regularized_statuses(self, start: date, end: date) -> dict[tuple[int, date], str]:
+        """Stored hr.attendance.status for days HR already resolved."""
+        rows = self._db.execute(
+            select(Attendance.employee_id, Attendance.attendance_date, Attendance.status)
+            .where(Attendance.is_active == True)  # noqa: E712
+            .where(Attendance.is_regularized == True)  # noqa: E712
+            .where(Attendance.attendance_date >= start)
+            .where(Attendance.attendance_date <= end)
+        ).all()
+        return {(int(employee_id), day): str(status) for employee_id, day, status in rows}
+
     def get_attendance(self, employee_id: int, day: date) -> Attendance | None:
         return self._db.scalar(
             select(Attendance)
@@ -394,12 +406,37 @@ class AttendanceRepository:
         self._db.refresh(row)
         return row
 
+    def reporting_manager_id(self, employee_id: int) -> int | None:
+        return self._db.scalar(select(Employee.reporting_manager_id).where(Employee.id == employee_id))
+
+    def app_user_id_for_employee(self, employee_id: int) -> int | None:
+        from trishul_api.db.models import AppUser
+
+        return self._db.scalar(
+            select(AppUser.id)
+            .where(AppUser.employee_id == employee_id)
+            .where(AppUser.is_active == True)  # noqa: E712
+            .order_by(AppUser.id)
+        )
+
+    def designation_names(self, employee_ids: Collection[int]) -> dict[int, str]:
+        wanted = list(employee_ids)
+        if not wanted:
+            return {}
+        rows = self._db.execute(
+            select(Employee.id, Designation.name)
+            .outerjoin(Designation, Designation.id == Employee.designation_id)
+            .where(Employee.id.in_(wanted))
+        ).all()
+        return {int(row[0]): (row[1] or "—") for row in rows}
+
     def list_regularizations(
         self,
         *,
         start: date,
         end: date,
         employee_id: int | None = None,
+        manager_employee_id: int | None = None,
     ) -> list[tuple[AttendanceRegularization, EmployeeDaySource, Attendance | None]]:
         """Active regularization requests with employee master + linked attendance."""
         manager = aliased(Employee)
@@ -435,6 +472,8 @@ class AttendanceRepository:
         )
         if employee_id is not None:
             stmt = stmt.where(AttendanceRegularization.employee_id == employee_id)
+        if manager_employee_id is not None:
+            stmt = stmt.where(Employee.reporting_manager_id == manager_employee_id)
         rows = self._db.execute(
             stmt.order_by(Attendance.attendance_date.desc(), AttendanceRegularization.id.desc())
         ).all()

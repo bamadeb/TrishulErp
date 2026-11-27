@@ -18,6 +18,7 @@
 }
 
 .date-nav {
+  position: relative;
   display: inline-flex;
   gap: 0.15rem;
   align-items: center;
@@ -27,7 +28,7 @@
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
-  min-width: 11.5rem;
+  min-width: 16.5rem;
   padding: 0.35rem 0.65rem;
   border: 1px solid #d5e3f7;
   border-radius: 8px;
@@ -52,8 +53,11 @@
 
 .date-hidden {
   position: absolute;
-  width: 1px;
+  top: 0;
+  left: 2.6rem;
+  width: 16.5rem;
   height: 1px;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
 }
@@ -253,7 +257,8 @@ table.records {
     white-space: nowrap;
   }
 
-  .status-col {
+  .status-col,
+  .reg-col {
     width: 12%;
     overflow: visible;
   }
@@ -494,6 +499,18 @@ tbody tr.active {
   &[data-status='WFH'] {
     background: #e0f2fe;
     color: #0369a1;
+  }
+  &[data-status='Approved'] {
+    background: #e8f7ee;
+    color: #15803d;
+  }
+  &[data-status='Pending'] {
+    background: #fff7ed;
+    color: #c2410c;
+  }
+  &[data-status='Rejected'] {
+    background: #fef2f2;
+    color: #b91c1c;
   }
 }
 

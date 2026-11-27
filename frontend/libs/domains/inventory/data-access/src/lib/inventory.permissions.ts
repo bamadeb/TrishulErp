@@ -6,6 +6,14 @@ export const INV_STOCK_VIEW = 'inv.stock.view';
 export const INV_GRN_MANAGE = 'inv.grn.manage';
 export const INV_TRANSFER_MANAGE = 'inv.transfer.manage';
 export const INV_STOCK_ADJUST = 'inv.stock.adjust';
+/** Item list import (backend: modules/inv/item_list_import.py). */
+export const INV_ITEM_IMPORT = 'inv.item.import';
+export const INV_ITEM_IMPORT_VIEW = 'inv.item.import.view';
+export const INV_ITEM_IMPORT_OVERWRITE = 'inv.item.import.overwrite';
+/** Bulk price import (backend: modules/inv/prices.py). */
+export const INV_PRICE_IMPORT = 'inv.price.import';
+export const INV_PRICE_IMPORT_VIEW = 'inv.price.import.view';
+export const INV_PRICE_APPROVE = 'inv.price.approve';
 
 export const INV_ITEM_VIEW_PERMISSIONS = [
   INV_ITEM_VIEW,
@@ -34,4 +42,15 @@ export const INV_TRANSFER_VIEW_PERMISSIONS = [
 export const INV_ADJUSTMENT_VIEW_PERMISSIONS = [
   INV_STOCK_ADJUST,
   INV_STOCK_VIEW,
+] as const;
+/** The item import screen: importers, and those who only read the history. */
+export const INV_ITEM_IMPORT_PERMISSIONS = [
+  INV_ITEM_IMPORT,
+  INV_ITEM_IMPORT_VIEW,
+] as const;
+/** The price import screen: importers, history readers and approvers. */
+export const INV_PRICE_IMPORT_PERMISSIONS = [
+  INV_PRICE_IMPORT,
+  INV_PRICE_IMPORT_VIEW,
+  INV_PRICE_APPROVE,
 ] as const;

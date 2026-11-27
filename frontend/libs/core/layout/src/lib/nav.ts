@@ -7,6 +7,8 @@ export interface NavItem {
   icon?: string;
   route?: string;
   permissions?: string[];
+  /** Hide this entry when the user already has one of these (a wider role). */
+  excludePermissions?: string[];
   children?: NavItem[];
 }
 

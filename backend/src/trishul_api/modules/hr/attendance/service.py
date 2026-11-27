@@ -20,7 +20,9 @@ from trishul_api.db.models import (
     AttendanceAudit,
     AttendanceRegularization,
     AuditLog,
+    Employee,
     EmployeeShift,
+    Notification,
     Shift,
 )
 from trishul_api.modules.hr.attendance.finalization_ops import require_day_writable
@@ -33,6 +35,7 @@ from trishul_api.modules.hr.attendance.policy import (
     grace_days_before,
     leaves_early,
     net_worked_minutes,
+    ist_now,
     punches_for_shift_day,
     shift_bounds,
 )
@@ -133,6 +136,7 @@ _WEEKDAY_LABELS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 _STATUSES: list[AttendanceDisplayStatus] = [
     "Present",
     "Late",
+    "In Progress",
     "Missing Punch",
     "Absent",
     "On Leave",
@@ -147,6 +151,8 @@ class AttendanceService:
 
     def list_daily(self, query: DailyAttendanceQuery) -> DailyAttendancePageOut:
         day = query.attendance_date
+        self._prime_approved(day, day)
+        self._prime_resolved(day, day)
         employees = self._cached_employees()
         shifts = self._cached_shifts()
         assignments = self._repo.employee_shifts_for_date(day)
@@ -235,7 +241,18 @@ class AttendanceService:
             page_size=page_size,
         )
 
-    def employee_history(self, employee_id: int, before: date, *, days: int = 7) -> list[AttendanceHistoryOut]:
+    def employee_history(
+        self,
+        employee_id: int,
+        before: date,
+        *,
+        days: int = 7,
+        actor: CurrentUser | None = None,
+    ) -> list[AttendanceHistoryOut]:
+        if actor is not None and not actor.can("core.employee.manage"):
+            manager_id = self._repo.reporting_manager_id(employee_id)
+            if actor.employee_id is None or manager_id != actor.employee_id:
+                raise HTTPException(status_code=404, detail="Employee not found.")
         employees = {e.id: e for e in self._cached_employees()}
         employee = employees.get(employee_id)
         if employee is None:
@@ -258,6 +275,8 @@ class AttendanceService:
             end = date(query.year, query.month + 1, 1) - timedelta(days=1)
         days_in_month = end.day
         today = date.today()
+        self._prime_approved(start, end)
+        self._prime_resolved(start, end)
 
         employees = self._repo.list_employees(employment_status=query.employment_status)
         shifts = self._cached_shifts()
@@ -324,6 +343,7 @@ class AttendanceService:
                     punches=day_punches,
                 )
                 del first_in, last_out
+                status, _, _ = self._apply_resolved(employee.id, day, status, "")
                 codes.append(_status_to_muster_code(status))
                 minutes_total += self._parse_hours_minutes(working_hours)
 
@@ -454,6 +474,7 @@ class AttendanceService:
     ) -> list[AttendanceExceptionRowOut]:
         """Build every exception in the range. Cached by the caller; filters are applied later."""
         try:
+            self._prime_approved(start, end)
             self._visits_by_day = self._repo.official_visits_between(start, end)
             overlapping = self._repo.employee_shifts_overlapping(start, end)
             holidays_by_day = self._repo.holidays_between(start, end)
@@ -635,12 +656,40 @@ class AttendanceService:
             update={"remark": remark or f"Resolved as {target_status}", "status": "Resolved"}
         )
 
-    def list_regularizations(self, query: RegularizationQuery) -> RegularizationPageOut:
+    def list_regularizations(
+        self, query: RegularizationQuery, actor: CurrentUser | None = None
+    ) -> RegularizationPageOut:
         start, end = query.date_from, query.date_to
         if end < start:
             start, end = end, start
-        rows_raw = self._repo.list_regularizations(start=start, end=end)
-        items = [self._regularization_row(reg, employee, attendance) for reg, employee, attendance in rows_raw]
+        team_only = query.scope == "team"
+        self_only = query.scope == "self"
+        if actor is not None and not actor.can("core.employee.manage", "hr.attendance.view.team"):
+            self_only = True
+            team_only = False
+        elif actor is not None and not actor.can("core.employee.manage") and not self_only:
+            team_only = True
+        if self_only:
+            own_id = actor.employee_id if actor is not None else None
+            rows_raw = (
+                []
+                if own_id is None
+                else self._repo.list_regularizations(start=start, end=end, employee_id=own_id)
+            )
+        elif team_only:
+            manager_id = actor.employee_id if actor is not None else None
+            rows_raw = (
+                []
+                if manager_id is None
+                else self._repo.list_regularizations(start=start, end=end, manager_employee_id=manager_id)
+            )
+        else:
+            rows_raw = self._repo.list_regularizations(start=start, end=end)
+        titles = self._repo.designation_names([employee.id for _, employee, _ in rows_raw])
+        items = [
+            self._regularization_row(reg, employee, attendance, designation=titles.get(employee.id, "—"))
+            for reg, employee, attendance in rows_raw
+        ]
 
         filter_options = RegularizationFilterOptionsOut(
             departments=sorted({r.department for r in items if r.department and r.department != "—"}),
@@ -651,6 +700,7 @@ class AttendanceService:
                 "Early Exit",
                 "WFH Correction",
                 "Late Arrival",
+                "Holiday Work",
             ],
         )
         scoped = self._apply_regularization_filters(items, query, apply_status_tab=False)
@@ -705,6 +755,45 @@ class AttendanceService:
             employee = next((e for e in all_emps if e.id == employee_id), None)
         if employee is None:
             raise HTTPException(status_code=404, detail="Employee not found.")
+        if data.request_type == "Holiday Work":
+            from trishul_api.modules.hr.leave.comp_off_ops import (
+                day_kind,
+                reject_holiday_pay,
+                worked_hours_of,
+            )
+
+            reject_holiday_pay(data.reason)
+            employee_row = self._repo._db.get(Employee, employee_id)
+            if employee_row is None:
+                raise HTTPException(status_code=404, detail="Employee not found.")
+            kind = day_kind(self._repo._db, employee_row, day)
+            if kind is None:
+                raise ApiError(
+                    "Holiday Work applies only to a weekly off, company holiday, or declared non-working day."
+                )
+            first_in, last_out = self._punch_clock(employee_id, day)
+            attendance_probe = self._repo.get_attendance(employee_id, day)
+            if attendance_probe is None:
+                attendance_probe = Attendance(
+                    employee_id=employee_id,
+                    attendance_date=day,
+                    check_in_at=first_in,
+                    check_out_at=last_out,
+                    source="Manual",
+                    status="Holiday",
+                    is_active=True,
+                )
+            else:
+                if attendance_probe.check_in_at is None:
+                    attendance_probe.check_in_at = first_in
+                if attendance_probe.check_out_at is None:
+                    attendance_probe.check_out_at = last_out
+            from trishul_api.modules.hr.leave.mine_repository import LeaveRuleError
+
+            try:
+                worked_hours_of(attendance_probe)
+            except LeaveRuleError as err:
+                raise ApiError(err.detail or "Actual attendance punches were not captured for this day.") from err
 
         # Block duplicate pending requests for same employee/date.
         existing_regs = self._repo.list_regularizations(start=day, end=day)
@@ -714,16 +803,7 @@ class AttendanceService:
                     "A pending regularization request already exists for this employee and date."
                 )
 
-        start_dt, end_dt = self._repo.day_bounds(day)
-        punches = [p for p in self._repo.punches_between(start_dt, end_dt) if p.employee_id == employee_id]
-        first_in = None
-        last_out = None
-        if punches:
-            ordered = sorted(punches, key=lambda p: p.punched_at)
-            ins = [p for p in ordered if (p.punch_type or "").upper() == "IN"]
-            outs = [p for p in ordered if (p.punch_type or "").upper() == "OUT"]
-            first_in = ins[0].punched_at if ins else ordered[0].punched_at
-            last_out = outs[-1].punched_at if outs else None
+        first_in, last_out = self._punch_clock(employee_id, day)
 
         attendance = self._repo.ensure_attendance(
             employee_id=employee_id,
@@ -789,6 +869,15 @@ class AttendanceService:
             raise HTTPException(status_code=404, detail="Regularization request not found.")
         if row.status != "Pending":
             raise HTTPException(status_code=409, detail="Only pending requests can be decided.")
+        if actor.employee_id is not None and actor.employee_id == row.employee_id:
+            raise HTTPException(status_code=403, detail="You cannot decide your own regularization request.")
+        manager_id = self._repo.reporting_manager_id(row.employee_id)
+        is_hr = actor.can("core.employee.manage")
+        if not is_hr and (actor.employee_id is None or manager_id != actor.employee_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Only this employee's reporting manager can approve or reject the request.",
+            )
 
         attendance = self._repo.get_attendance_by_id(row.attendance_id)
         day = attendance.attendance_date if attendance is not None else date.today()
@@ -796,6 +885,8 @@ class AttendanceService:
 
         request_type, requested_in, requested_out, reason, _ = decode_reason(row.reason)
         remark = (data.remark if data else None) or None
+        if not is_hr and not (remark and remark.strip()):
+            raise HTTPException(status_code=400, detail="Manager comments are required.")
         if not approve and not (remark and remark.strip()):
             raise HTTPException(status_code=400, detail="Rejection reason is required.")
 
@@ -845,6 +936,14 @@ class AttendanceService:
                 attendance.source = "Manual"  # type: ignore[assignment]
                 attendance.updated_at = datetime.utcnow()
                 attendance.updated_by_user_id = actor.id
+                if request_type == "Holiday Work":
+                    self._credit_holiday_work_comp_off(
+                        actor,
+                        employee_id=row.employee_id,
+                        work_date=day,
+                        attendance=attendance,
+                        regularization_id=int(row.id),
+                    )
                 self._repo.save_attendance(attendance)
                 attendance_cache.invalidate("attendance:")
         else:
@@ -860,6 +959,13 @@ class AttendanceService:
         row.approver_user_id = actor.id
         row.updated_by_user_id = actor.id
         row.updated_at = datetime.utcnow()
+        self._notify_regularization(
+            employee_id=row.employee_id,
+            regularization_id=int(row.id),
+            day=day,
+            approved=approve,
+            remark=remark,
+        )
         saved = self._repo.save_regularization(row)
         attendance = self._repo.get_attendance_by_id(saved.attendance_id)
         self._audit(
@@ -883,17 +989,205 @@ class AttendanceService:
             raise HTTPException(status_code=404, detail="Employee not found.")
         return self._regularization_row(saved, employee, attendance)
 
+    def _credit_holiday_work_comp_off(
+        self,
+        actor: CurrentUser,
+        *,
+        employee_id: int,
+        work_date: date,
+        attendance: Attendance,
+        regularization_id: int,
+    ) -> None:
+        """Credit Comp Off after Holiday Work approval; map domain errors to ApiError."""
+        from trishul_api.common.errors import AlreadyExists
+        from trishul_api.modules.hr.leave.comp_off_ops import certify_holiday_work
+        from trishul_api.modules.hr.leave.mine_repository import LeaveRuleError
+
+        shifts = self._cached_shifts()
+        assignment = self._repo.employee_shifts_for_date(work_date).get(employee_id)
+        effective = self._effective_shift(resolve_shift(assignment, shifts))
+        half = (
+            Decimal(str(effective.half_day_hours))
+            if effective.half_day_hours is not None
+            else None
+        )
+        try:
+            certify_holiday_work(
+                self._repo._db,
+                actor,
+                employee_id=employee_id,
+                work_date=work_date,
+                attendance=attendance,
+                regularization_id=regularization_id,
+                half_day_hours=half,
+            )
+        except LeaveRuleError as err:
+            raise ApiError(err.detail or "Comp Off cannot be credited for this Holiday Work request.") from err
+        except AlreadyExists as err:
+            raise ApiError(err.detail or "Comp Off was already credited for this day.") from err
+
+    def _punch_clock(self, employee_id: int, day: date) -> tuple[datetime | None, datetime | None]:
+        """First IN and last OUT for the shift day, matching My Attendance."""
+        shifts = self._cached_shifts()
+        assignment = self._repo.employee_shifts_for_date(day).get(employee_id)
+        shift = self._effective_shift(resolve_shift(assignment, shifts))
+        start_dt, end_dt = self._attendance_bounds(day, day)
+        punches = punches_for_shift_day(
+            self._repo.punches_between(start_dt, end_dt, employee_ids=[employee_id]),
+            day,
+            shift.start_time,
+            shift.end_time,
+        )
+        if not punches:
+            return None, None
+        ordered = sorted(punches, key=lambda p: p.punched_at)
+        ins = [p for p in ordered if (p.punch_type or "").upper() == "IN"]
+        outs = [p for p in ordered if (p.punch_type or "").upper() == "OUT"]
+        if not ins and not outs:
+            first_in = ordered[0].punched_at
+            last_out = ordered[-1].punched_at if len(ordered) > 1 else None
+        else:
+            first_in = ins[0].punched_at if ins else None
+            last_out = outs[-1].punched_at if outs else None
+        return first_in, last_out
+
     def _attendance_date_for(self, row: AttendanceRegularization) -> date:
         linked = self._repo.get_attendance_by_id(row.attendance_id)
         if linked is not None:
             return linked.attendance_date
         return date.today()
 
+    def _shift_for(self, employee_id: int, day: date) -> ShiftAssignment:
+        shifts = self._cached_shifts()
+        assignment = self._repo.employee_shifts_for_date(day).get(employee_id)
+        return self._effective_shift(resolve_shift(assignment, shifts))
+
+    def _system_status(
+        self,
+        employee_id: int,
+        day: date,
+        first_in: datetime | None,
+        last_out: datetime | None,
+    ) -> str:
+        """Status from the original punches, before an approved correction is applied."""
+        shift = self._shift_for(employee_id, day)
+        if first_in is None and last_out is None:
+            return "Absent"
+        if first_in is None or (last_out is None or last_out == first_in):
+            _, end_at = shift_bounds(day, shift.start_time, shift.end_time)
+            now = ist_now()
+            if first_in is not None and day <= now.date() and now < end_at:
+                return "In Progress"
+            return "Missing Punch"
+        arrival = classify_arrival(
+            first_in,
+            day,
+            0,
+            shift_start=shift.start_time,
+            grace_minutes=shift.grace_minutes,
+        )
+        return arrival.attendance_status
+
+    def _prime_approved(self, start: date, end: date) -> None:
+        """Approved requested clocks for a range. Biometric rows are not changed."""
+        clocks: dict[tuple[int, date], tuple[datetime | None, datetime | None]] = {}
+        for reg, employee, attendance in self._repo.list_regularizations(start=start, end=end):
+            if reg.status != "Approved" or attendance is None:
+                continue
+            _, requested_in, requested_out, _, _ = decode_reason(reg.reason)
+            clocks[(employee.id, attendance.attendance_date)] = (
+                _combine_day_time(attendance.attendance_date, requested_in),
+                _combine_day_time(attendance.attendance_date, requested_out),
+            )
+        self._approved_clocks = clocks
+        self._approved_span = (start, end)
+
+    def _prime_resolved(self, start: date, end: date) -> None:
+        """Days whose exception was resolved. Present (and On duty) stay Present on the screens."""
+        display: dict[tuple[int, date], AttendanceDisplayStatus] = {}
+        for key, status in self._repo.regularized_statuses(start, end).items():
+            if status in ("Present", "On duty"):
+                display[key] = "Present"
+        self._resolved_display = display
+
+    def _apply_resolved(
+        self,
+        employee_id: int,
+        day: date,
+        status: AttendanceDisplayStatus,
+        remarks: str,
+    ) -> tuple[AttendanceDisplayStatus, str, bool]:
+        override = getattr(self, "_resolved_display", {}).get((employee_id, day))
+        if override is None:
+            return status, remarks, False
+        return override, _merge_remarks(remarks, "Resolved as Present"), True
+
+    def _approved_clock(
+        self, employee_id: int, day: date
+    ) -> tuple[datetime | None, datetime | None] | None:
+        span = getattr(self, "_approved_span", None)
+        if span is None or day < span[0] or day > span[1]:
+            self._prime_approved(day, day)
+        return getattr(self, "_approved_clocks", {}).get((employee_id, day))
+
+    def _punches_with_approval(
+        self, employee_id: int, day: date, punches: list[PunchSource]
+    ) -> list[PunchSource]:
+        """Use approved requested times for calculation. The punch log stays as recorded."""
+        adjustment = self._approved_clock(employee_id, day)
+        if adjustment is None:
+            return punches
+        requested_in, requested_out = adjustment
+        if requested_in is None and requested_out is None:
+            return punches
+        kept: list[PunchSource] = []
+        if requested_in is None:
+            kept.extend(p for p in punches if (p.punch_type or "").upper() == "IN")
+        else:
+            kept.append(PunchSource(employee_id, requested_in, "IN", "Approved regularization"))
+        if requested_out is None:
+            kept.extend(p for p in punches if (p.punch_type or "").upper() == "OUT")
+        else:
+            kept.append(PunchSource(employee_id, requested_out, "OUT", "Approved regularization"))
+        return kept
+
+    def _notify_regularization(
+        self,
+        *,
+        employee_id: int,
+        regularization_id: int,
+        day: date,
+        approved: bool,
+        remark: str | None,
+    ) -> None:
+        user_id = self._repo.app_user_id_for_employee(employee_id)
+        if user_id is None:
+            return
+        verb = "approved" if approved else "rejected"
+        message = f"Your attendance regularization for {day.strftime('%d %b %Y')} was {verb}."
+        if remark and remark.strip():
+            message = f"{message} Comment: {remark.strip()}"
+        self._repo._db.add(
+            Notification(
+                channel="Push",
+                recipient_user_id=user_id,
+                entity_type="hr.attendance_regularization",
+                entity_id=regularization_id,
+                payload=json.dumps(
+                    {"title": f"Regularization {verb}", "message": message[:900]},
+                    separators=(",", ":"),
+                ),
+                status="Queued",
+            )
+        )
+
     def _regularization_row(
         self,
         reg: AttendanceRegularization,
         employee: EmployeeDaySource,
         attendance,
+        *,
+        designation: str = "—",
     ) -> RegularizationRowOut:
         request_type, requested_in, requested_out, reason, rejection = decode_reason(reg.reason)
         attachment = None
@@ -905,6 +1199,20 @@ class AttendanceService:
         name = " ".join(part for part in (employee.first_name, employee.last_name) if part).strip()
         if not name:
             name = employee.employee_code
+        day = attendance.attendance_date if attendance is not None else date.today()
+        punched_in, punched_out = self._punch_clock(employee.id, day)
+        # Punches are the system record. Stored check-in/out can be the approved correction.
+        original_in = punched_in if punched_in is not None else (
+            attendance.check_in_at if attendance is not None else None
+        )
+        original_out = punched_out if punched_out is not None else (
+            attendance.check_out_at if attendance is not None else None
+        )
+        shift = self._shift_for(employee.id, day)
+        shift_label = (
+            f"{shift.shift_name} ({shift.start_time.strftime('%I:%M %p')} - "
+            f"{shift.end_time.strftime('%I:%M %p')})"
+        )
         return RegularizationRowOut(
             id=reg.id,
             employee_id=employee.id,
@@ -912,12 +1220,17 @@ class AttendanceService:
             employee_name=name,
             department=employee.department_name or "—",
             location=employee.branch_name or "—",
-            attendance_date=attendance.attendance_date if attendance is not None else date.today(),
+            reporting_manager=employee.reporting_manager_name or "—",
+            designation=designation or "—",
+            shift=shift_label,
+            attendance_date=day,
             request_type=request_type,
-            original_in=attendance.check_in_at if attendance is not None else None,
-            original_out=attendance.check_out_at if attendance is not None else None,
+            original_in=original_in,
+            original_out=original_out,
+            original_status=self._system_status(employee.id, day, original_in, original_out),
             requested_in=requested_in,
             requested_out=requested_out,
+            requested_status=requested_status_for(request_type),
             reason=reason,
             submitted_on=reg.created_at,
             status=reg.status,  # type: ignore[arg-type]
@@ -981,6 +1294,8 @@ class AttendanceService:
 
         if status == "Absent":
             return "Absent", None, None, expected_hours, None, remarks or "No punches and no approved leave."
+        if status == "In Progress":
+            return None
         if status == "Missing Punch":
             return "Missing Punch", first_in, last_out, expected_hours, actual_hours, remarks or "Missing punch."
 
@@ -1073,6 +1388,9 @@ class AttendanceService:
             leave=leave,
             punches=punches,
         )
+        status, remarks, _ = self._apply_resolved(employee.id, day, status, remarks)
+        if status == "Present":
+            first_in_late = False
         return DailyAttendanceRowOut(
             id=employee.id,
             employee_id=employee.id,
@@ -1249,6 +1567,7 @@ class AttendanceService:
     ) -> tuple[datetime | None, datetime | None, bool, str | None, AttendanceDisplayStatus, str]:
         effective = self._effective_shift(shift)
         rules = self._org_rules()
+        punches = self._punches_with_approval(employee.id, day, punches)
         punches = punches_for_shift_day(punches, day, effective.start_time, effective.end_time)
         visits = self._official_visits(employee.id, day)
         grace_used = self._grace_used_before(employee.id, day)
@@ -1280,13 +1599,14 @@ class AttendanceService:
             note = "Half-day leave" if leave.is_half_day else "Approved leave"
             return None, None, False, None, "On Leave", note
         if leave is not None and punches and leave.is_half_day:
-            if punch_status in ("Present", "Late", "Missing Punch"):
+            if punch_status in ("Present", "Late", "Missing Punch", "In Progress"):
                 return first_in, last_out, first_in_late, working_hours, punch_status, "Half-day leave"
             return first_in, last_out, first_in_late, working_hours, "On Leave", "Half-day leave"
         if leave is not None and punches:
             return first_in, last_out, first_in_late, working_hours, "On Leave", "Approved leave"
         if holiday is not None and punches:
-            return first_in, last_out, first_in_late, working_hours, punch_status, holiday.name
+            # Keep the calendar as Holiday. Punch times prove work for Holiday Work / Comp Off.
+            return first_in, last_out, first_in_late, working_hours, "Holiday", holiday.name
         if is_off and punches:
             return first_in, last_out, first_in_late, working_hours, punch_status, "Worked on weekly off"
 
@@ -1370,11 +1690,13 @@ class AttendanceService:
         has_out = last_out is not None and last_out != first_in
         _, shift_ended = shift_bounds(day, shift.start_time, shift.end_time)
         if not has_out:
-            status: AttendanceDisplayStatus = "Missing Punch"
-            if day < date.today() or datetime.now() >= shift_ended:
-                remarks = "Missing OUT punch."
+            now = ist_now()
+            if day <= now.date() and now < shift_ended:
+                status: AttendanceDisplayStatus = "In Progress"
+                remarks = "Punched in. Shift in progress."
             else:
-                remarks = "Shift in progress / missing OUT."
+                status = "Missing Punch"
+                remarks = "Missing OUT punch."
             remember(late_minutes, None)
             return (
                 first_in,
@@ -1521,7 +1843,7 @@ class AttendanceService:
         total = 0
         for row in rows:
             total += 1
-            if row.status == "Present":
+            if row.status == "Present" or row.status == "In Progress":
                 present += 1
             elif row.status == "Late":
                 late += 1
@@ -1878,7 +2200,7 @@ class AttendanceService:
         departments: list[DashboardDepartmentRowOut] = []
         for index, name in enumerate(sorted(by_dept), start=1):
             rows = by_dept[name]
-            present = sum(1 for r in rows if r.status in ("Present", "Late", "Missing Punch"))
+            present = sum(1 for r in rows if r.status in ("Present", "Late", "In Progress", "Missing Punch"))
             absent = sum(1 for r in rows if r.status == "Absent")
             emp_count = len(rows)
             departments.append(
@@ -1898,7 +2220,7 @@ class AttendanceService:
         locations: list[DashboardLocationRowOut] = []
         for name in sorted(by_location):
             rows = by_location[name]
-            present = sum(1 for r in rows if r.status in ("Present", "Late", "Missing Punch"))
+            present = sum(1 for r in rows if r.status in ("Present", "Late", "In Progress", "Missing Punch"))
             absent = sum(1 for r in rows if r.status == "Absent")
             emp_count = len(rows)
             locations.append(
@@ -2030,20 +2352,37 @@ class AttendanceService:
             is_month_finalized=is_month_finalized(self._repo._db, day.year, day.month),
         )
 
-    def mine(self, actor: CurrentUser, year: int, month: int) -> MineAttendancePageOut:
-        if actor.employee_id is None:
+    def mine(
+        self,
+        actor: CurrentUser,
+        year: int,
+        month: int,
+        *,
+        employee_id: int | None = None,
+    ) -> MineAttendancePageOut:
+        target_id = actor.employee_id
+        if employee_id is not None and employee_id != actor.employee_id:
+            if not actor.can("core.employee.manage"):
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can open attendance regularization only for your own punches.",
+                )
+            target_id = employee_id
+        if target_id is None:
             raise ApiError("Your user account is not linked to an employee profile.")
         employees = {e.id: e for e in self._cached_employees()}
         # Include inactive employees for ESS history.
-        employee = employees.get(actor.employee_id)
+        employee = employees.get(target_id)
         if employee is None:
             all_emps = self._repo.list_employees(employment_status=None)
-            employee = next((e for e in all_emps if e.id == actor.employee_id), None)
+            employee = next((e for e in all_emps if e.id == target_id), None)
         if employee is None:
             raise ApiError("Employee profile not found.")
         start = date(year, month, 1)
         end = date(year, 12, 31) if month == 12 else date(year, month + 1, 1) - timedelta(days=1)
         end = min(end, date.today())
+        self._prime_approved(start, end)
+        self._prime_resolved(start, end)
         shifts = self._cached_shifts()
 
         # Batch month window once (same pattern as muster / history) — avoid per-day N+1.
@@ -2075,7 +2414,8 @@ class AttendanceService:
                 leave=leaves_by_day.get(day, {}).get(employee.id),
                 punches=punches_by_day.get(day, []) + punches_by_day.get(day + timedelta(days=1), []),
             )
-            if status == "Present":
+            status, remarks, resolved = self._apply_resolved(employee.id, day, status, remarks)
+            if status == "Present" or status == "In Progress":
                 present += 1
             elif status == "Late":
                 late += 1
@@ -2098,6 +2438,7 @@ class AttendanceService:
                     working_hours=working_hours,
                     shift=_shift_label(shift),
                     remarks=_merge_remarks(remarks, reasons.get((employee.id, day))),
+                    resolved=resolved,
                 )
             )
             day += timedelta(days=1)
@@ -2220,7 +2561,7 @@ def _persist_status(
     Late (grace allowance used, or more than 15 minutes late) persists as Half day.
     A grace day stays Present here and on the attendance screen.
     """
-    if status == "Missing Punch":
+    if status in ("Missing Punch", "In Progress"):
         return None
     if leave is not None and leave.is_half_day and status in ("Present", "Late", "On Leave"):
         return "Half day"
@@ -2371,7 +2712,7 @@ def _parse_exception_id(exception_id: int) -> tuple[int, date]:
 
 
 def _status_to_muster_code(status: AttendanceDisplayStatus) -> MusterDayCode:
-    if status == "Present":
+    if status == "Present" or status == "In Progress":
         return "P"
     if status == "Late":
         return "L"
@@ -2403,7 +2744,7 @@ def _matches_tab(status: AttendanceDisplayStatus, tab: StatusTab) -> bool:
     if tab == "all":
         return True
     if tab == "present":
-        return status in ("Present", "Late", "Missing Punch")
+        return status in ("Present", "Late", "In Progress", "Missing Punch")
     if tab == "absent":
         return status == "Absent"
     if tab == "leave":

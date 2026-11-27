@@ -11,11 +11,14 @@ import {
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import { MatDateRangeInput, MatDateRangePicker, MatEndDate, MatStartDate } from '@angular/material/datepicker';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
@@ -32,6 +35,7 @@ import {
   AttendanceExceptionsList,
   DailyAttendanceRow as ApiDailyAttendanceRow,
   ExceptionKpi as ApiExceptionKpi,
+  RegularizationRow,
 } from '@trishul/hr-data-access';
 import { PageHeader } from '@trishul/shared-ui';
 import {
@@ -51,12 +55,8 @@ import {
   AttendanceExceptionResolveDialog,
   ExceptionResolveResult,
 } from './attendance-exception-resolve.dialog';
-import {
-  ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
-  AttendanceRegularizeDialog,
-  RegularizeSubmitResult,
-} from './attendance-regularize.dialog';
 import { AttendanceDailyDrawer } from './attendance-daily.drawer';
+import { AttendanceRegularizeDrawer } from './attendance-regularize-drawer';
 import { AttendanceShiftDrawer } from './attendance-shift.drawer';
 import {
   AttendanceExceptionRow,
@@ -107,7 +107,11 @@ const EMPTY_KPI: ExceptionKpi = {
     FormsModule,
     MatButton,
     MatCheckbox,
+    MatDateRangeInput,
+    MatDateRangePicker,
+    MatEndDate,
     MatFormField,
+    MatStartDate,
     MatIcon,
     MatIconButton,
     MatInput,
@@ -122,13 +126,16 @@ const EMPTY_KPI: ExceptionKpi = {
     PageHeader,
     AttendanceDailyDrawer,
     AttendanceShiftDrawer,
+    AttendanceRegularizeDrawer,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './attendance-exceptions.page.html',
   styleUrl: './attendance-exceptions.page.scss',
+  providers: [provideNativeDateAdapter()],
 })
 export class AttendanceExceptionsPage implements OnInit {
   private readonly api = inject(AttendanceApi);
+  private readonly rangePicker = viewChild(MatDateRangePicker);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
@@ -168,6 +175,17 @@ export class AttendanceExceptionsPage implements OnInit {
   protected readonly pageSize = signal(10);
   protected readonly selectedIds = signal<Set<number>>(new Set());
   protected readonly menuRow = signal<AttendanceExceptionRow | null>(null);
+  protected readonly regularizations = signal<RegularizationRow[]>([]);
+  protected readonly regDrawerKeys = signal<number[]>([]);
+  protected readonly regEmployeeId = signal<number | null>(null);
+  protected readonly regDate = signal<string | null>(null);
+  protected readonly regEmployees = computed(() =>
+    uniqueEmployees(this.allRows()).map((row) => ({
+      employeeId: row.employeeId,
+      employeeCode: row.employeeCode,
+      employeeName: row.employeeName,
+    })),
+  );
   protected readonly shiftFocus = signal<{
     name: string;
     employeeId: number;
@@ -265,7 +283,7 @@ export class AttendanceExceptionsPage implements OnInit {
     const target = event.target as HTMLElement | null;
     if (
       target?.closest(
-        'trishul-attendance-daily-drawer, .name, [aria-label="View details"], .cdk-overlay-container',
+        'trishul-attendance-daily-drawer, trishul-attendance-regularize-drawer, .name, [aria-label="View details"], .cdk-overlay-container',
       )
     ) {
       return;
@@ -289,6 +307,24 @@ export class AttendanceExceptionsPage implements OnInit {
     const to = this.route.snapshot.queryParamMap.get('to');
     if (from) this.rangeStart.set(parseIsoDate(from));
     if (to) this.rangeEnd.set(parseIsoDate(to));
+  }
+
+  protected openRangePicker(): void {
+    this.rangePicker()?.open();
+  }
+
+  protected onRangeStart(value: Date | null): void {
+    if (!value || toIsoDate(value) === toIsoDate(this.rangeStart())) return;
+    this.rangeStart.set(value);
+    const end = this.rangeEnd();
+    if (end && toIsoDate(value) <= toIsoDate(end)) this.applyPickedRange();
+  }
+
+  protected onRangeEnd(value: Date | null): void {
+    if (!value || toIsoDate(value) === toIsoDate(this.rangeEnd())) return;
+    this.rangeEnd.set(value);
+    const start = this.rangeStart();
+    if (start && toIsoDate(start) <= toIsoDate(value)) this.applyPickedRange();
   }
 
   protected shiftRange(delta: number): void {
@@ -422,69 +458,54 @@ export class AttendanceExceptionsPage implements OnInit {
       });
   }
 
+  /** Pending opens the regularization drawer. Resolved opens the daily attendance details. */
+  protected openFromName(row: AttendanceExceptionRow): void {
+    if (row.status === 'Resolved') {
+      this.closeRegularize();
+      this.viewDetails(row);
+      return;
+    }
+    this.closeDetails();
+    this.regEmployeeId.set(row.employeeId);
+    this.regDate.set(row.dateIso);
+    this.regDrawerKeys.set([Date.now()]);
+  }
+
   protected regularize(row?: AttendanceExceptionRow | null): void {
-    const target = row ?? this.menuRow();
-    this.dialog
-      .open(AttendanceRegularizeDialog, {
-        data: {
-          employee: target
-            ? {
-                id: target.employeeId,
-                employeeCode: target.employeeCode,
-                employeeName: target.employeeName,
-                department: target.department,
-                avatarTone: target.avatarTone,
-                firstIn: target.firstIn,
-                lastOut: target.lastOut,
-                status: target.exceptionType,
-              }
-            : null,
-          employees: uniqueEmployees(this.allRows()).map((item) => ({
-            id: item.employeeId,
-            employeeCode: item.employeeCode,
-            employeeName: item.employeeName,
-            department: item.department,
-            avatarTone: item.avatarTone,
-            firstIn: item.firstIn,
-            lastOut: item.lastOut,
-            status: item.exceptionType,
-          })),
-          attendanceDate: target ? parseDisplayDate(target.date) : this.rangeEnd(),
-        },
-        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
-      })
-      .afterClosed()
-      .pipe(filter((result): result is RegularizeSubmitResult => !!result))
-      .subscribe((result) => {
-        this.api
-          .createRegularization({
-            employeeId: result.employeeId,
-            attendanceDate: result.attendanceDate,
-            requestType: result.requestType,
-            requestedIn: result.requestedIn,
-            requestedOut: result.requestedOut,
-            reason: result.reason,
-            attachmentName: result.attachmentName,
-          })
-          .pipe(
-            catchError((err: unknown) => {
-              const message =
-                err instanceof HttpErrorResponse
-                  ? extractHttpError(err)
-                  : 'Failed to submit regularization.';
-              this.snackBar.open(message, 'OK', { duration: 4000 });
-              return of(null);
-            }),
-          )
-          .subscribe((saved) => {
-            if (!saved) return;
-            this.snackBar.open(
-              `Regularization submitted for ${saved.employeeName}.`,
-              'OK',
-              { duration: 2500 },
-            );
-          });
-      });
+    const selected = [...this.selectedIds()];
+    const checked =
+      selected.length === 1 ? this.allRows().find((item) => item.id === selected[0]) ?? null : null;
+    const target = row ?? checked;
+    if (target && this.regFor(target)) {
+      this.viewDetails(target);
+      return;
+    }
+    this.regEmployeeId.set(target?.employeeId ?? null);
+    this.regDate.set(target?.dateIso ?? toIsoDate(this.rangeEnd()));
+    this.regDrawerKeys.set([Date.now()]);
+  }
+
+  protected closeRegularize(): void {
+    this.regDrawerKeys.set([]);
+  }
+
+  protected onRegularized(): void {
+    this.regDrawerKeys.set([]);
+    this.reload$.next();
+  }
+
+  protected regFor(row: AttendanceExceptionRow | null): RegularizationRow | null {
+    if (!row) return null;
+    const day = row.dateIso.slice(0, 10);
+    const matches = this.regularizations().filter(
+      (item) => item.employeeId === row.employeeId && item.attendanceDate.slice(0, 10) === day,
+    );
+    return (
+      matches.find((item) => item.status === 'Approved') ??
+      matches.find((item) => item.status === 'Pending') ??
+      matches[0] ??
+      null
+    );
   }
 
   protected viewDetails(row?: AttendanceExceptionRow | null): void {
@@ -600,6 +621,12 @@ export class AttendanceExceptionsPage implements OnInit {
     }
   }
 
+  /** UI label for exception review status; API/DB value stays Pending | Resolved. */
+  protected reviewLabel(status: ExceptionReviewStatus | string | null | undefined): string {
+    if (status === 'Pending') return 'Unresolved';
+    return status || '—';
+  }
+
   protected statusClass(status: ExceptionReviewStatus): string {
     return status === 'Pending' ? 'status pending' : 'status resolved';
   }
@@ -609,8 +636,18 @@ export class AttendanceExceptionsPage implements OnInit {
   }
 
   private loadRange$() {
-    return this.api.listExceptions(this.listQuery(this.page() + 1, this.pageSize())).pipe(
-      tap((page) => this.applyPage(page)),
+    const from = toIsoDate(this.rangeStart());
+    const to = toIsoDate(this.rangeEnd());
+    return forkJoin({
+      page: this.api.listExceptions(this.listQuery(this.page() + 1, this.pageSize())),
+      regs: this.api
+        .listRegularizations({ from, to, page: 1, pageSize: 200, statusTab: 'all' })
+        .pipe(catchError(() => of(null))),
+    }).pipe(
+      tap(({ page, regs }) => {
+        this.applyPage(page);
+        this.regularizations.set(regs?.items ?? []);
+      }),
       catchError((err: unknown) => {
         const message =
           err instanceof HttpErrorResponse
@@ -618,6 +655,7 @@ export class AttendanceExceptionsPage implements OnInit {
             : 'Failed to load attendance exceptions.';
         this.zone.run(() => {
           this.allRows.set([]);
+          this.regularizations.set([]);
           this.serverTotal.set(0);
           this.kpi.set(EMPTY_KPI);
           this.pendingCount.set(0);
@@ -649,6 +687,14 @@ export class AttendanceExceptionsPage implements OnInit {
       exceptionType: this.exceptionType() || undefined,
       status: this.status() || undefined,
     };
+  }
+
+  private applyPickedRange(): void {
+    this.syncRangeLabel();
+    this.page.set(0);
+    this.selectedIds.set(new Set());
+    this.closeDetails();
+    this.reload$.next();
   }
 
   private syncRangeLabel(): void {
@@ -884,7 +930,7 @@ function downloadCsv(filename: string, rows: AttendanceExceptionRow[]): void {
         csv(row.exceptionType),
         csv(row.expectedHours),
         csv(row.actualHours ?? ''),
-        csv(row.status),
+        csv(row.status === 'Pending' ? 'Unresolved' : row.status),
         csv(row.remark),
       ].join(','),
     ),

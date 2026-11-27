@@ -43,13 +43,21 @@ class MineBalances(ApiModel):
     items: list[MineBalance]
 
 
+class MineCompOffLine(ApiModel):
+    earned_on: date
+    days: Decimal
+    note: str
+    expires: date
+    status: str
+
+
 class MineCompOff(ApiModel):
     earned: Decimal
     available: Decimal
     used: Decimal
     expiring: Decimal | None
     expiry_tracked: bool
-    lines: list[str]
+    lines: list[MineCompOffLine]
 
 
 class MineHolidayQuery(ApiModel):

@@ -8,7 +8,9 @@ import {
   INV_ADJUSTMENT_VIEW_PERMISSIONS,
   INV_ANY_PERMISSIONS,
   INV_GRN_VIEW_PERMISSIONS,
+  INV_ITEM_IMPORT_PERMISSIONS,
   INV_ITEM_MANAGE,
+  INV_PRICE_IMPORT_PERMISSIONS,
   INV_ITEM_VIEW_PERMISSIONS,
   INV_STOCK_ADJUST,
   INV_STOCK_USER_PERMISSIONS,
@@ -18,10 +20,13 @@ import {
 } from '@trishul/inventory-data-access';
 import { ItemDetailPage } from './item-detail.page';
 import { ItemFormPage } from './item-form.page';
-import { ItemImportPage } from './item-import.page';
+import { ItemImportDetailPage } from './item-import-detail.page';
+import { ItemListImportPage } from './item-list-import.page';
 import { ItemListPage } from './item-list.page';
 import { LocationsPage } from './locations.page';
 import { OpeningStockPage } from './opening-stock.page';
+import { PriceImportDetailPage } from './price-import-detail.page';
+import { PriceImportPage } from './price-import.page';
 import { SetupPage } from './setup.page';
 import { StockPage } from './stock.page';
 import { TransferFormPage } from './transfer-form.page';
@@ -43,9 +48,27 @@ export const inventoryRoutes: Route[] = [
   },
   {
     path: 'items/import',
-    title: 'Import item prices',
-    canActivate: [permissionGuard(INV_ITEM_MANAGE)],
-    component: ItemImportPage,
+    title: 'Item price import',
+    canActivate: [permissionGuard(...INV_PRICE_IMPORT_PERMISSIONS)],
+    component: PriceImportPage,
+  },
+  {
+    path: 'items/import/:importId',
+    title: 'Price import',
+    canActivate: [permissionGuard(...INV_PRICE_IMPORT_PERMISSIONS)],
+    component: PriceImportDetailPage,
+  },
+  {
+    path: 'item-imports',
+    title: 'Item list import',
+    canActivate: [permissionGuard(...INV_ITEM_IMPORT_PERMISSIONS)],
+    component: ItemListImportPage,
+  },
+  {
+    path: 'item-imports/:importId',
+    title: 'Item import',
+    canActivate: [permissionGuard(...INV_ITEM_IMPORT_PERMISSIONS)],
+    component: ItemImportDetailPage,
   },
   {
     path: 'items/:itemId',

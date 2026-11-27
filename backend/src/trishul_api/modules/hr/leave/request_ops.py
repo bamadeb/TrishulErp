@@ -110,8 +110,8 @@ class LeaveRequestRepository:
             return self.detail(actor, request_id)
         days = self._checked_days(actor, employee, row)
         leave_type = self._db.get(LeaveType, row.leave_type_id)
-        if leave_type is not None and leave_type.is_paid:
-            self._deduct(employee.id, row.leave_type_id, row.from_date, days, actor.id)
+        if leave_type is not None and (leave_type.is_paid or leave_type.code == "CO"):
+            self._deduct(employee.id, row.leave_type_id, row.from_date, days, actor.id, row.id)
         row.days = days
         self._finish(row, "Approved", "Approved.", actor)
         self._db.commit()
@@ -154,7 +154,23 @@ class LeaveRequestRepository:
         )
         return self._mine._validated_days(actor, employee, data, current_id=row.id)
 
-    def _deduct(self, employee_id: int, leave_type_id: int, start: date, days: Decimal, user_id: int) -> None:
+    def _deduct(
+        self, employee_id: int, leave_type_id: int, start: date, days: Decimal, user_id: int, request_id: int
+    ) -> None:
+        leave_type = self._db.get(LeaveType, leave_type_id)
+        if leave_type is not None and leave_type.code == "CO":
+            from trishul_api.modules.hr.leave.comp_off_ops import consume
+
+            consume(
+                self._db,
+                employee_id=employee_id,
+                leave_type_id=leave_type_id,
+                leave_request_id=request_id,
+                start=start,
+                days=days,
+                user_id=user_id,
+            )
+            return
         year = _financial_year(start)
         stmt = select(LeaveBalance).where(
             LeaveBalance.employee_id == employee_id,

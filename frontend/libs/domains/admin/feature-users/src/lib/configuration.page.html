@@ -23,8 +23,7 @@
           <ng-container matColumnDef="brand">
             <th mat-header-cell *matHeaderCellDef>Brand</th>
             <td mat-cell *matCellDef="let b">
-              {{ b.name }}
-              @if (b.companyName) {
+              {{ b.name }} @if (b.companyName) {
               <span class="muted"> – {{ b.companyName }}</span>
               }
             </td>
@@ -86,6 +85,39 @@
       </button>
     </div>
   </mat-tab>
+  } @if (canPrices) {
+  <mat-tab label="Prices">
+    <p class="intro">
+      A bulk price import that raises or lowers a price by more than this
+      percentage needs approval by someone with the price approval permission
+      before any price changes. Smaller changes are applied when the uploader
+      confirms them.
+    </p>
+    <div class="setting-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <input
+          matInput
+          type="number"
+          min="0"
+          max="1000"
+          step="0.5"
+          aria-label="Maximum price change without approval, in percent"
+          [value]="priceLimitDraft()"
+          (input)="priceLimitDraft.set($any($event.target).value)"
+          (keydown.enter)="priceLimitDirty() && savePriceLimit()"
+        />
+        <mat-hint>Maximum price change without approval (%)</mat-hint>
+      </mat-form-field>
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="!priceLimitDirty() || savingPrices()"
+        (click)="savePriceLimit()"
+      >
+        Save
+      </button>
+    </div>
+  </mat-tab>
   } @if (canTracking) {
   <mat-tab label="Trip tracking">
     <p class="intro">
@@ -103,8 +135,7 @@
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>Parameter</th>
             <td mat-cell *matCellDef="let p" class="name-cell">
-              {{ p.name }}
-              @if (p.description) {
+              {{ p.name }} @if (p.description) {
               <div class="muted">{{ p.description }}</div>
               }
               <div class="muted">{{ p.code }}</div>

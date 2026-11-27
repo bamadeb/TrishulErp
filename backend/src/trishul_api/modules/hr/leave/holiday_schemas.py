@@ -7,7 +7,7 @@ from pydantic import Field
 
 from trishul_api.common.schemas import ApiModel, InputModel, PageQuery, RowVersion
 
-HolidayCategory = Literal["National", "Regional", "Optional"]
+HolidayCategory = Literal["National", "Festival", "Regional", "Optional"]
 
 
 class HolidayListQuery(PageQuery):
@@ -66,6 +66,7 @@ class HolidaySummary(ApiModel):
     total: int
     upcoming: int
     national: int
+    festival: int = 0
     regional: int
     optional: int
 
@@ -86,3 +87,4 @@ class HolidayFilters(ApiModel):
     states: list[HolidayOption]
     locations: list[HolidayOption]
     financial_years: list[int]
+    policy_festivals: list[str] = []

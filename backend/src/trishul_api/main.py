@@ -37,8 +37,10 @@ from trishul_api.modules.hr.organization.router import router as organization_ro
 from trishul_api.modules.hr.payroll.router import router as salary_component_router
 from trishul_api.modules.hr.reporting.router import router as reporting_router
 from trishul_api.modules.hr.tada.router import router as tada_router
+from trishul_api.modules.inv.item_list_import_router import router as inv_item_imports_router
 from trishul_api.modules.inv.item_router import router as inv_items_router
 from trishul_api.modules.inv.masters_router import router as inv_masters_router
+from trishul_api.modules.inv.price_import_router import router as inv_price_imports_router
 from trishul_api.modules.inv.stock_router import router as inv_stock_router
 from trishul_api.modules.presales.router import router as presales_router
 from trishul_api.modules.pur.router import router as purchases_router
@@ -83,6 +85,8 @@ V1_ROUTERS: list[APIRouter] = [
     trk_router,
     inv_masters_router,
     inv_items_router,
+    inv_item_imports_router,
+    inv_price_imports_router,
     inv_stock_router,
     purchases_router,
     sales_router,

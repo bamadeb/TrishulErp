@@ -286,6 +286,12 @@ class EmployeeLeaveRepository:
         ]
 
     def _balance_views(self, person: _Person) -> dict[str, EmployeeLeaveBalanceView]:
+        from trishul_api.modules.hr.leave.comp_off_ops import expire_due, next_expiry, sync_balance
+
+        expire_due(self._db, employee_id=person.employee.id, as_of=date.today())
+        sync_balance(self._db, person.employee.id, None)
+        self._db.commit()
+        expiry = next_expiry(self._db, person.employee.id, date.today())
         stored = _balances(self._db, [person.employee.id], _financial_year_of(person)).get(person.employee.id, {})
         transactions = self._db.execute(
             select(LeaveBalanceTransaction, LeaveType.code)
@@ -307,6 +313,7 @@ class EmployeeLeaveRepository:
                 adjustments=kinds.get("Adjustment", _ZERO),
                 expired=kinds.get("Expiry", _ZERO),
                 closing=_ZERO if balance is None else balance.closing,
+                next_expiry=expiry if code == "CO" else None,
             )
         return views
 

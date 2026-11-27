@@ -7,12 +7,9 @@ Import models from here: `from trishul_api.db.models import ServiceCall`. To cha
 the SQL (a migration) or scripts/model_options.toml and re-run the generator.
 """
 
-from trishul_api.db.models.base import Audited, Base
-from trishul_api.db.models.generated import *  # noqa: F403
-from trishul_api.db.models.generated import __all__ as _generated
-
 # Hand-written until the generator is re-run against the migrated DB (see trk.py).
 from trishul_api.db.models.asc import ContractVisitDay
+from trishul_api.db.models.base import Audited, Base
 from trishul_api.db.models.biometric import (
     BiometricDevice,
     BiometricEmployeeMapping,
@@ -31,8 +28,13 @@ from trishul_api.db.models.face_attendance import (
     FaceModel,
     WorkLocation,
 )
-from trishul_api.db.models.machine import MachineEngineer
+from trishul_api.db.models.generated import *  # noqa: F403
+from trishul_api.db.models.generated import __all__ as _generated
+from trishul_api.db.models.item_import import ItemImport, ItemImportLine
 from trishul_api.db.models.leave import (
+    CompOffAuthorization,
+    CompOffCredit,
+    CompOffLedger,
     LeaveAttendanceClass,
     LeaveBalanceTransaction,
     LeaveEntitlementRun,
@@ -42,6 +44,8 @@ from trishul_api.db.models.leave import (
     LeaveTypeSetting,
     LeaveWeeklyRestGrant,
 )
+from trishul_api.db.models.machine import MachineEngineer
+from trishul_api.db.models.price_import import ItemPriceHistory, PriceImport, PriceImportLine
 from trishul_api.db.models.reporting import ReportingAssignment
 from trishul_api.db.models.salary_template import (
     SalaryTemplate,
@@ -78,6 +82,9 @@ __all__ = [
     "BiometricSyncLog",
     "Complaint",
     "ComplaintHistory",
+    "CompOffAuthorization",
+    "CompOffCredit",
+    "CompOffLedger",
     "ComplaintIssueType",
     "ContractVisitDay",
     "EmployeeAttendanceLocation",
@@ -92,7 +99,12 @@ __all__ = [
     "LeavePolicyLine",
     "LeaveTypeSetting",
     "LeaveWeeklyRestGrant",
+    "ItemImport",
+    "ItemImportLine",
+    "ItemPriceHistory",
     "MachineEngineer",
+    "PriceImport",
+    "PriceImportLine",
     "ReportingAssignment",
     "SalaryTemplate",
     "SalaryTemplateAssignment",

@@ -58,6 +58,7 @@ TABLES = [
     "pur.supplier_item_price",
     "sal.price_list",
     "sal.price_list_item",
+    "inv.item_price_history",  # manual price changes are logged
 ]
 COMPANY = 1
 WAREHOUSE, BRANCH, OTHER_BRANCH = 1, 2, 3

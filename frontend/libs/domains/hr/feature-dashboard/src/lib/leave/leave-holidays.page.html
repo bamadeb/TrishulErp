@@ -29,7 +29,10 @@
           @if (formError()) { <p class="form-error">{{ formError() }}</p> }
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Holiday Name</mat-label>
-            <input matInput [ngModel]="draft().name" (ngModelChange)="patch({ name: $event })" />
+            <input matInput list="policy-festivals" [ngModel]="draft().name" (ngModelChange)="patch({ name: $event })" />
+            <datalist id="policy-festivals">
+              @for (name of festivals(); track name) { <option [value]="name"></option> }
+            </datalist>
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Holiday Date</mat-label>
@@ -39,20 +42,20 @@
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Holiday Type</mat-label>
-            <mat-select [ngModel]="draft().type" (ngModelChange)="patch({ type: $event, optional: $event === 'Optional' || draft().optional })">
+            <mat-select [ngModel]="draft().type" (ngModelChange)="onType($event)">
               @for (item of types(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>State</mat-label>
-            <mat-select [ngModel]="draft().stateId" (ngModelChange)="patch({ stateId: $event, stateName: stateName($event) })">
+            <mat-select [disabled]="draft().type === 'National' || draft().type === 'Festival'" [ngModel]="draft().stateId" (ngModelChange)="patch({ stateId: $event, stateName: stateName($event) })">
               <mat-option [value]="null">All States</mat-option>
               @for (item of states(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Applicable Location</mat-label>
-            <mat-select [ngModel]="draft().locationId" (ngModelChange)="patch({ locationId: $event, locationName: locationName($event) })">
+            <mat-select [disabled]="draft().type === 'National' || draft().type === 'Festival'" [ngModel]="draft().locationId" (ngModelChange)="patch({ locationId: $event, locationName: locationName($event) })">
               <mat-option [value]="null">All Locations</mat-option>
               @for (item of locations(); track item.id) { <mat-option [value]="item.id">{{ item.name }}</mat-option> }
             </mat-select>
@@ -62,7 +65,7 @@
             <textarea matInput rows="3" [ngModel]="draft().description" (ngModelChange)="patch({ description: $event })"></textarea>
           </mat-form-field>
           <div class="toggles">
-            <mat-slide-toggle [checked]="draft().optional" (change)="patch({ optional: $event.checked })">Optional holiday</mat-slide-toggle>
+            <mat-slide-toggle [disabled]="draft().type === 'National' || draft().type === 'Festival'" [checked]="draft().optional" (change)="patch({ optional: $event.checked })">Optional holiday</mat-slide-toggle>
             <mat-slide-toggle [checked]="draft().active" (change)="patch({ active: $event.checked })">Active status</mat-slide-toggle>
           </div>
           <div class="detail-actions">
@@ -85,11 +88,15 @@
       <div class="header-tools">
         <mat-form-field class="year" appearance="outline" subscriptSizing="dynamic">
           <mat-icon matPrefix>calendar_month</mat-icon>
-          <mat-label>Financial Year</mat-label>
-          <mat-select [value]="year()" (valueChange)="setYear($event)" aria-label="Financial year">
+          <mat-label>{{ basis() === 'calendar' ? 'Calendar Year' : 'Financial Year' }}</mat-label>
+          <mat-select [value]="year()" (valueChange)="setYear($event)" aria-label="Year">
             @for (item of years(); track item.id) { <mat-option [value]="item.id">{{ item.label }}</mat-option> }
           </mat-select>
         </mat-form-field>
+        <div class="basis" role="group" aria-label="Year basis">
+          <button type="button" [class.active]="basis() === 'financial'" (click)="setBasis('financial')">Financial</button>
+          <button type="button" [class.active]="basis() === 'calendar'" (click)="setBasis('calendar')">Calendar</button>
+        </div>
         <input #fileInput type="file" accept=".xlsx,.xls,.csv" hidden (change)="pickFile($event)" />
         <button mat-stroked-button type="button" (click)="browse()"><mat-icon>upload</mat-icon> Import Excel</button>
         <button mat-stroked-button type="button" (click)="exportRows()"><mat-icon>download</mat-icon> Export</button>
@@ -151,6 +158,7 @@
             </div>
             <ul class="legend">
               <li><i class="national"></i>National</li>
+              <li><i class="festival"></i>Festival</li>
               <li><i class="regional"></i>Regional</li>
               <li><i class="optional"></i>Optional</li>
             </ul>

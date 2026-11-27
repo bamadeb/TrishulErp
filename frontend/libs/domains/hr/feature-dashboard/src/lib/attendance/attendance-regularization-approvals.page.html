@@ -1,0 +1,194 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Attendance Management</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Regularization Approvals</strong>
+</nav>
+
+<trishul-page-header
+  title="Attendance Regularization"
+  subtitle="Review and approve attendance correction requests from your reporting employees."
+>
+  <mat-form-field class="month" subscriptSizing="dynamic">
+    <mat-select [value]="monthKey()" (valueChange)="setMonth($event)" aria-label="Month">
+      @for (month of months; track month.key) {
+        <mat-option [value]="month.key">{{ month.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</trishul-page-header>
+
+<section class="kpis" aria-label="Request summary">
+  <article class="kpi total">
+    <span class="icon"><mat-icon>description</mat-icon></span>
+    <div>
+      <strong>{{ kpi().total }}</strong>
+      <span>Total Requests</span>
+    </div>
+  </article>
+  <article class="kpi pending">
+    <span class="icon"><mat-icon>hourglass_top</mat-icon></span>
+    <div>
+      <strong>{{ kpi().pending }}</strong>
+      <span>Pending Approval</span>
+    </div>
+  </article>
+  <article class="kpi approved">
+    <span class="icon"><mat-icon>check_circle</mat-icon></span>
+    <div>
+      <strong>{{ kpi().approved }}</strong>
+      <span>Approved</span>
+    </div>
+  </article>
+  <article class="kpi rejected">
+    <span class="icon"><mat-icon>cancel</mat-icon></span>
+    <div>
+      <strong>{{ kpi().rejected }}</strong>
+      <span>Rejected</span>
+    </div>
+  </article>
+</section>
+
+<section class="workspace" [class.loading]="loading()">
+  <aside class="list">
+    <div class="filters" role="tablist">
+      <button type="button" [class.on]="statusFilter() === 'pending'" (click)="setFilter('pending')">Pending ({{ kpi().pending }})</button>
+      <button type="button" [class.on]="statusFilter() === 'approved'" (click)="setFilter('approved')">Approved ({{ kpi().approved }})</button>
+      <button type="button" [class.on]="statusFilter() === 'rejected'" (click)="setFilter('rejected')">Rejected ({{ kpi().rejected }})</button>
+      <button type="button" [class.on]="statusFilter() === 'all'" (click)="setFilter('all')">All ({{ kpi().total }})</button>
+    </div>
+    <label class="search">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        placeholder="Search by employee name or ID"
+        [value]="search()"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </label>
+    <div class="items">
+      @for (row of filtered(); track row.id) {
+        <button type="button" class="item" [class.on]="selected()?.id === row.id" (click)="select(row)">
+          <span class="avatar">{{ initials(row.employeeName) }}</span>
+          <span class="who">
+            <strong>{{ row.employeeName }}</strong>
+            <small>{{ row.employeeCode }} · {{ row.department }}</small>
+            <small>{{ requestLabel(row) }} | {{ row.attendanceDate | date: 'dd MMM y' }}</small>
+            <small>Submitted: {{ row.submittedOn | date: 'dd MMM y, hh:mm a' }}</small>
+          </span>
+          <span class="pill" [class]="statusClass(row.status)">{{ row.status }}</span>
+          <mat-icon class="chev">chevron_right</mat-icon>
+        </button>
+      } @empty {
+        <p class="empty">No requests from your reporting employees for this month.</p>
+      }
+    </div>
+  </aside>
+
+  <article class="detail">
+    @if (selected(); as row) {
+      <header class="person">
+        <span class="avatar lg">{{ initials(row.employeeName) }}</span>
+        <div>
+          <h2>{{ row.employeeName }}</h2>
+          <p>{{ row.employeeCode }} <span>|</span> {{ row.department }} <span>|</span> {{ row.designation || '—' }}</p>
+        </div>
+        <span class="pill" [class]="statusClass(row.status)">{{ row.status === 'Pending' ? 'Pending Approval' : row.status }}</span>
+      </header>
+
+      <div class="facts">
+        <div><mat-icon>calendar_today</mat-icon><span>Attendance Date</span><strong>{{ row.attendanceDate | date: 'dd MMM y' }}</strong></div>
+        <div><mat-icon>schedule</mat-icon><span>Shift</span><strong>{{ row.shift || '—' }}</strong></div>
+        <div><mat-icon>edit_calendar</mat-icon><span>Request Type</span><strong>{{ requestLabel(row) }}</strong></div>
+        <div><mat-icon>event</mat-icon><span>Submitted On</span><strong>{{ row.submittedOn | date: 'dd MMM y, hh:mm a' }}</strong></div>
+      </div>
+
+      <div class="compare">
+        <section class="panel original">
+          <h3>Original Attendance (System Record)</h3>
+          <p><span>IN Time</span><strong [class.missing]="!row.originalIn">{{ clock(row.originalIn) }}</strong></p>
+          <p><span>OUT Time</span><strong [class.missing]="!row.originalOut">{{ clock(row.originalOut) }}</strong></p>
+          <p><span>Attendance Status</span><strong class="pill" [class]="statusClass(row.originalStatus)">{{ row.originalStatus || '—' }}</strong></p>
+        </section>
+        <section class="panel requested">
+          <h3>Requested Attendance (By Employee)</h3>
+          <p><span>IN Time</span><strong>{{ clock(row.requestedIn) }}</strong></p>
+          <p><span>OUT Time</span><strong>{{ clock(row.requestedOut) }}</strong></p>
+          <p><span>Requested Status</span><strong class="pill ok">{{ row.requestedStatus || 'Present' }}</strong></p>
+        </section>
+      </div>
+
+      <section class="block">
+        <h3><mat-icon>chat</mat-icon> Reason for Regularization</h3>
+        <p>{{ row.reason || '—' }}</p>
+      </section>
+
+      <section class="block">
+        <h3><mat-icon>attach_file</mat-icon> Attachment {{ row.attachmentName ? '(1)' : '(0)' }}</h3>
+        @if (row.attachmentName) {
+          <div class="file">
+            <mat-icon>picture_as_pdf</mat-icon>
+            <span>{{ row.attachmentName }}</span>
+            <button mat-stroked-button type="button" (click)="showAttachment(row.attachmentName!)">
+              <mat-icon>visibility</mat-icon> View
+            </button>
+          </div>
+        } @else {
+          <p class="muted">No attachment submitted.</p>
+        }
+      </section>
+
+      <div class="bottom">
+        <section class="block history">
+          <h3><mat-icon>calendar_month</mat-icon> Employee Attendance History <span>(Last 5 Working Days)</span></h3>
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Status</th><th>In</th><th>Out</th><th>Hours</th></tr>
+            </thead>
+            <tbody>
+              @for (day of history(); track day.date) {
+                <tr>
+                  <td>{{ day.date | date: 'dd MMM y' }}</td>
+                  <td><span class="pill" [class]="statusClass(day.status)">{{ day.status }}</span></td>
+                  <td>{{ clock(day.firstIn) === 'Not Recorded' ? '—' : clock(day.firstIn) }}</td>
+                  <td>{{ clock(day.lastOut) === 'Not Recorded' ? '—' : clock(day.lastOut) }}</td>
+                  <td>{{ day.workingHours || '—' }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5">{{ historyLoading() ? 'Loading history…' : 'No recent attendance.' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </section>
+
+        @if (row.status === 'Pending') {
+          <section class="decide">
+            <h3><mat-icon>chat_bubble_outline</mat-icon> Manager's Comments <abbr title="required">*</abbr></h3>
+            <textarea
+              rows="4"
+              maxlength="250"
+              placeholder="Enter approval / rejection remarks..."
+              [value]="comment()"
+              (input)="onComment($any($event.target).value)"
+            ></textarea>
+            <small>{{ commentCount() }} / 250</small>
+            <div class="actions">
+              <button type="button" class="reject" [disabled]="!canDecide()" (click)="reject()">
+                <mat-icon>close</mat-icon> Reject
+              </button>
+              <button type="button" class="approve" [disabled]="!canDecide()" (click)="approve()">
+                <mat-icon>check</mat-icon> Approve
+              </button>
+            </div>
+          </section>
+        } @else if (row.rejectionReason) {
+          <section class="decide">
+            <h3><mat-icon>chat_bubble_outline</mat-icon> Manager's Comments</h3>
+            <p>{{ row.rejectionReason }}</p>
+          </section>
+        }
+      </div>
+    } @else {
+      <p class="empty">Select a request to review the original punches, the requested punches, and the employee's reason.</p>
+    }
+  </article>
+</section>

@@ -55,6 +55,7 @@ from trishul_api.modules.inv.item_schemas import (
     SalesPriceUpdate,
 )
 from trishul_api.modules.inv.masters_service import MastersService
+from trishul_api.modules.inv.prices import record_price_change
 
 _SORT: SortColumns = {
     "itemCode": Item.item_code,
@@ -236,6 +237,16 @@ class ItemService:
             created_by_user_id=self._actor.id,
             **{field: getattr(data, field) for field in _PLAIN if field != "is_active"},
         )
+        self._db.add(item)
+        try:
+            self._db.flush()  # the history row needs the item's id
+        except IntegrityError as error:
+            self._db.rollback()
+            raise AlreadyExists("Another item already has this code.") from error
+        record_price_change(
+            self._db, item, user_id=self._actor.id, source="Manual", reason="New item",
+            purchase=(None, item.standard_cost), mrp=(None, item.mrp),
+        )  # fmt: skip
         self._save(item)
         return self.get(item.id)
 
@@ -243,6 +254,7 @@ class ItemService:
         item = self._visible(item_id)
         check_row_version(item.row_version, expected)
         changed = data.model_fields_set
+        old_cost, old_mrp = item.standard_cost, item.mrp
         if "item_code" in changed and data.item_code and data.item_code.upper() != item.item_code:
             self._check_code(data.item_code.upper(), item.id)
             item.item_code = data.item_code.upper()
@@ -270,6 +282,10 @@ class ItemService:
                 setattr(item, field, value)
         item.updated_at = now()
         item.updated_by_user_id = self._actor.id
+        record_price_change(
+            self._db, item, user_id=self._actor.id, source="Manual",
+            purchase=(old_cost, item.standard_cost), mrp=(old_mrp, item.mrp),
+        )  # fmt: skip
         self._save(item)
         return self.get(item.id)
 
@@ -367,6 +383,10 @@ class ItemService:
                 created_by_user_id=self._actor.id,
             )
         )
+        record_price_change(
+            self._db, item, user_id=self._actor.id, source="Manual",
+            selling=(None, data.unit_price), price_list_id=price_list.id, min_qty=data.min_qty,
+        )  # fmt: skip
         self._commit("This price list already has a price for that quantity.")
         return self.prices(item.id)
 
@@ -374,14 +394,19 @@ class ItemService:
         row = self._db.get(PriceListItem, price_id)
         if row is None:
             raise NotFound("Price not found.")
-        self._visible(row.item_id)
+        item = self._visible(row.item_id)
         check_row_version(row.row_version, expected)
+        old_price = row.unit_price
         for field in ("unit_price", "min_qty", "is_active"):
             value = getattr(data, field)
             if field in data.model_fields_set and value is not None:
                 setattr(row, field, value)
         row.updated_at = now()
         row.updated_by_user_id = self._actor.id
+        record_price_change(
+            self._db, item, user_id=self._actor.id, source="Manual",
+            selling=(old_price, row.unit_price), price_list_id=row.price_list_id, min_qty=row.min_qty,
+        )  # fmt: skip
         self._commit("This price list already has a price for that quantity.")
         return self.prices(row.item_id)
 

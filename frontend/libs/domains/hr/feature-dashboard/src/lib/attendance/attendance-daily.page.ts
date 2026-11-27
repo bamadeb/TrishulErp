@@ -16,8 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { provideNativeDateAdapter } from '@angular/material/core';
-import { MatDatepicker, MatDatepickerInput } from '@angular/material/datepicker';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDateRangeInput, MatDateRangePicker, MatEndDate, MatStartDate } from '@angular/material/datepicker';
 import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -41,7 +40,6 @@ import {
   catchError,
   debounceTime,
   distinctUntilChanged,
-  filter,
   finalize,
   forkJoin,
   map,
@@ -51,12 +49,7 @@ import {
 } from 'rxjs';
 import { AttendanceDailyDrawer } from './attendance-daily.drawer';
 import { AttendanceShiftDrawer } from './attendance-shift.drawer';
-import {
-  ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
-  AttendanceRegularizeData,
-  AttendanceRegularizeDialog,
-  RegularizeSubmitResult,
-} from './attendance-regularize.dialog';
+import { AttendanceRegularizeDrawer } from './attendance-regularize-drawer';
 import {
   AttendanceKpi,
   AttendanceStatus,
@@ -68,6 +61,7 @@ import {
 const STATUS_ICON: Record<AttendanceStatus, string> = {
   Present: 'check_circle',
   Late: 'schedule',
+  'In Progress': 'more_time',
   'Missing Punch': 'fingerprint',
   Absent: 'cancel',
   'On Leave': 'flight_takeoff',
@@ -109,9 +103,11 @@ const DAY_PAGE_SIZE = 200;
     FormsModule,
     MatButton,
     MatCheckbox,
-    MatDatepicker,
-    MatDatepickerInput,
+    MatDateRangeInput,
+    MatDateRangePicker,
+    MatEndDate,
     MatFormField,
+    MatStartDate,
     MatIcon,
     MatIconButton,
     MatInput,
@@ -126,6 +122,7 @@ const DAY_PAGE_SIZE = 200;
     PageHeader,
     AttendanceDailyDrawer,
     AttendanceShiftDrawer,
+    AttendanceRegularizeDrawer,
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -137,15 +134,15 @@ export class AttendanceDailyPage implements OnInit {
   private readonly router = inject(Router);
   private readonly faces = inject(FaceAttendanceApi);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly picker = viewChild(MatDatepicker);
+  private readonly picker = viewChild(MatDateRangePicker);
   private readonly reload$ = new Subject<void>();
   private readonly search$ = new Subject<string>();
 
   protected readonly severities: Partial<Record<string, StatusSeverity>> = {
     Present: 'success',
     Late: 'warn',
+    'In Progress': 'info',
     'Missing Punch': 'warn',
     Absent: 'danger',
     'On Leave': 'info',
@@ -158,6 +155,8 @@ export class AttendanceDailyPage implements OnInit {
   };
 
   protected readonly regularization = signal<RegularizationRequest[]>([]);
+  /** Regularization requests for the selected attendance date, keyed in the table. */
+  protected readonly dayRegularizations = signal<RegularizationRow[]>([]);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   /** Plain object so existing template bindings (`kpi.total`) stay unchanged. */
@@ -167,7 +166,9 @@ export class AttendanceDailyPage implements OnInit {
   protected readonly locations = signal<string[]>([]);
   protected readonly shifts = signal<string[]>([]);
 
-  protected readonly selectedDate = signal(new Date());
+  private readonly today = new Date();
+  protected readonly rangeStart = signal(new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate()));
+  protected readonly rangeEnd = signal(new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate()));
   protected readonly contentTab = signal<ContentTab>('records');
   protected readonly search = signal('');
   protected readonly department = signal('');
@@ -187,13 +188,12 @@ export class AttendanceDailyPage implements OnInit {
   } | null>(null);
   protected readonly menuRow = signal<DailyAttendanceRow | null>(null);
 
-  protected readonly dateLabel = computed(() =>
-    new Intl.DateTimeFormat('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(this.selectedDate()),
+  protected readonly dateLabel = computed(
+    () => `${formatDisplayDate(toIsoDate(this.rangeStart()))} – ${formatDisplayDate(toIsoDate(this.rangeEnd()))}`,
+  );
+
+  protected readonly multiDay = computed(
+    () => toIsoDate(this.rangeStart()) !== toIsoDate(this.rangeEnd()),
   );
 
   protected readonly filteredRows = computed(() => {
@@ -305,9 +305,9 @@ export class AttendanceDailyPage implements OnInit {
   }
 
   protected shiftDate(delta: number): void {
-    const next = new Date(this.selectedDate());
-    next.setDate(next.getDate() + delta);
-    this.selectedDate.set(next);
+    const span = this.rangeSpanDays();
+    this.rangeStart.set(addDays(this.rangeStart(), delta * span));
+    this.rangeEnd.set(addDays(this.rangeEnd(), delta * span));
     this.page.set(0);
     this.selectedIds.set(new Set());
     this.selected.set(null);
@@ -319,14 +319,26 @@ export class AttendanceDailyPage implements OnInit {
     this.picker()?.open();
   }
 
-  protected onDatePicked(value: Date | null): void {
-    if (!value) return;
-    this.selectedDate.set(value);
-    this.page.set(0);
-    this.selectedIds.set(new Set());
-    this.selected.set(null);
-    this.reload$.next();
-    this.loadPunches();
+  protected onRangeStart(value: Date | null): void {
+    if (!value || toIsoDate(value) === toIsoDate(this.rangeStart())) return;
+    this.rangeStart.set(value);
+    const end = this.rangeEnd();
+    if (end && toIsoDate(value) <= toIsoDate(end)) this.applyPickedRange();
+  }
+
+  protected onRangeEnd(value: Date | null): void {
+    if (!value || toIsoDate(value) === toIsoDate(this.rangeEnd())) return;
+    this.rangeEnd.set(value);
+    const start = this.rangeStart();
+    if (start && toIsoDate(start) <= toIsoDate(value)) this.applyPickedRange();
+  }
+
+  protected rowDate(row: DailyAttendanceRow): Date {
+    return row.dateIso ? parseIsoDate(row.dateIso) : this.rangeEnd();
+  }
+
+  protected rowDateLabel(row: DailyAttendanceRow): string {
+    return row.dateIso ? formatDisplayDate(row.dateIso) : '';
   }
 
   protected setTab(tab: ContentTab): void {
@@ -468,6 +480,7 @@ export class AttendanceDailyPage implements OnInit {
     const lastOut = [...history].reverse().find((item) => item.punchType === 'Out');
     this.selected.set({
       id: row.employeeId,
+      dateIso: row.attendanceDate?.slice(0, 10),
       employeeId: row.employeeId,
       employeeCode: row.employeeCode || '',
       employeeName: row.employeeName || '',
@@ -509,9 +522,8 @@ export class AttendanceDailyPage implements OnInit {
   private punchRequest = 0;
 
   private loadPunches(): void {
-    const toDate = toIsoDate(this.selectedDate());
-    const start = new Date(this.selectedDate());
-    start.setDate(start.getDate() - 6);
+    const toDate = toIsoDate(this.rangeEnd());
+    const start = this.rangeStart();
     const request = ++this.punchRequest;
     this.punchLoading.set(true);
     this.punchError.set(null);
@@ -545,7 +557,7 @@ export class AttendanceDailyPage implements OnInit {
         this.snackBar.open('No punch logs to export.', 'OK', { duration: 2200 });
         return;
       }
-      downloadPunchCsv(`punch-logs-${toIsoDate(this.selectedDate())}.csv`, punches);
+      downloadPunchCsv(`punch-logs-${toIsoDate(this.rangeStart())}_${toIsoDate(this.rangeEnd())}.csv`, punches);
       this.snackBar.open(`Exported ${punches.length} punch log(s).`, 'OK', { duration: 2500 });
       return;
     }
@@ -554,56 +566,55 @@ export class AttendanceDailyPage implements OnInit {
       this.snackBar.open('No attendance rows to export.', 'OK', { duration: 2200 });
       return;
     }
-    downloadCsv(`daily-attendance-${toIsoDate(this.selectedDate())}.csv`, rows);
+    downloadCsv(
+      `daily-attendance-${toIsoDate(this.rangeStart())}_${toIsoDate(this.rangeEnd())}.csv`,
+      rows,
+      (row) => this.regFor(row.employeeId, row.dateIso)?.status ?? '',
+    );
     this.snackBar.open(`Exported ${rows.length} attendance row(s).`, 'OK', { duration: 2500 });
   }
 
+  protected readonly regDrawerKeys = signal<number[]>([]);
+  protected readonly regEmployeeId = signal<number | null>(null);
+  protected readonly regDate = signal<string | null>(null);
+  protected readonly regEmployees = computed(() => {
+    const seen = new Set<number>();
+    const employees: { employeeId: number; employeeCode: string; employeeName: string }[] = [];
+    for (const row of this.dayRows()) {
+      if (seen.has(row.employeeId)) continue;
+      seen.add(row.employeeId);
+      employees.push({
+        employeeId: row.employeeId,
+        employeeCode: row.employeeCode,
+        employeeName: row.employeeName,
+      });
+    }
+    return employees;
+  });
+
   protected regularize(row?: DailyAttendanceRow | null): void {
     const target = this.resolveRegularizeEmployee(row);
-    const data: AttendanceRegularizeData = {
-      employee: target,
-      attendanceDate: this.selectedDate(),
-      employees: this.dayRows(),
-    };
+    if (target && this.regFor(target.employeeId, target.dateIso)) {
+      this.openDetails(target);
+      return;
+    }
+    this.regEmployeeId.set(target?.employeeId ?? null);
+    this.regDate.set(target?.dateIso ?? toIsoDate(this.rangeEnd()));
+    this.regDrawerKeys.set([Date.now()]);
+  }
 
-    this.dialog
-      .open(AttendanceRegularizeDialog, {
-        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
-        data,
-      })
-      .afterClosed()
-      .pipe(filter((result): result is RegularizeSubmitResult => !!result))
-      .subscribe((result) => {
-        this.api
-          .createRegularization({
-            employeeId: result.employeeId,
-            attendanceDate: result.attendanceDate,
-            requestType: result.requestType,
-            requestedIn: result.requestedIn,
-            requestedOut: result.requestedOut,
-            reason: result.reason,
-            attachmentName: result.attachmentName,
-          })
-          .pipe(
-            catchError((err: unknown) => {
-              const message =
-                err instanceof HttpErrorResponse
-                  ? extractHttpError(err)
-                  : 'Failed to submit regularization.';
-              this.snackBar.open(message, 'OK', { duration: 4000 });
-              return of(null);
-            }),
-          )
-          .subscribe((saved) => {
-            if (!saved) return;
-            this.snackBar.open(
-              `Regularization submitted for ${saved.employeeName}.`,
-              'OK',
-              { duration: 2800 },
-            );
-            this.reload$.next();
-          });
-      });
+  protected closeRegularize(): void {
+    this.regDrawerKeys.set([]);
+  }
+
+  protected onRegularized(): void {
+    this.regDrawerKeys.set([]);
+    this.reload$.next();
+  }
+
+  protected onDrawerSubmitted(): void {
+    this.closeDetails();
+    this.onRegularized();
   }
 
   protected menuView(): void {
@@ -613,6 +624,21 @@ export class AttendanceDailyPage implements OnInit {
 
   protected menuRegularize(): void {
     this.regularize(this.menuRow());
+  }
+
+  /** Approved request wins when an employee has more than one request on this date. */
+  protected regFor(employeeId: number, dateIso?: string): RegularizationRow | null {
+    const matches = this.dayRegularizations().filter((row) => {
+      if (row.employeeId !== employeeId) return false;
+      if (!dateIso) return true;
+      return row.attendanceDate.slice(0, 10) === dateIso;
+    });
+    return (
+      matches.find((row) => row.status === 'Approved') ??
+      matches.find((row) => row.status === 'Pending') ??
+      matches[0] ??
+      null
+    );
   }
 
   private resolveRegularizeEmployee(
@@ -626,24 +652,42 @@ export class AttendanceDailyPage implements OnInit {
     return this.selected();
   }
 
-  private loadDay$() {
-    const date = toIsoDate(this.selectedDate());
-    const base = {
-      date,
-      pageSize: DAY_PAGE_SIZE,
-      statusTab: 'all' as const,
-      includePunches: true,
-      includeHistory: false,
-      search: this.search() || undefined,
-      department: this.department() || undefined,
-      location: this.location() || undefined,
-      shift: this.shift() || undefined,
-    };
+  private applyPickedRange(): void {
+    if (toIsoDate(this.rangeStart()) > toIsoDate(this.rangeEnd())) {
+      const start = this.rangeStart();
+      this.rangeStart.set(this.rangeEnd());
+      this.rangeEnd.set(start);
+    }
+    if (this.rangeSpanDays() > 31) {
+      this.rangeEnd.set(addDays(this.rangeStart(), 30));
+      this.snackBar.open('Date range is limited to 31 days.', 'OK', { duration: 3000 });
+    }
+    this.page.set(0);
+    this.selectedIds.set(new Set());
+    this.selected.set(null);
+    this.reload$.next();
+    this.loadPunches();
+  }
 
-    const monthStart = toIsoDate(new Date(this.selectedDate().getFullYear(), this.selectedDate().getMonth(), 1));
+  private rangeSpanDays(): number {
+    const start = parseIsoDate(toIsoDate(this.rangeStart()));
+    const end = parseIsoDate(toIsoDate(this.rangeEnd()));
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+  }
+
+  private datesInRange(): Date[] {
+    const start = parseIsoDate(toIsoDate(this.rangeStart()));
+    const count = Math.min(this.rangeSpanDays(), 31);
+    return Array.from({ length: count }, (_, index) => addDays(start, index));
+  }
+
+  private loadDay$() {
+    const days = this.datesInRange();
+    const from = toIsoDate(days[0]!);
+    const to = toIsoDate(days[days.length - 1]!);
     const regQuery = {
-      from: monthStart,
-      to: date,
+      from,
+      to,
       pageSize: DAY_PAGE_SIZE,
       statusTab: 'all' as const,
       search: this.search() || undefined,
@@ -658,8 +702,8 @@ export class AttendanceDailyPage implements OnInit {
       pendingCount: 0,
       approvedCount: 0,
       rejectedCount: 0,
-      dateFrom: monthStart,
-      dateTo: date,
+      dateFrom: from,
+      dateTo: to,
       summary: { total: 0, pending: 0, approved: 0, rejected: 0 },
       filterOptions: { departments: [], locations: [], requestTypes: [] },
     };
@@ -688,25 +732,15 @@ export class AttendanceDailyPage implements OnInit {
     );
 
     return forkJoin({
-      daily: this.api.listDaily({ ...base, page: 1 }).pipe(
-        switchMap((first) => {
-          const pages = Math.max(1, Math.ceil(first.total / Math.max(first.pageSize, 1)));
-          if (pages <= 1) return of(first);
-          const rest = Array.from({ length: pages - 1 }, (_, index) =>
-            this.api.listDaily({ ...base, page: index + 2 }),
-          );
-          return forkJoin(rest).pipe(
-            map((extra) => ({
-              ...first,
-              items: [...first.items, ...extra.flatMap((page) => page.items)],
-            })),
-          );
-        }),
-      ),
+      daily: forkJoin(days.map((day) => this.fetchDaily(toIsoDate(day)))),
       regs: regs$,
     }).pipe(
       tap(({ daily, regs }) => {
-        this.applyPage(daily);
+        this.applyPages(daily);
+        const allowed = new Set(days.map((day) => toIsoDate(day)));
+        this.dayRegularizations.set(
+          regs.items.filter((row) => allowed.has(row.attendanceDate.slice(0, 10))),
+        );
         this.regularization.set(
           regs.items.map((row) => ({
             id: row.id,
@@ -728,6 +762,7 @@ export class AttendanceDailyPage implements OnInit {
         this.error.set(message);
         this.dayRows.set([]);
         this.regularization.set([]);
+        this.dayRegularizations.set([]);
         this.kpi = EMPTY_KPI;
         this.snackBar.open(message, 'OK', { duration: 4000 });
         return of(null);
@@ -736,12 +771,51 @@ export class AttendanceDailyPage implements OnInit {
     );
   }
 
-  private applyPage(page: DailyAttendancePage): void {
-    this.kpi = mapKpi(page.summary);
-    this.departments.set(page.filterOptions.departments);
-    this.locations.set(page.filterOptions.locations);
-    this.shifts.set(page.filterOptions.shifts);
-    this.dayRows.set(page.items.map(normalizeRow));
+  private fetchDaily(date: string) {
+    const base = {
+      date,
+      pageSize: DAY_PAGE_SIZE,
+      statusTab: 'all' as const,
+      includePunches: true,
+      includeHistory: false,
+      search: this.search() || undefined,
+      department: this.department() || undefined,
+      location: this.location() || undefined,
+      shift: this.shift() || undefined,
+    };
+    return this.api.listDaily({ ...base, page: 1 }).pipe(
+      switchMap((first) => {
+        const pages = Math.max(1, Math.ceil(first.total / Math.max(first.pageSize, 1)));
+        if (pages <= 1) return of(first);
+        const rest = Array.from({ length: pages - 1 }, (_, index) =>
+          this.api.listDaily({ ...base, page: index + 2 }),
+        );
+        return forkJoin(rest).pipe(
+          map((extra) => ({
+            ...first,
+            items: [...first.items, ...extra.flatMap((page) => page.items)],
+          })),
+        );
+      }),
+    );
+  }
+
+  private applyPages(pages: DailyAttendancePage[]): void {
+    this.kpi = pages.reduce((sum, page) => addKpi(sum, mapKpi(page.summary)), { ...EMPTY_KPI });
+    this.departments.set(uniqueSorted(pages.flatMap((page) => page.filterOptions.departments)));
+    this.locations.set(uniqueSorted(pages.flatMap((page) => page.filterOptions.locations)));
+    this.shifts.set(uniqueSorted(pages.flatMap((page) => page.filterOptions.shifts)));
+    this.dayRows.set(
+      pages
+        .flatMap((page) =>
+          page.items.map((item) => normalizeRow(item, String(page.date).slice(0, 10))),
+        )
+        .sort(
+          (a, b) =>
+            (b.dateIso ?? '').localeCompare(a.dateIso ?? '') ||
+            a.employeeName.localeCompare(b.employeeName),
+        ),
+    );
     this.error.set(null);
 
     const selected = this.selected();
@@ -750,6 +824,28 @@ export class AttendanceDailyPage implements OnInit {
       this.selected.set(refreshed);
     }
   }
+}
+
+function addKpi(left: AttendanceKpi, right: AttendanceKpi): AttendanceKpi {
+  return {
+    total: left.total + right.total,
+    present: left.present + right.present,
+    late: left.late + right.late,
+    absent: left.absent + right.absent,
+    onLeave: left.onLeave + right.onLeave,
+    wfh: left.wfh + right.wfh,
+  };
+}
+
+function addDays(value: Date, days: number): Date {
+  const next = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function parseIsoDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year!, (month ?? 1) - 1, day ?? 1);
 }
 
 function mapKpi(summary: AttendanceSummary): AttendanceKpi {
@@ -765,9 +861,11 @@ function mapKpi(summary: AttendanceSummary): AttendanceKpi {
   };
 }
 
-function normalizeRow(row: ApiDailyAttendanceRow): DailyAttendanceRow {
+function normalizeRow(row: ApiDailyAttendanceRow, dateIso: string): DailyAttendanceRow {
+  const day = Number(dateIso.replaceAll('-', ''));
   return {
-    id: row.id,
+    id: row.employeeId * 100_000_000 + day,
+    dateIso,
     employeeId: row.employeeId,
     employeeCode: row.employeeCode,
     employeeName: row.employeeName,
@@ -834,7 +932,11 @@ function formatDisplayDate(value: string): string {
   }).format(date);
 }
 
-function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
+function downloadCsv(
+  filename: string,
+  rows: DailyAttendanceRow[],
+  regularizationStatus: (row: DailyAttendanceRow) => string = () => '',
+): void {
   const header = [
     'Emp ID',
     'Employee Name',
@@ -845,6 +947,7 @@ function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
     'Out Time',
     'Worked Hours',
     'Status',
+    'Regularization',
     'Late Arrival',
     'Early Exit',
     'Remarks',
@@ -860,6 +963,7 @@ function downloadCsv(filename: string, rows: DailyAttendanceRow[]): void {
       row.lastOut ?? '',
       row.workingHours ?? '',
       row.status,
+      regularizationStatus(row),
       row.lateArrivalMinutes == null ? '' : String(row.lateArrivalMinutes),
       row.earlyExitMinutes == null ? '' : String(row.earlyExitMinutes),
       row.remarks,

@@ -1,5 +1,6 @@
 """Holiday master reads and writes. Records stay on hr.holiday."""
 
+import threading
 from datetime import UTC, date, datetime
 
 from sqlalchemy import and_, func, or_, select, true
@@ -22,22 +23,41 @@ from trishul_api.modules.hr.leave.holiday_schemas import (
 )
 
 _WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+_NATIONAL = (
+    ("Republic Day", 1, 26),
+    ("May Day", 5, 1),
+    ("Independence Day", 8, 15),
+    ("Gandhi Jayanti", 10, 2),
+)
+_FESTIVALS = (
+    "New Year",
+    "Mahashivratri",
+    "Holi",
+    "Raja Sankranti",
+    "Rath Yatra",
+    "Janmashtami",
+    "Durga Puja",
+    "Dussehra",
+    "Deepawali",
+    "Ras Purnima",
+)
 _STATE = Holiday.__table__.c.state_id
+_ENSURE = threading.Lock()
 _NOTICE = Holiday.__table__.c.source_notification_no
 _NOTICE_ON = Holiday.__table__.c.source_notification_date
 _DESCRIPTION = Holiday.__table__.c.description
 
 
 def db_holiday_type(category: str) -> str:
-    """Regional is the screen name for the existing Festival value."""
-    return "Festival" if category == "Regional" else category
+    """Regional holidays stay on the existing Festival value, limited to a state or branch."""
+    return "Festival" if category in {"Festival", "Regional"} else category
 
 
-def api_category(holiday_type: str) -> HolidayCategory:
-    if holiday_type == "Festival":
-        return "Regional"
+def api_category(holiday_type: str, state_id: int | None = None, branch_id: int | None = None) -> HolidayCategory:
     if holiday_type == "Optional":
         return "Optional"
+    if holiday_type == "Festival":
+        return "Regional" if state_id is not None or branch_id is not None else "Festival"
     return "National"
 
 
@@ -68,22 +88,23 @@ class HolidayRepository:
         }
         today = date.today()
         years.add(today.year if today.month >= 4 else today.year - 1)
-        present = {api_category(row[0]) for row in self._db.execute(select(Holiday.holiday_type).distinct()).all()}
-        categories = [item for item in ("National", "Regional", "Optional") if item in present]
         return HolidayFilters(
-            categories=[HolidayCategoryOption(id=item, name=item) for item in categories],
+            categories=[HolidayCategoryOption(id=item, name=item) for item in ("National", "Festival", "Regional", "Optional")],
             states=[HolidayOption(id=row[0], name=row[1]) for row in states],
             locations=[HolidayOption(id=row[0], name=row[1], state_id=row[2]) for row in branches],
             financial_years=sorted(years),
+            policy_festivals=list(_FESTIVALS),
         )
 
     def summary(self, query: HolidaySummaryQuery, today: date | None = None) -> HolidaySummary:
+        self.ensure_national(_years(query))
         rows = self._rows(query)
         current = today or date.today()
         return HolidaySummary(
             total=len(rows),
             upcoming=sum(1 for row in rows if row.holiday_date >= current),
             national=sum(1 for row in rows if row.category == "National"),
+            festival=sum(1 for row in rows if row.category == "Festival"),
             regional=sum(1 for row in rows if row.category == "Regional"),
             optional=sum(1 for row in rows if row.optional),
         )
@@ -91,9 +112,11 @@ class HolidayRepository:
     def calendar(self, query: HolidayCalendarQuery) -> list[HolidayItem]:
         if query.end_date < query.start_date:
             raise ApiError("The calendar end date is before the start date.")
+        self.ensure_national(_years(query))
         return self._rows(query, start=query.start_date, end=query.end_date)
 
     def page(self, query: HolidayListQuery) -> tuple[list[HolidayItem], int]:
+        self.ensure_national(_years(query))
         rows = self._rows(query, descending=query.sort == "-holidayDate")
         if query.sort in {"name", "-name"}:
             rows.sort(key=lambda row: row.name.lower(), reverse=query.sort.startswith("-"))
@@ -171,11 +194,46 @@ class HolidayRepository:
         if removed.rowcount != 1:
             raise Conflict()
 
+    def ensure_national(self, years: set[int]) -> None:
+        """Insert the four fixed TTPL national dates when that calendar year is opened.
+
+        Festival dates are not inserted here. HR enters those and leaves them inactive until published.
+        """
+        if not years:
+            return
+        with _ENSURE:
+            inserted = False
+            for year in years:
+                for name, month, day in _NATIONAL:
+                    when = date(year, month, day)
+                    existing = self._db.scalar(
+                        select(Holiday.id)
+                        .where(Holiday.holiday_date == when, func.lower(Holiday.name) == name.lower())
+                        .limit(1)
+                    )
+                    if existing is not None:
+                        continue
+                    self._db.execute(
+                        Holiday.__table__.insert().values(
+                            branch_id=None,
+                            state_id=None,
+                            holiday_date=when,
+                            name=name,
+                            holiday_type="National",
+                            description="TTPL national holiday",
+                            is_active=True,
+                        )
+                    )
+                    inserted = True
+            if inserted:
+                self._db.commit()
+
     def _checked(self, data: HolidayWrite, holiday_id: int | None) -> tuple[int | None, int | None, str]:
         name = data.name.strip()
-        if data.category == "National":
+        if data.category in {"National", "Festival"}:
             if data.state_id is not None or data.location_id is not None:
-                raise ApiError("National holidays apply to every location.")
+                label = "National" if data.category == "National" else "Festival"
+                raise ApiError(f"{label} holidays apply to every location.")
             state_id, branch_id = None, None
         else:
             if data.state_id is None:
@@ -237,7 +295,16 @@ class HolidayRepository:
         )
         if query.active_only:
             statement = statement.where(Holiday.is_active == True)  # noqa: E712
-        if query.holiday_category is not None:
+        if query.holiday_category == "Festival":
+            statement = statement.where(
+                Holiday.holiday_type == "Festival", Holiday.branch_id.is_(None), _STATE.is_(None)
+            )
+        elif query.holiday_category == "Regional":
+            statement = statement.where(
+                Holiday.holiday_type == "Festival",
+                or_(Holiday.branch_id.is_not(None), _STATE.is_not(None)),
+            )
+        elif query.holiday_category is not None:
             statement = statement.where(Holiday.holiday_type == db_holiday_type(query.holiday_category))
         if query.search:
             statement = statement.where(Holiday.name.contains(query.search.strip(), autoescape=True))
@@ -279,7 +346,7 @@ class HolidayRepository:
         return None if row is None else self._item(row)
 
     def _item(self, row) -> HolidayItem:
-        category = api_category(row.holiday_type)
+        category = api_category(row.holiday_type, row.state_id, row.branch_id)
         return HolidayItem(
             id=row.id,
             name=row.name,
@@ -297,6 +364,16 @@ class HolidayRepository:
             source_notification_date=row.source_notification_date,
             row_version=row.row_version,
         )
+
+
+def _years(query: HolidaySummaryQuery | HolidayListQuery) -> set[int]:
+    years: set[int] = set()
+    if query.calendar_year is not None:
+        years.add(query.calendar_year)
+    if query.financial_year is not None:
+        years.add(query.financial_year)
+        years.add(query.financial_year + 1)
+    return years
 
 
 def _bounds(financial_year: int | None, calendar_year: int | None) -> tuple[date | None, date | None]:

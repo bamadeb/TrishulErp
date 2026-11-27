@@ -64,8 +64,10 @@ export class LeaveMinePage {
     Rejected: 'danger',
     Cancelled: 'neutral',
     Available: 'success',
+    Partial: 'warn',
     Used: 'neutral',
     Expiring: 'warn',
+    Expired: 'danger',
   };
   protected readonly years = [2026, 2025];
   protected readonly year = signal(2026);
@@ -404,7 +406,13 @@ function mapCompOff(row: MineCompOff): CompOffView {
     available: Number(row.available),
     used: Number(row.used),
     expiring: row.expiring == null ? '—' : String(Number(row.expiring)),
-    lines: [],
+    lines: (row.lines ?? []).map((line) => ({
+      earnedOn: line.earnedOn,
+      days: Number(line.days),
+      note: line.note,
+      expires: line.expires,
+      status: line.status,
+    })),
   };
 }
 

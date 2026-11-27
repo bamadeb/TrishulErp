@@ -12,24 +12,32 @@ import { AttendanceDailyPage } from './attendance/attendance-daily.page';
 import { AttendanceDashboardPage } from './attendance/attendance-dashboard.page';
 import { AttendanceExceptionsPage } from './attendance/attendance-exceptions.page';
 import { AttendanceFinalizationPage } from './attendance/attendance-finalization.page';
+import { AttendanceHolidayWorkPage } from './attendance/attendance-holiday-work.page';
 import { AttendanceMinePage } from './attendance/attendance-mine.page';
+
+import { AttendanceMyRegularizationPage } from './attendance/attendance-my-regularization.page';
+
 import { AttendanceMusterPage } from './attendance/attendance-muster.page';
-import { AttendanceRegularizationPage } from './attendance/attendance-regularization.page';
+import { AttendanceRegularizationApprovalsPage } from './attendance/attendance-regularization-approvals.page';
 import { AttendanceReportsPage } from './attendance/attendance-reports.page';
 import { AttendanceRulesPage } from './attendance/attendance-rules.page';
 import { biometricRoutes } from './biometric/biometric.routes';
 import { faceAttendanceRoutes } from './face-attendance/face-attendance.routes';
 import { leaveRoutes } from './leave/leave.routes';
 import { payrollRoutes } from './payroll/payroll.routes';
+import { FaPunchesPage } from './face-attendance/fa-punches.page';
 import { EmployeeFormPage } from './employees/form/employee-form.page';
 import { EmployeeListPage } from './employees/list/employee-list.page';
 
 const hrManage = { canActivate: [permissionGuard(EMPLOYEE_MANAGE_PERMISSION)] };
 const employeeView = { canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS)] };
 
-/** Admin/HR → org dashboard; employees → My Attendance only. */
+/** Admin/HR → org dashboard; reporting managers → approvals; employees → My Attendance. */
 function attendanceHomeRedirect(): string {
-  return inject(AuthStore).hasPermission(EMPLOYEE_MANAGE_PERMISSION) ? 'dashboard' : 'mine';
+  const auth = inject(AuthStore);
+  if (auth.hasPermission(EMPLOYEE_MANAGE_PERMISSION)) return 'dashboard';
+  if (auth.hasPermission('hr.attendance.view.team')) return 'regularization';
+  return 'mine';
 }
 
 /** Lazy-loaded under /hr. */
@@ -74,7 +82,7 @@ export const hrRoutes: Route[] = [
   },
   {
     path: 'attendance',
-    ...employeeView,
+    canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS, 'hr.attendance.view.team', 'hr.attendance.mark')],
     children: [
       { path: '', pathMatch: 'full', redirectTo: attendanceHomeRedirect },
       {
@@ -86,8 +94,27 @@ export const hrRoutes: Route[] = [
       {
         path: 'mine',
         title: 'My Attendance',
-        ...employeeView,
+        canActivate: [permissionGuard(...EMPLOYEE_VIEW_PERMISSIONS, 'hr.attendance.mark')],
         component: AttendanceMinePage,
+      },
+      {
+        path: 'punch-logs',
+        title: 'My Punch Logs',
+        data: { ownLogs: true },
+        canActivate: [permissionGuard('hr.attendance.mark', 'hr.attendance.view.team', EMPLOYEE_MANAGE_PERMISSION)],
+        component: FaPunchesPage,
+      },
+      {
+        path: 'my-regularization',
+        title: 'My Regularization',
+        canActivate: [permissionGuard('hr.attendance.mark', 'hr.attendance.view.team', EMPLOYEE_MANAGE_PERMISSION)],
+        component: AttendanceMyRegularizationPage,
+      },
+      {
+        path: 'holiday-work',
+        title: 'Holiday Work',
+        canActivate: [permissionGuard('hr.attendance.mark', 'hr.attendance.view.team', EMPLOYEE_MANAGE_PERMISSION)],
+        component: AttendanceHolidayWorkPage,
       },
       {
         path: 'daily',
@@ -116,8 +143,13 @@ export const hrRoutes: Route[] = [
         path: 'regularization',
         title: 'Attendance Regularization',
         data: { screenTitle: 'Attendance Regularization' },
-        ...hrManage,
-        component: AttendanceRegularizationPage,
+        canActivate: [permissionGuard('hr.attendance.view.team', EMPLOYEE_MANAGE_PERMISSION)],
+        component: AttendanceRegularizationApprovalsPage,
+      },
+      {
+        path: 'regularization-approvals',
+        pathMatch: 'full',
+        redirectTo: 'regularization',
       },
       {
         path: 'rules',

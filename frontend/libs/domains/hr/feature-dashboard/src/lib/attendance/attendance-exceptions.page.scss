@@ -61,6 +61,7 @@ tbody tr.active {
 }
 
 .range-nav {
+  position: relative;
   display: inline-flex;
   gap: 0.15rem;
   align-items: center;
@@ -70,7 +71,7 @@ tbody tr.active {
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
-  min-width: 13rem;
+  min-width: 16.5rem;
   padding: 0.35rem 0.65rem;
   border: 1px solid #d5e3f7;
   border-radius: 8px;
@@ -79,7 +80,11 @@ tbody tr.active {
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
-  cursor: default;
+  cursor: pointer;
+
+  &:hover {
+    background: #f7faff;
+  }
 
   mat-icon {
     width: 16px;
@@ -87,6 +92,17 @@ tbody tr.active {
     font-size: 16px;
     color: #0754b8;
   }
+}
+
+.range-hidden {
+  position: absolute;
+  top: 0;
+  left: 2.6rem;
+  width: 13rem;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .kpis {

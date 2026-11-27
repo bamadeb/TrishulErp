@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -23,12 +22,9 @@ import {
   RegularizationRow,
 } from '@trishul/hr-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
-import { catchError, filter, of } from 'rxjs';
-import {
-  AttendanceRegularizeDialog,
-  RegularizeSubmitResult,
-  ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
-} from './attendance-regularize.dialog';
+import { AttendanceDailyDrawer } from './attendance-daily.drawer';
+import { AttendanceRegularizeDrawer, RegularizeDrawerMode } from './attendance-regularize-drawer';
+import { DailyAttendanceRow } from './attendance.models';
 
 const MONTHS = [
   'January',
@@ -44,6 +40,8 @@ const MONTHS = [
   'November',
   'December',
 ];
+
+type DayAction = 'request' | 'compOff' | 'unavailable' | 'locked' | 'submitted' | 'resolved';
 
 /** ESS — logged-in employee's monthly attendance from GET /hr/attendance/mine. */
 @Component({
@@ -62,6 +60,8 @@ const MONTHS = [
     MatSelect,
     PageHeader,
     StatusBadge,
+    AttendanceDailyDrawer,
+    AttendanceRegularizeDrawer,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './attendance-mine.page.html',
@@ -70,7 +70,6 @@ const MONTHS = [
 export class AttendanceMinePage implements OnInit {
   private readonly api = inject(AttendanceApi);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly dialog = inject(MatDialog);
 
   protected readonly months = MONTHS;
   protected readonly years = [2026, 2025, 2024];
@@ -96,10 +95,15 @@ export class AttendanceMinePage implements OnInit {
     holiday: 0,
     missingPunch: 0,
   });
+  protected readonly drawerKeys = signal<number[]>([]);
+  protected readonly drawerDate = signal<string | null>(null);
+  protected readonly drawerMode = signal<RegularizeDrawerMode>('regularize');
+  protected readonly detailDay = signal<MineAttendanceDay | null>(null);
 
   protected readonly severities: Partial<Record<string, StatusSeverity>> = {
     Present: 'success',
     Late: 'warn',
+    'In Progress': 'info',
     'Missing Punch': 'warn',
     Absent: 'danger',
     'On Leave': 'info',
@@ -108,6 +112,7 @@ export class AttendanceMinePage implements OnInit {
     Pending: 'warn',
     Approved: 'success',
     Rejected: 'danger',
+    Resolved: 'success',
   };
 
   protected readonly filtered = computed(() => {
@@ -124,9 +129,7 @@ export class AttendanceMinePage implements OnInit {
 
   protected readonly regByDate = computed(() => {
     const map = new Map<string, RegularizationRow>();
-    for (const row of this.regularizations()) {
-      map.set(row.attendanceDate, row);
-    }
+    for (const row of this.regularizations()) map.set(row.attendanceDate.slice(0, 10), row);
     return map;
   });
 
@@ -147,6 +150,7 @@ export class AttendanceMinePage implements OnInit {
   protected reload(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.detailDay.set(null);
     this.api.mine(this.year(), this.monthIndex() + 1).subscribe({
       next: (page) => {
         this.employeeId.set(page.employeeId);
@@ -172,66 +176,131 @@ export class AttendanceMinePage implements OnInit {
   }
 
   protected requestFor(date: string): RegularizationRow | undefined {
-    return this.regByDate().get(date);
+    return this.regByDate().get(date.slice(0, 10));
   }
 
-  protected openRegularize(row?: MineAttendanceDay): void {
-    if (!this.canRegularize()) {
-      this.snackBar.open('This month is finalized; regularization is locked.', 'OK', {
-        duration: 3500,
-      });
+  protected dayAction(row: MineAttendanceDay): DayAction {
+    if (this.requestFor(row.date)) return 'submitted';
+    if (row.resolved) return 'resolved';
+    if (!this.canRegularize()) return 'locked';
+    if (row.status === 'In Progress') return 'unavailable';
+    if (row.status === 'On Leave') return 'locked';
+    if ((row.status === 'Holiday' || row.status === 'Off Day') && this.hasWorkedPunches(row)) {
+      return 'compOff';
+    }
+    if (row.status === 'Holiday' || row.status === 'Off Day') return 'locked';
+    if (row.status === 'Present' || row.status === 'Late' || row.status === 'Missing Punch' || row.status === 'Absent') {
+      return 'request';
+    }
+    return 'locked';
+  }
+
+  protected canOpen(row: MineAttendanceDay): boolean {
+    const request = this.requestFor(row.date);
+    if (request?.status === 'Pending' || request?.status === 'Approved' || request?.status === 'Rejected') {
+      return true;
+    }
+    const action = this.dayAction(row);
+    return action === 'request' || action === 'compOff';
+  }
+
+  /** No approval yet opens the request form. Pending and Approved open that status drawer. */
+  protected openRow(row: MineAttendanceDay): void {
+    const request = this.requestFor(row.date);
+    if (request?.status === 'Pending' || request?.status === 'Approved' || request?.status === 'Rejected') {
+      this.drawerKeys.set([]);
+      this.detailDay.set(row);
       return;
     }
-    const employee = {
+    const action = this.dayAction(row);
+    if (action === 'compOff') {
+      this.openCompOff(row);
+      return;
+    }
+    if (action !== 'request') return;
+    this.detailDay.set(null);
+    this.openRegularize(row);
+  }
+
+  protected openCompOff(row: MineAttendanceDay): void {
+    if (!this.canRegularize()) {
+      this.snackBar.open('This month is finalized; Comp Off requests are locked.', 'OK', { duration: 3500 });
+      return;
+    }
+    this.detailDay.set(null);
+    this.drawerMode.set('compOff');
+    this.drawerDate.set(row.date.slice(0, 10));
+    this.drawerKeys.set([Date.now()]);
+  }
+
+  private hasWorkedPunches(row: MineAttendanceDay): boolean {
+    return !!row.firstIn && !!row.lastOut;
+  }
+
+  protected detailAttendance(): DailyAttendanceRow | null {
+    const day = this.detailDay();
+    if (!day) return null;
+    return {
       id: this.employeeId(),
       employeeId: this.employeeId(),
       employeeCode: this.employeeCode(),
       employeeName: this.employeeName(),
-      department: '—',
-      avatarTone: 'blue',
-      firstIn: row?.firstIn ?? null,
-      lastOut: row?.lastOut ?? null,
-      status: row?.status,
+      department: '',
+      location: '',
+      shift: day.shift,
+      employeeType: '',
+      reportingManager: '',
+      firstIn: day.firstIn,
+      lastOut: day.lastOut,
+      firstInLate: false,
+      workingHours: day.workingHours,
+      status: day.status,
+      remarks: day.remarks,
+      lateArrivalMinutes: null,
+      earlyExitMinutes: null,
+      avatarTone: '#0754b8',
+      punches: [],
+      history: [],
     };
-    this.dialog
-      .open(AttendanceRegularizeDialog, {
-        ...ATTENDANCE_REGULARIZE_DIALOG_OPTIONS,
-        data: {
-          employee,
-          employees: [employee],
-          attendanceDate: row ? parseIsoDate(row.date) : new Date(),
-        },
-      })
-      .afterClosed()
-      .pipe(filter((result): result is RegularizeSubmitResult => !!result))
-      .subscribe((result) => {
-        this.api
-          .createMineRegularization({
-            employeeId: this.employeeId(),
-            attendanceDate: result.attendanceDate,
-            requestType: result.requestType,
-            requestedIn: result.requestedIn,
-            requestedOut: result.requestedOut,
-            reason: result.reason,
-            attachmentName: result.attachmentName,
-          })
-          .pipe(
-            catchError((err: unknown) => {
-              this.snackBar.open(messageFrom(err), 'OK', { duration: 4000 });
-              return of(null);
-            }),
-          )
-          .subscribe((saved) => {
-            if (!saved) return;
-            this.snackBar.open('Regularization request submitted.', 'OK', { duration: 2500 });
-            this.reload();
-          });
-      });
+  }
+
+  protected detailDate(): Date {
+    const iso = this.detailDay()?.date.slice(0, 10) ?? '';
+    const [year, month, day] = iso.split('-').map(Number);
+    return new Date(year || this.year(), (month || 1) - 1, day || 1);
+  }
+
+  protected openRegularize(row?: MineAttendanceDay): void {
+    if (!this.canRegularize()) {
+      this.snackBar.open('This month is finalized; regularization is locked.', 'OK', { duration: 3500 });
+      return;
+    }
+    const date = row && this.dayAction(row) === 'request' ? row.date.slice(0, 10) : null;
+    this.drawerMode.set('regularize');
+    this.drawerDate.set(date);
+    this.drawerKeys.set([Date.now()]);
+  }
+
+  protected closeDrawer(): void {
+    this.drawerKeys.set([]);
+  }
+
+  protected onRegularized(): void {
+    this.drawerKeys.set([]);
+    this.reload();
+  }
+
+  protected shortRemark(value: string): string {
+    const text = value.trim();
+    if (!text) return '—';
+    const sentence = text.split('. ')[0].replace(/\.$/, '');
+    return sentence.length > 42 ? `${sentence.slice(0, 42).trimEnd()}…` : sentence;
   }
 
   protected statusIcon(status: AttendanceStatus): string {
     switch (status) {
       case 'Present':
+      case 'In Progress':
         return 'check_circle';
       case 'Late':
         return 'schedule';
@@ -247,11 +316,6 @@ export class AttendanceMinePage implements OnInit {
         return 'event_busy';
     }
   }
-}
-
-function parseIsoDate(value: string): Date {
-  const [y, m, d] = value.split('-').map(Number);
-  return new Date(y, (m || 1) - 1, d || 1);
 }
 
 function messageFrom(err: unknown): string {

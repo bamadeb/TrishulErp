@@ -1,0 +1,148 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <span>Attendance</span>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Regularization</span>
+  @if (selected()) {
+    <mat-icon>chevron_right</mat-icon>
+    <strong>Request Details</strong>
+  }
+</nav>
+
+@if (selected(); as row) {
+  <trishul-page-header
+    title="Attendance Regularization – Request Details"
+    subtitle="View the complete details and approval status of your attendance regularization request."
+  >
+    <button mat-stroked-button type="button" (click)="back()">
+      <mat-icon>arrow_back</mat-icon> Back to Requests
+    </button>
+  </trishul-page-header>
+
+  <section class="summary">
+    <div class="who">
+      <span class="avatar">{{ initials(row.employeeName) }}</span>
+      <div>
+        <strong>{{ row.employeeName }}</strong>
+        <small>{{ row.employeeCode }} · ID {{ row.employeeId }} · {{ row.department }} · {{ row.location }}</small>
+      </div>
+    </div>
+    <div><mat-icon>calendar_today</mat-icon><span>Attendance Date</span><strong>{{ row.attendanceDate | date: 'dd MMM y' }}</strong></div>
+    <div><mat-icon>description</mat-icon><span>Request Type</span><strong class="tag">{{ requestLabel(row) }}</strong></div>
+    <div><mat-icon>hourglass_top</mat-icon><span>Current Status</span><strong class="tag warn">{{ statusText(row.status) }}</strong></div>
+  </section>
+
+  <div class="split">
+    <section class="card">
+      <h2><mat-icon>event_note</mat-icon> Attendance Details</h2>
+      <dl class="facts">
+        <div><dt>Status</dt><dd>{{ row.originalStatus || '—' }}</dd></div>
+        <div><dt>Assigned shift</dt><dd>{{ row.shift || '—' }}</dd></div>
+        <div><dt>Requested status</dt><dd>{{ row.requestedStatus || '—' }}</dd></div>
+        <div><dt>Reporting manager</dt><dd>{{ row.reportingManager || '—' }}</dd></div>
+      </dl>
+      <div class="punches">
+        <div class="punch actual">
+          <h3>Original Punch (Actual)</h3>
+          <p><span>Punch In</span><strong>{{ clock(row.originalIn) }}</strong></p>
+          <p><span>Punch Out</span><strong>{{ clock(row.originalOut) }}</strong></p>
+        </div>
+        <div class="punch asked">
+          <h3>Requested Punch</h3>
+          <p><span>Punch In</span><strong>{{ clock(row.requestedIn) }}</strong></p>
+          <p><span>Punch Out</span><strong>{{ clock(row.requestedOut) }}</strong></p>
+        </div>
+      </div>
+      <h3><mat-icon>chat</mat-icon> Reason</h3>
+      <p class="reason">{{ row.reason || '—' }}</p>
+      <h3><mat-icon>attach_file</mat-icon> Attachment {{ row.attachmentName ? '(1)' : '(0)' }}</h3>
+      @if (row.attachmentName) {
+        <p class="file"><mat-icon>picture_as_pdf</mat-icon> {{ row.attachmentName }}</p>
+      } @else {
+        <p class="muted">None</p>
+      }
+    </section>
+
+    <section class="card">
+      <h2><mat-icon>account_tree</mat-icon> Approval Timeline</h2>
+      <ol class="timeline">
+        <li class="done">
+          <strong>Request Submitted</strong>
+          <small>{{ row.submittedOn | date: 'dd MMM y, hh:mm a' }}</small>
+          <p>Attendance regularization request created by employee.</p>
+        </li>
+        <li [class.done]="row.status === 'Approved'" [class.current]="row.status === 'Pending'" [class.bad]="row.status === 'Rejected'">
+          <strong>{{ row.status === 'Rejected' ? 'Rejected by Reporting Manager' : row.status === 'Approved' ? 'Approved by Reporting Manager' : 'Pending with Reporting Manager' }}</strong>
+          <p>
+            @if (row.status === 'Pending') {
+              Awaiting approval from {{ row.reportingManager || 'your reporting manager' }}.
+            } @else if (row.status === 'Rejected') {
+              {{ row.rejectionReason || 'Rejected by the reporting manager.' }}
+            } @else {
+              {{ row.reportingManager || 'Your reporting manager' }} approved this request. Attendance uses the requested punches.
+            }
+          </p>
+        </li>
+        <li [class.done]="row.status === 'Approved'">
+          <strong>Attendance Update</strong>
+          <p>{{ row.status === 'Approved' ? 'Attendance was recalculated from the requested punches.' : 'Will be updated after approval.' }}</p>
+        </li>
+      </ol>
+    </section>
+  </div>
+
+  <footer class="meta">
+    <div><mat-icon>tag</mat-icon><span>Request ID</span><strong>#{{ requestId(row) }}</strong></div>
+    <div><mat-icon>schedule</mat-icon><span>Submitted On</span><strong>{{ row.submittedOn | date: 'dd MMM y, hh:mm a' }}</strong></div>
+    <div><mat-icon>person</mat-icon><span>Reporting Manager</span><strong>{{ row.reportingManager || '—' }}</strong></div>
+  </footer>
+} @else {
+  <trishul-page-header
+    title="My Regularization"
+    subtitle="Your attendance correction requests. New requests use the same steps as My Attendance."
+  >
+    <button mat-flat-button color="primary" type="button" (click)="openRequest()">Request Regularization</button>
+  </trishul-page-header>
+
+  <div class="tabs">
+    <button type="button" [class.on]="tab() === 'all'" (click)="tab.set('all')">All {{ counts().all }}</button>
+    <button type="button" [class.on]="tab() === 'pending'" (click)="tab.set('pending')">Pending {{ counts().pending }}</button>
+    <button type="button" [class.on]="tab() === 'approved'" (click)="tab.set('approved')">Approved {{ counts().approved }}</button>
+    <button type="button" [class.on]="tab() === 'rejected'" (click)="tab.set('rejected')">Rejected {{ counts().rejected }}</button>
+  </div>
+
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Request</th>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of filtered(); track row.id) {
+          <tr class="request-row" (click)="open(row)">
+            <td>#{{ requestId(row) }}</td>
+            <td>{{ row.attendanceDate | date: 'dd MMM y' }}</td>
+            <td>{{ requestLabel(row) }}</td>
+            <td><span class="tag" [class.warn]="row.status === 'Pending'" [class.ok]="row.status === 'Approved'" [class.bad]="row.status === 'Rejected'">{{ statusText(row.status) }}</span></td>
+            <td>{{ row.submittedOn | date: 'dd MMM y, hh:mm a' }}</td>
+            <td><button mat-icon-button type="button" aria-label="View request" (click)="open(row)"><mat-icon>visibility</mat-icon></button></td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6">{{ loading() ? 'Loading…' : 'You have no regularization requests in this year.' }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </section>
+}
+@for (key of drawerKeys(); track key) {
+  <trishul-attendance-regularize-drawer
+    [initialDate]="drawerDate()"
+    (closed)="closeDrawer()"
+    (submitted)="onRegularized()"
+  />
+}

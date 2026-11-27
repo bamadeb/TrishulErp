@@ -14,6 +14,7 @@ _TYPES: tuple[RegularizationRequestType, ...] = (
     "Early Exit",
     "WFH Correction",
     "Late Arrival",
+    "Holiday Work",
 )
 
 _TYPE_TO_STATUS = {
@@ -22,6 +23,7 @@ _TYPE_TO_STATUS = {
     "Early Exit": "Present",
     "WFH Correction": "On duty",
     "Late Arrival": "Present",
+    "Holiday Work": "Present",
 }
 
 

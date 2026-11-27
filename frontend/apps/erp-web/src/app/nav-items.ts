@@ -7,6 +7,7 @@ import {
   TEAM_VIEW_PERMISSIONS,
   USER_VIEW_PERMISSIONS,
   BRAND_MANAGE_PERMISSION,
+  PRICE_APPROVE_PERMISSION,
   SERVICE_CONFIG_PERMISSION,
   TRACKING_CONFIG_PERMISSION,
   WAREHOUSE_VIEW_PERMISSIONS,
@@ -26,7 +27,9 @@ import {
   INV_ADJUSTMENT_VIEW_PERMISSIONS,
   INV_ANY_PERMISSIONS,
   INV_GRN_VIEW_PERMISSIONS,
+  INV_ITEM_IMPORT_PERMISSIONS,
   INV_ITEM_VIEW_PERMISSIONS,
+  INV_PRICE_IMPORT_PERMISSIONS,
   INV_STOCK_USER_PERMISSIONS,
   INV_STOCK_VIEW,
   INV_TRANSFER_VIEW_PERMISSIONS,
@@ -152,6 +155,24 @@ export const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'Warehouse Management',
+    icon: 'warehouse',
+    children: [
+      {
+        label: 'Warehouses & branches',
+        icon: 'warehouse',
+        route: '/admin/warehouses',
+        permissions: [...WAREHOUSE_VIEW_PERMISSIONS],
+      },
+      {
+        label: 'Storage locations',
+        icon: 'shelves',
+        route: '/inventory/locations',
+        permissions: [...INV_ANY_PERMISSIONS],
+      },
+    ],
+  },
+  {
     label: 'Inventory',
     icon: 'inventory_2',
     children: [
@@ -160,6 +181,18 @@ export const navItems: NavItem[] = [
         icon: 'category',
         route: '/inventory/items',
         permissions: [...INV_ANY_PERMISSIONS],
+      },
+      {
+        label: 'Item import',
+        icon: 'upload_file',
+        route: '/inventory/item-imports',
+        permissions: [...INV_ITEM_IMPORT_PERMISSIONS],
+      },
+      {
+        label: 'Price import',
+        icon: 'price_change',
+        route: '/inventory/items/import',
+        permissions: [...INV_PRICE_IMPORT_PERMISSIONS],
       },
       {
         label: 'Stock by batch',
@@ -190,12 +223,6 @@ export const navItems: NavItem[] = [
         icon: 'tune',
         route: '/inventory/adjustments',
         permissions: [...INV_ADJUSTMENT_VIEW_PERMISSIONS],
-      },
-      {
-        label: 'Locations & racks',
-        icon: 'shelves',
-        route: '/inventory/locations',
-        permissions: [...INV_ANY_PERMISSIONS],
       },
       {
         label: 'Item setup',
@@ -355,6 +382,7 @@ export const navItems: NavItem[] = [
           BRAND_MANAGE_PERMISSION,
           TRACKING_CONFIG_PERMISSION,
           SERVICE_CONFIG_PERMISSION,
+          PRICE_APPROVE_PERMISSION,
         ],
       },
       {
@@ -375,19 +403,14 @@ export const navItems: NavItem[] = [
         route: '/admin/documents',
         permissions: [...DOCUMENT_VIEW_PERMISSIONS],
       },
-      {
-        label: 'Warehouses',
-        icon: 'warehouse',
-        route: '/admin/warehouses',
-        permissions: [...WAREHOUSE_VIEW_PERMISSIONS],
-      },
     ],
   },
   {
     label: 'HR Management',
     icon: 'diversity_3',
-    // Also for roles without employee view (team lead, engineer) so they reach My Leave, leave approvals and
-    // face attendance; each link below still needs its own permission, and the group hides when none is left.
+    // Admin/HR plus leave/face roles without employee view (team lead, engineer).
+    // Employees/managers with only attendance.mark / view.team use My ESS / My Approvals instead.
+    // Each link below still needs its own permission; the group hides when none is left.
     permissions: [
       ...EMPLOYEE_VIEW_PERMISSIONS,
       ...LEAVE_VIEW_PERMISSIONS,
@@ -468,19 +491,13 @@ export const navItems: NavItem[] = [
         label: 'Attendance Management',
         icon: 'schedule',
         route: '/hr/attendance',
-        permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
+        permissions: [EMPLOYEE_MANAGE_PERMISSION],
         children: [
           {
             label: 'Attendance Dashboard',
             icon: 'insights',
             route: '/hr/attendance/dashboard',
             permissions: [EMPLOYEE_MANAGE_PERMISSION],
-          },
-          {
-            label: 'My Attendance',
-            icon: 'person',
-            route: '/hr/attendance/mine',
-            permissions: [...EMPLOYEE_VIEW_PERMISSIONS],
           },
           {
             label: 'Daily Attendance',
@@ -531,11 +548,9 @@ export const navItems: NavItem[] = [
         icon: 'event_available',
         route: '/hr/leave/dashboard',
         permissions: [...LEAVE_VIEW_PERMISSIONS],
-        // Everyone with leave view: My Leave and the holidays. Approvers: Leave Requests. The HR screens
-        // keep needing employee view as well, as when the whole HR menu did.
+        // My Leave lives under My ESS. Approvers: Leave Requests. Other leave admin screens need employee view.
         children: [
           { label: 'Leave Dashboard', icon: 'insights', route: '/hr/leave/dashboard', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
-          { label: 'My Leave', icon: 'person', route: '/hr/leave/mine' },
           { label: 'Employee Leaves', icon: 'groups', route: '/hr/leave/employees', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
           { label: 'Leave Requests', icon: 'fact_check', route: '/hr/leave/requests', permissions: [...LEAVE_REQUEST_PERMISSIONS] },
           { label: 'Leave Balance', icon: 'account_balance_wallet', route: '/hr/leave/balances', permissions: [...EMPLOYEE_VIEW_PERMISSIONS] },
@@ -619,5 +634,49 @@ export const navItems: NavItem[] = [
         ],
       },
     ],
+  },
+  {
+    label: 'My ESS',
+    icon: 'person',
+    permissions: [
+      ...EMPLOYEE_VIEW_PERMISSIONS,
+      'hr.attendance.mark',
+      'hr.attendance.view.team',
+      ...LEAVE_VIEW_PERMISSIONS,
+    ],
+    children: [
+      {
+        label: 'Attendance',
+        icon: 'schedule',
+        route: '/hr/attendance/mine',
+        permissions: [...EMPLOYEE_VIEW_PERMISSIONS, 'hr.attendance.mark'],
+      },
+      {
+        label: 'My Punch Logs',
+        icon: 'fingerprint',
+        route: '/hr/attendance/punch-logs',
+        permissions: ['hr.attendance.mark', 'hr.attendance.view.team', EMPLOYEE_MANAGE_PERMISSION],
+      },
+      {
+        label: 'My Regularization',
+        icon: 'edit_note',
+        route: '/hr/attendance/my-regularization',
+        permissions: ['hr.attendance.mark', 'hr.attendance.view.team', EMPLOYEE_MANAGE_PERMISSION],
+      },
+      {
+        label: 'My Leave',
+        icon: 'flight',
+        route: '/hr/leave/mine',
+        permissions: [...LEAVE_VIEW_PERMISSIONS],
+      },
+    ],
+  },
+  {
+    label: 'My Approvals',
+    icon: 'task_alt',
+    route: '/hr/attendance/regularization',
+    permissions: ['hr.attendance.view.team'],
+    // Managers only — Admin/HR use Attendance Regularization under HR Management.
+    excludePermissions: [...EMPLOYEE_VIEW_PERMISSIONS],
   },
 ];
