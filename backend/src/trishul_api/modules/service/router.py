@@ -13,6 +13,7 @@ from trishul_api.common.errors import (
     problem_response,
 )
 from trishul_api.common.schemas import Page
+from trishul_api.common.uploads import check_workbook_archive, read_upload
 from trishul_api.modules.service.access import CAN_VIEW_CALLS, CAN_VIEW_OWN_CALLS, call_visibility
 from trishul_api.modules.service.imports.log_repository import ImportLogRepository
 from trishul_api.modules.service.imports.schemas import (
@@ -82,11 +83,10 @@ UploadPrincipalId = Annotated[int | None, Form(alias="principalId")]
 
 
 def _read_upload(file: UploadFile) -> bytes:
-    content = file.file.read()
-    if not content:
-        raise ApiError("The uploaded file is empty.")
-    if len(content) > _MAX_UPLOAD_BYTES:
-        raise ApiError("That file is too large. BYD exports are only a few hundred kilobytes.")
+    content = read_upload(
+        file, _MAX_UPLOAD_BYTES, "That file is too large. BYD exports are only a few hundred kilobytes."
+    )
+    check_workbook_archive(content)
     return content
 
 

@@ -10,11 +10,14 @@ _ALWAYS = {
     "X-Frame-Options": "DENY",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "X-Permitted-Cross-Domain-Policies": "none",
 }
 # JSON responses never need to run scripts or be framed; ERP data must not sit in shared caches.
 _API_ONLY = {
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
     "Cache-Control": "no-store",
+    # API responses are read by the app's own pages (and the phone app), never embedded by other sites.
+    "Cross-Origin-Resource-Policy": "same-origin",
 }
 
 

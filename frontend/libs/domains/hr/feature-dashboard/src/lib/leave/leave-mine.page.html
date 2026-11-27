@@ -1,7 +1,14 @@
 @if (error()) { <p class="empty">{{ error() }}</p> }
 <div class="shell">
   <div class="content">
-    <trishul-page-header title="My Leave" subtitle="Apply, track and manage your leave requests.">
+    <trishul-page-header
+      title="My Leave"
+      [subtitle]="
+        employeeName()
+          ? employeeCode() + ' · ' + employeeName() + ' · Apply, track and manage your leave requests.'
+          : 'Apply, track and manage your leave requests.'
+      "
+    >
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Financial year</mat-label>
         <mat-select [ngModel]="year()" (ngModelChange)="chooseYear($event)" name="year">

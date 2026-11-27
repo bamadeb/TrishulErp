@@ -12,6 +12,8 @@ export interface Me {
   defaultBranchId: (number | null);
   displayName: string;
   email: (string | null);
+  /** Linked core.employee id for ESS; null when the login has no employee row. */
+  employeeId: (number | null);
   id: number;
   permissions: Array<string>;
   principals: Array<PrincipalRef>;

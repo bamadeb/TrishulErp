@@ -53,6 +53,7 @@ interface BalanceView {
   adjustments: number;
   expired: number;
   closing: number;
+  nextExpiry: string | null;
 }
 
 interface EmployeeView {
@@ -228,6 +229,11 @@ export class LeaveEmployeesPage {
     this.drawer().close();
   }
 
+  protected expiryLabel(value: string | null): string {
+    if (!value) return '';
+    return this.dates.transform(value, 'dd MMM y') ?? value;
+  }
+
   protected copyCode(code: string): void {
     void navigator.clipboard?.writeText(code);
     this.snack.open(`${code} copied.`, 'Dismiss', { duration: 2000 });
@@ -373,6 +379,7 @@ function balance(row: EmployeeLeaveBalanceView | undefined): BalanceView {
     adjustments: Number(row?.adjustments ?? 0),
     expired: Number(row?.expired ?? 0),
     closing: Number(row?.closing ?? 0),
+    nextExpiry: row?.nextExpiry ?? null,
   };
 }
 

@@ -32,6 +32,9 @@ from trishul_api.db.models.generated import *  # noqa: F403
 from trishul_api.db.models.generated import __all__ as _generated
 from trishul_api.db.models.item_import import ItemImport, ItemImportLine
 from trishul_api.db.models.leave import (
+    CompOffAuthorization,
+    CompOffCredit,
+    CompOffLedger,
     LeaveAttendanceClass,
     LeaveBalanceTransaction,
     LeaveEntitlementRun,
@@ -90,6 +93,9 @@ __all__ = [
     "BiometricSyncLog",
     "Complaint",
     "ComplaintHistory",
+    "CompOffAuthorization",
+    "CompOffCredit",
+    "CompOffLedger",
     "ComplaintIssueType",
     "ContractVisitDay",
     "EmployeeAttendanceLocation",

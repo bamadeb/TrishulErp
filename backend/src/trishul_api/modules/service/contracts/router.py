@@ -7,6 +7,7 @@ from trishul_api.auth import CurrentUser, CurrentUserDep, DbSession, RequestScop
 from trishul_api.common.concurrency import if_match_row_version
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, ApiError, Forbidden, problem_response
 from trishul_api.common.schemas import Page
+from trishul_api.common.uploads import check_workbook_archive, read_upload
 from trishul_api.modules.service.contracts.asc_import import AscImportService
 from trishul_api.modules.service.contracts.repository import ContractRepository
 from trishul_api.modules.service.contracts.schemas import (
@@ -258,11 +259,8 @@ def update_contract_call_visits(
 
 
 def _read_upload(file: UploadFile) -> bytes:
-    content = file.file.read()
-    if not content:
-        raise ApiError("The uploaded file is empty.")
-    if len(content) > _MAX_UPLOAD_BYTES:
-        raise ApiError("That file is too large for an ASC register (15 MB at most).")
+    content = read_upload(file, _MAX_UPLOAD_BYTES, "That file is too large for an ASC register (15 MB at most).")
+    check_workbook_archive(content)
     return content
 
 

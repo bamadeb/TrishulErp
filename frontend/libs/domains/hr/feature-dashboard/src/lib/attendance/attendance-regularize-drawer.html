@@ -1,0 +1,212 @@
+<div class="drawer-root">
+  <button type="button" class="backdrop" aria-label="Close regularization" (click)="close()"></button>
+  <aside class="drawer" role="dialog" aria-labelledby="reg-title">
+    <header class="drawer-head">
+      <div>
+        <h2 id="reg-title">{{ title() }}</h2>
+        @if (employeeName()) {
+          <p class="who">{{ employeeCode() }} · {{ employeeName() }}</p>
+        }
+      </div>
+      <button mat-icon-button type="button" aria-label="Close" (click)="close()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </header>
+
+    <ol class="steps" [attr.aria-label]="isCompOff() ? 'Comp Off steps' : 'Regularization steps'">
+      <li [class.on]="step() === 1" [class.done]="step() > 1"><span>1</span> Select Date</li>
+      <li [class.on]="step() === 2" [class.done]="step() > 2"><span>2</span> Provide Details</li>
+      <li [class.on]="step() === 3"><span>3</span> Submit</li>
+    </ol>
+
+    <div class="drawer-body">
+      @if (formError()) { <p class="form-error">{{ formError() }}</p> }
+      @if (loading()) { <p class="hint inside">Loading attendance for the selected month…</p> }
+
+      @if (step() === 1) {
+        @if (onBehalf()) {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+            <mat-label>Employee *</mat-label>
+            <mat-select
+              [ngModel]="chosenEmployeeId()"
+              (ngModelChange)="chooseEmployee($event)"
+            >
+              @for (person of employees(); track person.employeeId) {
+                <mat-option [value]="person.employeeId">
+                  {{ person.employeeName }} · {{ person.employeeCode }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        @if (onBehalf() && !chosenEmployeeId()) {
+          <p class="hint inside">Select an employee. Their punch log fills this regularization request.</p>
+        }
+      }
+
+      @if (step() === 1 && (!onBehalf() || chosenEmployeeId())) {
+        <h3>Select Attendance Date</h3>
+        <div class="cal">
+          <div class="cal-nav">
+            <button mat-icon-button type="button" aria-label="Previous month" (click)="shiftMonth(-1)"><mat-icon>chevron_left</mat-icon></button>
+            <strong>{{ months[monthIndex()] }} {{ year() }}</strong>
+            <button mat-icon-button type="button" aria-label="Next month" (click)="shiftMonth(1)"><mat-icon>chevron_right</mat-icon></button>
+          </div>
+          <div class="cal-week">@for (day of weekdays; track day) { <span>{{ day }}</span> }</div>
+          <div class="cal-grid">
+            @for (cell of cells(); track $index) {
+              @if (!cell.day) {
+                <span></span>
+              } @else {
+                <button
+                  type="button"
+                  class="cal-day"
+                  [class.selected]="selectedIso() === cell.iso"
+                  [class.present]="cell.tone === 'present'"
+                  [class.exception]="cell.tone === 'exception'"
+                  [class.progress]="cell.tone === 'progress'"
+                  [class.off]="cell.tone === 'off'"
+                  [disabled]="!cell.eligible"
+                  (click)="selectDate(cell.iso)"
+                >{{ cell.day }}</button>
+              }
+            }
+          </div>
+        </div>
+        <ul class="legend">
+          @if (isCompOff()) {
+            <li><i class="exception"></i>Holiday / Weekly off with punches (Eligible)</li>
+            <li><i class="off"></i>Holiday / Off without punches</li>
+            <li><i class="present"></i>Working day</li>
+          } @else {
+            <li><i class="present"></i>Present</li>
+            <li><i class="exception"></i>Exception (Eligible)</li>
+            <li><i class="progress"></i>In Progress (Not Eligible)</li>
+            <li><i class="off"></i>Holiday / Off (Not Eligible)</li>
+          }
+        </ul>
+        @if (selectedDay(); as day) {
+          <section class="picked">
+            <header>
+              <strong>Selected Date Details</strong>
+              <trishul-status-badge [status]="day.status" [severities]="severities" />
+            </header>
+            <p><span>{{ selectedLabel() }}</span></p>
+            <dl>
+              <div><dt>Employee</dt><dd>{{ employeeCode() }} · {{ employeeName() }}</dd></div>
+              <div><dt>Shift</dt><dd>{{ day.shift }}</dd></div>
+              <div><dt>Actual In/Out</dt><dd>{{ day.firstIn || '—' }} / {{ day.lastOut || '—' }}</dd></div>
+              <div><dt>Remarks</dt><dd>{{ day.remarks || '—' }}</dd></div>
+            </dl>
+          </section>
+        }
+      }
+
+      @if (step() === 2 && selectedDay(); as day) {
+        <section class="summary-card">
+          <header>
+            <strong><mat-icon>calendar_today</mat-icon> Attendance Details</strong>
+            <trishul-status-badge [status]="day.status" [severities]="severities" />
+          </header>
+          <p class="when">{{ employeeCode() }} · {{ employeeName() }} · {{ selectedLabel() }}</p>
+          <div class="facts">
+            <div><span>Shift</span><strong>{{ day.shift }}</strong></div>
+            <div><span>Actual In</span><strong>{{ day.firstIn || '—' }}</strong></div>
+            <div><span>Actual Out</span><strong>{{ day.lastOut || '—' }}</strong></div>
+            <div><span>Worked</span><strong>{{ day.workingHours || '—' }}</strong></div>
+          </div>
+        </section>
+        <h3>{{ isCompOff() ? 'Comp Off Request Details' : 'Regularization Request Details' }}</h3>
+        @if (isCompOff()) {
+          <p class="hint inside">Compensation is Compensatory Off. Holiday Pay is not available.</p>
+          <div class="type-fixed">
+            <span>Request Type</span>
+            <strong>Holiday Work (Comp Off)</strong>
+          </div>
+        } @else {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+            <mat-label>Request Type *</mat-label>
+            <mat-select [ngModel]="requestType()" (ngModelChange)="requestType.set($event)">
+              @for (type of requestTypes; track type.value) {
+                <mat-option [value]="type.value">{{ type.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        <div class="time-row">
+          <label>{{ isCompOff() ? 'Actual Punch-In Time *' : 'Requested Punch-In Time *' }}
+            <input type="time" [ngModel]="requestedIn()" (ngModelChange)="requestedIn.set($event)" />
+          </label>
+          <label>{{ isCompOff() ? 'Actual Punch-Out Time *' : 'Requested Punch-Out Time' }}
+            <input type="time" [ngModel]="requestedOut()" (ngModelChange)="requestedOut.set($event)" />
+          </label>
+        </div>
+        <label class="reason">{{ isCompOff() ? 'Reason for Working *' : 'Reason *' }}
+          <textarea rows="3" maxlength="250" [ngModel]="reason()" (ngModelChange)="onReason($event)"></textarea>
+          <small>{{ reasonCount() }}/250</small>
+        </label>
+        <div class="upload">
+          <span>Attachment (Optional)</span>
+          @if (attachmentName()) {
+            <p class="file">
+              <mat-icon>description</mat-icon>
+              {{ attachmentName() }}
+              @if (attachmentSize()) { <em>({{ attachmentSize() }})</em> }
+              <button type="button" aria-label="Remove attachment" (click)="clearAttachment()"><mat-icon>close</mat-icon></button>
+            </p>
+          } @else {
+            <label class="drop">
+              <mat-icon>upload_file</mat-icon>
+              Drag & drop files here or click to upload
+              <small>PDF, JPG, PNG. Max 5 MB.</small>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" (change)="onFile($event)" />
+            </label>
+          }
+        </div>
+      }
+
+      @if (step() === 3 && selectedDay(); as day) {
+        <h3>Review & Submit</h3>
+        <section class="summary-card">
+          <header>
+            <strong>{{ selectedLabel() }}</strong>
+            <trishul-status-badge [status]="day.status" [severities]="severities" />
+          </header>
+          <dl class="review">
+            <div><dt>Employee</dt><dd>{{ employeeCode() }} · {{ employeeName() }}</dd></div>
+            <div><dt>Shift</dt><dd>{{ day.shift }}</dd></div>
+            <div><dt>Actual In/Out</dt><dd>{{ day.firstIn || '—' }} / {{ day.lastOut || '—' }}</dd></div>
+            <div><dt>Worked</dt><dd>{{ day.workingHours || '—' }}</dd></div>
+            <div><dt>Request Type</dt><dd>{{ requestLabel() }}</dd></div>
+            <div><dt>Requested In</dt><dd>{{ requestedInLabel() }}</dd></div>
+            <div><dt>Requested Out</dt><dd>{{ requestedOut() ? requestedOutLabel() : '—' }}</dd></div>
+            <div><dt>Reason</dt><dd>{{ reason() }}</dd></div>
+            <div><dt>Attachment</dt><dd>{{ attachmentName() || 'None' }}</dd></div>
+          </dl>
+        </section>
+        <p class="hint inside">
+          @if (isCompOff()) {
+            The request is sent for manager approval. Comp Off is credited only after certification.
+          } @else {
+            The request is sent for approval. Attendance is updated only after it is approved.
+          }
+        </p>
+      }
+    </div>
+
+    <footer class="drawer-actions">
+      @if (step() > 1) {
+        <button mat-stroked-button type="button" (click)="back()" [disabled]="submitting()">Back</button>
+      }
+      @if (step() < 3) {
+        <button mat-flat-button type="button" class="request-btn" (click)="next()">
+          {{ step() === 1 ? 'Next: Provide Details' : 'Next: Review & Submit' }}
+        </button>
+      } @else {
+        <button mat-flat-button type="button" class="request-btn" (click)="submit()" [disabled]="submitting()">
+          {{ submitting() ? 'Submitting…' : 'Submit Request' }}
+        </button>
+      }
+    </footer>
+  </aside>
+</div>

@@ -1,0 +1,154 @@
+@if (reports().length) {
+  <section class="card authorize">
+    <h2>Authorize holiday or weekly-off work</h2>
+    <p>Comp Off is credited only after you authorize the day and later certify the actual punches.</p>
+    <form class="authorize-form" (ngSubmit)="authorize()">
+      <label>
+        <span>Employee code</span>
+        <input [ngModel]="authorizeCode()" (ngModelChange)="authorizeCode.set($event)" name="employeeCode" list="comp-off-reports" required />
+        <datalist id="comp-off-reports">
+          @for (person of reports(); track person.employeeId) {
+            <option [value]="person.employeeCode">{{ person.employeeName }}</option>
+          }
+        </datalist>
+      </label>
+      <label>
+        <span>Work date</span>
+        <input type="date" [ngModel]="authorizeDate()" (ngModelChange)="authorizeDate.set($event)" name="workDate" required />
+      </label>
+      <label class="grow">
+        <span>Note</span>
+        <input [ngModel]="authorizeNote()" (ngModelChange)="authorizeNote.set($event)" name="note" maxlength="300" />
+      </label>
+      <button mat-flat-button color="primary" type="submit" [disabled]="authorizing() || !authorizeCode().trim() || !authorizeDate()">Authorize</button>
+    </form>
+  </section>
+}
+
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/hr/attendance/mine">Attendance</a>
+  <mat-icon>chevron_right</mat-icon>
+  <span>Apply Request</span>
+  <mat-icon>chevron_right</mat-icon>
+  <strong>Holiday Work</strong>
+</nav>
+
+<section class="card">
+  <header class="title">
+    <span class="mark"><mat-icon>calendar_month</mat-icon></span>
+    <div>
+      <h1>Holiday Work Regularization</h1>
+      <p>Request Comp Off for work your reporting manager authorized on a weekly off or declared holiday</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="details">
+      <h2><mat-icon>event</mat-icon> Holiday Details</h2>
+      @if (selected(); as holiday) {
+        <dl>
+          <div><dt>Date</dt><dd>{{ holidayDate() | date: 'dd MMM y (EEE)' }}</dd></div>
+          <div><dt>Holiday</dt><dd>{{ holiday.name }}</dd></div>
+          <div><dt>Type</dt><dd><span class="pill">{{ typeLabel(holiday.holidayType) }}</span></dd></div>
+          <div><dt>Compensation</dt><dd><span class="pill">Comp Off</span></dd></div>
+          @if (chosen(); as auth) {
+            <div><dt>Authorization</dt><dd>{{ kindLabel(auth.dayKind) }} · {{ auth.status }}</dd></div>
+          }
+        </dl>
+      } @else if (holidayDate()) {
+        <dl>
+          <div><dt>Date</dt><dd>{{ holidayDate() | date: 'dd MMM y (EEE)' }}</dd></div>
+          <div><dt>Day</dt><dd>Weekly off / non-working day</dd></div>
+          <div><dt>Compensation</dt><dd><span class="pill">Comp Off</span></dd></div>
+        </dl>
+      } @else {
+        <p class="muted">{{ loadError() || 'Choose a declared holiday or weekly off with actual punches.' }}</p>
+      }
+    </aside>
+
+    <form class="form" (ngSubmit)="submit()">
+      <div class="fields">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <input
+            placeholder="Holiday Date"
+            matInput
+            [matDatepicker]="picker"
+            [matDatepickerFilter]="holidayOnly"
+            [ngModel]="holidayDate()"
+            (ngModelChange)="holidayDate.set($event)"
+            name="holidayDate"
+            required
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="picker" />
+          <mat-datepicker #picker />
+        </mat-form-field>
+
+        <label class="time">
+          <span>Actual Punch In <b>*</b></span>
+          <input type="time" [ngModel]="punchIn()" (ngModelChange)="punchIn.set($event)" name="punchIn" required />
+        </label>
+
+        <label class="time">
+          <span>Actual Punch Out <b>*</b></span>
+          <input type="time" [ngModel]="punchOut()" (ngModelChange)="punchOut.set($event)" name="punchOut" required />
+        </label>
+      </div>
+
+      <label class="reason">
+        <span>Reason for Working <b>*</b></span>
+        <textarea
+          [ngModel]="reason()"
+          (ngModelChange)="reason.set($event)"
+          name="reason"
+          maxlength="220"
+          rows="3"
+          placeholder="Why was work required on this holiday?"
+          required
+        ></textarea>
+        <small>{{ reason().length }} / 220</small>
+      </label>
+
+
+      <div class="attach">
+        <span><mat-icon>attach_file</mat-icon> Attachments (Optional)</span>
+        @if (fileName(); as name) {
+          <div class="file">
+            <mat-icon>description</mat-icon>
+            <div>
+              <strong>{{ name }}</strong>
+              <small>{{ fileSize() }}</small>
+            </div>
+            <button type="button" aria-label="Remove attachment" (click)="clearFile()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        } @else {
+          <label class="drop">
+            <mat-icon>upload</mat-icon>
+            Drag and drop files here, or click to upload
+            <small>PDF, JPG, PNG (Max 5 MB)</small>
+            <input #fileInput type="file" accept=".pdf,.jpg,.jpeg,.png" (change)="onFile($event)" />
+          </label>
+        }
+      </div>
+
+      <div class="actions">
+        <a mat-stroked-button routerLink="/hr/attendance/my-regularization">Cancel</a>
+        <button mat-flat-button color="primary" type="submit" [disabled]="!canSubmit()">
+          <mat-icon>send</mat-icon>
+          Submit Request
+        </button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="flow">
+  <h2><mat-icon>account_tree</mat-icon> Process Flow</h2>
+  <ol>
+    <li><mat-icon>send</mat-icon> Submit Request</li>
+    <li><mat-icon>person</mat-icon> Manager Approval</li>
+    <li><mat-icon>groups</mat-icon> HR Approval</li>
+    <li><mat-icon>check_circle</mat-icon> Attendance and Comp Off credit</li>
+  </ol>
+</section>

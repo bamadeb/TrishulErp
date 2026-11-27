@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Path, Query, Request, Response
 
 from trishul_api.auth import CurrentUserDep, DbSession, ScopeDep, require_permission
 from trishul_api.common.concurrency import if_match_row_version
+from trishul_api.common.downloads import file_response_headers
 from trishul_api.common.errors import CONCURRENCY_RESPONSES, NOT_FOUND_RESPONSE, problem_response
 from trishul_api.common.schemas import Page
 from trishul_api.config import Settings, get_settings
@@ -314,15 +315,8 @@ def get_quotation_download(
     token: Annotated[str, Path(max_length=600)], settings: Annotated[Settings, Depends(get_settings)]
 ) -> Response:
     found = quotation_download.fetch(token, settings.download_signing_key)
-    return Response(
-        content=found.content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{found.file_name}"',
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "private, no-store",
-        },
-    )
+    media_type, headers = file_response_headers(found.file_name, "application/pdf", inline=False)
+    return Response(content=found.content, media_type=media_type, headers=headers)
 
 
 @router.post("/quotations", summary="Create a quotation (draft)", status_code=201, dependencies=[CAN_MANAGE_QUOTATIONS])

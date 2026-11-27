@@ -145,6 +145,12 @@ def adjust_balance(db: Session, actor: CurrentUser, employee_id: int, data: Bala
     leave_type = db.get(LeaveType, data.leave_type_id)
     if leave_type is None or not leave_type.is_active:
         raise NotFound("Leave type")
+    if leave_type.code == "CO":
+        from trishul_api.modules.hr.leave.comp_off_ops import adjust
+
+        adjust(db, actor, employee, leave_type, data.days, data.reason)
+        db.commit()
+        return balance_detail(db, actor, employee.id, data.year)
     balance = _balance_row(db, employee.id, leave_type.id, data.year, actor.id)
     db.add(
         LeaveBalanceTransaction(

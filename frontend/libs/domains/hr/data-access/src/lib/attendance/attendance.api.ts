@@ -13,6 +13,7 @@ export const ATTENDANCE_FINALIZE_PERMISSION = 'hr.attendance.finalize';
 export type AttendanceStatus =
   | 'Present'
   | 'Late'
+  | 'In Progress'
   | 'Missing Punch'
   | 'Absent'
   | 'On Leave'
@@ -63,6 +64,14 @@ export interface DailyAttendanceRow {
   lastOut: string | null;
   firstInLate: boolean;
   workingHours: string | null;
+  /** e.g. "2h 21m + 0h 50m" when multiple IN–OUT sessions. */
+  workingHoursDetail?: string | null;
+  currentPunch?: 'IN' | 'OUT' | null;
+  currentPunchSince?: string | null;
+  requiredHours?: string | null;
+  shortfall?: string | null;
+  openInAt?: string | null;
+  closedWorkedMinutes?: number;
   status: AttendanceStatus;
   remarks: string;
   lateArrivalMinutes: number | null;
@@ -134,8 +143,9 @@ export class AttendanceApi {
     return this.http.get<AttendanceDashboard>(`${this.base}/dashboard`, { params });
   }
 
-  mine(year: number, month: number): Observable<MineAttendancePage> {
-    const params = new HttpParams().set('year', String(year)).set('month', String(month));
+  mine(year: number, month: number, employeeId?: number): Observable<MineAttendancePage> {
+    let params = new HttpParams().set('year', String(year)).set('month', String(month));
+    if (employeeId) params = params.set('employeeId', String(employeeId));
     return this.http.get<MineAttendancePage>(`${this.base}/mine`, { params });
   }
 
@@ -229,6 +239,7 @@ export class AttendanceApi {
     if (query.department) params = params.set('department', query.department);
     if (query.location) params = params.set('location', query.location);
     if (query.requestType) params = params.set('requestType', query.requestType);
+    if (query.scope) params = params.set('scope', query.scope);
     return this.http.get<RegularizationPage>(`${this.base}/regularizations`, { params });
   }
 
@@ -502,7 +513,8 @@ export type RegularizationRequestType =
   | 'Wrong Attendance'
   | 'Early Exit'
   | 'WFH Correction'
-  | 'Late Arrival';
+  | 'Late Arrival'
+  | 'Holiday Work';
 
 export type RegularizationStatus = 'Pending' | 'Approved' | 'Rejected';
 export type RegularizationTab = 'pending' | 'approved' | 'rejected' | 'all';
@@ -514,12 +526,17 @@ export interface RegularizationRow {
   employeeName: string;
   department: string;
   location: string;
+  reportingManager?: string;
+  designation?: string;
+  shift?: string;
   attendanceDate: string;
   requestType: RegularizationRequestType;
   originalIn: string | null;
   originalOut: string | null;
+  originalStatus?: string | null;
   requestedIn: string | null;
   requestedOut: string | null;
+  requestedStatus?: string;
   reason: string;
   submittedOn: string;
   status: RegularizationStatus;
@@ -564,6 +581,8 @@ export interface RegularizationQuery {
   location?: string;
   requestType?: RegularizationRequestType | '';
   statusTab?: RegularizationTab;
+  /** `team` = employees who report to the signed-in manager. */
+  scope?: 'all' | 'team' | 'self';
 }
 
 export interface RegularizationCreate {
@@ -734,7 +753,7 @@ export interface AttendanceHolidayItem {
   holidayDate: string;
   name: string;
   holidayType: 'National' | 'Festival' | 'Optional';
-  category: 'National' | 'Regional' | 'Optional';
+  category: 'National' | 'Festival' | 'Regional' | 'Optional';
   appliesTo: string;
   isActive: boolean;
 }
@@ -963,9 +982,26 @@ export interface MineAttendanceDay {
   status: AttendanceStatus;
   firstIn: string | null;
   lastOut: string | null;
+  firstInLate?: boolean;
   workingHours: string | null;
+  /** Multi-session breakdown, e.g. `2h 21m + 0h 50m`. */
+  workingHoursDetail?: string | null;
+  /** Latest punch state — independent of attendance status. */
+  currentPunch?: 'IN' | 'OUT' | null;
+  currentPunchSince?: string | null;
+  requiredHours?: string | null;
+  shortfall?: string | null;
+  /** Unmatched IN instant for live session ticking. */
+  openInAt?: string | null;
+  closedWorkedMinutes?: number;
+  lateArrivalMinutes?: number | null;
+  earlyExitMinutes?: number | null;
   shift: string;
   remarks: string;
+  /** Exception for this day was resolved, so a new request is not offered. */
+  resolved?: boolean;
+  /** Accepted punches for the Attendance Details drawer. */
+  punches?: AttendancePunch[];
 }
 
 export interface MineAttendanceSummary {

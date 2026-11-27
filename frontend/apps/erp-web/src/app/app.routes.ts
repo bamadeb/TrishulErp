@@ -68,12 +68,14 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'hr',
-        // Leave and face-attendance users too (team lead, engineer); every HR screen checks its own permission.
+        // Leave, face-attendance, and ESS attendance users; every HR screen checks its own permission.
         canActivate: [
           permissionGuard(
             ...EMPLOYEE_VIEW_PERMISSIONS,
             ...LEAVE_VIEW_PERMISSIONS,
             ...FACE_ATTENDANCE_VIEW_PERMISSIONS,
+            'hr.attendance.mark',
+            'hr.attendance.view.team',
           ),
         ],
         loadChildren: () =>

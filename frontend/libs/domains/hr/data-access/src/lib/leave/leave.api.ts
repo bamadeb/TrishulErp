@@ -368,6 +368,20 @@ export class LeaveApi {
     });
   }
 
+  compOffReports(): Observable<CompOffReport[]> {
+    return this.http.get<CompOffReport[]>(`${this.config.rootUrl}/hr/leave/comp-off/reports`);
+  }
+
+  compOffAuthorizations(scope: 'mine' | 'team' = 'mine'): Observable<CompOffAuthorizationItem[]> {
+    return this.http.get<CompOffAuthorizationItem[]>(`${this.config.rootUrl}/hr/leave/comp-off/authorizations`, {
+      params: { scope },
+    });
+  }
+
+  authorizeCompOff(body: { employeeId?: number | null; employeeCode?: string | null; workDate: string; remarks?: string | null }): Observable<CompOffAuthorizationItem> {
+    return this.http.post<CompOffAuthorizationItem>(`${this.config.rootUrl}/hr/leave/comp-off/authorizations`, body);
+  }
+
   mineCompOff(financialYear: number): Observable<MineCompOff> {
     return this.http.get<MineCompOff>(`${this.config.rootUrl}/hr/leave/mine/comp-off`, {
       params: { financialYear: String(financialYear) },
@@ -585,13 +599,38 @@ export interface MineBalances {
   items: MineBalance[];
 }
 
+export interface MineCompOffLine {
+  earnedOn: string;
+  days: string;
+  note: string;
+  expires: string;
+  status: string;
+}
+
 export interface MineCompOff {
   earned: string;
   available: string;
   used: string;
   expiring: string | null;
   expiryTracked: boolean;
-  lines: string[];
+  lines: MineCompOffLine[];
+}
+
+export interface CompOffReport {
+  employeeId: number;
+  employeeCode: string;
+  employeeName: string;
+}
+
+export interface CompOffAuthorizationItem {
+  id: number;
+  employeeId: number;
+  employeeCode: string;
+  employeeName: string;
+  workDate: string;
+  dayKind: string;
+  status: string;
+  remarks: string | null;
 }
 
 export interface MineHoliday {
@@ -774,6 +813,7 @@ export interface EmployeeLeaveBalanceView {
   adjustments: string;
   expired: string;
   closing: string;
+  nextExpiry?: string | null;
 }
 
 export interface EmployeeLeaveRow {
@@ -874,7 +914,7 @@ export interface LeaveCalendarHoliday {
   name: string;
 }
 
-export type HolidayCategory = 'National' | 'Regional' | 'Optional';
+export type HolidayCategory = 'National' | 'Festival' | 'Regional' | 'Optional';
 
 export interface HolidayQuery {
   financialYear?: number | null;
@@ -932,6 +972,7 @@ export interface HolidaySummary {
   total: number;
   upcoming: number;
   national: number;
+  festival: number;
   regional: number;
   optional: number;
 }
@@ -954,6 +995,7 @@ export interface HolidayFilters {
   states: HolidayOption[];
   locations: HolidayOption[];
   financialYears: number[];
+  policyFestivals: string[];
 }
 
 export interface LeaveCalendarBoard {

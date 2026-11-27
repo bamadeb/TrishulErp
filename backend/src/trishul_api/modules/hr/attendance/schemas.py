@@ -21,6 +21,7 @@ shift start/end), so these are sent with +05:30. Sent as UTC, the browser showed
 AttendanceDisplayStatus = Literal[
     "Present",
     "Late",
+    "In Progress",
     "Missing Punch",
     "Absent",
     "On Leave",
@@ -86,6 +87,17 @@ class DailyAttendanceRowOut(ApiModel):
     last_out: IndiaDateTime | None = None
     first_in_late: bool = False
     working_hours: str | None = None
+    """Sum of closed IN–OUT sessions (+ live open IN when currently punched in)."""
+    working_hours_detail: str | None = None
+    """e.g. '2h 21m + 0h 50m' for multi-session days."""
+    current_punch: Literal["IN", "OUT"] | None = None
+    current_punch_since: IndiaDateTime | None = None
+    required_hours: str | None = None
+    shortfall: str | None = None
+    open_in_at: IndiaDateTime | None = None
+    """Unmatched IN clock (Asia/Kolkata) for live FE ticking; null when checked out."""
+    closed_worked_minutes: int = 0
+    """Frozen minutes from completed IN–OUT pairs only (excludes the open session)."""
     status: AttendanceDisplayStatus
     remarks: str = ""
     late_arrival_minutes: int | None = None
@@ -270,6 +282,7 @@ RegularizationRequestType = Literal[
     "Early Exit",
     "WFH Correction",
     "Late Arrival",
+    "Holiday Work",
 ]
 RegularizationStatus = Literal["Pending", "Approved", "Rejected"]
 RegularizationTab = Literal["pending", "approved", "rejected", "all"]
@@ -282,6 +295,8 @@ class RegularizationQuery(PageQuery):
     department: str | None = Field(None, max_length=120)
     location: str | None = Field(None, max_length=120)
     request_type: RegularizationRequestType | None = None
+    scope: Literal["all", "team", "self"] = "all"
+    """``team`` is the reporting manager's employees. ``self`` is the signed-in employee only."""
 
 
 class RegularizationRowOut(ApiModel):
@@ -291,12 +306,17 @@ class RegularizationRowOut(ApiModel):
     employee_name: str
     department: str
     location: str
+    reporting_manager: str = "—"
     attendance_date: date
     request_type: RegularizationRequestType
+    designation: str = "—"
+    shift: str = "—"
     original_in: IndiaDateTime | None = None
     original_out: IndiaDateTime | None = None
+    original_status: str | None = None
     requested_in: str | None = None
     requested_out: str | None = None
+    requested_status: str = "Present"
     reason: str
     submitted_on: UtcDateTime
     status: RegularizationStatus
@@ -505,7 +525,7 @@ class AttendanceHolidayItem(ApiModel):
     holiday_date: date
     name: str
     holiday_type: Literal["National", "Festival", "Optional"]
-    category: Literal["National", "Regional", "Optional"]
+    category: Literal["National", "Festival", "Regional", "Optional"]
     applies_to: str
     is_active: bool
 
@@ -748,9 +768,25 @@ class MineAttendanceDayOut(ApiModel):
     status: AttendanceDisplayStatus
     first_in: str | None = None
     last_out: str | None = None
+    first_in_late: bool = False
     working_hours: str | None = None
+    """Sum of closed IN–OUT sessions (+ live open IN when currently punched in)."""
+    working_hours_detail: str | None = None
+    current_punch: Literal["IN", "OUT"] | None = None
+    current_punch_since: str | None = None
+    required_hours: str | None = None
+    shortfall: str | None = None
+    open_in_at: str | None = None
+    """Unmatched IN clock for live FE ticking; null when checked out."""
+    closed_worked_minutes: int = 0
+    late_arrival_minutes: int | None = None
+    early_exit_minutes: int | None = None
     shift: str
     remarks: str = ""
+    resolved: bool = False
+    """True when an HR exception resolution marked the day Present / On duty."""
+    punches: list[AttendancePunchOut] = Field(default_factory=list)
+    """Accepted punches for the day — powers the Attendance Details drawer from My Attendance."""
 
 
 class MineAttendanceSummaryOut(ApiModel):

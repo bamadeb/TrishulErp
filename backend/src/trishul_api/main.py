@@ -13,6 +13,7 @@ from trishul_api.auth.identity import IdentityProvider, create_identity_provider
 from trishul_api.auth.tokens import TokenVerifier, create_token_verifier
 from trishul_api.auth.users import UserDirectory, database_user_loader
 from trishul_api.common.errors import STANDARD_ERROR_RESPONSES, install_error_handlers, problem
+from trishul_api.common.rate_limit import install_rate_limits
 from trishul_api.common.security import install_security_headers
 from trishul_api.config import Settings, get_settings
 from trishul_api.db import create_db_engine
@@ -183,6 +184,9 @@ def create_app(
 
     app = FastAPI(lifespan=lifespan, openapi_url=None, docs_url=None, redoc_url=None)
     app.state.api_v1 = api
+    if settings.rate_limit_enabled:
+        # Before the headers and CORS middleware, so a 429 still carries them.
+        install_rate_limits(app, api_prefix=settings.api_prefix)
     install_security_headers(app, docs_paths=(f"{settings.api_prefix}/docs", f"{settings.api_prefix}/openapi.json"))
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(

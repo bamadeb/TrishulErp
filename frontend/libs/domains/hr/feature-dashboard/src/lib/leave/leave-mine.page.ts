@@ -1,5 +1,5 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { provideNativeDateAdapter } from '@angular/material/core';
@@ -64,8 +64,10 @@ export class LeaveMinePage {
     Rejected: 'danger',
     Cancelled: 'neutral',
     Available: 'success',
+    Partial: 'warn',
     Used: 'neutral',
     Expiring: 'warn',
+    Expired: 'danger',
   };
   protected readonly years = [2026, 2025];
   protected readonly year = signal(2026);
@@ -91,9 +93,23 @@ export class LeaveMinePage {
   protected readonly detail = signal<MineLeaveRequest | null>(null);
   protected readonly menuRow = signal<MineLeaveRequest | null>(null);
   protected readonly employeeName = signal('');
+  protected readonly employeeCode = signal('');
+  protected readonly employeeId = signal<number | null>(null);
+  private boundUserId: number | null = null;
 
   constructor() {
-    this.reload();
+    effect(() => {
+      const userId = this.auth.user()?.id ?? null;
+      if (userId === this.boundUserId) return;
+      this.boundUserId = userId;
+      this.employeeName.set('');
+      this.employeeCode.set('');
+      this.employeeId.set(null);
+      this.balances.set([]);
+      this.requests.set([]);
+      this.compOff.set({ earned: 0, available: 0, used: 0, expiring: '—', lines: [] });
+      if (userId != null) this.reload();
+    });
   }
 
   protected readonly filtered = computed(() => {
@@ -297,8 +313,24 @@ export class LeaveMinePage {
   private reload(): void {
     const year = this.year();
     this.leaveApi.mineProfile().subscribe({
-      next: (profile) => this.employeeName.set(profile.employeeName),
-      error: () => this.employeeName.set(''),
+      next: (profile) => {
+        const linked = this.auth.user()?.employeeId ?? null;
+        if (linked != null && profile.employeeId !== linked) {
+          this.employeeName.set('');
+          this.employeeCode.set('');
+          this.employeeId.set(null);
+          this.error.set('Leave could not be scoped to your employee profile.');
+          return;
+        }
+        this.employeeId.set(profile.employeeId);
+        this.employeeCode.set(profile.employeeCode);
+        this.employeeName.set(profile.employeeName);
+      },
+      error: () => {
+        this.employeeName.set('');
+        this.employeeCode.set('');
+        this.employeeId.set(null);
+      },
     });
     this.leaveApi.mineBalances(year).subscribe({
       next: (board) => {
@@ -404,7 +436,13 @@ function mapCompOff(row: MineCompOff): CompOffView {
     available: Number(row.available),
     used: Number(row.used),
     expiring: row.expiring == null ? '—' : String(Number(row.expiring)),
-    lines: [],
+    lines: (row.lines ?? []).map((line) => ({
+      earnedOn: line.earnedOn,
+      days: Number(line.days),
+      note: line.note,
+      expires: line.expires,
+      status: line.status,
+    })),
   };
 }
 

@@ -3,6 +3,7 @@
 export type AttendanceStatus =
   | 'Present'
   | 'Late'
+  | 'In Progress'
   | 'Missing Punch'
   | 'Absent'
   | 'On Leave'
@@ -38,6 +39,8 @@ export interface AttendanceHistoryItem {
 
 export interface DailyAttendanceRow {
   id: number;
+  /** Attendance day when a row is one date inside a range. */
+  dateIso?: string;
   employeeId: number;
   employeeCode: string;
   employeeName: string;
@@ -50,6 +53,13 @@ export interface DailyAttendanceRow {
   lastOut: string | null;
   firstInLate: boolean;
   workingHours: string | null;
+  workingHoursDetail: string | null;
+  currentPunch: 'IN' | 'OUT' | null;
+  currentPunchSince: string | null;
+  requiredHours: string | null;
+  shortfall: string | null;
+  openInAt: string | null;
+  closedWorkedMinutes: number;
   status: AttendanceStatus;
   remarks: string;
   lateArrivalMinutes: number | null;
@@ -85,7 +95,8 @@ export type RegularizationRequestType =
   | 'Wrong Attendance'
   | 'Early Exit'
   | 'WFH Correction'
-  | 'Late Arrival';
+  | 'Late Arrival'
+  | 'Holiday Work';
 
 export type RegularizationStatus = 'Pending' | 'Approved' | 'Rejected';
 
@@ -128,6 +139,7 @@ export const REGULARIZATION_REQUEST_TYPES: RegularizationRequestType[] = [
   'Early Exit',
   'WFH Correction',
   'Late Arrival',
+  'Holiday Work',
 ];
 
 export const ATTENDANCE_STATUSES: AttendanceStatus[] = [

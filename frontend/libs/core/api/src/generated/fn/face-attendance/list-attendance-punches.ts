@@ -14,6 +14,8 @@ export interface ListAttendancePunches$Params {
   fromDate?: (string | null);
   toDate?: (string | null);
   employeeId?: (number | null);
+  /** ESS My Punch Logs: force the signed-in employee's punches only. */
+  mineOnly?: boolean;
   limit?: number;
 }
 
@@ -24,6 +26,7 @@ export function listAttendancePunches(http: HttpClient, rootUrl: string, params?
     rb.query('fromDate', params.fromDate, {});
     rb.query('toDate', params.toDate, {});
     rb.query('employeeId', params.employeeId, {});
+    rb.query('mineOnly', params.mineOnly, {});
     rb.query('limit', params.limit, {});
   }
 

@@ -377,7 +377,7 @@ class ShiftRulesService:
                 holiday_date=row[1],
                 name=row[2],
                 holiday_type=row[3],  # type: ignore[arg-type]
-                category=api_category(str(row[3])),
+                category=api_category(str(row[3]), row[5], row[4]),
                 applies_to=_holiday_applies_to(row[7], row[8]),
                 is_active=bool(row[6]),
             )

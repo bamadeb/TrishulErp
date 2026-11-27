@@ -196,6 +196,84 @@ class LeaveWeeklyRestGrant(Base):
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
 
+class CompOffAuthorization(Base):
+    """Manager authorization to work a weekly off, company holiday, or declared non-working day."""
+
+    __tablename__ = "comp_off_authorization"
+    __table_args__ = {"schema": "hr"}
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    employee_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.employee.id"))
+    work_date: Mapped[dt.date] = mapped_column(sa.Date())
+    day_kind: Mapped[str] = mapped_column(sa.NVARCHAR(20))
+    status: Mapped[str] = mapped_column(sa.NVARCHAR(20))
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    regularization_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    authorized_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    authorized_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0))
+    certified_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    certified_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
+    created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    row_version: Mapped[bytes] = _version()
+
+    __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
+
+
+class CompOffCredit(Base):
+    """One Comp Off credit. Unused days lapse 90 days after the credit date."""
+
+    __tablename__ = "comp_off_credit"
+    __table_args__ = {"schema": "hr"}
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    authorization_id: Mapped[int | None] = mapped_column(
+        sa.BigInteger(), sa.ForeignKey("hr.comp_off_authorization.id")
+    )
+    employee_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.employee.id"))
+    leave_type_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("hr.leave_type.id"))
+    work_date: Mapped[dt.date] = mapped_column(sa.Date())
+    day_kind: Mapped[str] = mapped_column(sa.NVARCHAR(20))
+    credited_on: Mapped[dt.date] = mapped_column(sa.Date())
+    expires_on: Mapped[dt.date] = mapped_column(sa.Date())
+    days: Mapped[Decimal] = mapped_column(sa.Numeric(4, 1))
+    consumed_days: Mapped[Decimal] = mapped_column(sa.Numeric(4, 1), server_default=sa.FetchedValue())
+    expired_days: Mapped[Decimal] = mapped_column(sa.Numeric(4, 1), server_default=sa.FetchedValue())
+    status: Mapped[str] = mapped_column(sa.NVARCHAR(20))
+    created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
+    created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
+    updated_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    row_version: Mapped[bytes] = _version()
+
+    __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
+
+
+class CompOffLedger(Base):
+    """Append-only credit, consumption, expiry, adjustment, and reversal history."""
+
+    __tablename__ = "comp_off_ledger"
+    __table_args__ = {"schema": "hr"}
+
+    id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
+    credit_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("hr.comp_off_credit.id"))
+    employee_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.employee.id"))
+    kind: Mapped[str] = mapped_column(sa.NVARCHAR(20))
+    days: Mapped[Decimal] = mapped_column(sa.Numeric(4, 1))
+    leave_request_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300))
+    created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
+    created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
+    is_active: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue())
+    row_version: Mapped[bytes] = _version()
+
+    __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
+
+
 class LeaveAttendanceClass(Base):
     """How one existing attendance status counts. Unmapped statuses block Earned Leave calculation."""
 

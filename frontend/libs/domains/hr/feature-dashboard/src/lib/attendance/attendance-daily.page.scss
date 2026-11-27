@@ -18,6 +18,7 @@
 }
 
 .date-nav {
+  position: relative;
   display: inline-flex;
   gap: 0.15rem;
   align-items: center;
@@ -27,7 +28,7 @@
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
-  min-width: 11.5rem;
+  min-width: 16.5rem;
   padding: 0.35rem 0.65rem;
   border: 1px solid #d5e3f7;
   border-radius: 8px;
@@ -52,8 +53,11 @@
 
 .date-hidden {
   position: absolute;
-  width: 1px;
+  top: 0;
+  left: 2.6rem;
+  width: 16.5rem;
   height: 1px;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
 }
@@ -222,69 +226,118 @@
 }
 
 table.records {
-  min-width: 0;
+  min-width: 102rem;
+  table-layout: fixed;
 
   th,
   td {
-    padding: 0.32rem 0.3rem;
+    padding: 0.55rem 0.55rem;
+    vertical-align: top;
   }
 
-  .name-col {
-    width: 17%;
-    min-width: 0;
-  }
-
-  .shift {
-    width: 8%;
-  }
-
-  .clock {
-    width: 5.6rem;
-  }
-
-  .hours {
-    width: 7.6rem;
-  }
-
-  th.hours {
-    letter-spacing: 0;
+  th {
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;
+    letter-spacing: 0.02em;
   }
 
-  .status-col {
-    width: 12%;
+  .name-col {
+    width: 12.5rem;
+    min-width: 12rem;
+  }
+
+  .dept-col {
+    width: 7.5rem;
+    min-width: 7rem;
+  }
+
+  .shift-col {
+    width: 8.25rem;
+    min-width: 7.75rem;
+  }
+
+  .date-col {
+    width: 6.5rem;
+    min-width: 6rem;
+  }
+
+  .clock {
+    width: 5.75rem;
+    min-width: 5.5rem;
+  }
+
+  .hours {
+    width: 8.5rem;
+    min-width: 8rem;
+
+    .hint {
+      width: 13px;
+      height: 13px;
+      margin-left: 0.2rem;
+      font-size: 13px;
+      vertical-align: -2px;
+      color: #94a3b8;
+    }
+  }
+
+  .punch-col {
+    width: 10.5rem;
+    min-width: 10rem;
+  }
+
+  .req-col {
+    width: 7.75rem;
+    min-width: 7.5rem;
+  }
+
+  .short-col {
+    width: 5.75rem;
+    min-width: 5.5rem;
+  }
+
+  .status-col,
+  .reg-col {
+    width: 7.5rem;
+    min-width: 7rem;
     overflow: visible;
   }
 
   .mins {
-    width: 6.5%;
+    width: 6rem;
+    min-width: 5.75rem;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-  }
-
-  th.mins {
-    letter-spacing: 0;
-    line-height: 1.15;
-    white-space: normal;
+    color: #334155;
   }
 
   .actions-col,
   .actions {
-    width: 4.6rem;
+    width: 4.75rem;
+    min-width: 4.5rem;
+    vertical-align: middle;
+  }
+
+  td.hours-cell,
+  td.punch-col,
+  td.short-col,
+  td.status-col,
+  td.name-col,
+  td.dept-col,
+  td.shift-col {
+    overflow: visible;
+    white-space: normal;
   }
 }
 
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-@media (min-width: 1200px) {
-  .table-wrap:has(table.records) {
-    overflow-x: hidden;
-  }
+.table-wrap:has(table.records) {
+  overflow-x: auto;
 }
 
 table {
@@ -316,9 +369,12 @@ th {
   color: #64748b;
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   background: #f8fafc;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .check {
@@ -356,22 +412,40 @@ th {
 }
 
 .shift {
+  overflow: visible;
   white-space: normal;
   line-height: 1.2;
 }
 
 .shift-link {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
   padding: 0;
   border: 0;
   background: transparent;
-  color: #0754b8;
+  color: inherit;
   font: inherit;
-  font-weight: 600;
   line-height: 1.2;
   text-align: left;
   cursor: pointer;
 
-  &:hover {
+  .shift-name {
+    color: #0754b8;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .shift-hours {
+    color: #94a3b8;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  &:hover .shift-name {
     text-decoration: underline;
   }
 }
@@ -404,21 +478,33 @@ tbody tr.active {
 
 .person {
   display: inline-flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   min-width: 0;
   max-width: 100%;
 }
 
+.who-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.who-text .muted {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
 .avatar {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   border-radius: 50%;
   color: #fff;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
   flex: none;
@@ -444,8 +530,16 @@ tbody tr.active {
 .time {
   display: inline-block;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: #15803d;
+  font-weight: 700;
+  color: #1e293b;
+
+  &.in {
+    color: #16a34a;
+  }
+
+  &.out {
+    color: #1e293b;
+  }
 
   &.late {
     padding: 0.12rem 0.4rem;
@@ -453,6 +547,109 @@ tbody tr.active {
     background: #fee2e2;
     color: #b91c1c;
   }
+}
+
+.worked {
+  display: block;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.session-parts {
+  display: block;
+  margin-top: 0.2rem;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.punch-badge {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.22rem 0.55rem;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+
+  i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+
+  &.in {
+    background: #e8f8ee;
+    color: #15803d;
+
+    &:hover {
+      background: #d7f3e2;
+    }
+  }
+
+  &.out {
+    background: #eef2f6;
+    color: #475569;
+
+    &:hover {
+      background: #e2e8f0;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0754b8;
+    outline-offset: 2px;
+  }
+}
+
+.since {
+  display: inline-flex;
+  gap: 0.15rem;
+  align-items: center;
+  margin-top: 0.28rem;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.since-hint {
+  width: 12px;
+  height: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.req-col {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #334155;
+}
+
+.shortfall {
+  display: inline-block;
+  padding: 0.22rem 0.55rem;
+  border-radius: 8px;
+  background: #fff4e5;
+  color: #c2410c;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .muted {
@@ -494,6 +691,18 @@ tbody tr.active {
   &[data-status='WFH'] {
     background: #e0f2fe;
     color: #0369a1;
+  }
+  &[data-status='Approved'] {
+    background: #e8f7ee;
+    color: #15803d;
+  }
+  &[data-status='Pending'] {
+    background: #fff7ed;
+    color: #c2410c;
+  }
+  &[data-status='Rejected'] {
+    background: #fef2f2;
+    color: #b91c1c;
   }
 }
 

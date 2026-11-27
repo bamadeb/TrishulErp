@@ -16,13 +16,31 @@
     <button mat-icon-button type="button" aria-label="Previous range" (click)="shiftRange(-1)">
       <mat-icon>chevron_left</mat-icon>
     </button>
-    <button type="button" class="range-btn" disabled>
+    <button type="button" class="range-btn" (click)="openRangePicker()">
       <mat-icon>calendar_today</mat-icon>
       <span>{{ rangeLabel() }}</span>
+      <mat-icon>expand_more</mat-icon>
     </button>
     <button mat-icon-button type="button" aria-label="Next range" (click)="shiftRange(1)">
       <mat-icon>chevron_right</mat-icon>
     </button>
+    <mat-form-field class="range-hidden" subscriptSizing="dynamic">
+      <mat-date-range-input [rangePicker]="rangePicker">
+        <input
+          matStartDate
+          [ngModel]="rangeStart()"
+          (ngModelChange)="onRangeStart($event)"
+          aria-label="From date"
+        />
+        <input
+          matEndDate
+          [ngModel]="rangeEnd()"
+          (ngModelChange)="onRangeEnd($event)"
+          aria-label="To date"
+        />
+      </mat-date-range-input>
+      <mat-date-range-picker #rangePicker />
+    </mat-form-field>
   </div>
 </trishul-page-header>
 
@@ -89,7 +107,7 @@
       [attr.aria-selected]="contentTab() === 'pending'"
       (click)="setTab('pending')"
     >
-      Pending Review <span>{{ tabCounts().pending | number }}</span>
+      Unresolved <span>{{ tabCounts().pending | number }}</span>
     </button>
     <button
       type="button"
@@ -157,7 +175,7 @@
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
       <mat-select [ngModel]="status()" (ngModelChange)="onStatus($event)" aria-label="Status">
         <mat-option value="">Status: All</mat-option>
-        <mat-option value="Pending">Pending</mat-option>
+        <mat-option value="Pending">Unresolved</mat-option>
         <mat-option value="Resolved">Resolved</mat-option>
       </mat-select>
     </mat-form-field>
@@ -230,7 +248,7 @@
                   {{ initials(row.employeeName) }}
                 </span>
                 <span class="who-text">
-                  <button type="button" class="name" (click)="viewDetails(row)">
+                  <button type="button" class="name" (click)="openFromName(row)">
                     {{ row.employeeName }}
                   </button>
                   <small class="muted">{{ row.employeeCode }}</small>
@@ -273,7 +291,7 @@
             <td>
               <span [class]="statusClass(row.status)">
                 <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
-                {{ row.status }}
+                {{ reviewLabel(row.status) }}
               </span>
             </td>
             <td class="actions">
@@ -343,10 +361,12 @@
     <trishul-attendance-daily-drawer
       [row]="row"
       [selectedDate]="detailDate() ?? rangeEnd()"
+      [request]="regFor(detailException())"
       [exceptionType]="detailException()?.exceptionType ?? null"
       [exceptionStatus]="detailException()?.status ?? null"
       (closed)="closeDetails()"
       (regularize)="regularize(detailException())"
+      (submitted)="onRegularized()"
       (shiftOpen)="openShiftFromDetail()"
     />
   } @else if (shiftFocus(); as shift) {
@@ -370,8 +390,19 @@
       Resolve
     </button>
   }
-  <button mat-menu-item type="button" (click)="regularize()">
+  <button mat-menu-item type="button" (click)="regularize(menuRow())">
     <mat-icon>edit_calendar</mat-icon>
     Regularize
   </button>
 </mat-menu>
+
+@for (key of regDrawerKeys(); track key) {
+  <trishul-attendance-regularize-drawer
+    [onBehalf]="true"
+    [employees]="regEmployees()"
+    [forEmployeeId]="regEmployeeId()"
+    [initialDate]="regDate()"
+    (closed)="closeRegularize()"
+    (submitted)="onRegularized()"
+  />
+}

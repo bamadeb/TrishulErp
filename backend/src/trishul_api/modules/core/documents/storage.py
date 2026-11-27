@@ -5,19 +5,16 @@ under backend/var/attachments (the same place as employee photos). Only this mod
 moving to S3 later means changing these three functions, not the callers.
 """
 
-import io
 import re
-import zipfile
 from pathlib import Path
 from uuid import uuid4
 
 from trishul_api.common.errors import ApiError
+from trishul_api.common.uploads import check_office_archive
 
 _ROOT = Path(__file__).resolve().parents[5] / "var" / "attachments"
 
 MAX_BYTES = 10 * 1024 * 1024
-# A .docx / .xlsx is a zip: refuse one that expands to more than this (a zip bomb).
-_MAX_UNPACKED_BYTES = 100 * 1024 * 1024
 
 _OLE = (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",)  # legacy Word / Excel (.doc, .xls)
 _ZIP = (b"PK\x03\x04",)  # Office Open XML (.docx, .xlsx)
@@ -72,22 +69,8 @@ def validate_file(file_name: str, raw: bytes) -> str:
     if extension == ".webp" and raw[8:12] != b"WEBP":
         raise invalid
     if extension in _OOXML_ROOT:
-        _check_office_open_xml(raw, _OOXML_ROOT[extension], invalid)
+        check_office_archive(raw, _OOXML_ROOT[extension], invalid)
     return content_type
-
-
-def _check_office_open_xml(raw: bytes, root: str, invalid: ApiError) -> None:
-    try:
-        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-            names = archive.namelist()
-            if "[Content_Types].xml" not in names or not any(n.startswith(root) for n in names):
-                raise invalid
-            if any(n.lower().endswith("vbaproject.bin") for n in names):
-                raise ApiError("Files with macros cannot be uploaded. Save the file without macros first.")
-            if sum(info.file_size for info in archive.infolist()) > _MAX_UNPACKED_BYTES:
-                raise ApiError("The file is too large once unpacked.")
-    except zipfile.BadZipFile as error:
-        raise invalid from error
 
 
 def store(entity_type: str, entity_id: int, file_name: str, raw: bytes) -> str:
