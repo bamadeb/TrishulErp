@@ -19,11 +19,14 @@
   </dl>
 
   <h3>Approval Progress</h3>
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
   @if (stepsError()) {
   <p class="error">{{ stepsError() }}</p>
-  } @else if (loading()) {
-  <p class="muted">Loading approval details…</p>
-  } @else {
+  } @else if (!loading()) {
   <ol class="timeline">
     @for (step of steps(); track $index) {
     <li [class]="step.status.toLowerCase()">
@@ -32,8 +35,9 @@
         <span [class]="step.status.toLowerCase()">{{ stateLabel(step) }}</span>
       </div>
       <small [class.wait]="person(step) === 'Awaiting Assignment'">{{ person(step) }}</small>
-      @if (step.approverRole) { <small>{{ step.approverRole }}</small> }
-      @if (step.level) { <small>{{ step.level }}</small> }
+      @if (step.approverRole && heading(step) === 'Reporting Manager') {
+        <small>{{ step.approverRole }}</small>
+      }
       @if (step.actedAt) { <small>{{ step.actedAt | date:'dd-MMM-yyyy h:mm a' }}</small> }
       @if (step.comments) { <em>{{ step.comments }}</em> }
     </li>

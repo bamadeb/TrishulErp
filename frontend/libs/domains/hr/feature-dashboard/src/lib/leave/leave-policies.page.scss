@@ -19,7 +19,12 @@
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 12px;
   padding: 1rem 1.25rem;
-  overflow: visible;
+  overflow: hidden;
+}
+
+.progress {
+  height: 4px;
+  margin: -1rem -1.25rem 1rem;
 }
 
 .card-head p,

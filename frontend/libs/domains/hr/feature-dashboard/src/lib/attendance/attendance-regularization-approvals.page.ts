@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatFormField } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthStore } from '@trishul/core-auth';
@@ -47,6 +48,7 @@ const EMPTY_KPI: RegularizationKpi = { total: 0, pending: 0, approved: 0, reject
     MatFormField,
     MatIcon,
     MatOption,
+    MatProgressBar,
     MatSelect,
     PageHeader,
   ],

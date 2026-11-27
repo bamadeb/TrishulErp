@@ -33,6 +33,7 @@ dd { margin: 0; font-weight: 600; color: #0f2744; overflow-wrap: anywhere; }
 .summary { margin-top: 0.2rem; padding: 0.35rem 0.55rem; border-radius: 8px; background: #f8fafc; }
 .summary div { border-bottom-color: #e8eef5; }
 .error { margin: 0.3rem 0; color: var(--mat-sys-error); font-size: 12px; }
+.progress { height: 4px; margin: 0.15rem 0 0.45rem; }
 footer { padding: 0.65rem 0.8rem 0.8rem; border-top: 1px solid #eef2f6; }
 footer button { width: 100%; color: #0066cc; --mdc-outlined-button-outline-color: #b9d6f2; --mat-button-outlined-label-text-color: #0066cc; }
 footer .mat-icon { width: 16px; height: 16px; font-size: 16px; margin-right: 0.2rem; }

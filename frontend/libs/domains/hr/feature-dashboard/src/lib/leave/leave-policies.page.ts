@@ -10,10 +10,11 @@ import { MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/material/fo
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { catchError, forkJoin, map, of } from 'rxjs';
+import { catchError, finalize, forkJoin, map, of } from 'rxjs';
 import { HasPermission, AuthStore } from '@trishul/core-auth';
 import {
   EmployeesApi,
@@ -39,7 +40,7 @@ type Frequency = 'None' | 'Monthly' | 'Yearly';
   imports: [
     FormsModule, HasPermission, MatButton, MatCheckbox, MatDatepicker, MatDatepickerInput, MatDatepickerToggle,
     MatFormField, MatHint, MatIcon, MatIconButton, MatInput, MatLabel, MatSuffix,
-    MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger, MatOption, MatSelect, MatSlideToggle, PageHeader, StatusBadge,
+    MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger, MatOption, MatProgressBar, MatSelect, MatSlideToggle, PageHeader, StatusBadge,
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -77,6 +78,7 @@ export class LeavePoliciesPage {
   protected readonly counts = signal<Record<number, number>>({});
   protected readonly types = signal<LeaveTypeItem[]>([]);
   protected readonly error = signal('');
+  protected readonly loading = signal(true);
   protected readonly editing = signal<LeavePolicyItem | null>(null);
   protected readonly form = signal<LeavePolicyWrite>(blankPolicy());
   protected readonly formVersion = signal(1);
@@ -371,9 +373,11 @@ export class LeavePoliciesPage {
   }
 
   private reload(): void {
-    this.api.policies(this.statusFilter()).subscribe({
+    this.loading.set(true);
+    this.api.policies(this.statusFilter()).pipe(finalize(() => this.loading.set(false))).subscribe({
       next: (page) => {
         this.rows.set(page.items);
+        this.error.set('');
         if (page.items.length === 0) {
           this.counts.set({});
           return;

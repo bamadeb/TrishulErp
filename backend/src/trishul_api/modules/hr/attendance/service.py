@@ -154,6 +154,10 @@ class AttendanceService:
         self._repo = AttendanceRepository(db)
 
     def list_daily(self, query: DailyAttendanceQuery) -> DailyAttendancePageOut:
+        import logging
+        import time
+
+        started = time.perf_counter()
         day = query.attendance_date
         self._prime_approved(day, day)
         self._prime_resolved(day, day)
@@ -163,87 +167,114 @@ class AttendanceService:
         holidays = self._repo.holidays_on(day)
         leaves = self._repo.approved_leave_for_date(day)
         start, end = self._attendance_bounds(day, day)
-        punches = self._repo.punches_between(start, end)
-        punches_by_employee: dict[int, list[PunchSource]] = defaultdict(list)
-        for punch in punches:
-            punches_by_employee[punch.employee_id].append(punch)
-
-        # Build lightweight status rows for summary / filters (no punch payload).
-        light_rows = [
-            self._build_row(
-                employee=employee,
-                day=day,
-                shift=resolve_shift(assignments.get(employee.id), shifts),
-                holidays=holidays,
-                leave=leaves.get(employee.id),
-                punches=punches_by_employee.get(employee.id, []),
-                include_punches=False,
-                history=[],
-            )
-            for employee in employees
-        ]
-
-        filter_options = self._filter_options(light_rows)
-        summary = self._summary(light_rows)
-        filtered = self._apply_filters(light_rows, query)
-        total = len(filtered)
-        page_size = query.page_size
-        page = query.page
-        start_idx = (page - 1) * page_size
-        page_slice = filtered[start_idx : start_idx + page_size]
-
-        # Attach punches only for the visible page (drawer needs them).
-        employee_map = {e.id: e for e in employees}
-        page_items = [
-            self._build_row(
-                employee=employee_map[row.employee_id],
-                day=day,
-                shift=resolve_shift(assignments.get(row.employee_id), shifts),
-                holidays=holidays,
-                leave=leaves.get(row.employee_id),
-                punches=punches_by_employee.get(row.employee_id, []),
-                include_punches=query.include_punches,
-                history=[],
-            )
-            for row in page_slice
-        ]
-
-        if query.include_history and page_items:
-            employee_map = {e.id: e for e in employees}
-            history_by_employee = self._history_for_employees(
-                employees=employee_map,
-                employee_ids=[row.employee_id for row in page_items],
-                before=day,
-                days=7,
-                shifts=shifts,
-            )
-            page_items = [
-                row.model_copy(update={"history": history_by_employee.get(row.employee_id, [])})
-                for row in page_items
-            ]
-
-        reasons = self._regularization_reasons(day, day)
-        if reasons:
-            page_items = [
-                row.model_copy(
-                    update={
-                        "remarks": _merge_remarks(
-                            row.remarks, reasons.get((row.employee_id, day))
-                        )
-                    }
-                )
-                for row in page_items
-            ]
-
-        return DailyAttendancePageOut(
-            date=day,
-            summary=summary,
-            filter_options=filter_options,
-            items=page_items,
-            total=total,
-            page=page,
-            page_size=page_size,
+        # One punch query for the calendar month covers grace + the selected day window.
+        month_start = date(day.year, day.month, 1)
+        month_end = (
+            date(day.year, 12, 31)
+            if day.month == 12
+            else date(day.year, day.month + 1, 1) - timedelta(days=1)
         )
+        month_end = min(month_end, date.today())
+        grace_start, grace_end = self._attendance_bounds(month_start, month_end)
+        month_punches = self._repo.punches_between(grace_start, grace_end)
+        self._grace_punches = (grace_start, grace_end, month_punches)
+        self._visits_by_day = self._repo.official_visits_between(day, day)
+
+        punches_by_employee: dict[int, list[PunchSource]] = defaultdict(list)
+        for punch in month_punches:
+            if start <= punch.punched_at <= end:
+                punches_by_employee[punch.employee_id].append(punch)
+
+        try:
+            # Status/summary for every employee — skip session board (page enrich adds it once).
+            light_rows = [
+                self._build_row(
+                    employee=employee,
+                    day=day,
+                    shift=resolve_shift(assignments.get(employee.id), shifts),
+                    holidays=holidays,
+                    leave=leaves.get(employee.id),
+                    punches=punches_by_employee.get(employee.id, []),
+                    include_punches=False,
+                    history=[],
+                    include_session=False,
+                )
+                for employee in employees
+            ]
+
+            filter_options = self._filter_options(light_rows)
+            summary = self._summary(light_rows)
+            filtered = self._apply_filters(light_rows, query)
+            total = len(filtered)
+            page_size = query.page_size
+            page = query.page
+            start_idx = (page - 1) * page_size
+            page_slice = filtered[start_idx : start_idx + page_size]
+
+            # Enrich only the page: session board + punches (no second _evaluate).
+            page_items = [
+                self._enrich_row_session(
+                    row,
+                    day=day,
+                    shift=resolve_shift(assignments.get(row.employee_id), shifts),
+                    punches=punches_by_employee.get(row.employee_id, []),
+                    include_punches=query.include_punches,
+                )
+                for row in page_slice
+            ]
+
+            if query.include_history and page_items:
+                employee_map = {e.id: e for e in employees}
+                history_by_employee = self._history_for_employees(
+                    employees=employee_map,
+                    employee_ids=[row.employee_id for row in page_items],
+                    before=day,
+                    days=7,
+                    shifts=shifts,
+                )
+                page_items = [
+                    row.model_copy(update={"history": history_by_employee.get(row.employee_id, [])})
+                    for row in page_items
+                ]
+
+            reasons = self._regularization_reasons(day, day)
+            if reasons:
+                page_items = [
+                    row.model_copy(
+                        update={
+                            "remarks": _merge_remarks(
+                                row.remarks, reasons.get((row.employee_id, day))
+                            )
+                        }
+                    )
+                    for row in page_items
+                ]
+
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            logging.getLogger("trishul.attendance").info(
+                "list_daily day=%s employees=%s filtered=%s page=%s/%s include_punches=%s elapsed_ms=%.1f",
+                day.isoformat(),
+                len(employees),
+                total,
+                page,
+                page_size,
+                query.include_punches,
+                elapsed_ms,
+            )
+
+            return DailyAttendancePageOut(
+                date=day,
+                summary=summary,
+                filter_options=filter_options,
+                items=page_items,
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
+        finally:
+            self._visits_by_day = None
+            self._grace_punches = None
+            self._grace_month = None
 
     def employee_history(
         self,
@@ -1383,6 +1414,7 @@ class AttendanceService:
         punches: list[PunchSource],
         include_punches: bool,
         history: list[AttendanceHistoryOut],
+        include_session: bool = True,
     ) -> DailyAttendanceRowOut:
         name = " ".join(part for part in (employee.first_name, employee.last_name) if part).strip()
         if not name:
@@ -1398,7 +1430,25 @@ class AttendanceService:
         status, remarks, _ = self._apply_resolved(employee.id, day, status, remarks)
         if status == "Present":
             first_in_late = False
-        session = self._session_board(employee.id, day, shift, punches)
+        if include_session:
+            session = self._session_board(employee.id, day, shift, punches)
+            board_hours = session["working_hours"] or working_hours
+            board_detail = session["working_hours_detail"]
+            current_punch = session["current_punch"]
+            current_since = session["current_punch_since"]
+            required = session["required_hours"]
+            shortfall = session["shortfall"]
+            open_in = session["open_in_at"]
+            closed_mins = session["closed_worked_minutes"]
+        else:
+            board_hours = working_hours
+            board_detail = None
+            current_punch = None
+            current_since = None
+            required = None
+            shortfall = None
+            open_in = None
+            closed_mins = 0
         return DailyAttendanceRowOut(
             id=employee.id,
             employee_id=employee.id,
@@ -1412,20 +1462,45 @@ class AttendanceService:
             first_in=first_in,
             last_out=last_out,
             first_in_late=first_in_late,
-            working_hours=session["working_hours"] or working_hours,
-            working_hours_detail=session["working_hours_detail"],
-            current_punch=session["current_punch"],
-            current_punch_since=session["current_punch_since"],
-            required_hours=session["required_hours"],
-            shortfall=session["shortfall"],
-            open_in_at=session["open_in_at"],
-            closed_worked_minutes=session["closed_worked_minutes"],
+            working_hours=board_hours,
+            working_hours_detail=board_detail,
+            current_punch=current_punch,
+            current_punch_since=current_since,
+            required_hours=required,
+            shortfall=shortfall,
+            open_in_at=open_in,
+            closed_worked_minutes=closed_mins,
             status=status,
             remarks=remarks,
             late_arrival_minutes=getattr(self, "_day_variance", (None, None))[0],
             early_exit_minutes=getattr(self, "_day_variance", (None, None))[1],
             punches=[self._punch_out(p) for p in punches] if include_punches else [],
             history=history,
+        )
+
+    def _enrich_row_session(
+        self,
+        row: DailyAttendanceRowOut,
+        *,
+        day: date,
+        shift: ShiftAssignment,
+        punches: list[PunchSource],
+        include_punches: bool,
+    ) -> DailyAttendanceRowOut:
+        """Attach live session board + punches without re-running status evaluation."""
+        session = self._session_board(row.employee_id, day, shift, punches)
+        return row.model_copy(
+            update={
+                "working_hours": session["working_hours"] or row.working_hours,
+                "working_hours_detail": session["working_hours_detail"],
+                "current_punch": session["current_punch"],
+                "current_punch_since": session["current_punch_since"],
+                "required_hours": session["required_hours"],
+                "shortfall": session["shortfall"],
+                "open_in_at": session["open_in_at"],
+                "closed_worked_minutes": session["closed_worked_minutes"],
+                "punches": [self._punch_out(p) for p in punches] if include_punches else [],
+            }
         )
 
     def _org_rules(self) -> dict[str, Any]:
@@ -2471,6 +2546,9 @@ class AttendanceService:
         # Batch month window once (same pattern as muster / history) — avoid per-day N+1.
         start_dt, end_dt = self._attendance_bounds(start, end)
         punches = self._repo.punches_between(start_dt, end_dt, employee_ids={employee.id})
+        # Scope grace + visits to this employee only — never load company-wide punches for ESS.
+        self._grace_punches = (start_dt, end_dt, punches)
+        self._visits_by_day = self._repo.official_visits_between(start, end)
         punches_by_day: dict[date, list[PunchSource]] = defaultdict(list)
         for punch in punches:
             # Defense in depth: ESS month view must never mix another employee's punches into a day.
@@ -2489,71 +2567,77 @@ class AttendanceService:
         items: list[MineAttendanceDayOut] = []
         present = late = absent = on_leave = off_day = holiday = missing = 0
         day = start
-        while day <= end:
-            day_assignments = _assignments_for_day(overlapping, day)
-            shift = resolve_shift(day_assignments.get(employee.id), shifts)
-            day_punches = punches_by_day.get(day, []) + punches_by_day.get(day + timedelta(days=1), [])
-            first_in, last_out, first_in_late, working_hours, status, remarks = self._evaluate(
-                day=day,
-                employee=employee,
-                shift=shift,
-                holidays=holidays_by_day.get(day, []),
-                leave=leaves_by_day.get(day, {}).get(employee.id),
-                punches=day_punches,
-            )
-            status, remarks, resolved = self._apply_resolved(employee.id, day, status, remarks)
-            if status == "Present":
-                first_in_late = False
-            session = self._session_board(employee.id, day, shift, day_punches)
-            # Same KPI rules as Daily: Present only when actually present; open awaiting-punch is not Present.
-            if status == "Present" or (status == "In Progress" and first_in is not None):
-                present += 1
-            elif status == "Late":
-                late += 1
-            elif status == "Absent":
-                absent += 1
-            elif status == "On Leave":
-                on_leave += 1
-            elif status == "Off Day":
-                off_day += 1
-            elif status == "Holiday":
-                holiday += 1
-            elif status == "Missing Punch":
-                missing += 1
-            open_in = session["open_in_at"]
-            current_since = session["current_punch_since"]
-            effective = self._effective_shift(shift)
-            scoped_punches = self._punches_with_approval(employee.id, day, day_punches)
-            scoped_punches = punches_for_shift_day(
-                scoped_punches, day, effective.start_time, effective.end_time
-            )
-            items.append(
-                MineAttendanceDayOut(
-                    date=day,
-                    status=status,
-                    first_in=first_in.strftime("%H:%M") if first_in else None,
-                    last_out=last_out.strftime("%H:%M") if last_out else None,
-                    first_in_late=first_in_late,
-                    working_hours=session["working_hours"] or working_hours,
-                    working_hours_detail=session["working_hours_detail"],
-                    current_punch=session["current_punch"],
-                    current_punch_since=current_since.strftime("%H:%M") if current_since else None,
-                    required_hours=session["required_hours"],
-                    shortfall=session["shortfall"],
-                    open_in_at=open_in.isoformat(timespec="seconds") if open_in else None,
-                    closed_worked_minutes=int(session["closed_worked_minutes"] or 0),
-                    late_arrival_minutes=getattr(self, "_day_variance", (None, None))[0],
-                    early_exit_minutes=getattr(self, "_day_variance", (None, None))[1],
-                    shift=_shift_label(shift),
-                    remarks=_merge_remarks(remarks, reasons.get((employee.id, day))),
-                    resolved=resolved,
-                    punches=[
-                        self._punch_out(p)
-                        for p in sorted(scoped_punches, key=lambda punch: punch.punched_at)
-                    ],
+        try:
+            while day <= end:
+                day_assignments = _assignments_for_day(overlapping, day)
+                shift = resolve_shift(day_assignments.get(employee.id), shifts)
+                day_punches = punches_by_day.get(day, []) + punches_by_day.get(day + timedelta(days=1), [])
+                first_in, last_out, first_in_late, working_hours, status, remarks = self._evaluate(
+                    day=day,
+                    employee=employee,
+                    shift=shift,
+                    holidays=holidays_by_day.get(day, []),
+                    leave=leaves_by_day.get(day, {}).get(employee.id),
+                    punches=day_punches,
                 )
-            )
-            day += timedelta(days=1)
+                status, remarks, resolved = self._apply_resolved(employee.id, day, status, remarks)
+                if status == "Present":
+                    first_in_late = False
+                session = self._session_board(employee.id, day, shift, day_punches)
+                # Same KPI rules as Daily: Present only when actually present; open awaiting-punch is not Present.
+                if status == "Present" or (status == "In Progress" and first_in is not None):
+                    present += 1
+                elif status == "Late":
+                    late += 1
+                elif status == "Absent":
+                    absent += 1
+                elif status == "On Leave":
+                    on_leave += 1
+                elif status == "Off Day":
+                    off_day += 1
+                elif status == "Holiday":
+                    holiday += 1
+                elif status == "Missing Punch":
+                    missing += 1
+                open_in = session["open_in_at"]
+                current_since = session["current_punch_since"]
+                effective = self._effective_shift(shift)
+                scoped_punches = self._punches_with_approval(employee.id, day, day_punches)
+                scoped_punches = punches_for_shift_day(
+                    scoped_punches, day, effective.start_time, effective.end_time
+                )
+                items.append(
+                    MineAttendanceDayOut(
+                        date=day,
+                        status=status,
+                        first_in=first_in.strftime("%H:%M") if first_in else None,
+                        last_out=last_out.strftime("%H:%M") if last_out else None,
+                        first_in_late=first_in_late,
+                        working_hours=session["working_hours"] or working_hours,
+                        working_hours_detail=session["working_hours_detail"],
+                        current_punch=session["current_punch"],
+                        current_punch_since=current_since.strftime("%H:%M") if current_since else None,
+                        required_hours=session["required_hours"],
+                        shortfall=session["shortfall"],
+                        open_in_at=open_in.isoformat(timespec="seconds") if open_in else None,
+                        closed_worked_minutes=int(session["closed_worked_minutes"] or 0),
+                        late_arrival_minutes=getattr(self, "_day_variance", (None, None))[0],
+                        early_exit_minutes=getattr(self, "_day_variance", (None, None))[1],
+                        shift=_shift_label(shift),
+                        remarks=_merge_remarks(remarks, reasons.get((employee.id, day))),
+                        resolved=resolved,
+                        punches=[
+                            self._punch_out(p)
+                            for p in sorted(scoped_punches, key=lambda punch: punch.punched_at)
+                        ],
+                    )
+                )
+                day += timedelta(days=1)
+        finally:
+            self._visits_by_day = None
+            self._grace_punches = None
+            self._grace_month = None
+
         name = " ".join(part for part in (employee.first_name, employee.last_name) if part).strip() or employee.employee_code
         from trishul_api.modules.hr.attendance.finalization_ops import is_month_finalized
 

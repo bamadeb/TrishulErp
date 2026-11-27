@@ -35,7 +35,7 @@ from trishul_api.modules.hr.leave.employee_schemas import (
 from trishul_api.modules.hr.leave.mine_repository import _year_bounds
 
 _ZERO = Decimal("0.0")
-_CODES = ("CL", "EL", "SL", "CO")
+_CODES = ("CL", "AL", "EL", "CO")
 _SORTS = {"code", "name", "department", "designation", "cl", "el", "sl", "co", "taken", "upcoming"}
 
 
@@ -149,8 +149,8 @@ class EmployeeLeaveRepository:
                 designation=designation,
                 location=location,
                 cl=_closing(buckets.get("CL")),
-                el=_closing(buckets.get("EL")),
-                sl=_closing(buckets.get("SL")),
+                el=_closing(buckets.get("AL") or buckets.get("EL")),
+                sl=_ZERO,
                 co=_closing(buckets.get("CO")),
                 taken=_taken(own, start, end, today),
                 upcoming=_next_leave(own, start, end, today),

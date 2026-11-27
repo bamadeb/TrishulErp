@@ -150,6 +150,8 @@ class MineDayCount(InputModel):
     to_date: date
     is_half_day: bool = False
     half_day_part: HalfDayPart | None = None
+    # When editing a pending request, omit that row from conflict checks.
+    exclude_request_id: int | None = Field(default=None, gt=0)
 
 
 class MineDayCountResult(ApiModel):

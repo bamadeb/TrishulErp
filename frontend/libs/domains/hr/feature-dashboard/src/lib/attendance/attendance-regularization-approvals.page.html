@@ -50,6 +50,11 @@
 
 <section class="workspace" [class.loading]="loading()">
   <aside class="list">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
     <div class="filters" role="tablist">
       <button type="button" [class.on]="statusFilter() === 'pending'" (click)="setFilter('pending')">Pending ({{ kpi().pending }})</button>
       <button type="button" [class.on]="statusFilter() === 'approved'" (click)="setFilter('approved')">Approved ({{ kpi().approved }})</button>

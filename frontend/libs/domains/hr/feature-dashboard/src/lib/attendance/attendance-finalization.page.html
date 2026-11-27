@@ -79,6 +79,11 @@
 
 <div class="layout">
   <section class="card main">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
     <div class="tabs" role="tablist" aria-label="Finalization views">
       <button
         type="button"

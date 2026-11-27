@@ -90,6 +90,11 @@
 </section>
 
 <section class="card">
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
   <div class="tabs" role="tablist" aria-label="Exception views">
     <button
       type="button"

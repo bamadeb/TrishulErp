@@ -24,11 +24,17 @@
 .summary article.warn { background: var(--trishul-warn-container); }
 
 .card {
+  overflow: hidden;
   margin-bottom: 0.75rem;
   padding: 0.9rem 1rem;
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 12px;
   background: var(--mat-sys-surface);
+}
+
+.progress {
+  height: 4px;
+  margin: -0.9rem -1rem 0.9rem;
 }
 
 .filters {

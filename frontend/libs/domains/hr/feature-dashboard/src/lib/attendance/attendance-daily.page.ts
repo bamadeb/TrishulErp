@@ -22,6 +22,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -95,7 +96,8 @@ const EMPTY_KPI: AttendanceKpi = {
   wfh: 0,
 };
 
-const DAY_PAGE_SIZE = 200;
+/** One round-trip for ~800 employees (API daily pageSize max = 1000). */
+const DAY_PAGE_SIZE = 1000;
 
 /** Daily Attendance — wired to GET /hr/attendance/daily (UI structure unchanged). */
 @Component({
@@ -120,6 +122,7 @@ const DAY_PAGE_SIZE = 200;
     MatOption,
     MatPaginator,
     MatPrefix,
+    MatProgressBar,
     MatSelect,
     MatTooltip,
     PageHeader,
@@ -203,11 +206,26 @@ export class AttendanceDailyPage implements OnInit {
 
   protected readonly filteredRows = computed(() => {
     const tab = this.contentTab();
+    const q = this.search().trim().toLowerCase();
+    const department = this.department();
+    const location = this.location();
+    const shift = this.shift();
     return this.dayRows().filter((row) => {
       if (tab === 'exceptions') {
-        return row.status === 'Late' || row.status === 'Absent' || row.status === 'Missing Punch';
+        if (row.status !== 'Late' && row.status !== 'Absent' && row.status !== 'Missing Punch') {
+          return false;
+        }
       }
-      return true;
+      if (department && row.department !== department) return false;
+      if (location && row.location !== location) return false;
+      if (shift) {
+        const name = (row.shift ?? '').split('(')[0]?.trim() ?? '';
+        if (name !== shift && row.shift !== shift) return false;
+      }
+      if (!q) return true;
+      return `${row.employeeCode} ${row.employeeName} ${row.department} ${row.location} ${row.shift}`
+        .toLowerCase()
+        .includes(q);
     });
   });
 
@@ -331,7 +349,8 @@ export class AttendanceDailyPage implements OnInit {
       .subscribe((value) => {
         this.search.set(value);
         this.page.set(0);
-        if (this.contentTab() !== 'punches') this.reload$.next();
+        // Records/exceptions filter client-side from dayRows — no API reload.
+        // Punch Logs keep server/client hybrid via filteredPunches.
       });
 
     this.reload$.next();
@@ -372,7 +391,7 @@ export class AttendanceDailyPage implements OnInit {
     this.selectedIds.set(new Set());
     this.selected.set(null);
     this.reload$.next();
-    this.loadPunches();
+    if (this.contentTab() === 'punches') this.loadPunches();
   }
 
   protected openPicker(): void {
@@ -423,19 +442,16 @@ export class AttendanceDailyPage implements OnInit {
   protected onDepartment(value: string): void {
     this.department.set(value);
     this.page.set(0);
-    if (this.contentTab() !== 'punches') this.reload$.next();
   }
 
   protected onLocation(value: string): void {
     this.location.set(value);
     this.page.set(0);
-    if (this.contentTab() !== 'punches') this.reload$.next();
   }
 
   protected onShift(value: string): void {
     this.shift.set(value);
     this.page.set(0);
-    this.reload$.next();
   }
 
   protected onPage(event: PageEvent): void {
@@ -752,7 +768,8 @@ export class AttendanceDailyPage implements OnInit {
     this.selectedIds.set(new Set());
     this.selected.set(null);
     this.reload$.next();
-    this.loadPunches();
+    if (this.contentTab() === 'punches') this.loadPunches();
+    else this.punchRows.set([]);
   }
 
   private rangeSpanDays(): number {
@@ -817,29 +834,32 @@ export class AttendanceDailyPage implements OnInit {
       }),
     );
 
-    return forkJoin({
-      daily: forkJoin(days.map((day) => this.fetchDaily(toIsoDate(day)))),
-      regs: regs$,
-    }).pipe(
-      tap(({ daily, regs }) => {
-        this.applyPages(daily);
-        const allowed = new Set(days.map((day) => toIsoDate(day)));
-        this.dayRegularizations.set(
-          regs.items.filter((row) => allowed.has(row.attendanceDate.slice(0, 10))),
-        );
-        this.regularization.set(
-          regs.items.map((row) => ({
-            id: row.id,
-            employeeCode: row.employeeCode,
-            employeeName: row.employeeName,
-            date: formatDisplayDate(row.attendanceDate),
-            requestType: row.requestType,
-            reason: row.reason,
-            status: row.status,
-            avatarTone: avatarTone(row.employeeId || row.id),
-          })),
-        );
-      }),
+    // Progressive rows as daily arrives; progress bar stays until regs also finish.
+    return forkJoin(days.map((day) => this.fetchDaily(toIsoDate(day)))).pipe(
+      tap((daily) => this.applyPages(daily)),
+      switchMap((daily) =>
+        regs$.pipe(
+          tap((regs) => {
+            const allowed = new Set(days.map((day) => toIsoDate(day)));
+            this.dayRegularizations.set(
+              regs.items.filter((row) => allowed.has(row.attendanceDate.slice(0, 10))),
+            );
+            this.regularization.set(
+              regs.items.map((row) => ({
+                id: row.id,
+                employeeCode: row.employeeCode,
+                employeeName: row.employeeName,
+                date: formatDisplayDate(row.attendanceDate),
+                requestType: row.requestType,
+                reason: row.reason,
+                status: row.status,
+                avatarTone: avatarTone(row.employeeId || row.id),
+              })),
+            );
+          }),
+          map(() => daily),
+        ),
+      ),
       catchError((err: unknown) => {
         const message =
           err instanceof HttpErrorResponse
@@ -858,16 +878,13 @@ export class AttendanceDailyPage implements OnInit {
   }
 
   private fetchDaily(date: string) {
+    // Load the full day once (filters applied client-side). Avoids N× recompute on search/filter.
     const base = {
       date,
       pageSize: DAY_PAGE_SIZE,
       statusTab: 'all' as const,
       includePunches: true,
       includeHistory: false,
-      search: this.search() || undefined,
-      department: this.department() || undefined,
-      location: this.location() || undefined,
-      shift: this.shift() || undefined,
     };
     return this.api.listDaily({ ...base, page: 1 }).pipe(
       switchMap((first) => {

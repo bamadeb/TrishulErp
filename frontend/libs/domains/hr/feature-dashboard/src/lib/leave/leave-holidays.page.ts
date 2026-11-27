@@ -8,6 +8,7 @@ import { MatFormField, MatLabel, MatPrefix, MatSuffix } from '@angular/material/
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatDrawer, MatDrawerContainer, MatDrawerContent } from '@angular/material/sidenav';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -107,7 +108,7 @@ class HolidayImportDialog {
   selector: 'trishul-leave-holidays-page',
   imports: [
     FormsModule, MatButton, MatDatepicker, MatDatepickerInput, MatDatepickerToggle, MatDrawer, MatDrawerContainer,
-    MatDrawerContent, MatFormField, MatIcon, MatIconButton, MatInput, MatLabel, MatOption, MatPrefix, MatSelect,
+    MatDrawerContent, MatFormField, MatIcon, MatIconButton, MatInput, MatLabel, MatOption, MatPrefix, MatProgressBar, MatSelect,
     MatSlideToggle, MatSuffix, PageHeader, RouterLink, StatusBadge,
   ],
   providers: [provideNativeDateAdapter()],
@@ -147,6 +148,7 @@ export class LeaveHolidaysPage {
   protected readonly monthHolidays = signal<HolidayItem[]>([]);
   protected readonly summary = signal<HolidaySummary>({ total: 0, upcoming: 0, national: 0, festival: 0, regional: 0, optional: 0 });
   protected readonly loadError = signal('');
+  protected readonly loading = signal(true);
   protected readonly drawerMode = signal<DrawerMode | null>(null);
   protected readonly draft = signal<Draft>(emptyDraft());
   protected readonly formError = signal('');
@@ -437,6 +439,7 @@ export class LeaveHolidaysPage {
     const token = ++this.loadToken;
     const bounds = gridBounds(this.cursor());
     const query = this.query();
+    this.loading.set(true);
     forkJoin({
       summary: this.api.holidaySummary(query),
       page: this.api.holidays({
@@ -454,9 +457,12 @@ export class LeaveHolidaysPage {
         this.total.set(result.page.total);
         this.monthHolidays.set(result.calendar);
         this.loadError.set('');
+        this.loading.set(false);
       },
       error: (error: unknown) => {
-        if (token === this.loadToken) this.loadError.set(problem(error));
+        if (token !== this.loadToken) return;
+        this.loadError.set(problem(error));
+        this.loading.set(false);
       },
     });
   }

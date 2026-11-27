@@ -9,9 +9,12 @@ import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
+import { forkJoin, of } from 'rxjs';
+import { catchError, finalize } from 'rxjs/operators';
 import { AuthStore } from '@trishul/core-auth';
 import { LeaveApi, MineBalance, MineCompOff, MineHoliday, MineRequestItem } from '@trishul/hr-data-access';
 import { PageHeader, StatusBadge, StatusSeverity } from '@trishul/shared-ui';
@@ -40,6 +43,7 @@ type Kpi = '' | 'balance' | 'approved' | 'pending' | 'rejected' | 'upcoming';
     MatMenuItem,
     MatMenuTrigger,
     MatOption,
+    MatProgressBar,
     MatSelect,
     MatTab,
     MatTabGroup,
@@ -84,6 +88,7 @@ export class LeaveMinePage {
   protected readonly calendar = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   protected readonly showAllHolidays = signal(false);
   protected readonly error = signal('');
+  protected readonly loading = signal(true);
   protected readonly balances = signal<BalanceCard[]>([]);
   protected readonly leaveTypes = signal<string[]>([]);
   protected readonly leaveChoices = signal<LeaveTypeChoice[]>([]);
@@ -264,6 +269,7 @@ export class LeaveMinePage {
           request,
           leaveTypes: this.leaveChoices(),
           canAuthorizeBackdate: this.auth.hasPermission('hr.leave.manage'),
+          financialYear: this.year(),
         },
         width: '680px',
         maxWidth: 'calc(100vw - 32px)',
@@ -312,55 +318,64 @@ export class LeaveMinePage {
 
   private reload(): void {
     const year = this.year();
-    this.leaveApi.mineProfile().subscribe({
-      next: (profile) => {
-        const linked = this.auth.user()?.employeeId ?? null;
-        if (linked != null && profile.employeeId !== linked) {
+    this.loading.set(true);
+    this.error.set('');
+    forkJoin({
+      profile: this.leaveApi.mineProfile().pipe(catchError(() => of(null))),
+      balances: this.leaveApi.mineBalances(year).pipe(catchError((error: unknown) => {
+        this.error.set(problemDetail(error, 'Leave balances could not be loaded.'));
+        return of(null);
+      })),
+      requests: this.leaveApi.mineRequests(year).pipe(catchError((error: unknown) => {
+        this.error.set(problemDetail(error, 'Leave requests could not be loaded.'));
+        return of(null);
+      })),
+      holidays: this.leaveApi.mineHolidays(year).pipe(catchError((error: unknown) => {
+        this.error.set(problemDetail(error, 'Holidays could not be loaded.'));
+        return of(null);
+      })),
+      compOff: this.leaveApi.mineCompOff(year).pipe(catchError((error: unknown) => {
+        this.error.set(problemDetail(error, 'Comp-Off could not be loaded.'));
+        return of(null);
+      })),
+    }).pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: ({ profile, balances, requests, holidays, compOff }) => {
+        if (profile) {
+          const linked = this.auth.user()?.employeeId ?? null;
+          if (linked != null && profile.employeeId !== linked) {
+            this.employeeName.set('');
+            this.employeeCode.set('');
+            this.employeeId.set(null);
+            this.error.set('Leave could not be scoped to your employee profile.');
+          } else {
+            this.employeeId.set(profile.employeeId);
+            this.employeeCode.set(profile.employeeCode);
+            this.employeeName.set(profile.employeeName);
+          }
+        } else {
           this.employeeName.set('');
           this.employeeCode.set('');
           this.employeeId.set(null);
-          this.error.set('Leave could not be scoped to your employee profile.');
-          return;
         }
-        this.employeeId.set(profile.employeeId);
-        this.employeeCode.set(profile.employeeCode);
-        this.employeeName.set(profile.employeeName);
+        if (balances) {
+          this.balances.set(balances.items.map(mapBalance));
+          this.leaveTypes.set(balances.items.map((item) => `${item.name} (${item.code})`));
+          this.leaveChoices.set(balances.items.map((item) => ({
+            id: item.leaveTypeId,
+            label: `${item.name} (${item.code})`,
+            maxBackdateDays: item.maxBackdateDays ?? null,
+            backdateRequiresAuthorization: item.backdateRequiresAuthorization ?? false,
+          })));
+        }
+        if (requests) {
+          const rows = requests.items.map(mapRequest);
+          this.requests.set(rows);
+          const open = this.detail();
+          if (open) this.detail.set(rows.find((row) => row.requestId === open.requestId) ?? null);
+        }
+        if (holidays) this.holidays.set(holidays.map(mapHoliday));
+        if (compOff) this.compOff.set(mapCompOff(compOff));
       },
-      error: () => {
-        this.employeeName.set('');
-        this.employeeCode.set('');
-        this.employeeId.set(null);
-      },
-    });
-    this.leaveApi.mineBalances(year).subscribe({
-      next: (board) => {
-        this.balances.set(board.items.map(mapBalance));
-        this.leaveTypes.set(board.items.map((item) => `${item.name} (${item.code})`));
-        this.leaveChoices.set(board.items.map((item) => ({
-          id: item.leaveTypeId,
-          label: `${item.name} (${item.code})`,
-          maxBackdateDays: item.maxBackdateDays ?? null,
-          backdateRequiresAuthorization: item.backdateRequiresAuthorization ?? false,
-        })));
-      },
-      error: (error: unknown) => this.error.set(problemDetail(error, 'Leave balances could not be loaded.')),
-    });
-    this.leaveApi.mineRequests(year).subscribe({
-      next: (page) => {
-        const rows = page.items.map(mapRequest);
-        this.requests.set(rows);
-        const open = this.detail();
-        if (open) this.detail.set(rows.find((row) => row.requestId === open.requestId) ?? null);
-      },
-      error: (error: unknown) => this.error.set(problemDetail(error, 'Leave requests could not be loaded.')),
-    });
-    this.leaveApi.mineHolidays(year).subscribe({
-      next: (rows) => this.holidays.set(rows.map(mapHoliday)),
-      error: (error: unknown) => this.error.set(problemDetail(error, 'Holidays could not be loaded.')),
-    });
-    this.leaveApi.mineCompOff(year).subscribe({
-      next: (row) => this.compOff.set(mapCompOff(row)),
-      error: (error: unknown) => this.error.set(problemDetail(error, 'Comp-Off could not be loaded.')),
     });
   }
 }
@@ -384,7 +399,7 @@ interface CompOffView {
   lines: { earnedOn: string; days: number; note: string; expires: string; status: string }[];
 }
 
-const TONES: Record<string, string> = { CL: 'info', EL: 'success', SL: 'warn', CO: 'tertiary' };
+const TONES: Record<string, string> = { CL: 'info', AL: 'success', EL: 'success', CO: 'tertiary', SL: 'warn' };
 
 function mapBalance(row: MineBalance): BalanceCard {
   return {

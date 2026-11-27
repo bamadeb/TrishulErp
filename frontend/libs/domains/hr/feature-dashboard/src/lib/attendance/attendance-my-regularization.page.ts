@@ -12,10 +12,11 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AttendanceApi, RegularizationRow, RegularizationStatus } from '@trishul/hr-data-access';
 import { PageHeader } from '@trishul/shared-ui';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, finalize, forkJoin, of } from 'rxjs';
 import { AttendanceRegularizeDrawer } from './attendance-regularize-drawer';
 
 type Tab = 'all' | 'pending' | 'approved' | 'rejected';
@@ -23,7 +24,7 @@ type Tab = 'all' | 'pending' | 'approved' | 'rejected';
 /** The signed-in employee's own regularization requests and the request-details view. */
 @Component({
   selector: 'trishul-attendance-my-regularization-page',
-  imports: [DatePipe, MatButton, MatIcon, MatIconButton, PageHeader, AttendanceRegularizeDrawer],
+  imports: [DatePipe, MatButton, MatIcon, MatIconButton, MatProgressBar, PageHeader, AttendanceRegularizeDrawer],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './attendance-my-regularization.page.html',
   styleUrl: './attendance-my-regularization.page.scss',
@@ -33,7 +34,7 @@ export class AttendanceMyRegularizationPage implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly loading = signal(false);
+  protected readonly loading = signal(true);
   protected readonly rows = signal<RegularizationRow[]>([]);
   protected readonly tab = signal<Tab>('all');
   protected readonly selectedId = signal<number | null>(null);
@@ -82,9 +83,11 @@ export class AttendanceMyRegularizationPage implements OnInit {
         ),
       mine: this.api.mine(today.getFullYear(), today.getMonth() + 1).pipe(catchError(() => of(null))),
     })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        finalize(() => this.loading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(({ page, mine }) => {
-        this.loading.set(false);
         const selfId = mine?.employeeId ?? null;
         this.selfEmployeeId.set(selfId);
         const items = page?.items ?? [];

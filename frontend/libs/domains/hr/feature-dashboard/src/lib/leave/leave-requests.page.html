@@ -124,6 +124,11 @@
     </section>
 
     <section class="card">
+      <div class="progress">
+        @if (loading()) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+      </div>
       <div class="tabs" role="tablist">
         <button type="button" role="tab" [class.active]="tab() === 'Pending'" (click)="setTab('Pending')">
           <mat-icon>schedule</mat-icon> Pending ({{ counts().pending }})

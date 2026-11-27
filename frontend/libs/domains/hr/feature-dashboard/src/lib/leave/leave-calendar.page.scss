@@ -27,7 +27,8 @@
 .kpi.rejected .mat-icon { color: #c62828; background: #fdecec; }
 .kpi.upcoming { background: #f7f4ff; }
 .kpi.upcoming .mat-icon { color: #6b21a8; background: #f0e7ff; }
-.card { background: #fff; border: 1px solid #e3ebf6; border-radius: 14px; box-shadow: 0 1px 2px rgb(15 40 80 / 4%); }
+.card { overflow: hidden; background: #fff; border: 1px solid #e3ebf6; border-radius: 14px; box-shadow: 0 1px 2px rgb(15 40 80 / 4%); }
+.progress { height: 4px; }
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem; padding: 0.75rem 0.85rem; }
 .filters mat-form-field:not(.search) { flex: 1 1 9.5rem; width: auto; min-width: 9.5rem; max-width: 13rem; }
 .filters .search { flex: 1 1 16rem; width: auto; min-width: min(100%, 14rem); }

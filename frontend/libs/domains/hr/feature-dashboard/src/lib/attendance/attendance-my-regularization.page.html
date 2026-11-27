@@ -110,33 +110,40 @@
     <button type="button" [class.on]="tab() === 'rejected'" (click)="tab.set('rejected')">Rejected {{ counts().rejected }}</button>
   </div>
 
-  <section class="card">
-    <table>
-      <thead>
-        <tr>
-          <th>Request</th>
-          <th>Date</th>
-          <th>Type</th>
-          <th>Status</th>
-          <th>Submitted</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (row of filtered(); track row.id) {
-          <tr class="request-row" (click)="open(row)">
-            <td>#{{ requestId(row) }}</td>
-            <td>{{ row.attendanceDate | date: 'dd MMM y' }}</td>
-            <td>{{ requestLabel(row) }}</td>
-            <td><span class="tag" [class.warn]="row.status === 'Pending'" [class.ok]="row.status === 'Approved'" [class.bad]="row.status === 'Rejected'">{{ statusText(row.status) }}</span></td>
-            <td>{{ row.submittedOn | date: 'dd MMM y, hh:mm a' }}</td>
-            <td><button mat-icon-button type="button" aria-label="View request" (click)="open(row)"><mat-icon>visibility</mat-icon></button></td>
+  <section class="card table-card">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Request</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Submitted</th>
+            <th></th>
           </tr>
-        } @empty {
-          <tr><td colspan="6">{{ loading() ? 'Loading…' : 'You have no regularization requests in this year.' }}</td></tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @for (row of filtered(); track row.id) {
+            <tr class="request-row" (click)="open(row)">
+              <td>#{{ requestId(row) }}</td>
+              <td>{{ row.attendanceDate | date: 'dd MMM y' }}</td>
+              <td>{{ requestLabel(row) }}</td>
+              <td><span class="tag" [class.warn]="row.status === 'Pending'" [class.ok]="row.status === 'Approved'" [class.bad]="row.status === 'Rejected'">{{ statusText(row.status) }}</span></td>
+              <td>{{ row.submittedOn | date: 'dd MMM y, hh:mm a' }}</td>
+              <td><button mat-icon-button type="button" aria-label="View request" (click)="open(row)"><mat-icon>visibility</mat-icon></button></td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6">{{ loading() ? 'Loading…' : 'You have no regularization requests in this year.' }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
   </section>
 }
 @for (key of drawerKeys(); track key) {

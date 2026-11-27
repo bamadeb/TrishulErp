@@ -35,6 +35,7 @@ TABLES = [
     "hr.leave_policy_line",
     "hr.leave_policy_assignment",
     "hr.leave_balance",
+    "hr.leave_balance_transaction",
     "hr.leave_request",
     "hr.employment_history",
     "hr.employee_shift",
@@ -68,13 +69,20 @@ def db() -> Engine:
         accrual_frequency="None", is_active=True,
     )
     insert_row(
-        engine, "core.employee", id=10, company_id=1, employee_code="EMP0010", first_name="Asha", last_name="Das",
+        engine, "core.employee", id=12, company_id=1, employee_code="EMP0012", first_name="Mina", last_name="Rao",
         branch_id=1, department_id=1, designation_id=1, employee_type="Permanent", status="Active", is_active=True,
-        date_of_joining=date(2019, 4, 15),
+    )
+    insert_row(
+        engine, "core.employee", id=10, company_id=1, employee_code="EMP0010", first_name="Asha", last_name="Das",
+        branch_id=1, department_id=1, designation_id=1, reporting_manager_id=12, employee_type="Permanent",
+        status="Active", is_active=True, date_of_joining=date(2019, 4, 15),
     )
     insert_row(
         engine, "core.employee", id=11, company_id=1, employee_code="EMP0011", first_name="Bikash", last_name="Naik",
         branch_id=1, department_id=1, employee_type="Permanent", status="Active", is_active=True,
+    )
+    insert_row(
+        engine, "core.app_user", id=12, username="mina", email="mina@example.com", employee_id=12, is_active=True,
     )
     insert_row(
         engine, "hr.leave_balance", employee_id=10, leave_type_id=1, leave_year=year,
@@ -109,11 +117,6 @@ def test_profile_balances_and_apply_do_not_deduct_pending(settings: Settings, db
         assert Decimal(casual["pending"]) == Decimal("0")
         assert casual["expired"] is None
 
-        created = client.post(f"{ROOT}/requests", json=_leave(1, monday, "Personal work"))
-        assert created.status_code == 201, created.text
-        body = created.json()
-        assert body["status"] == "Pending"
-        assert Decimal(body["days"]) == Decimal("1.0")
         counted = client.post(
             f"{ROOT}/day-count",
             json={"leaveTypeId": 1, "fromDate": monday.isoformat(), "toDate": monday.isoformat(), "isHalfDay": False},
@@ -132,6 +135,12 @@ def test_profile_balances_and_apply_do_not_deduct_pending(settings: Settings, db
         )
         assert half.status_code == 200, half.text
         assert Decimal(half.json()["days"]) == Decimal("0.5")
+
+        created = client.post(f"{ROOT}/requests", json=_leave(1, monday, "Personal work"))
+        assert created.status_code == 201, created.text
+        body = created.json()
+        assert body["status"] == "Pending"
+        assert Decimal(body["days"]) == Decimal("1.0")
         assert body["displayId"] == f"LV-{body['requestId']:04d}"
         request_id = body["requestId"]
 
@@ -142,13 +151,21 @@ def test_profile_balances_and_apply_do_not_deduct_pending(settings: Settings, db
 
         duplicate = client.post(f"{ROOT}/requests", json=_leave(1, monday, "Again"))
         assert duplicate.status_code == 400
-        assert duplicate.json()["detail"] == "Duplicate submission."
+        assert "Duplicate submission" in duplicate.json()["detail"]
 
         overlap = client.post(
             f"{ROOT}/requests", json=_leave(1, monday, "Overlap", to_date=monday + timedelta(days=1))
         )
         assert overlap.status_code == 400
-        assert overlap.json()["detail"] == "Overlapping leave."
+        assert "Overlapping leave" in overlap.json()["detail"]
+
+        preview_conflict = client.post(
+            f"{ROOT}/day-count",
+            json={"leaveTypeId": 1, "fromDate": monday.isoformat(), "toDate": monday.isoformat(), "isHalfDay": False},
+        )
+        assert preview_conflict.status_code == 400
+        detail = preview_conflict.json()["detail"]
+        assert "Duplicate submission" in detail or "Overlapping leave" in detail
 
         sunday = monday - timedelta(days=1)
         weekend = client.post(f"{ROOT}/requests", json=_leave(1, sunday, "Sunday"))

@@ -56,10 +56,15 @@
 .kpi.total .mat-icon { color: #0754b8; background: #eaf2ff; }
 
 .card {
+  overflow: hidden;
   background: #fff;
   border: 1px solid #e3ebf6;
   border-radius: 14px;
   box-shadow: 0 1px 2px rgb(15 40 80 / 4%);
+}
+
+.progress {
+  height: 4px;
 }
 
 .tabs {

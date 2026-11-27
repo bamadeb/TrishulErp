@@ -151,6 +151,11 @@
     </section>
 
     <section class="card">
+      <div class="progress">
+        @if (loading()) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+      </div>
       <div class="filters">
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Department</mat-label>
@@ -217,8 +222,7 @@
               <th><button type="button" (click)="sortBy('department')">Department</button></th>
               <th><button type="button" (click)="sortBy('designation')">Designation</button></th>
               <th class="num"><button type="button" (click)="sortBy('cl')">CL</button></th>
-              <th class="num"><button type="button" (click)="sortBy('el')">EL</button></th>
-              <th class="num"><button type="button" (click)="sortBy('sl')">SL</button></th>
+              <th class="num"><button type="button" (click)="sortBy('el')">AL</button></th>
               <th class="num"><button type="button" (click)="sortBy('co')">CO</button></th>
               <th class="num"><button type="button" (click)="sortBy('taken')">Taken (YTD)</button></th>
               <th><button type="button" (click)="sortBy('upcoming')">Upcoming Leave</button></th>
@@ -226,11 +230,9 @@
             </tr>
           </thead>
           <tbody>
-            @if (loading()) {
-              <tr class="empty"><td colspan="11">Loading employee leaves…</td></tr>
-            } @else if (!pageRows().length) {
-              <tr class="empty"><td colspan="11">No employees match these filters.</td></tr>
-            } @else {
+            @if (!loading() && !pageRows().length) {
+              <tr class="empty"><td colspan="10">No employees match these filters.</td></tr>
+            } @else if (!loading()) {
               @for (row of pageRows(); track row.employeeId) {
                 <tr [class.picked]="isSelected(row.employeeId)" (click)="view(row)">
                   <td class="check" (click)="$event.stopPropagation()">
@@ -246,7 +248,6 @@
                   <td>{{ row.designation }}</td>
                   <td class="num"><span class="bal cl">{{ row.cl }}</span></td>
                   <td class="num"><span class="bal el">{{ row.el }}</span></td>
-                  <td class="num"><span class="bal sl">{{ row.sl }}</span></td>
                   <td class="num"><span class="bal co">{{ row.co }}</span></td>
                   <td class="num taken">{{ row.taken }}</td>
                   <td class="next">

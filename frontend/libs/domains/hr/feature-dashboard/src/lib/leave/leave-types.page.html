@@ -23,6 +23,11 @@
     </div>
   </form>
   <section class="card">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
     <table>
       <thead>
         <tr><th>Code</th><th>Name</th><th>Paid</th><th>Quota</th><th>Half day</th><th>Status</th><th></th></tr>

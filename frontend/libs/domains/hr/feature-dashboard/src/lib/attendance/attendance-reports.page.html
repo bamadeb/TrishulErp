@@ -31,28 +31,32 @@
   </div>
 </trishul-page-header>
 
-@if (loading()) {
-  <div class="state">Loading report summary…</div>
-} @else if (error()) {
+@if (error()) {
   <div class="state error">{{ error() }}</div>
-} @else if (summary(); as s) {
-  <section class="kpis" aria-label="Report KPIs">
-    <article class="kpi"><span>Employees</span><strong>{{ s.totalEmployees | number }}</strong></article>
-    <article class="kpi"><span>Present days</span><strong>{{ s.present | number }}</strong></article>
-    <article class="kpi"><span>Late days</span><strong>{{ s.late | number }}</strong></article>
-    <article class="kpi"><span>Absent days</span><strong>{{ s.absent | number }}</strong></article>
-    <article class="kpi"><span>Leave days</span><strong>{{ s.onLeave | number }}</strong></article>
-    <article class="kpi"><span>Pending exceptions</span><strong>{{ s.pendingExceptions | number }}</strong></article>
-    <article class="kpi"><span>Pending regs</span><strong>{{ s.pendingRegularizations | number }}</strong></article>
-    <article class="kpi" [class.locked]="s.isMonthFinalized">
-      <span>Payroll lock</span>
-      <strong>{{ s.isMonthFinalized ? 'Locked' : 'Open' }}</strong>
-    </article>
-  </section>
+}
 
-  <div class="library-layout">
-    <section class="card library">
-      <header class="library-head">
+<section class="kpis" aria-label="Report KPIs">
+  <article class="kpi"><span>Employees</span><strong>{{ (summary()?.totalEmployees ?? 0) | number }}</strong></article>
+  <article class="kpi"><span>Present days</span><strong>{{ (summary()?.present ?? 0) | number }}</strong></article>
+  <article class="kpi"><span>Late days</span><strong>{{ (summary()?.late ?? 0) | number }}</strong></article>
+  <article class="kpi"><span>Absent days</span><strong>{{ (summary()?.absent ?? 0) | number }}</strong></article>
+  <article class="kpi"><span>Leave days</span><strong>{{ (summary()?.onLeave ?? 0) | number }}</strong></article>
+  <article class="kpi"><span>Pending exceptions</span><strong>{{ (summary()?.pendingExceptions ?? 0) | number }}</strong></article>
+  <article class="kpi"><span>Pending regs</span><strong>{{ (summary()?.pendingRegularizations ?? 0) | number }}</strong></article>
+  <article class="kpi" [class.locked]="summary()?.isMonthFinalized">
+    <span>Payroll lock</span>
+    <strong>{{ summary()?.isMonthFinalized ? 'Locked' : 'Open' }}</strong>
+  </article>
+</section>
+
+<div class="library-layout">
+  <section class="card library">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+    <header class="library-head">
         <div class="library-title">
           <span class="lib-mark"><mat-icon>grid_view</mat-icon></span>
           <h2>Report Library</h2>
@@ -171,6 +175,7 @@
     </aside>
   </div>
 
+@if (summary(); as s) {
   <section class="month-bar">
     <span class="info"><mat-icon>info</mat-icon></span>
     <div>

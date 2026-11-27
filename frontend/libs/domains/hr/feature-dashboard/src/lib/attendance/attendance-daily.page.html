@@ -82,6 +82,11 @@
     </section>
 
     <section class="card">
+      <div class="progress">
+        @if (loading() || (contentTab() === 'punches' && punchLoading())) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+      </div>
       <div class="tabs" role="tablist" aria-label="Attendance views">
         <button
           type="button"

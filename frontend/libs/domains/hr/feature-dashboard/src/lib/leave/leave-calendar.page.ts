@@ -6,6 +6,7 @@ import { MatFormField, MatLabel, MatPrefix } from '@angular/material/form-field'
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatDrawer, MatDrawerContainer, MatDrawerContent } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
@@ -51,7 +52,7 @@ interface CalendarCell {
   selector: 'trishul-leave-calendar-page',
   imports: [
     DecimalPipe, FormsModule, MatButton, MatDrawer, MatDrawerContainer, MatDrawerContent, MatFormField, MatIcon,
-    MatIconButton, MatInput, MatLabel, MatOption, MatPrefix, MatSelect, PageHeader, RouterLink, StatusBadge,
+    MatIconButton, MatInput, MatLabel, MatOption, MatPrefix, MatProgressBar, MatSelect, PageHeader, RouterLink, StatusBadge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './leave-calendar.page.html',
@@ -72,8 +73,7 @@ export class LeaveCalendarPage {
   ];
   protected readonly legend = [
     { tone: 'cl', label: 'Casual Leave' },
-    { tone: 'el', label: 'Earned Leave' },
-    { tone: 'sl', label: 'Sick Leave' },
+    { tone: 'el', label: 'Annual Leave' },
     { tone: 'co', label: 'Comp-Off' },
     { tone: 'pending', label: 'Pending' },
     { tone: 'holiday', label: 'Holiday' },
@@ -97,6 +97,7 @@ export class LeaveCalendarPage {
   protected readonly locations = signal<EmployeeLeaveOption[]>([]);
   protected readonly leaveTypes = signal<LeaveCalendarTypeOption[]>([]);
   protected readonly error = signal('');
+  protected readonly loading = signal(true);
 
   protected readonly monthKey = computed(() => monthId(this.cursor()));
   protected readonly months = computed(() => Array.from({ length: 13 }, (_, index) => {
@@ -256,6 +257,7 @@ export class LeaveCalendarPage {
   private reload(): void {
     const token = ++this.loadToken;
     const cursor = this.cursor();
+    this.loading.set(true);
     this.api.leaveCalendar({
       year: cursor.getFullYear(),
       month: cursor.getMonth() + 1,
@@ -269,10 +271,12 @@ export class LeaveCalendarPage {
         if (token !== this.loadToken) return;
         this.apply(board);
         this.error.set('');
+        this.loading.set(false);
       },
       error: (error: unknown) => {
         if (token !== this.loadToken) return;
         this.error.set(problemDetail(error, 'The leave calendar could not be loaded.'));
+        this.loading.set(false);
       },
     });
   }

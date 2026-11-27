@@ -42,6 +42,11 @@
   <button mat-button type="button" (click)="exportCsv()">Export</button>
 </section>
 <section class="card">
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
   <div class="table-wrap">
     <table>
       <colgroup>
@@ -61,14 +66,12 @@
           <th rowspan="2"><button type="button" (click)="toggleSort('employeeName')">Employee Name</button></th>
           <th rowspan="2"><button type="button" (click)="toggleSort('department')">Department</button></th>
           <th rowspan="2" class="group-end">Designation</th>
-          <th colspan="4" class="group-end">Earned Leave (EL)</th>
-          <th colspan="4" class="group-end">Sick Leave (SL)</th>
+          <th colspan="4" class="group-end">Annual Leave (AL)</th>
           <th colspan="4" class="group-end">Casual Leave (CL)</th>
-          <th rowspan="2">Company Comp-Off</th>
+          <th rowspan="2">Compensatory Off</th>
           <th rowspan="2" class="actions">Actions</th>
         </tr>
         <tr>
-          <th>Op.</th><th>Cred.</th><th>Used</th><th class="group-end">Bal.</th>
           <th>Op.</th><th>Cred.</th><th>Used</th><th class="group-end">Bal.</th>
           <th>Op.</th><th>Cred.</th><th>Used</th><th class="group-end">Bal.</th>
         </tr>
@@ -83,8 +86,6 @@
             <td class="group-end">{{ row.designation || '—' }}</td>
             <td>{{ row.el.opening }}</td><td>{{ row.el.credited }}</td><td>{{ row.el.used }}</td>
             <td class="group-end"><span [class]="'bal ' + tone(row.el.balance)">{{ row.el.balance }}</span></td>
-            <td>{{ row.sl.opening }}</td><td>{{ row.sl.credited }}</td><td>{{ row.sl.used }}</td>
-            <td class="group-end"><span [class]="'bal ' + tone(row.sl.balance)">{{ row.sl.balance }}</span></td>
             <td>{{ row.cl.opening }}</td><td>{{ row.cl.credited }}</td><td>{{ row.cl.used }}</td>
             <td class="group-end"><span [class]="'bal ' + tone(row.cl.balance)">{{ row.cl.balance }}</span></td>
             <td><span [class]="'bal ' + tone(row.compOffBalance)">{{ row.compOffBalance }}</span></td>
@@ -94,7 +95,7 @@
               </button>
             </td>
           </tr>
-        } @empty { <tr><td colspan="19">No employees match these filters.</td></tr> }
+        } @empty { <tr><td colspan="15">No employees match these filters.</td></tr> }
       </tbody>
     </table>
   </div>

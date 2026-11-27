@@ -31,7 +31,7 @@ _NATIONAL = (
 )
 _FESTIVALS = (
     "New Year",
-    "Mahashivratri",
+    "Maha Shivratri",
     "Holi",
     "Raja Sankranti",
     "Rath Yatra",

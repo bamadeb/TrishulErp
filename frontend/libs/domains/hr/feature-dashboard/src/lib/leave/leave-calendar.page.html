@@ -145,6 +145,11 @@
 
     <div class="workspace">
       <section class="card calendar" aria-label="Leave calendar">
+        <div class="progress">
+          @if (loading()) {
+            <mat-progress-bar mode="indeterminate" />
+          }
+        </div>
         <ul class="legend">
           @for (item of legend; track item.tone) {
             <li><i [class]="item.tone"></i>{{ item.label }}</li>

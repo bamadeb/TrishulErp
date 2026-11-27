@@ -11,6 +11,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatDrawer, MatDrawerContainer, MatDrawerContent } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -105,7 +106,7 @@ class LeaveRejectDialog {
   imports: [
     FormsModule, MatButton, MatCheckbox, MatDateRangeInput, MatDateRangePicker, MatDatepickerToggle,
     MatDrawer, MatDrawerContainer, MatDrawerContent, MatEndDate, MatFormField, MatIcon, MatIconButton, MatInput,
-    MatLabel, MatMenu, MatMenuItem, MatMenuTrigger, MatOption, MatPrefix, MatSelect, MatStartDate, MatSuffix,
+    MatLabel, MatMenu, MatMenuItem, MatMenuTrigger, MatOption, MatPrefix, MatProgressBar, MatSelect, MatStartDate, MatSuffix,
     MatTooltip, PageHeader, RouterLink, StatusBadge,
   ],
   providers: [

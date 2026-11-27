@@ -25,6 +25,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -121,6 +122,7 @@ const EMPTY_KPI: ExceptionKpi = {
     MatOption,
     MatPaginator,
     MatPrefix,
+    MatProgressBar,
     MatSelect,
     MatTooltip,
     PageHeader,
@@ -146,6 +148,8 @@ export class AttendanceExceptionsPage implements OnInit {
   private readonly search$ = new Subject<string>();
   private readonly detail$ = new Subject<AttendanceExceptionRow>();
   private ignoreOutsideClick = false;
+  /** Cache regularizations by date range so tab/page changes don't refetch them. */
+  private regsCacheKey: string | null = null;
 
   protected readonly kpi = signal<ExceptionKpi>(EMPTY_KPI);
   protected readonly rangeLabel = signal('');
@@ -231,7 +235,7 @@ export class AttendanceExceptionsPage implements OnInit {
         tap(() => {
           this.loading.set(true);
           this.error.set(null);
-          this.allRows.set([]);
+          // Keep prior rows visible until the new page arrives (avoids empty-table flash).
         }),
         switchMap(() => this.loadRange$()),
         takeUntilDestroyed(this.destroyRef),
@@ -491,6 +495,7 @@ export class AttendanceExceptionsPage implements OnInit {
 
   protected onRegularized(): void {
     this.regDrawerKeys.set([]);
+    this.regsCacheKey = null;
     this.reload$.next();
   }
 
@@ -589,6 +594,7 @@ export class AttendanceExceptionsPage implements OnInit {
             this.snackBar.open(`Resolved exception for ${target.employeeName}.`, 'OK', {
               duration: 2600,
             });
+            this.regsCacheKey = null;
             this.reload$.next();
           });
       });
@@ -638,15 +644,26 @@ export class AttendanceExceptionsPage implements OnInit {
   private loadRange$() {
     const from = toIsoDate(this.rangeStart());
     const to = toIsoDate(this.rangeEnd());
+    const regsKey = `${from}|${to}`;
+    const regs$ =
+      this.regsCacheKey === regsKey && this.regularizations().length
+        ? of({ items: this.regularizations() })
+        : this.api.listRegularizations({ from, to, page: 1, pageSize: 200, statusTab: 'all' }).pipe(
+            tap(() => {
+              this.regsCacheKey = regsKey;
+            }),
+            catchError(() => {
+              this.regsCacheKey = null;
+              return of(null);
+            }),
+          );
     return forkJoin({
       page: this.api.listExceptions(this.listQuery(this.page() + 1, this.pageSize())),
-      regs: this.api
-        .listRegularizations({ from, to, page: 1, pageSize: 200, statusTab: 'all' })
-        .pipe(catchError(() => of(null))),
+      regs: regs$,
     }).pipe(
       tap(({ page, regs }) => {
         this.applyPage(page);
-        this.regularizations.set(regs?.items ?? []);
+        if (regs?.items) this.regularizations.set(regs.items);
       }),
       catchError((err: unknown) => {
         const message =
@@ -694,6 +711,7 @@ export class AttendanceExceptionsPage implements OnInit {
     this.page.set(0);
     this.selectedIds.set(new Set());
     this.closeDetails();
+    this.regsCacheKey = null;
     this.reload$.next();
   }
 

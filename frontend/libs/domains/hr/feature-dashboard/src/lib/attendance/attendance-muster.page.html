@@ -70,6 +70,11 @@
 </section>
 
 <section class="card">
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
   <div class="toolbar" aria-label="Muster filters">
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
       <mat-icon matPrefix>search</mat-icon>

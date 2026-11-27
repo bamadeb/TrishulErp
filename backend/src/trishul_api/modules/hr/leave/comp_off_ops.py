@@ -439,6 +439,8 @@ def adjust(
 
 def expire_due(db: Session, *, employee_id: int | None, as_of: date) -> int:
     """Lapse unused Comp Off whose expiry date has been reached. Returns the number of credits lapsed."""
+    if not _ledger_tables_ready(db):
+        return 0
     stmt = select(CompOffCredit).where(
         CompOffCredit.is_active == True,  # noqa: E712
         CompOffCredit.status == "Open",

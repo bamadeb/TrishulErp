@@ -4,7 +4,7 @@ Contact details, a document reference, and the half-day part are not columns on 
 Those values are validated where the screen sends them and are not stored.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, or_, select
@@ -15,6 +15,7 @@ from trishul_api.common.errors import ApiError, Forbidden, NotFound
 from trishul_api.db.models import (
     ApprovalRequest,
     AppUser,
+    BiometricPunchLog,
     Branch,
     Department,
     Designation,
@@ -29,10 +30,13 @@ from trishul_api.db.models import (
     LeaveRequest,
     LeaveType,
     LeaveTypeSetting,
+    Shift,
     StatusHistory,
 )
-from trishul_api.modules.hr.leave.calculation import backdate_rejection
+from trishul_api.modules.hr.attendance.policy import net_worked_minutes
+from trishul_api.modules.hr.leave.calculation import backdate_rejection, is_medical_emergency
 from trishul_api.modules.hr.leave.holiday_ops import applies_to_branch
+from trishul_api.modules.hr.leave.overlap import conflict_message
 from trishul_api.modules.hr.leave.mine_schemas import (
     MineApply,
     MineApprovalStep,
@@ -53,16 +57,28 @@ from trishul_api.modules.hr.leave.mine_schemas import (
 _ZERO = Decimal("0.0")
 _HALF = Decimal("0.5")
 _ANNUAL = {"AL", "EL", "PL"}
-
-
-def _counts_intervening(code: str, name: str) -> bool:
-    """Annual leave counts holidays and weekly offs inside the selected range. Casual leave does not."""
-    if code.strip().upper() in _ANNUAL:
-        return True
-    label = name.lower()
-    return "annual" in label or "privilege" in label or "earned" in label
+_AL_NOTICE_DAYS = 15
+_HALF_DAY_MINUTES = 4 * 60
 _DOCUMENT = "LEAVE_REQUEST"
 _WEEKDAY = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
+
+
+def _counts_intervening(code: str, name: str, *, exclude_boundary: bool | None = None) -> bool:
+    """Annual leave counts holidays and weekly offs inside the selected range. Casual leave does not.
+
+    ``exclude_boundary=True`` (CL) drops holidays/offs from the count.
+    ``exclude_boundary=False`` only forces intervening days for annual-type codes; casual leave
+    still excludes them even when the flag is false/default.
+    """
+    label = name.lower()
+    casual = code.strip().upper() == "CL" or "casual" in label
+    if exclude_boundary is True or casual:
+        return False
+    if exclude_boundary is False:
+        return True
+    if code.strip().upper() in _ANNUAL:
+        return True
+    return "annual" in label or "privilege" in label or "earned" in label
 
 
 def _note(action: str, contact: str | None) -> str:
@@ -207,6 +223,7 @@ class LeaveMineRepository:
     def apply(self, actor: CurrentUser, data: MineApply) -> MineRequestDetail:
         employee = self._employee(actor, lock=True)
         self._active(employee)
+        self._require_reporting_manager(employee)
         days = self._validated_days(actor, employee, data, current_id=None)
         row = LeaveRequest(
             employee_id=employee.id,
@@ -264,9 +281,36 @@ class LeaveMineRepository:
         setting = self._db.get(LeaveTypeSetting, leave_type.id)
         if data.is_half_day and setting is not None and not setting.half_day_allowed:
             raise LeaveRuleError("This leave type does not allow a half day.")
-        days = self._days(employee, data.from_date, data.to_date, data.is_half_day, leave_type.code, leave_type.name)
+        line = None
+        try:
+            policy = self._policy(employee, data.from_date)
+            line = self._policy_line(policy.id, leave_type.id)
+        except LeaveRuleError:
+            line = None
+        days = self._days(
+            employee,
+            data.from_date,
+            data.to_date,
+            data.is_half_day,
+            leave_type.code,
+            leave_type.name,
+            exclude_boundary=None if line is None else line.exclude_boundary_holidays,
+        )
         if setting is not None and setting.max_consecutive_days is not None and days > setting.max_consecutive_days:
             raise LeaveRuleError(f"This leave type allows at most {setting.max_consecutive_days} consecutive days.")
+        preview = MineApply(
+            leave_type_id=data.leave_type_id,
+            from_date=data.from_date,
+            to_date=data.to_date,
+            is_half_day=data.is_half_day,
+            half_day_part=data.half_day_part,
+            reason="Preview",
+        )
+        skip_id = data.exclude_request_id
+        if skip_id is not None:
+            # Only the authenticated employee's own request may be excluded.
+            self._own_request(employee.id, skip_id)
+        self._assert_no_conflict(employee.id, preview, current_id=skip_id)
         return days
 
     def cancel(self, actor: CurrentUser, request_id: int) -> MineRequestDetail:
@@ -315,11 +359,20 @@ class LeaveMineRepository:
             raise LeaveRuleError("Employee not found.")
 
     def _validated_days(
-        self, actor: CurrentUser, employee: Employee, data: MineApply, current_id: int | None
+        self,
+        actor: CurrentUser,
+        employee: Employee,
+        data: MineApply,
+        current_id: int | None,
+        *,
+        for_decision: bool = False,
     ) -> Decimal:
         if data.to_date < data.from_date:
             raise LeaveRuleError("Invalid date range.")
-        self._assert_backdate(actor, employee, data.leave_type_id, data.from_date, data.to_date)
+        if not for_decision:
+            self._assert_backdate(
+                actor, employee, data.leave_type_id, data.from_date, data.to_date, reason=data.reason
+            )
         if data.is_half_day and (data.from_date != data.to_date or data.half_day_part is None):
             raise LeaveRuleError("Invalid half-day request.")
         if not data.is_half_day and data.half_day_part is not None:
@@ -347,10 +400,24 @@ class LeaveMineRepository:
             raise LeaveRuleError("The minimum continuous service for this leave has not been completed.")
         if self._confirmed_on(employee.id, data.from_date) is None and not policy.applies_during_probation:
             raise LeaveRuleError("Employee not confirmed.")
-        days = self._days(employee, data.from_date, data.to_date, data.is_half_day, leave_type.code, leave_type.name)
+        if not for_decision:
+            medical = is_medical_emergency(data.reason)
+            self._assert_al_notice(leave_type.code, data.from_date, medical=medical)
+            self._assert_al_boundaries(employee, leave_type.code, data.from_date, data.to_date, line)
+            if data.is_half_day:
+                self._assert_half_day_duty(employee, data.from_date, data.half_day_part)
+        days = self._days(
+            employee,
+            data.from_date,
+            data.to_date,
+            data.is_half_day,
+            leave_type.code,
+            leave_type.name,
+            exclude_boundary=line.exclude_boundary_holidays,
+        )
         if setting is not None and setting.max_consecutive_days is not None and days > setting.max_consecutive_days:
             raise LeaveRuleError(f"This leave type allows at most {setting.max_consecutive_days} consecutive days.")
-        self._overlap(employee.id, data, current_id)
+        self._assert_no_conflict(employee.id, data, current_id)
         if leave_type.code == "CO":
             from trishul_api.modules.hr.leave.comp_off_ops import assert_available
 
@@ -363,13 +430,28 @@ class LeaveMineRepository:
         return days
 
     def _assert_backdate(
-        self, actor: CurrentUser, employee: Employee, leave_type_id: int, start: date, end: date
+        self,
+        actor: CurrentUser,
+        employee: Employee,
+        leave_type_id: int,
+        start: date,
+        end: date,
+        reason: str | None = None,
     ) -> None:
         line = self._configured_lines(employee).get(leave_type_id)
         if line is None:
             return
+        today = date.today()
+        if is_medical_emergency(reason) and start <= today:
+            previous = self._previous_working_day(employee, today)
+            if previous is not None and start >= previous and end <= today:
+                return
+            if previous is not None and start < previous:
+                raise LeaveRuleError(
+                    f"Medical emergency leave can be applied from the previous working day ({previous.strftime('%d-%b-%Y')})."
+                )
         message = backdate_rejection(
-            today=date.today(),
+            today=today,
             start=start,
             end=end,
             max_backdate_days=line.max_backdate_days,
@@ -441,7 +523,15 @@ class LeaveMineRepository:
         )
 
     def _days(
-        self, employee: Employee, start: date, end: date, half: bool, leave_code: str = "", leave_name: str = ""
+        self,
+        employee: Employee,
+        start: date,
+        end: date,
+        half: bool,
+        leave_code: str = "",
+        leave_name: str = "",
+        *,
+        exclude_boundary: bool | None = None,
     ) -> Decimal:
         off = self._weekly_off(employee.id, start)
         holidays = self._holiday_dates(employee.branch_id, start, end)
@@ -449,7 +539,7 @@ class LeaveMineRepository:
             if start.weekday() in off or start in holidays:
                 raise LeaveRuleError("Invalid half-day request.")
             return _HALF
-        annual = _counts_intervening(leave_code, leave_name)
+        annual = _counts_intervening(leave_code, leave_name, exclude_boundary=exclude_boundary)
         cursor = start
         count = 0
         while cursor <= end:
@@ -460,24 +550,110 @@ class LeaveMineRepository:
             raise LeaveRuleError("The selected dates are weekly offs or holidays.")
         return Decimal(count).quantize(Decimal("0.1"))
 
-    def _overlap(self, employee_id: int, data: MineApply, current_id: int | None) -> None:
-        rows = self._db.execute(
-            select(LeaveRequest).where(
-                LeaveRequest.employee_id == employee_id,
-                LeaveRequest.is_active == True,  # noqa: E712
-                LeaveRequest.status.in_(("Pending", "Approved")),
-                LeaveRequest.from_date <= data.to_date,
-                LeaveRequest.to_date >= data.from_date,
+    def _assert_al_notice(self, leave_code: str, start: date, *, medical: bool) -> None:
+        if leave_code.strip().upper() != "AL" or medical:
+            return
+        earliest = date.today() + timedelta(days=_AL_NOTICE_DAYS)
+        if start < earliest:
+            raise LeaveRuleError(
+                f"Annual Leave normally requires {_AL_NOTICE_DAYS} days' prior application "
+                f"(earliest {earliest.strftime('%d-%b-%Y')}), except medical emergency."
             )
-        ).scalars().all()
-        rows = [row for row in rows if row.id != current_id]
-        if any(
-            row.leave_type_id == data.leave_type_id and row.from_date == data.from_date and row.to_date == data.to_date
-            for row in rows
-        ):
-            raise LeaveRuleError("Duplicate submission.")
-        if rows:
-            raise LeaveRuleError("Overlapping leave.")
+
+    def _assert_al_boundaries(
+        self, employee: Employee, leave_code: str, start: date, end: date, line: LeavePolicyLine
+    ) -> None:
+        """AL cannot be prefixed or suffixed to a holiday or weekly off."""
+        if leave_code.strip().upper() not in _ANNUAL:
+            return
+        if line.exclude_boundary_holidays:
+            return
+        before = start - timedelta(days=1)
+        after = end + timedelta(days=1)
+        off = self._weekly_off(employee.id, start)
+        holidays = self._holiday_dates(employee.branch_id, before, after)
+        if before.weekday() in off or before in holidays:
+            raise LeaveRuleError("Annual Leave cannot be prefixed to a holiday or weekly off.")
+        if after.weekday() in off or after in holidays:
+            raise LeaveRuleError("Annual Leave cannot be suffixed to a holiday or weekly off.")
+
+    def _assert_half_day_duty(self, employee: Employee, on: date, part: str | None) -> None:
+        """Past/today half-day leave requires at least four hours of duty on the remaining half."""
+        if on > date.today():
+            return
+        punches = self._db.execute(
+            select(BiometricPunchLog.punched_at, BiometricPunchLog.punch_type)
+            .where(
+                BiometricPunchLog.employee_id == employee.id,
+                BiometricPunchLog.is_active == True,  # noqa: E712
+                BiometricPunchLog.punched_at >= datetime.combine(on, time.min),
+                BiometricPunchLog.punched_at <= datetime.combine(on, time.max),
+            )
+            .order_by(BiometricPunchLog.punched_at, BiometricPunchLog.id)
+        ).all()
+        pairs = [(row[0], row[1] or "IN") for row in punches]
+        shift = self._db.execute(
+            select(EmployeeShift, Shift)
+            .join(Shift, Shift.id == EmployeeShift.shift_id)
+            .where(
+                EmployeeShift.employee_id == employee.id,
+                EmployeeShift.is_active == True,  # noqa: E712
+                EmployeeShift.from_date <= on,
+                or_(EmployeeShift.to_date.is_(None), EmployeeShift.to_date >= on),
+            )
+            .order_by(EmployeeShift.from_date.desc(), EmployeeShift.id.desc())
+            .limit(1)
+        ).first()
+        start_t = shift[1].start_time if shift is not None else time(9, 30)
+        end_t = shift[1].end_time if shift is not None else time(18, 30)
+        worked = net_worked_minutes(pairs, on, shift_start=start_t, shift_end=end_t)
+        if worked < _HALF_DAY_MINUTES:
+            label = part or "half day"
+            raise LeaveRuleError(
+                f"Half-day leave ({label}) requires at least four hours of duty before or after leave. "
+                f"Recorded duty on {on.strftime('%d-%b-%Y')} is {worked // 60}h {worked % 60:02d}m."
+            )
+
+    def _previous_working_day(self, employee: Employee, on: date) -> date | None:
+        off = self._weekly_off(employee.id, on)
+        cursor = on - timedelta(days=1)
+        for _ in range(14):
+            holidays = self._holiday_dates(employee.branch_id, cursor, cursor)
+            if cursor.weekday() not in off and cursor not in holidays:
+                return cursor
+            cursor -= timedelta(days=1)
+        return None
+
+    def _assert_no_conflict(self, employee_id: int, data: MineApply, current_id: int | None) -> None:
+        """Block Pending/Approved overlaps; Rejected/Cancelled do not block reapplication."""
+        rows = list(
+            self._db.execute(
+                select(LeaveRequest).where(
+                    LeaveRequest.employee_id == employee_id,
+                    LeaveRequest.is_active == True,  # noqa: E712
+                    LeaveRequest.status.in_(("Pending", "Approved")),
+                    LeaveRequest.from_date <= data.to_date,
+                    LeaveRequest.to_date >= data.from_date,
+                )
+            ).scalars().all()
+        )
+        type_ids = {row.leave_type_id for row in rows}
+        type_ids.add(data.leave_type_id)
+        names = {
+            row.id: row.name
+            for row in self._db.scalars(select(LeaveType).where(LeaveType.id.in_(type_ids))).all()
+        } if type_ids else {}
+        message = conflict_message(
+            leave_type_id=data.leave_type_id,
+            from_date=data.from_date,
+            to_date=data.to_date,
+            is_half_day=data.is_half_day,
+            existing=rows,
+            skip_id=current_id,
+            type_names=names,
+        )
+        if message:
+            raise LeaveRuleError(message)
 
     def _enough(self, employee_id: int, leave_type_id: int, start: date, days: Decimal, current_id: int | None) -> None:
         year = _financial_year(start)
@@ -669,7 +845,12 @@ class LeaveMineRepository:
         return bool(self._steps(request_id))
 
     def advance_approval(self, request_id: int, actor: CurrentUser, remarks: str) -> bool:
-        """Mark the current stored level approved. True when a later level is still pending."""
+        """Mark the Reporting Manager step approved.
+
+        TTPL leave policy: the Reporting Manager is the final approver. Any later pending
+        levels from an older multi-level snapshot are cancelled so the request finalizes
+        immediately. Always returns False (no further leave levels remain).
+        """
         steps = self._steps(request_id)
         current = next((step for step in steps if step.status == "Pending"), None)
         if current is None:
@@ -681,8 +862,17 @@ class LeaveMineRepository:
         current.acted_at = now
         current.remarks = remarks[:500]
         current.updated_by_user_id = actor.id
-        self._history(request_id, "Pending", "Pending", f"Approved at level {current.approval_level}.", actor.id)
-        return any(step.status == "Pending" for step in steps)
+        self._history(
+            request_id, "Pending", "Pending", "Approved by Reporting Manager.", actor.id
+        )
+        for step in steps:
+            if step.id == current.id or step.status != "Pending":
+                continue
+            step.status = "Cancelled"
+            step.acted_at = now
+            step.remarks = "Superseded: Reporting Manager is the final leave approver."
+            step.updated_by_user_id = actor.id
+        return False
 
     def settle_approval(self, request_id: int, actor: CurrentUser, status: str, remarks: str) -> None:
         """Close the open level and cancel every later level. No stored steps is a no-op."""
@@ -705,20 +895,46 @@ class LeaveMineRepository:
     def _ensure_steps(self, rows: list[LeaveRequest]) -> dict[int, list[ApprovalRequest]]:
         """Read the approvers stored on each request. A pending request with none is stored once."""
         steps = self._steps_for([row.id for row in rows])
-        added = False
+        changed = False
         for row in rows:
-            if row.status != "Pending" or steps.get(row.id):
+            if row.status != "Pending":
+                continue
+            existing = steps.get(row.id, [])
+            if existing:
+                if self._prune_extra_leave_levels(existing):
+                    changed = True
                 continue
             employee = self._db.get(Employee, row.employee_id)
             user_id = self._requester_id(row, employee)
             if employee is None or user_id is None:
                 continue
             if self._snapshot_approvers(employee, row.id, user_id):
-                added = True
-        if added:
+                changed = True
+        if changed:
             self._db.commit()
             steps = self._steps_for([row.id for row in rows])
         return steps
+
+    def _prune_extra_leave_levels(self, steps: list[ApprovalRequest]) -> bool:
+        """Cancel pending Level 2+ leave steps left from the old multi-level chain."""
+        now = datetime.now(UTC).replace(tzinfo=None)
+        changed = False
+        for step in steps:
+            if step.approval_level <= 1 or step.status != "Pending":
+                continue
+            step.status = "Cancelled"
+            step.acted_at = now
+            step.remarks = "Superseded: Reporting Manager is the final leave approver."
+            changed = True
+        return changed
+
+    def _require_reporting_manager(self, employee: Employee) -> None:
+        manager_id = employee.reporting_manager_id
+        if manager_id is None or manager_id == employee.id:
+            raise LeaveRuleError("Leave cannot be submitted without a Reporting Manager.")
+        manager = self._db.get(Employee, manager_id)
+        if manager is None or not manager.is_active:
+            raise LeaveRuleError("Leave cannot be submitted without a Reporting Manager.")
 
     def _requester_id(self, row: LeaveRequest, employee: Employee | None) -> int | None:
         if row.created_by_user_id is not None:
@@ -732,40 +948,34 @@ class LeaveMineRepository:
         )
 
     def _snapshot_approvers(self, employee: Employee, request_id: int, user_id: int) -> bool:
-        """Store the reporting chain as it stands when the approver is first recorded."""
-        now = datetime.now(UTC).replace(tzinfo=None)
-        seen = {employee.id}
+        """Store the Reporting Manager as the sole leave approver (TTPL policy)."""
         manager_id = employee.reporting_manager_id
-        level = 1
-        added = False
-        while manager_id is not None and manager_id not in seen and level <= 8:
-            seen.add(manager_id)
-            manager = self._db.get(Employee, manager_id)
-            if manager is None or not manager.is_active:
-                break
-            user = self._db.scalar(
-                select(AppUser)
-                .where(AppUser.employee_id == manager.id, AppUser.is_active == True)  # noqa: E712
-                .order_by(AppUser.id)
+        if manager_id is None or manager_id == employee.id:
+            raise LeaveRuleError("Leave cannot be submitted without a Reporting Manager.")
+        manager = self._db.get(Employee, manager_id)
+        if manager is None or not manager.is_active:
+            raise LeaveRuleError("Leave cannot be submitted without a Reporting Manager.")
+        user = self._db.scalar(
+            select(AppUser)
+            .where(AppUser.employee_id == manager.id, AppUser.is_active == True)  # noqa: E712
+            .order_by(AppUser.id)
+        )
+        now = datetime.now(UTC).replace(tzinfo=None)
+        self._db.add(
+            ApprovalRequest(
+                document_type=_DOCUMENT,
+                document_id=request_id,
+                approval_level=1,
+                requested_by_user_id=user_id,
+                requested_at=now,
+                approver_user_id=user.id if user is not None else None,
+                status="Pending",
+                created_at=now,
+                created_by_user_id=user_id,
+                is_active=True,
             )
-            self._db.add(
-                ApprovalRequest(
-                    document_type=_DOCUMENT,
-                    document_id=request_id,
-                    approval_level=level,
-                    requested_by_user_id=user_id,
-                    requested_at=now,
-                    approver_user_id=user.id if user is not None else None,
-                    status="Pending",
-                    created_at=now,
-                    created_by_user_id=user_id,
-                    is_active=True,
-                )
-            )
-            added = True
-            level += 1
-            manager_id = manager.reporting_manager_id
-        return added
+        )
+        return True
 
     def _steps(self, request_id: int) -> list[ApprovalRequest]:
         return self._steps_for([request_id]).get(request_id, [])
@@ -862,15 +1072,15 @@ def _pending_with(
         return None, None, False, None
     current = next((step for step in steps if step.status == "Pending"), None)
     if current is None or current.approver_user_id is None or current.approver_user_id not in people:
-        level = None if current is None else f"Level {current.approval_level}"
-        return "Awaiting Assignment", None, True, level
-    name, role = people[current.approver_user_id]
-    return name, role, False, f"Level {current.approval_level}"
+        return "Awaiting Assignment", "Reporting Manager", True, "Reporting Manager"
+    name, _role = people[current.approver_user_id]
+    return name, "Reporting Manager", False, "Reporting Manager"
 
 
 def _timeline(
     row: LeaveRequest, steps: list[ApprovalRequest], people: dict[int, tuple[str, str]]
 ) -> list[MineApprovalStep]:
+    """TTPL leave timeline: Request Submitted → Reporting Manager → Approved/Rejected."""
     items = [
         MineApprovalStep(
             title="Request Submitted",
@@ -882,25 +1092,91 @@ def _timeline(
             comments=row.reason,
         )
     ]
-    seen_current = False
-    for step in steps:
-        person = people.get(step.approver_user_id) if step.approver_user_id is not None else None
-        if step.status == "Pending" and not seen_current:
-            status = "Pending"
-            seen_current = True
-        elif step.status == "Pending":
-            status = "Upcoming"
-        else:
-            status = step.status
+    # Prefer the acted Level-1 / Reporting Manager step; ignore cancelled higher levels.
+    manager_step = next((step for step in steps if step.approval_level == 1), None)
+    if manager_step is None:
+        manager_step = next((step for step in steps if step.status != "Cancelled"), None)
+    if manager_step is None and row.status == "Pending":
         items.append(
             MineApprovalStep(
-                title=person[0] if person else "Awaiting Assignment",
+                title="Reporting Manager",
+                approver_name=None,
+                approver_role="Reporting Manager",
+                level="Reporting Manager",
+                status="Pending",
+                acted_at=None,
+                comments=None,
+            )
+        )
+        items.append(
+            MineApprovalStep(
+                title="Approved / Rejected",
+                approver_name=None,
+                approver_role=None,
+                level=None,
+                status="Upcoming",
+                acted_at=None,
+                comments=None,
+            )
+        )
+        return items
+
+    if manager_step is not None:
+        person = people.get(manager_step.approver_user_id) if manager_step.approver_user_id is not None else None
+        if row.status == "Pending" and manager_step.status == "Pending":
+            manager_status = "Pending"
+        elif manager_step.status == "Approved":
+            manager_status = "Approved"
+        elif manager_step.status == "Rejected":
+            manager_status = "Rejected"
+        else:
+            manager_status = manager_step.status if manager_step.status != "Cancelled" else "Pending"
+        items.append(
+            MineApprovalStep(
+                title="Reporting Manager",
                 approver_name=person[0] if person else None,
-                approver_role=person[1] if person else None,
-                level=f"Level {step.approval_level}",
-                status=status,
-                acted_at=step.acted_at,
-                comments=step.remarks,
+                approver_role="Reporting Manager",
+                level="Reporting Manager",
+                status=manager_status,
+                acted_at=manager_step.acted_at,
+                comments=manager_step.remarks,
+            )
+        )
+
+    if row.status == "Approved":
+        items.append(
+            MineApprovalStep(
+                title="Approved",
+                approver_name=None,
+                approver_role=None,
+                level=None,
+                status="Approved",
+                acted_at=row.acted_at,
+                comments=None,
+            )
+        )
+    elif row.status == "Rejected":
+        items.append(
+            MineApprovalStep(
+                title="Rejected",
+                approver_name=None,
+                approver_role=None,
+                level=None,
+                status="Rejected",
+                acted_at=row.acted_at,
+                comments=None,
+            )
+        )
+    else:
+        items.append(
+            MineApprovalStep(
+                title="Approved / Rejected",
+                approver_name=None,
+                approver_role=None,
+                level=None,
+                status="Upcoming",
+                acted_at=None,
+                comments=None,
             )
         )
     return items

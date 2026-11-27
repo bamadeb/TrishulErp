@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Injectable, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injectable, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { DateAdapter, MAT_DATE_FORMATS, MAT_NATIVE_DATE_FORMATS, NativeDateAdapter } from '@angular/material/core';
@@ -14,9 +14,10 @@ import {
 import { MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { LeaveApi, MineApply, MineApprovalStep } from '@trishul/hr-data-access';
+import { LeaveApi, MineApply, MineApprovalStep, MineRequestItem } from '@trishul/hr-data-access';
 import { MineDayPart, MineLeaveRequest } from './leave-mine.models';
 
 export interface LeaveTypeChoice {
@@ -31,6 +32,20 @@ export interface LeaveApplyDialogData {
   request: MineLeaveRequest | null;
   leaveTypes: LeaveTypeChoice[];
   canAuthorizeBackdate: boolean;
+  /** Financial year used to load the employee's Pending/Approved requests into the calendars. */
+  financialYear: number;
+}
+
+/** Active leave span used to disable conflicting calendar dates. */
+interface BookedSpan {
+  requestId: number;
+  displayId: string;
+  leaveTypeId: number;
+  leaveType: string;
+  from: Date;
+  to: Date;
+  isHalfDay: boolean;
+  status: 'Pending' | 'Approved';
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -85,6 +100,7 @@ class LeaveDateAdapter extends NativeDateAdapter {
     MatInput,
     MatLabel,
     MatOption,
+    MatProgressBar,
     MatSelect,
     MatSuffix,
   ],
@@ -119,10 +135,25 @@ export class LeaveApplyDialog {
   protected readonly viewing = this.data.mode === 'view';
   protected readonly steps = signal<MineApprovalStep[]>([]);
   protected readonly stepsError = signal('');
+  /** Pending/Approved spans for this employee (Rejected/Cancelled omitted). */
+  protected readonly booked = signal<BookedSpan[]>([]);
+  protected readonly bookedLoading = signal(false);
+
+  /** Fresh filter function whenever booked spans or day-part change so MatDatepicker re-evaluates. */
+  protected readonly dateFilter = computed(() => {
+    const spans = this.booked();
+    const part = this.part();
+    const proposed = part === 'Full day' ? 1 : 0.5;
+    return (value: Date | null): boolean => {
+      if (!value || this.viewing) return true;
+      return occupancyOn(spans, strip(value)) + proposed <= 1;
+    };
+  });
 
   constructor() {
     this.dialogRef.updateSize('680px');
     this.dialogRef.disableClose = false;
+    this.loadBooked();
     this.refreshDays();
     const requestId = this.data.request?.requestId;
     if (this.viewing && requestId != null) {
@@ -208,6 +239,23 @@ export class LeaveApplyDialog {
     });
   }
 
+  private loadBooked(): void {
+    if (this.viewing) return;
+    this.bookedLoading.set(true);
+    const skipId = this.data.mode === 'edit' ? this.data.request?.requestId ?? null : null;
+    this.api.mineRequests(this.data.financialYear).subscribe({
+      next: (page) => {
+        this.booked.set(toBooked(page.items, skipId));
+        this.bookedLoading.set(false);
+        this.refreshDays();
+      },
+      error: () => {
+        this.booked.set([]);
+        this.bookedLoading.set(false);
+      },
+    });
+  }
+
   private refreshDays(): void {
     const token = ++this.previewToken;
     const problem = this.rangeProblem();
@@ -225,7 +273,8 @@ export class LeaveApplyDialog {
       return;
     }
     this.counting.set(true);
-    this.api.previewLeaveDays(body).subscribe({
+    const excludeRequestId = this.data.mode === 'edit' ? this.data.request?.requestId : undefined;
+    this.api.previewLeaveDays(excludeRequestId != null ? { ...body, excludeRequestId } : body).subscribe({
       next: (row) => {
         if (token !== this.previewToken) return;
         this.counting.set(false);
@@ -264,6 +313,11 @@ export class LeaveApplyDialog {
     return `Past dates are allowed up to ${type.maxBackdateDays} calendar days.`;
   }
 
+  protected conflictHint(): string {
+    if (this.viewing || this.booked().length === 0) return '';
+    return 'Dates with pending or approved leave are unavailable. Rejected and withdrawn dates can be reused.';
+  }
+
   private selectedType(): LeaveTypeChoice | undefined {
     return this.types.find((item) => item.id === this.leaveType());
   }
@@ -280,6 +334,8 @@ export class LeaveApplyDialog {
     if (this.part() !== 'Full day' && strip(from).getTime() !== strip(to).getTime()) {
       return 'A half day applies to a single date.';
     }
+    const conflict = conflictMessage(this.leaveType(), from, to, this.part() !== 'Full day', this.booked());
+    if (conflict) return conflict;
     return '';
   }
 
@@ -304,6 +360,108 @@ export class LeaveApplyDialog {
     const contact = this.contact().trim();
     return { ...days, reason: this.reason().trim(), contact: contact || null };
   }
+}
+
+function toBooked(items: MineRequestItem[], skipId: number | null): BookedSpan[] {
+  return items
+    .filter((row): row is MineRequestItem & { status: 'Pending' | 'Approved' } =>
+      row.status === 'Pending' || row.status === 'Approved',
+    )
+    .filter((row) => skipId == null || row.requestId !== skipId)
+    .map((row) => ({
+      requestId: row.requestId,
+      displayId: row.displayId,
+      leaveTypeId: row.leaveTypeId,
+      leaveType: row.leaveType,
+      from: strip(new Date(`${row.fromDate}T00:00:00`)),
+      to: strip(new Date(`${row.toDate}T00:00:00`)),
+      isHalfDay: row.isHalfDay,
+      status: row.status,
+    }))
+    .filter((row) => !Number.isNaN(row.from.getTime()) && !Number.isNaN(row.to.getTime()));
+}
+
+function covers(span: BookedSpan, day: Date): boolean {
+  const t = strip(day).getTime();
+  return t >= span.from.getTime() && t <= span.to.getTime();
+}
+
+function occupancyOn(spans: BookedSpan[], day: Date): number {
+  let total = 0;
+  for (const span of spans) {
+    if (!covers(span, day)) continue;
+    total += span.isHalfDay ? 0.5 : 1;
+  }
+  return total;
+}
+
+function formatDay(value: Date): string {
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${day}-${MONTHS[value.getMonth()]}-${value.getFullYear()}`;
+}
+
+function formatRange(start: Date, end: Date): string {
+  if (start.getTime() === end.getTime()) return formatDay(start);
+  return `${formatDay(start)} to ${formatDay(end)}`;
+}
+
+/** Mirrors backend overlap.conflict_message for immediate calendar feedback. */
+function conflictMessage(
+  leaveTypeId: number | null,
+  from: Date,
+  to: Date,
+  isHalfDay: boolean,
+  spans: BookedSpan[],
+): string {
+  if (!spans.length) return '';
+  const start = strip(from);
+  const end = strip(to);
+  const proposed = isHalfDay ? 0.5 : 1;
+
+  if (!isHalfDay && leaveTypeId != null) {
+    for (const span of spans) {
+      if (
+        span.leaveTypeId === leaveTypeId &&
+        !span.isHalfDay &&
+        span.from.getTime() === start.getTime() &&
+        span.to.getTime() === end.getTime()
+      ) {
+        return (
+          `Duplicate submission for ${formatRange(start, end)} conflicts with ` +
+          `${span.status.toLowerCase()} request ${span.displayId} (${span.leaveType}).`
+        );
+      }
+    }
+  }
+
+  const conflictDays: Date[] = [];
+  const offenders: BookedSpan[] = [];
+  let cursor = new Date(start);
+  while (cursor.getTime() <= end.getTime()) {
+    const day = strip(cursor);
+    if (occupancyOn(spans, day) + proposed > 1) {
+      conflictDays.push(day);
+      for (const span of spans) {
+        if (covers(span, day) && !offenders.includes(span)) offenders.push(span);
+      }
+    }
+    cursor = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+  }
+  if (!conflictDays.length) return '';
+
+  const when = formatRange(conflictDays[0], conflictDays[conflictDays.length - 1]);
+  if (offenders.length === 1) {
+    const span = offenders[0];
+    return (
+      `Overlapping leave on ${when} conflicts with ${span.status.toLowerCase()} request ` +
+      `${span.displayId} (${span.leaveType}, ${formatRange(span.from, span.to)}).`
+    );
+  }
+  const parts = offenders
+    .slice(0, 3)
+    .map((span) => `${span.displayId} (${span.leaveType}, ${span.status.toLowerCase()})`);
+  const extra = offenders.length > 3 ? ` and ${offenders.length - 3} more` : '';
+  return `Overlapping leave on ${when} conflicts with ${parts.join(', ')}${extra}.`;
 }
 
 function earliestLeaveDate(type: LeaveTypeChoice | undefined, canAuthorize: boolean): Date | null {
@@ -347,8 +505,14 @@ function iso(value: Date): string {
 }
 
 function problemDetail(error: unknown, fallback: string): string {
-  const detail = (error as { error?: { detail?: string } }).error?.detail;
-  return typeof detail === 'string' && detail ? detail : fallback;
+  const body = (error as { error?: { detail?: string | { msg?: string }[] } }).error;
+  const detail = body?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail.trim();
+  if (Array.isArray(detail) && detail.length) {
+    const first = detail[0];
+    if (typeof first?.msg === 'string' && first.msg.trim()) return first.msg.trim();
+  }
+  return fallback;
 }
 
 @Component({

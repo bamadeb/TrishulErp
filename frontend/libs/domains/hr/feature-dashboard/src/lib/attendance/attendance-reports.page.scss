@@ -85,6 +85,11 @@
   border-radius: 0.9rem;
   background: #fff;
   box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  overflow: hidden;
+}
+
+.progress {
+  height: 4px;
 }
 
 .library-head {

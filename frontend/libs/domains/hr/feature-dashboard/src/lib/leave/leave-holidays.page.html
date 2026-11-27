@@ -146,6 +146,11 @@
       <button mat-stroked-button type="button" (click)="reset()"><mat-icon>refresh</mat-icon> Reset</button>
     </section>
 
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
     <div class="workspace" [class.list]="mode() === 'list'">
       @if (mode() === 'calendar') {
         <section class="card calendar" aria-label="Holiday month">

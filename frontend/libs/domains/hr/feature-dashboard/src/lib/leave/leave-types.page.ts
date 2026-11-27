@@ -5,14 +5,19 @@ import { MatCheckbox } from '@angular/material/checkbox';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { finalize } from 'rxjs';
 import { HasPermission } from '@trishul/core-auth';
 import { LEAVE_MANAGE_PERMISSION, LeaveApi, LeaveTypeItem, LeaveTypeWrite } from '@trishul/hr-data-access';
 import { PageHeader } from '@trishul/shared-ui';
 
 @Component({
   selector: 'trishul-leave-types-page',
-  imports: [FormsModule, HasPermission, MatButton, MatCheckbox, MatFormField, MatIcon, MatIconButton, MatInput, MatLabel, PageHeader],
+  imports: [
+    FormsModule, HasPermission, MatButton, MatCheckbox, MatFormField, MatIcon, MatIconButton, MatInput, MatLabel,
+    MatProgressBar, PageHeader,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './leave-types.page.html',
   styleUrl: './leave-master.scss',
@@ -24,6 +29,7 @@ export class LeaveTypesPage {
   protected readonly manage = LEAVE_MANAGE_PERMISSION;
   protected readonly rows = signal<LeaveTypeItem[]>([]);
   protected readonly error = signal('');
+  protected readonly loading = signal(true);
   protected readonly editing = signal<LeaveTypeItem | null>(null);
   protected readonly form = signal<LeaveTypeWrite>(blank());
 
@@ -79,8 +85,12 @@ export class LeaveTypesPage {
   }
 
   private reload(): void {
-    this.api.types().subscribe({
-      next: (page) => this.rows.set(page.items),
+    this.loading.set(true);
+    this.api.types().pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: (page) => {
+        this.rows.set(page.items);
+        this.error.set('');
+      },
       error: () => this.error.set('Leave types could not be loaded.'),
     });
   }

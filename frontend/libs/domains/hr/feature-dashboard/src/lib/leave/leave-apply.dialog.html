@@ -4,6 +4,11 @@
     <mat-icon>close</mat-icon>
   </button>
 </header>
+<div class="progress">
+  @if (bookedLoading() || counting() || saving()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+</div>
 <mat-dialog-content>
   <div class="form">
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -20,17 +25,38 @@
     </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>From date</mat-label>
-      <input matInput [matDatepicker]="fromPicker" [ngModel]="from()" (ngModelChange)="onFrom($event)" [min]="earliest()" name="from" [readonly]="true" (click)="openDate(fromPicker)" />
+      <input
+        matInput
+        [matDatepicker]="fromPicker"
+        [matDatepickerFilter]="dateFilter()"
+        [ngModel]="from()"
+        (ngModelChange)="onFrom($event)"
+        [min]="earliest()"
+        name="from"
+        [readonly]="true"
+        (click)="openDate(fromPicker)"
+      />
       <mat-datepicker-toggle matIconSuffix [for]="fromPicker" [disabled]="viewing" aria-label="Choose from date" />
       <mat-datepicker #fromPicker />
     </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>To date</mat-label>
-      <input matInput [matDatepicker]="toPicker" [ngModel]="to()" (ngModelChange)="onTo($event)" [min]="toEarliest()" name="to" [readonly]="true" (click)="openDate(toPicker)" />
+      <input
+        matInput
+        [matDatepicker]="toPicker"
+        [matDatepickerFilter]="dateFilter()"
+        [ngModel]="to()"
+        (ngModelChange)="onTo($event)"
+        [min]="toEarliest()"
+        name="to"
+        [readonly]="true"
+        (click)="openDate(toPicker)"
+      />
       <mat-datepicker-toggle matIconSuffix [for]="toPicker" [disabled]="viewing" aria-label="Choose to date" />
       <mat-datepicker #toPicker />
     </mat-form-field>
     @if (backdateHint()) { <p class="note wide">{{ backdateHint() }}</p> }
+    @if (conflictHint()) { <p class="note wide">{{ conflictHint() }}</p> }
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Number of days</mat-label>
       <input matInput [value]="dayLabel()" readonly name="days" />

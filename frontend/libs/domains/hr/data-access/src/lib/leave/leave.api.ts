@@ -408,7 +408,9 @@ export class LeaveApi {
     return this.http.post<MineRequestDetail>(`${this.config.rootUrl}/hr/leave/mine/requests`, body);
   }
 
-  previewLeaveDays(body: Omit<MineApply, 'reason' | 'contact'>): Observable<{ days: string }> {
+  previewLeaveDays(
+    body: Omit<MineApply, 'reason' | 'contact'> & { excludeRequestId?: number | null },
+  ): Observable<{ days: string }> {
     return this.http.post<{ days: string }>(`${this.config.rootUrl}/hr/leave/mine/day-count`, body);
   }
 

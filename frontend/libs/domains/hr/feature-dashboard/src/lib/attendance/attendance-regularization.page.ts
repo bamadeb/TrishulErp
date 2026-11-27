@@ -26,6 +26,7 @@ import { MatFormField, MatLabel, MatPrefix, MatSuffix } from '@angular/material/
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -111,6 +112,7 @@ const PAGE_SIZE = 200;
     MatOption,
     MatPaginator,
     MatPrefix,
+    MatProgressBar,
     MatSelect,
     MatStartDate,
     MatSuffix,

@@ -43,6 +43,8 @@ class DailyAttendanceQuery(PageQuery):
     reporting_manager: str | None = Field(None, max_length=120)
     include_history: bool = False
     include_punches: bool = True
+    # Daily board loads the full employee set client-side; allow one round-trip for ~800 rows.
+    page_size: int = Field(20, ge=1, le=1000, alias="pageSize")
 
 
 class AttendancePunchLocationOut(ApiModel):

@@ -44,11 +44,17 @@ from trishul_api.modules.hr.leave.balance_schemas import (
     EntitlementPreviewLine,
     EntitlementPreviewRequest,
 )
-from trishul_api.modules.hr.leave.calculation import earned_leave_days, joining_threshold
+from trishul_api.modules.hr.leave.calculation import (
+    earned_leave_days,
+    joining_threshold,
+    opening_carry,
+    pro_rata_annual,
+)
 from trishul_api.modules.hr.leave.mine_repository import _policy_fits, _service_months
 
 _ZERO = Decimal("0.0")
-_CODES = ("EL", "SL", "CL", "CO")
+_CODES = ("AL", "CL", "CO")
+_LEGACY_EL = "EL"
 
 
 def balance_board(
@@ -339,7 +345,7 @@ def _balances(db: Session, employee_ids: list[int], year: int) -> dict[int, dict
             LeaveBalance.employee_id.in_(employee_ids),
             LeaveBalance.leave_year == year,
             LeaveBalance.is_active == True,  # noqa: E712
-            LeaveType.code.in_(_CODES),
+            LeaveType.code.in_((*_CODES, _LEGACY_EL)),
         )
     ).all()
     found: dict[int, dict[str, LeaveBalance]] = {}
@@ -349,14 +355,15 @@ def _balances(db: Session, employee_ids: list[int], year: int) -> dict[int, dict
 
 
 def _employee_item(employee: Employee, balances: dict[str, LeaveBalance]) -> BalanceEmployee:
+    annual = balances.get("AL") or balances.get(_LEGACY_EL)
     return BalanceEmployee(
         employee_id=employee.id,
         employee_code=employee.employee_code,
         employee_name=_name(employee),
         department=getattr(employee, "department_name", None),
         designation=getattr(employee, "designation_name", None),
-        el=_bucket(balances.get("EL")),
-        sl=_bucket(balances.get("SL")),
+        el=_bucket(annual),
+        sl=_bucket(None),
         cl=_bucket(balances.get("CL")),
         comp_off_balance=_ZERO if balances.get("CO") is None else balances["CO"].closing,
     )
@@ -413,7 +420,14 @@ def _line_preview(
                 message=f"Continuous service is {months} months. This leave needs {needed}.",
             )
         return EntitlementPreviewLine(code=code, credited=line.annual_entitlement)
-    return EntitlementPreviewLine(code=code, credited=line.annual_entitlement)
+    start, end = _policy_window(policy, year)
+    credited = pro_rata_annual(
+        line.annual_entitlement,
+        joining=employee.date_of_joining,
+        year_start=start,
+        year_end=end,
+    )
+    return EntitlementPreviewLine(code=code, credited=credited)
 
 
 def _formula_preview(
@@ -505,8 +519,18 @@ def _store_run(
 def _credit_balance(
     db: Session, actor: CurrentUser, employee_id: int, line: LeavePolicyLine, year: int, days: Decimal
 ) -> None:
-    balance = _balance_row(db, employee_id, line.leave_type_id, year, actor.id)
-    balance.accrued = (balance.accrued or _ZERO) + days
+    balance = _balance_row(db, employee_id, line.leave_type_id, year, actor.id, line=line)
+    credit = days
+    if line.max_accumulation is not None:
+        room = line.max_accumulation - (balance.opening or _ZERO) - (balance.accrued or _ZERO)
+        if room <= _ZERO:
+            credit = _ZERO
+        else:
+            credit = min(credit, room)
+    if credit <= _ZERO:
+        _recompute_closing(db, balance)
+        return
+    balance.accrued = (balance.accrued or _ZERO) + credit
     db.add(
         LeaveBalanceTransaction(
             employee_id=employee_id,
@@ -514,7 +538,7 @@ def _credit_balance(
             leave_year=year,
             leave_balance_id=balance.id,
             kind="Credit",
-            days=days,
+            days=credit,
             remarks="Entitlement generation",
             source_type="hr.leave_entitlement_run",
             source_id=line.id,
@@ -525,7 +549,15 @@ def _credit_balance(
     _recompute_closing(db, balance)
 
 
-def _balance_row(db: Session, employee_id: int, leave_type_id: int, year: int, user_id: int) -> LeaveBalance:
+def _balance_row(
+    db: Session,
+    employee_id: int,
+    leave_type_id: int,
+    year: int,
+    user_id: int,
+    *,
+    line: LeavePolicyLine | None = None,
+) -> LeaveBalance:
     balance = db.scalars(
         select(LeaveBalance).where(
             LeaveBalance.employee_id == employee_id,
@@ -536,15 +568,32 @@ def _balance_row(db: Session, employee_id: int, leave_type_id: int, year: int, u
     ).first()
     if balance is not None:
         return balance
+    opening = _ZERO
+    if line is not None and line.carry_forward:
+        prior = db.scalars(
+            select(LeaveBalance).where(
+                LeaveBalance.employee_id == employee_id,
+                LeaveBalance.leave_type_id == leave_type_id,
+                LeaveBalance.leave_year == year - 1,
+                LeaveBalance.is_active == True,  # noqa: E712
+            )
+        ).first()
+        leave_type = db.get(LeaveType, leave_type_id)
+        opening = opening_carry(
+            prior.closing if prior is not None else _ZERO,
+            carry_forward=True,
+            carry_forward_max=None if leave_type is None else leave_type.carry_forward_max,
+            max_accumulation=line.max_accumulation,
+        )
     balance = LeaveBalance(
         employee_id=employee_id,
         leave_type_id=leave_type_id,
         leave_year=year,
-        opening=_ZERO,
+        opening=opening,
         accrued=_ZERO,
         availed=_ZERO,
         encashed=_ZERO,
-        closing=_ZERO,
+        closing=opening,
         created_by_user_id=user_id,
     )
     db.add(balance)

@@ -8,6 +8,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatDrawer, MatDrawerContainer, MatDrawerContent } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -82,7 +83,7 @@ interface EmployeeView {
   selector: 'trishul-leave-employees-page',
   imports: [
     FormsModule, MatButton, MatCheckbox, MatDrawer, MatDrawerContainer, MatDrawerContent, MatFormField, MatIcon,
-    MatIconButton, MatInput, MatLabel, MatMenu, MatMenuItem, MatMenuTrigger, MatOption, MatPrefix, MatSelect,
+    MatIconButton, MatInput, MatLabel, MatMenu, MatMenuItem, MatMenuTrigger, MatOption, MatPrefix, MatProgressBar, MatSelect,
     MatTooltip, PageHeader, RouterLink, StatusBadge,
   ],
   providers: [DatePipe],
@@ -100,7 +101,7 @@ export class LeaveEmployeesPage {
 
   protected readonly years = yearChoices();
   protected readonly severities = { Active: 'success', Notice: 'warn', Approved: 'success', Pending: 'warn', Rejected: 'danger' } as const;
-  protected readonly balanceCodes = ['CL', 'EL', 'SL', 'CO'] as const;
+  protected readonly balanceCodes = ['CL', 'AL', 'CO'] as const;
 
   protected readonly year = signal(this.years[0].id);
   protected readonly department = signal<number | null>(null);
@@ -350,8 +351,7 @@ function toView(row: EmployeeLeaveRow | EmployeeLeaveDetail): EmployeeView {
     lastLeave: detail ? span(detail.lastLeave) : null,
     balances: {
       CL: balance(balances['CL']),
-      EL: balance(balances['EL']),
-      SL: balance(balances['SL']),
+      AL: balance(balances['AL'] ?? balances['EL']),
       CO: balance(balances['CO']),
     },
     history: detail?.history.map(historyItem) ?? [],
@@ -361,8 +361,7 @@ function toView(row: EmployeeLeaveRow | EmployeeLeaveDetail): EmployeeView {
 function balancesFrom(row: EmployeeLeaveRow): Record<string, EmployeeLeaveBalanceView> {
   return {
     CL: blank(row.cl),
-    EL: blank(row.el),
-    SL: blank(row.sl),
+    AL: blank(row.el),
     CO: blank(row.co),
   };
 }
@@ -425,10 +424,10 @@ function yearChoices(): { id: number; label: string }[] {
 }
 
 function download(rows: EmployeeView[]): void {
-  const header = ['Employee ID', 'Employee', 'Department', 'Designation', 'Location', 'CL', 'EL', 'SL', 'CO', 'Leave Taken', 'Upcoming Leave', 'Status'];
+  const header = ['Employee ID', 'Employee', 'Department', 'Designation', 'Location', 'CL', 'AL', 'CO', 'Leave Taken', 'Upcoming Leave', 'Status'];
   const lines = rows.map((row) => [
     row.code, row.name, row.department, row.designation, row.location,
-    String(row.cl), String(row.el), String(row.sl), String(row.co), String(row.taken),
+    String(row.cl), String(row.el), String(row.co), String(row.taken),
     row.upcoming ? `${row.upcoming.fromDate} to ${row.upcoming.toDate}` : '', row.status,
   ].map((value) => `"${value.replaceAll('"', '""')}"`).join(','));
   const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv' });

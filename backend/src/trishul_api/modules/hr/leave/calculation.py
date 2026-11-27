@@ -75,12 +75,19 @@ def rule_summary(line: object) -> list[str]:
             sentences.append(
                 f"Available after {line.minimum_service_months} months of continuous employment from the joining date."
             )
+    if method == "FIXED" and benefit == "COMPANY" and getattr(line, "accrual_frequency", None) == "Yearly":
+        sentences.append(f"Annual entitlement: {line.annual_entitlement} days (pro-rata in the joining year).")
     if line.carry_forward and line.max_accumulation is not None:
-        sentences.append(f"Carry forward up to {line.max_accumulation} days for adult employees.")
+        sentences.append(f"Maximum accumulated balance {line.max_accumulation} days for adult employees.")
     if line.adolescent_max_accumulation is not None:
         sentences.append(f"Carry forward up to {line.adolescent_max_accumulation} days for employees under 18.")
     if line.exclude_boundary_holidays:
-        sentences.append("Holidays during or at either end of leave are not counted.")
+        sentences.append("Sundays and public holidays during leave are excluded from deduction.")
+        sentences.append("Leave may be prefixed or suffixed to holidays or weekly offs.")
+    else:
+        if method == "FIXED" and getattr(line, "annual_entitlement", None):
+            sentences.append("Intervening holidays and weekly offs during leave count as leave.")
+            sentences.append("Leave cannot be prefixed or suffixed to holidays or weekly offs.")
     if line.document_required:
         sentences.append("A supporting document is required.")
     if basis == "STATUTORY_WEEKLY_REST":
@@ -90,15 +97,18 @@ def rule_summary(line: object) -> list[str]:
         )
     elif basis == "COMPANY_COMP_OFF":
         expiry = line.compensatory_expiry_months
-        when = f" HR expiry is {expiry} calendar months." if expiry else " HR sets the expiry."
-        sentences.append("Company Comp-Off is separate from statutory weekly-rest compensation." + when)
+        when = f" Must be availed within {expiry} calendar months or it expires." if expiry else " HR sets the expiry."
+        sentences.append(
+            "Compensatory Off requires prior management authorization and HOD/Reporting Manager certification."
+            + when
+        )
     if getattr(line, "backdate_requires_authorization", False):
         sentences.append("Past dates require HR authorization.")
     limit = getattr(line, "max_backdate_days", None)
     if limit == 0:
-        sentences.append("Past dates are not allowed.")
+        sentences.append("Past dates are not allowed, except medical emergency on the next working day.")
     elif isinstance(limit, int) and limit > 0:
-        sentences.append(f"Past dates are allowed up to {limit} calendar days.")
+        sentences.append(f"Past dates are allowed up to {limit} calendar days (medical emergency / next working day).")
     return sentences
 
 
@@ -137,3 +147,54 @@ def carry_forward_limit(
     if age_years is not None and age_years < 18 and adolescent_limit is not None:
         return adolescent_limit
     return adult_limit
+
+
+def pro_rata_annual(
+    entitlement: Decimal,
+    *,
+    joining: date | None,
+    year_start: date,
+    year_end: date,
+) -> Decimal:
+    """Credit a fixed annual entitlement for the portion of the policy year remaining after joining.
+
+    Joining on or before the year start earns the full entitlement. Joining after the year end earns none.
+    Mid-year joining uses remaining calendar months inclusive of the joining month, rounded to 0.1.
+    """
+    if entitlement <= _ZERO:
+        return _ZERO
+    if joining is None or joining <= year_start:
+        return entitlement.quantize(_STEP)
+    if joining > year_end:
+        return _ZERO
+    months = (year_end.year - joining.year) * 12 + (year_end.month - joining.month) + 1
+    if months <= 0:
+        return _ZERO
+    return (entitlement * Decimal(months) / Decimal(12)).quantize(_STEP)
+
+
+def opening_carry(
+    prior_closing: Decimal,
+    *,
+    carry_forward: bool,
+    carry_forward_max: Decimal | None,
+    max_accumulation: Decimal | None,
+) -> Decimal:
+    """Opening balance for a new policy year after applying carry-forward and accumulation caps."""
+    if not carry_forward or prior_closing <= _ZERO:
+        return _ZERO
+    carried = prior_closing
+    if carry_forward_max is not None:
+        carried = min(carried, carry_forward_max)
+    if max_accumulation is not None:
+        carried = min(carried, max_accumulation)
+    return carried.quantize(_STEP)
+
+
+def is_medical_emergency(reason: str | None) -> bool:
+    """True when the leave reason indicates a medical emergency (next-working-day application)."""
+    text = (reason or "").strip().lower()
+    if not text:
+        return False
+    tokens = ("medical", "emergency", "hospitalisation", "hospitalization", "illness", "accident")
+    return any(token in text for token in tokens)

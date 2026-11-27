@@ -53,41 +53,63 @@
           <ng-container *ngTemplateOutlet="table; context: { rows: historyPage(), total: history().length }" />
         </mat-tab>
         <mat-tab label="Leave Balance">
-          <div class="types">
-            @for (card of balances(); track card.code) {
-            <article [class]="card.tone">
-              <span>{{ card.code }} {{ card.name }}</span>
-              <strong>{{ amount(card.available) }} days</strong>
-              <small>Entitlement: {{ amount(card.entitlement) }} · Used: {{ amount(card.used) }} · Pending: {{ amount(card.pending) }}</small>
-            </article>
-            } @empty { <p class="empty">No leave balances for this financial year.</p> }
+          <div class="table-card balance-card">
+            <div class="progress">
+              @if (loading()) {
+                <mat-progress-bar mode="indeterminate" />
+              }
+            </div>
+            <div class="types">
+              @for (card of balances(); track card.code) {
+              <article [class]="card.tone">
+                <span>{{ card.code }} {{ card.name }}</span>
+                <strong>{{ amount(card.available) }} days</strong>
+                <small>Entitlement: {{ amount(card.entitlement) }} · Used: {{ amount(card.used) }} · Pending: {{ amount(card.pending) }}</small>
+              </article>
+              } @empty {
+              <p class="empty">{{ loading() ? 'Loading leave balances…' : 'No leave balances for this financial year.' }}</p>
+              }
+            </div>
           </div>
         </mat-tab>
         <mat-tab label="Comp-Off">
-          <div class="types comp">
-            <article><strong>{{ amount(compOff().earned) }}</strong><span>Earned</span></article>
-            <article class="success"><strong>{{ amount(compOff().available) }}</strong><span>Available</span></article>
-            <article><strong>{{ amount(compOff().used) }}</strong><span>Used</span></article>
-            <article class="warn"><strong>{{ compOff().expiring }}</strong><span>Expiring</span></article>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Earned on</th><th>Days</th><th>Note</th><th>Expires</th><th>Status</th></tr></thead>
-              <tbody>
-                @for (line of compOff().lines; track line.earnedOn) {
-                <tr>
-                  <td>{{ line.earnedOn | date:'dd-MMM-yyyy' }}</td>
-                  <td>{{ line.days }}</td>
-                  <td>{{ line.note }}</td>
-                  <td>{{ line.expires | date:'dd-MMM-yyyy' }}</td>
-                  <td><trishul-status-badge [status]="line.status" [severities]="severities" /></td>
-                </tr>
-                } @empty { <tr><td class="empty" colspan="5">No compensatory off records.</td></tr> }
-              </tbody>
-            </table>
+          <div class="table-card">
+            <div class="progress">
+              @if (loading()) {
+                <mat-progress-bar mode="indeterminate" />
+              }
+            </div>
+            <div class="types comp">
+              <article><strong>{{ amount(compOff().earned) }}</strong><span>Earned</span></article>
+              <article class="success"><strong>{{ amount(compOff().available) }}</strong><span>Available</span></article>
+              <article><strong>{{ amount(compOff().used) }}</strong><span>Used</span></article>
+              <article class="warn"><strong>{{ compOff().expiring }}</strong><span>Expiring</span></article>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Earned on</th><th>Days</th><th>Note</th><th>Expires</th><th>Status</th></tr></thead>
+                <tbody>
+                  @for (line of compOff().lines; track line.earnedOn) {
+                  <tr>
+                    <td>{{ line.earnedOn | date:'dd-MMM-yyyy' }}</td>
+                    <td>{{ line.days }}</td>
+                    <td>{{ line.note }}</td>
+                    <td>{{ line.expires | date:'dd-MMM-yyyy' }}</td>
+                    <td><trishul-status-badge [status]="line.status" [severities]="severities" /></td>
+                  </tr>
+                  } @empty { <tr><td class="empty" colspan="5">{{ loading() ? 'Loading Comp-Off…' : 'No compensatory off records.' }}</td></tr> }
+                </tbody>
+              </table>
+            </div>
           </div>
         </mat-tab>
         <mat-tab label="Leave Calendar">
+          <div class="table-card">
+            <div class="progress">
+              @if (loading()) {
+                <mat-progress-bar mode="indeterminate" />
+              }
+            </div>
           <div class="calendar">
             <section>
               <div class="section-head">
@@ -115,6 +137,7 @@
               <p class="holiday"><mat-icon>event</mat-icon><span>{{ holiday.date | date:'dd MMM yyyy' }}</span><strong>{{ holiday.name }}</strong></p>
               } @empty { <p class="empty">No upcoming holidays in this preview.</p> }
             </section>
+          </div>
           </div>
         </mat-tab>
       </mat-tab-group>
@@ -170,39 +193,50 @@
 </ng-template>
 
 <ng-template #table let-rows="rows" let-total="total">
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Request ID</th><th>Leave type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Pending With</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>
-        @for (row of rows; track row.requestId) {
-        <tr [class.on]="detail()?.requestId === row.requestId" (click)="show(row)">
-          <td>{{ row.id }}</td>
-          <td>{{ row.leaveType }}</td>
-          <td>{{ row.from | date:'dd-MMM-yyyy' }}</td>
-          <td>{{ row.to | date:'dd-MMM-yyyy' }}</td>
-          <td>{{ amount(row.days) }}</td>
-          <td class="reason" [title]="row.reason">{{ row.reason }}</td>
-          <td class="pending" [attr.title]="pendingTitle(row)">
-            @if (row.status !== 'Pending') {
-            <span class="dash">—</span>
-            } @else if (row.needsHrAttention || !row.pendingWithName) {
-            <span class="wait"><i></i>Awaiting Assignment</span>
-            } @else {
-            <span class="who">
-              <strong>{{ row.pendingWithName }}</strong>
-              @if (row.pendingWithRole) { <small>{{ row.pendingWithRole }}</small> }
-            </span>
-            }
-          </td>
-          <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
-          <td class="actions" (click)="$event.stopPropagation()">
-            <button mat-icon-button type="button" aria-label="View details" title="View details" (click)="show(row)"><mat-icon>visibility</mat-icon></button>
-            <button mat-icon-button type="button" aria-label="More actions" [matMenuTriggerFor]="rowMenu" (click)="menuRow.set(row)"><mat-icon>more_vert</mat-icon></button>
-          </td>
-        </tr>
-        } @empty { <tr><td class="empty" colspan="9">No leave applications in this preview.</td></tr> }
-      </tbody>
-    </table>
+  <div class="table-card">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Request ID</th><th>Leave type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Pending With</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          @if (loading() && !rows.length) {
+          <tr><td class="empty" colspan="9">Loading leave requests…</td></tr>
+          } @else {
+          @for (row of rows; track row.requestId) {
+          <tr [class.on]="detail()?.requestId === row.requestId" (click)="show(row)">
+            <td>{{ row.id }}</td>
+            <td>{{ row.leaveType }}</td>
+            <td>{{ row.from | date:'dd-MMM-yyyy' }}</td>
+            <td>{{ row.to | date:'dd-MMM-yyyy' }}</td>
+            <td>{{ amount(row.days) }}</td>
+            <td class="reason" [title]="row.reason">{{ row.reason }}</td>
+            <td class="pending" [attr.title]="pendingTitle(row)">
+              @if (row.status !== 'Pending') {
+              <span class="dash">—</span>
+              } @else if (row.needsHrAttention || !row.pendingWithName) {
+              <span class="wait"><i></i>Awaiting Assignment</span>
+              } @else {
+              <span class="who">
+                <strong>{{ row.pendingWithName }}</strong>
+                @if (row.pendingWithRole) { <small>{{ row.pendingWithRole }}</small> }
+              </span>
+              }
+            </td>
+            <td><trishul-status-badge [status]="row.status" [severities]="severities" /></td>
+            <td class="actions" (click)="$event.stopPropagation()">
+              <button mat-icon-button type="button" aria-label="View details" title="View details" (click)="show(row)"><mat-icon>visibility</mat-icon></button>
+              <button mat-icon-button type="button" aria-label="More actions" [matMenuTriggerFor]="rowMenu" (click)="menuRow.set(row)"><mat-icon>more_vert</mat-icon></button>
+            </td>
+          </tr>
+          } @empty { <tr><td class="empty" colspan="9">No leave applications in this preview.</td></tr> }
+          }
+        </tbody>
+      </table>
+    </div>
   </div>
   <div class="pager">
     <span>Showing {{ fromIndex(total) }}–{{ toIndex(total) }} of {{ total }} requests</span>

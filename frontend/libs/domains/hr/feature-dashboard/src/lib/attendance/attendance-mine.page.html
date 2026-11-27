@@ -59,6 +59,11 @@
 
 <div class="sheet" [class.open]="!!detailDay()">
 <section class="card">
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
   <div class="toolbar">
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
       <mat-icon matPrefix>search</mat-icon>
@@ -71,10 +76,10 @@
     </mat-form-field>
   </div>
 
-  @if (loading()) {
-    <div class="state">Loading your attendance…</div>
-  } @else if (error()) {
+  @if (error()) {
     <div class="state error">{{ error() }}</div>
+  } @else if (!items().length && loading()) {
+    <div class="state">Loading your attendance…</div>
   } @else {
     <div class="table-wrap">
       <table>

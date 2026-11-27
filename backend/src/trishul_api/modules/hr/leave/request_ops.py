@@ -144,6 +144,7 @@ class LeaveRequestRepository:
         return row, employee
 
     def _checked_days(self, actor: CurrentUser, employee: Employee, row: LeaveRequest) -> Decimal:
+        """Revalidate conflicts and balance at approval time without re-applying apply-time notice rules."""
         data = MineApply(
             leave_type_id=row.leave_type_id,
             from_date=row.from_date,
@@ -152,7 +153,7 @@ class LeaveRequestRepository:
             half_day_part="First half" if row.is_half_day else None,
             reason=row.reason or "Leave",
         )
-        return self._mine._validated_days(actor, employee, data, current_id=row.id)
+        return self._mine._validated_days(actor, employee, data, current_id=row.id, for_decision=True)
 
     def _deduct(
         self, employee_id: int, leave_type_id: int, start: date, days: Decimal, user_id: int, request_id: int

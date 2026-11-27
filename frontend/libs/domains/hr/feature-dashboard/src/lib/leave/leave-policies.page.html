@@ -185,6 +185,11 @@
   </form>
   }
   <section class="card policies">
+    <div class="progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </div>
     <header class="list-head">
       <div>
         <h2>Leave Policies</h2>

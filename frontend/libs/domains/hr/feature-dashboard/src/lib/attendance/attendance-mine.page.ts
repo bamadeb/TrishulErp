@@ -12,11 +12,20 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { interval } from 'rxjs';
+import {
+  Subject,
+  catchError,
+  finalize,
+  interval,
+  of,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthStore } from '@trishul/core-auth';
@@ -62,6 +71,7 @@ type DayAction = 'request' | 'compOff' | 'unavailable' | 'locked' | 'submitted' 
     MatInput,
     MatOption,
     MatPrefix,
+    MatProgressBar,
     MatSelect,
     PageHeader,
     StatusBadge,
@@ -82,6 +92,7 @@ export class AttendanceMinePage implements OnInit {
   private readonly clockTick = signal(Date.now());
   /** Last auth user id that loaded this page — clears rows when the account switches. */
   private boundUserId: number | null = null;
+  private readonly reload$ = new Subject<void>();
 
   protected readonly months = MONTHS;
   protected readonly years = [2026, 2025, 2024];
@@ -148,6 +159,50 @@ export class AttendanceMinePage implements OnInit {
   });
 
   constructor() {
+    this.reload$
+      .pipe(
+        tap(() => {
+          this.loading.set(true);
+          this.error.set(null);
+          this.detailDay.set(null);
+        }),
+        switchMap(() => {
+          const linked = this.auth.user()?.employeeId ?? null;
+          if (linked == null) {
+            this.loading.set(false);
+            return of(null);
+          }
+          return this.api.mine(this.year(), this.monthIndex() + 1).pipe(
+            tap((page) => {
+              if (page.employeeId !== linked) {
+                this.clearEmployeeState();
+                this.error.set('Attendance could not be scoped to your employee profile.');
+                return;
+              }
+              this.employeeId.set(page.employeeId);
+              this.employeeName.set(page.employeeName);
+              this.employeeCode.set(page.employeeCode);
+              this.monthLabel.set(page.monthLabel);
+              this.isFinalized.set(page.isMonthFinalized);
+              this.canRegularize.set(page.canRegularize !== false && !page.isMonthFinalized);
+              this.summary.set(page.summary);
+              this.items.set(page.items);
+              this.regularizations.set(page.regularizations ?? []);
+            }),
+            catchError((err: unknown) => {
+              this.clearEmployeeState();
+              const message = messageFrom(err);
+              this.error.set(message);
+              this.snackBar.open(message, 'OK', { duration: 4500 });
+              return of(null);
+            }),
+            finalize(() => this.loading.set(false)),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+
     effect(() => {
       const user = this.auth.user();
       const userId = user?.id ?? null;
@@ -156,7 +211,7 @@ export class AttendanceMinePage implements OnInit {
       this.boundUserId = userId;
       this.clearEmployeeState();
       if (userId != null && linkedEmployeeId != null) {
-        this.reload();
+        this.reload$.next();
       }
     });
   }
@@ -165,7 +220,7 @@ export class AttendanceMinePage implements OnInit {
     interval(60_000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.clockTick.set(Date.now()));
-    if (this.boundUserId == null) this.reload();
+    // First load is owned by the auth effect (and month/year handlers) via reload$.
   }
 
   private clearEmployeeState(): void {
@@ -245,40 +300,8 @@ export class AttendanceMinePage implements OnInit {
   }
 
   protected reload(): void {
-    const linked = this.auth.user()?.employeeId ?? null;
-    this.loading.set(true);
-    this.error.set(null);
-    this.detailDay.set(null);
-    // Never keep the previous employee's month while a new request is in flight.
-    this.items.set([]);
-    this.regularizations.set([]);
-    this.api.mine(this.year(), this.monthIndex() + 1).subscribe({
-      next: (page) => {
-        if (linked != null && page.employeeId !== linked) {
-          this.clearEmployeeState();
-          this.error.set('Attendance could not be scoped to your employee profile.');
-          this.loading.set(false);
-          return;
-        }
-        this.employeeId.set(page.employeeId);
-        this.employeeName.set(page.employeeName);
-        this.employeeCode.set(page.employeeCode);
-        this.monthLabel.set(page.monthLabel);
-        this.isFinalized.set(page.isMonthFinalized);
-        this.canRegularize.set(page.canRegularize !== false && !page.isMonthFinalized);
-        this.summary.set(page.summary);
-        this.items.set(page.items);
-        this.regularizations.set(page.regularizations ?? []);
-        this.loading.set(false);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.clearEmployeeState();
-        const message = messageFrom(err);
-        this.error.set(message);
-        this.snackBar.open(message, 'OK', { duration: 4500 });
-      },
-    });
+    // Keep prior rows visible while the cancellable mine() request runs.
+    this.reload$.next();
   }
 
   protected requestFor(date: string): RegularizationRow | undefined {

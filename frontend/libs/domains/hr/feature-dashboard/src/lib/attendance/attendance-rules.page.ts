@@ -15,6 +15,7 @@ import { MatFormField, MatPrefix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -88,6 +89,7 @@ function ordinal(day: number): string {
     MatMenuTrigger,
     MatOption,
     MatPrefix,
+    MatProgressBar,
     MatSelect,
     MatSlideToggle,
     MatTooltip,

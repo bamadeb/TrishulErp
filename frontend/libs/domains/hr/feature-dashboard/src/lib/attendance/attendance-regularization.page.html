@@ -48,6 +48,11 @@
 </section>
 
 <section class="card" [class.loading]="loading()">
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
   <div class="tabs" role="tablist" aria-label="Regularization views">
     <button
       type="button"

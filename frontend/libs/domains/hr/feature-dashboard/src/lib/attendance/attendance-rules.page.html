@@ -16,6 +16,11 @@
 }
 
 <section class="card shell">
+  <div class="progress">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </div>
   <div class="tabs" role="tablist" aria-label="Rules sections">
     <button
       type="button"

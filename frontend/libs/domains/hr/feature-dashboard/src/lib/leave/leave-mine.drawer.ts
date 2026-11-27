@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { LeaveApi, MineApprovalStep } from '@trishul/hr-data-access';
 import { StatusBadge, StatusSeverity } from '@trishul/shared-ui';
 import { MineLeaveRequest } from './leave-mine.models';
@@ -13,7 +14,7 @@ export interface LeaveDrawerBalance {
 
 @Component({
   selector: 'trishul-leave-request-drawer',
-  imports: [DatePipe, MatButton, MatIcon, MatIconButton, StatusBadge],
+  imports: [DatePipe, MatButton, MatIcon, MatIconButton, MatProgressBar, StatusBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './leave-mine.drawer.html',
   styleUrl: './leave-mine.drawer.scss',
@@ -73,20 +74,28 @@ export class LeaveRequestDrawer {
   }
 
   protected heading(step: MineApprovalStep): string {
-    if (step.status === 'Submitted') return 'Request Submitted';
-    const role = (step.approverRole ?? '').toLowerCase();
-    if (role.includes('hr')) return 'HR Approval';
-    if (role.includes('reporting') || step.level === 'Level 1') return 'Reporting Manager';
-    return step.level ?? 'Final Approval';
+    if (step.status === 'Submitted' || step.title === 'Request Submitted') return 'Request Submitted';
+    if (step.title === 'Reporting Manager' || step.level === 'Reporting Manager' || step.level === 'Level 1') {
+      return 'Reporting Manager';
+    }
+    if (step.title === 'Approved' || (step.status === 'Approved' && !step.approverRole)) return 'Approved';
+    if (step.title === 'Rejected' || (step.status === 'Rejected' && !step.approverRole)) return 'Rejected';
+    if (step.title === 'Approved / Rejected' || step.status === 'Upcoming') return 'Approved / Rejected';
+    return step.title || 'Reporting Manager';
   }
 
   protected stateLabel(step: MineApprovalStep): string {
-    return step.status === 'Submitted' ? 'Completed' : step.status;
+    if (step.status === 'Submitted') return 'Completed';
+    if (step.status === 'Upcoming') return 'Upcoming';
+    return step.status;
   }
 
   protected person(step: MineApprovalStep): string {
     if (step.approverName) return step.approverName;
-    if (step.status === 'Submitted') return this.employeeName();
-    return 'Awaiting Assignment';
+    if (step.status === 'Submitted' || step.title === 'Request Submitted') return this.employeeName();
+    if (step.title === 'Approved' || step.title === 'Rejected' || step.title === 'Approved / Rejected') {
+      return step.title;
+    }
+    return 'Awaiting Reporting Manager';
   }
 }
