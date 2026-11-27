@@ -57,10 +57,18 @@ from trishul_api.modules.hr.attendance.service import AttendanceService
 
 router = APIRouter(prefix="/hr/attendance", tags=["attendance"])
 
-# ESS (My Attendance) uses view/manage. Org-wide HR screens require manage (Admin/HR).
+# ESS (My Attendance) uses view/manage, or hr.attendance.mark for the employee's own month.
+# Org-wide HR screens require manage (Admin/HR).
 # Shifts / rules edits / finalize need their own permissions (not implied by HR/ADMIN).
 CAN_VIEW = Depends(require_permission("core.employee.view", "core.employee.manage"))
+CAN_SELF = Depends(
+    require_permission("core.employee.view", "core.employee.manage", "hr.attendance.mark")
+)
 CAN_MANAGE = Depends(require_permission("core.employee.manage"))
+CAN_REVIEW = Depends(require_permission("core.employee.manage", "hr.attendance.view.team"))
+CAN_LIST_REG = Depends(
+    require_permission("core.employee.manage", "hr.attendance.view.team", "hr.attendance.mark")
+)
 CAN_MANAGE_SHIFTS = Depends(require_permission("hr.attendance.shift.manage"))
 CAN_MANAGE_RULES = Depends(require_permission("hr.attendance.rules.manage"))
 CAN_FINALIZE = Depends(require_permission("hr.attendance.finalize"))
@@ -118,21 +126,22 @@ def attendance_dashboard(
 @router.get(
     "/mine",
     summary="ESS: logged-in employee's attendance for a calendar month",
-    dependencies=[CAN_VIEW],
+    dependencies=[CAN_SELF],
 )
 def my_attendance(
     actor: CurrentUserDep,
     attendance: Attendance,
     year: Annotated[int, Query(ge=2000, le=2100)],
     month: Annotated[int, Query(ge=1, le=12)],
+    employee_id: Annotated[int | None, Query(alias="employeeId", gt=0)] = None,
 ) -> MineAttendancePageOut:
-    return attendance.mine(actor, year, month)
+    return attendance.mine(actor, year, month, employee_id=employee_id)
 
 
 @router.post(
     "/mine/regularizations",
     summary="ESS: submit regularization for the authenticated employee only",
-    dependencies=[CAN_VIEW],
+    dependencies=[CAN_SELF],
     status_code=201,
 )
 def create_mine_regularization(
@@ -171,15 +180,16 @@ def list_daily_attendance(
 @router.get(
     "/daily/employees/{employeeId}/history",
     summary="Recent attendance history for one employee (lazy-loaded by the drawer)",
-    dependencies=[CAN_MANAGE],
+    dependencies=[CAN_REVIEW],
 )
 def employee_attendance_history(
+    actor: CurrentUserDep,
     employee_id: EmployeeId,
     attendance: Attendance,
     before: Annotated[date, Query(description="History ends the day before this date")],
     days: Annotated[int, Query(ge=1, le=31)] = 7,
 ) -> list[AttendanceHistoryOut]:
-    return attendance.employee_history(employee_id, before, days=days)
+    return attendance.employee_history(employee_id, before, days=days, actor=actor)
 
 
 @router.get(
@@ -228,13 +238,14 @@ def resolve_attendance_exception(
 @router.get(
     "/regularizations",
     summary="Attendance regularization requests from hr.attendance_regularization",
-    dependencies=[CAN_MANAGE],
+    dependencies=[CAN_LIST_REG],
 )
 def list_regularizations(
     query: Annotated[RegularizationQuery, Query()],
+    actor: CurrentUserDep,
     attendance: Attendance,
 ) -> RegularizationPageOut:
-    return attendance.list_regularizations(query)
+    return attendance.list_regularizations(query, actor)
 
 
 @router.post(
@@ -253,7 +264,7 @@ def create_regularization(
 @router.post(
     "/regularizations/{regularizationId}/approve",
     summary="Approve a pending regularization request",
-    dependencies=[CAN_MANAGE],
+    dependencies=[CAN_REVIEW],
 )
 def approve_regularization(
     regularization_id: RegularizationId,
@@ -267,7 +278,7 @@ def approve_regularization(
 @router.post(
     "/regularizations/{regularizationId}/reject",
     summary="Reject a pending regularization request",
-    dependencies=[CAN_MANAGE],
+    dependencies=[CAN_REVIEW],
 )
 def reject_regularization(
     regularization_id: RegularizationId,

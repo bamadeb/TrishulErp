@@ -43,16 +43,21 @@ def test_holiday_list_keeps_national_and_state_scope(settings: Settings) -> None
         summary = client.get(f"{ROOT}/summary", params={"financialYear": 2026})
         assert summary.status_code == 200, summary.text
         body = summary.json()
-        assert body["total"] == 3
-        assert body["national"] == 1
+        assert body["national"] == 4
+        assert body["festival"] == 0
         assert body["regional"] == 1
         assert body["optional"] == 1
+        assert body["total"] == 6
         odisha = client.get(ROOT, params={"financialYear": 2026, "stateId": 1, "pageSize": 20})
         assert odisha.status_code == 200, odisha.text
         names = {item["name"] for item in odisha.json()["items"]}
-        assert names == {"Gandhi Jayanti", "Nuakhai", "Anla Navami"}
+        assert names == {
+            "Gandhi Jayanti", "May Day", "Independence Day", "Republic Day", "Nuakhai", "Anla Navami",
+        }
         other = client.get(ROOT, params={"financialYear": 2026, "locationId": 2, "pageSize": 20})
-        assert {item["name"] for item in other.json()["items"]} == {"Gandhi Jayanti"}
+        assert {item["name"] for item in other.json()["items"]} == {
+            "Gandhi Jayanti", "May Day", "Independence Day", "Republic Day",
+        }
         calendar = client.get(
             f"{ROOT}/calendar",
             params={"startDate": "2026-11-01", "endDate": "2026-11-30", "stateId": 1},

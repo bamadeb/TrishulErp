@@ -16,8 +16,9 @@ One office day for regular, contractual and trainee employees:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
+IST = timezone(timedelta(hours=5, minutes=30))
 OFFICE_START = time(9, 30)
 OFFICE_END = time(17, 30)
 LUNCH_START = time(13, 30)
@@ -49,6 +50,11 @@ class Arrival:
 class OfficialVisit:
     departed_at: datetime
     returned_at: datetime | None
+
+
+def ist_now() -> datetime:
+    """Indian clock time without a timezone, matching stored punch and shift times."""
+    return datetime.now(IST).replace(tzinfo=None)
 
 
 def shift_bounds(day: date, start: time, end: time) -> tuple[datetime, datetime]:

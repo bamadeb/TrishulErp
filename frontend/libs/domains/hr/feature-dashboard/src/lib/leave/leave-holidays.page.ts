@@ -121,6 +121,7 @@ export class LeaveHolidaysPage {
   private readonly snack = inject(MatSnackBar);
   private readonly drawer = viewChild.required<MatDrawer>('drawer');
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+  private financialYears: number[] = [];
   private loadToken = 0;
 
   protected readonly weekdays = WEEKDAYS;
@@ -130,6 +131,8 @@ export class LeaveHolidaysPage {
   protected readonly states = signal<HolidayOption[]>([]);
   protected readonly locations = signal<HolidayOption[]>([]);
   protected readonly year = signal(financialYear(new Date()));
+  protected readonly basis = signal<'financial' | 'calendar'>('financial');
+  protected readonly festivals = signal<string[]>([]);
   protected readonly cursor = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   protected readonly selected = signal(strip(new Date()));
   protected readonly mode = signal<'calendar' | 'list'>('calendar');
@@ -142,7 +145,7 @@ export class LeaveHolidaysPage {
   protected readonly total = signal(0);
   protected readonly pageRows = signal<HolidayItem[]>([]);
   protected readonly monthHolidays = signal<HolidayItem[]>([]);
-  protected readonly summary = signal<HolidaySummary>({ total: 0, upcoming: 0, national: 0, regional: 0, optional: 0 });
+  protected readonly summary = signal<HolidaySummary>({ total: 0, upcoming: 0, national: 0, festival: 0, regional: 0, optional: 0 });
   protected readonly loadError = signal('');
   protected readonly drawerMode = signal<DrawerMode | null>(null);
   protected readonly draft = signal<Draft>(emptyDraft());
@@ -165,23 +168,56 @@ export class LeaveHolidaysPage {
         this.types.set(filters.categories);
         this.states.set(filters.states);
         this.locations.set(filters.locations);
-        this.years.set(filters.financialYears.map((year) => ({ id: year, label: `FY ${year}–${year + 1}` })));
-        if (!filters.financialYears.includes(this.year()) && filters.financialYears.length) {
-          this.year.set(filters.financialYears[filters.financialYears.length - 1]);
-        }
-        this.reload();
+        this.festivals.set(filters.policyFestivals ?? []);
+        this.financialYears = filters.financialYears;
+        this.applyYearChoices();
       },
       error: (error: unknown) => this.loadError.set(problem(error)),
     });
   }
 
+  protected setBasis(value: 'financial' | 'calendar'): void {
+    if (this.basis() === value) return;
+    this.basis.set(value);
+    this.applyYearChoices();
+  }
+
   protected setYear(value: number): void {
     this.year.set(value);
     this.pageIndex.set(0);
-    if (!inYear(iso(this.cursor()), value)) {
-      this.cursor.set(new Date(value, 3, 1));
-      this.selected.set(new Date(value, 3, 1));
+    const month = this.basis() === 'calendar' ? 0 : 3;
+    if (!inBasis(iso(this.cursor()), value, this.basis())) {
+      this.cursor.set(new Date(value, month, 1));
+      this.selected.set(new Date(value, month, 1));
     }
+    this.reload();
+  }
+
+  protected onType(value: HolidayCategory): void {
+    const company = value === 'National' || value === 'Festival';
+    this.patch({
+      type: value,
+      optional: value === 'Optional',
+      stateId: company ? null : this.draft().stateId,
+      locationId: company ? null : this.draft().locationId,
+      stateName: company ? null : this.draft().stateName,
+      locationName: company ? 'All Locations' : this.draft().locationName,
+      active: value === 'Festival' && this.draft().id == null ? false : this.draft().active,
+    });
+  }
+
+  private applyYearChoices(): void {
+    const financialYears = this.financialYears;
+    const today = new Date().getFullYear();
+    const ids = this.basis() === 'calendar'
+      ? [...new Set([...financialYears, ...financialYears.map((year) => year + 1), today])].sort((a, b) => a - b)
+      : [...financialYears].sort((a, b) => a - b);
+    this.years.set(ids.map((year) => ({
+      id: year,
+      label: this.basis() === 'calendar' ? String(year) : `FY ${year}–${year + 1}`,
+    })));
+    if (!ids.includes(this.year()) && ids.length) this.year.set(ids[ids.length - 1]);
+    this.pageIndex.set(0);
     this.reload();
   }
 
@@ -385,6 +421,7 @@ export class LeaveHolidaysPage {
 
   protected tone(holiday: HolidayItem): string {
     if (holiday.optional || holiday.category === 'Optional') return 'optional';
+    if (holiday.category === 'Festival') return 'festival';
     return holiday.category === 'Regional' ? 'regional' : 'national';
   }
 
@@ -425,8 +462,9 @@ export class LeaveHolidaysPage {
   }
 
   private query() {
+    const year = this.basis() === 'calendar' ? { calendarYear: this.year() } : { financialYear: this.year() };
     return {
-      financialYear: this.year(),
+      ...year,
       holidayCategory: this.type(),
       stateId: this.state(),
       locationId: this.location(),
@@ -445,8 +483,8 @@ export class LeaveHolidaysPage {
         name: row.name,
         holidayDate: row.date,
         category: row.type as HolidayCategory,
-        stateId: row.type === 'National' ? null : state?.id ?? null,
-        locationId: row.type === 'National' ? null : location?.id ?? null,
+        stateId: row.type === 'National' || row.type === 'Festival' ? null : state?.id ?? null,
+        locationId: row.type === 'National' || row.type === 'Festival' ? null : location?.id ?? null,
         isActive: true,
       };
       this.api.createHoliday(body).subscribe({
@@ -501,8 +539,8 @@ function toWrite(draft: Draft): HolidayWrite {
     name: draft.name.trim(),
     holidayDate: iso(draft.date ?? new Date()),
     category,
-    stateId: category === 'National' ? null : draft.stateId,
-    locationId: category === 'National' ? null : draft.locationId,
+    stateId: category === 'National' || category === 'Festival' ? null : draft.stateId,
+    locationId: category === 'National' || category === 'Festival' ? null : draft.locationId,
     description: draft.description.trim() || null,
     isActive: draft.active,
   };
@@ -513,7 +551,9 @@ function validate(draft: Draft): string {
   if (!draft.date) return 'Holiday date is mandatory.';
   if (!draft.type && !draft.optional) return 'Holiday type is mandatory.';
   const category = draft.optional || draft.type === 'Optional' ? 'Optional' : draft.type;
-  if (category !== 'National' && draft.stateId == null) return 'State is mandatory for a regional or optional holiday.';
+  if (category !== 'National' && category !== 'Festival' && draft.stateId == null) {
+    return 'State is mandatory for a regional or optional holiday.';
+  }
   return '';
 }
 
@@ -556,7 +596,9 @@ function parseCsv(text: string): ImportRow[] {
     if (!name.trim()) error = 'Holiday name is mandatory.';
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) error = 'Holiday date must be YYYY-MM-DD.';
     else if (!category) error = 'Holiday type is mandatory.';
-    else if (category !== 'National' && !state.trim()) error = 'State is mandatory for a regional or optional holiday.';
+    else if (category !== 'National' && category !== 'Festival' && !state.trim()) {
+      error = 'State is mandatory for a regional or optional holiday.';
+    }
     return { name: name.trim(), date, type: category, state: state.trim(), location: location.trim(), error };
   });
 }
@@ -568,7 +610,8 @@ function splitCsv(line: string): string[] {
 function normalType(value: string): HolidayCategory | '' {
   const text = value.trim().toLowerCase();
   if (text === 'national') return 'National';
-  if (text === 'regional' || text === 'festival') return 'Regional';
+  if (text === 'festival') return 'Festival';
+  if (text === 'regional') return 'Regional';
   if (text === 'optional') return 'Optional';
   return '';
 }
@@ -588,7 +631,8 @@ function download(items: HolidayItem[], year: number): void {
   URL.revokeObjectURL(url);
 }
 
-function inYear(value: string, start: number): boolean {
+function inBasis(value: string, start: number, basis: 'financial' | 'calendar'): boolean {
+  if (basis === 'calendar') return value >= `${start}-01-01` && value <= `${start}-12-31`;
   return value >= `${start}-04-01` && value <= `${start + 1}-03-31`;
 }
 

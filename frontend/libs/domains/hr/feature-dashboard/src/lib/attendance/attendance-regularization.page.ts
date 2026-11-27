@@ -369,8 +369,10 @@ export class AttendanceRegularizationPage implements OnInit {
       .afterClosed()
       .pipe(filter((result): result is RegularizationDecisionResult => !!result))
       .subscribe((result) => {
+        const remark = result.reason?.trim();
+        if (!remark) return;
         this.api
-          .approveRegularization(row.id, result.reason)
+          .approveRegularization(row.id, remark)
           .pipe(
             catchError((err: unknown) => {
               this.snackBar.open(extractHttpError(err, 'Failed to approve request.'), 'OK', {

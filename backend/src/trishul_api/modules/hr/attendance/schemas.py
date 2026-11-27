@@ -21,6 +21,7 @@ shift start/end), so these are sent with +05:30. Sent as UTC, the browser showed
 AttendanceDisplayStatus = Literal[
     "Present",
     "Late",
+    "In Progress",
     "Missing Punch",
     "Absent",
     "On Leave",
@@ -270,6 +271,7 @@ RegularizationRequestType = Literal[
     "Early Exit",
     "WFH Correction",
     "Late Arrival",
+    "Holiday Work",
 ]
 RegularizationStatus = Literal["Pending", "Approved", "Rejected"]
 RegularizationTab = Literal["pending", "approved", "rejected", "all"]
@@ -282,6 +284,8 @@ class RegularizationQuery(PageQuery):
     department: str | None = Field(None, max_length=120)
     location: str | None = Field(None, max_length=120)
     request_type: RegularizationRequestType | None = None
+    scope: Literal["all", "team", "self"] = "all"
+    """``team`` is the reporting manager's employees. ``self`` is the signed-in employee only."""
 
 
 class RegularizationRowOut(ApiModel):
@@ -291,12 +295,17 @@ class RegularizationRowOut(ApiModel):
     employee_name: str
     department: str
     location: str
+    reporting_manager: str = "—"
     attendance_date: date
     request_type: RegularizationRequestType
+    designation: str = "—"
+    shift: str = "—"
     original_in: IndiaDateTime | None = None
     original_out: IndiaDateTime | None = None
+    original_status: str | None = None
     requested_in: str | None = None
     requested_out: str | None = None
+    requested_status: str = "Present"
     reason: str
     submitted_on: UtcDateTime
     status: RegularizationStatus
@@ -505,7 +514,7 @@ class AttendanceHolidayItem(ApiModel):
     holiday_date: date
     name: str
     holiday_type: Literal["National", "Festival", "Optional"]
-    category: Literal["National", "Regional", "Optional"]
+    category: Literal["National", "Festival", "Regional", "Optional"]
     applies_to: str
     is_active: bool
 
@@ -751,6 +760,7 @@ class MineAttendanceDayOut(ApiModel):
     working_hours: str | None = None
     shift: str
     remarks: str = ""
+    resolved: bool = False
 
 
 class MineAttendanceSummaryOut(ApiModel):

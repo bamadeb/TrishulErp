@@ -10,7 +10,7 @@
           {{
             isReject
               ? 'Provide a rejection reason before continuing.'
-              : 'Confirm approval for this regularization request.'
+              : 'Add manager comments, then confirm approval for this request.'
           }}
         </p>
       </div>
@@ -43,20 +43,23 @@
     </div>
   </dl>
 
-  @if (isReject) {
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full reason">
-      <mat-label>Rejection Reason *</mat-label>
-      <textarea
-        matInput
-        rows="3"
-        maxlength="250"
-        [ngModel]="reason()"
-        (ngModelChange)="onReason($event)"
-        placeholder="Explain why this request is being rejected"
-      ></textarea>
-      <span matSuffix class="counter">{{ reasonCount() }} / 250</span>
-    </mat-form-field>
-  } @else {
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full reason">
+    <mat-label>{{ isReject ? 'Rejection Reason *' : "Manager's Comments *" }}</mat-label>
+    <textarea
+      matInput
+      rows="3"
+      maxlength="250"
+      [ngModel]="reason()"
+      (ngModelChange)="onReason($event)"
+      [placeholder]="
+        isReject
+          ? 'Explain why this request is being rejected'
+          : 'Enter approval remarks for the audit trail'
+      "
+    ></textarea>
+    <span matSuffix class="counter">{{ reasonCount() }} / 250</span>
+  </mat-form-field>
+  @if (!isReject) {
     <p class="note">
       Approving updates attendance with the requested IN/OUT times and marks this request as
       Approved.

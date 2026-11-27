@@ -97,6 +97,20 @@ from trishul_api.modules.hr.leave.schemas import (
     WeeklyRestGrantItem,
     WeeklyRestGrantWrite,
 )
+from trishul_api.modules.hr.leave.comp_off_ops import (
+    authorize,
+    direct_reports,
+    expire_due,
+    ledger_entries,
+    list_authorizations,
+)
+from trishul_api.modules.hr.leave.comp_off_schemas import (
+    CompOffAuthorizationItem,
+    CompOffAuthorizeIn,
+    CompOffLapseResult,
+    CompOffLedgerItem,
+    CompOffReport,
+)
 from trishul_api.modules.hr.leave.service import LeaveService
 
 router = APIRouter(prefix="/hr/leave", tags=["leave"])
@@ -389,6 +403,108 @@ def leave_mine_balances(financial_year: Year, actor: CurrentUserDep, mine: Mine)
 @router.get("/mine/comp-off", summary="Signed-in employee compensatory off balance", dependencies=[CAN_VIEW])
 def leave_mine_comp_off(financial_year: Year, actor: CurrentUserDep, mine: Mine) -> MineCompOff:
     return mine.comp_off(actor, financial_year)
+
+
+CAN_COMP = Depends(
+    require_permission(
+        "hr.leave.view",
+        "hr.leave.manage",
+        "hr.leave.approve",
+        "hr.attendance.mark",
+        "hr.attendance.view.team",
+        "core.employee.manage",
+    )
+)
+
+
+def _authorization_item(db: DbSession, row) -> CompOffAuthorizationItem:
+    from trishul_api.db.models import Employee
+
+    employee = db.get(Employee, row.employee_id)
+    name = ""
+    code = ""
+    if employee is not None:
+        name = f"{employee.first_name} {employee.last_name}".strip()
+        code = employee.employee_code
+    return CompOffAuthorizationItem(
+        id=row.id,
+        employee_id=row.employee_id,
+        employee_code=code,
+        employee_name=name,
+        work_date=row.work_date,
+        day_kind=row.day_kind,
+        status=row.status,
+        remarks=row.remarks,
+    )
+
+
+@router.get("/comp-off/reports", summary="Direct reports a manager can authorize for Comp Off", dependencies=[CAN_COMP])
+def comp_off_reports(actor: CurrentUserDep, db: DbSession) -> list[CompOffReport]:
+    return [
+        CompOffReport(
+            employee_id=row.id,
+            employee_code=row.employee_code,
+            employee_name=f"{row.first_name} {row.last_name}".strip(),
+        )
+        for row in direct_reports(db, actor)
+    ]
+
+
+@router.get("/comp-off/authorizations", summary="Comp Off work authorizations", dependencies=[CAN_COMP])
+def comp_off_authorizations(
+    actor: CurrentUserDep,
+    db: DbSession,
+    employee_id: Annotated[int | None, Query(alias="employeeId", gt=0)] = None,
+    scope: Annotated[str, Query()] = "mine",
+) -> list[CompOffAuthorizationItem]:
+    rows = list_authorizations(db, actor, employee_id=employee_id, scope=scope)
+    return [_authorization_item(db, row) for row in rows]
+
+
+@router.post(
+    "/comp-off/authorizations",
+    summary="Authorize an employee to work a weekly off or declared holiday",
+    status_code=201,
+    dependencies=[CAN_COMP],
+)
+def comp_off_authorize(data: CompOffAuthorizeIn, actor: CurrentUserDep, db: DbSession) -> CompOffAuthorizationItem:
+    row = authorize(
+        db,
+        actor,
+        employee_id=data.employee_id,
+        employee_code=data.employee_code,
+        work_date=data.work_date,
+        remarks=data.remarks,
+    )
+    db.commit()
+    return _authorization_item(db, row)
+
+
+@router.get("/comp-off/ledger", summary="Comp Off credit, use, expiry and adjustment history", dependencies=[CAN_COMP])
+def comp_off_ledger(
+    actor: CurrentUserDep,
+    db: DbSession,
+    employee_id: Annotated[int, Query(alias="employeeId", gt=0)],
+) -> list[CompOffLedgerItem]:
+    return [
+        CompOffLedgerItem(
+            id=row.id,
+            credit_id=row.credit_id,
+            kind=row.kind,
+            days=row.days,
+            leave_request_id=row.leave_request_id,
+            remarks=row.remarks,
+            created_at=row.created_at.date(),
+        )
+        for row in ledger_entries(db, actor, employee_id)
+    ]
+
+
+@router.post("/comp-off/lapse", summary="Lapse Comp Off credits that are 90 days old", dependencies=[CAN_MANAGE])
+def comp_off_lapse(db: DbSession) -> CompOffLapseResult:
+    from datetime import date
+
+    return CompOffLapseResult(lapsed=expire_due(db, employee_id=None, as_of=date.today()))
 
 
 @router.get("/mine/holidays", summary="Holidays for the signed-in employee's branch", dependencies=[CAN_VIEW])

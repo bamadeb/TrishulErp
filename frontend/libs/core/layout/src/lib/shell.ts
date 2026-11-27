@@ -186,10 +186,10 @@ export class Shell {
 
   private filter(items: NavItem[]): NavItem[] {
     return items
-      .filter(
-        (item) =>
-          !item.permissions || this.auth.hasAnyPermission(item.permissions),
-      )
+      .filter((item) => {
+        if (item.excludePermissions && this.auth.hasAnyPermission(item.excludePermissions)) return false;
+        return !item.permissions || this.auth.hasAnyPermission(item.permissions);
+      })
       .flatMap((item) => {
         if (!item.children) return item.route ? [item] : [];
         const children = this.filter(item.children);

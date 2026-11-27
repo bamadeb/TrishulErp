@@ -99,6 +99,9 @@
               }
             </tbody>
           </table>
+          @if (employee.balances['CO'].nextExpiry) {
+            <p class="note">Comp Off closing {{ employee.balances['CO'].closing }} · next expiry {{ expiryLabel(employee.balances['CO'].nextExpiry) }}.</p>
+          }
           <a mat-stroked-button routerLink="/hr/leave/balances">Open Leave Balance</a>
         }
       </div>

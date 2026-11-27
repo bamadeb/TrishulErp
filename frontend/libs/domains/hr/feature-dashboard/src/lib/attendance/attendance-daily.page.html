@@ -2,10 +2,10 @@
   <div class="content">
     <trishul-page-header
       title="Daily Attendance"
-      subtitle="View and manage employee attendance for a selected date."
+      subtitle="View and manage employee attendance for the selected dates."
     >
-      <div class="date-nav" aria-label="Attendance date">
-        <button mat-icon-button type="button" aria-label="Previous day" (click)="shiftDate(-1)">
+      <div class="date-nav" aria-label="Attendance date range">
+        <button mat-icon-button type="button" aria-label="Previous range" (click)="shiftDate(-1)">
           <mat-icon>chevron_left</mat-icon>
         </button>
         <button type="button" class="date-btn" (click)="openPicker()">
@@ -13,17 +13,26 @@
           <span>{{ dateLabel() }}</span>
           <mat-icon>expand_more</mat-icon>
         </button>
-        <button mat-icon-button type="button" aria-label="Next day" (click)="shiftDate(1)">
+        <button mat-icon-button type="button" aria-label="Next range" (click)="shiftDate(1)">
           <mat-icon>chevron_right</mat-icon>
         </button>
-        <input
-          matInput
-          class="date-hidden"
-          [matDatepicker]="picker"
-          [ngModel]="selectedDate()"
-          (ngModelChange)="onDatePicked($event)"
-        />
-        <mat-datepicker #picker />
+        <mat-form-field class="date-hidden" subscriptSizing="dynamic">
+          <mat-date-range-input [rangePicker]="picker">
+            <input
+              matStartDate
+              [ngModel]="rangeStart()"
+              (ngModelChange)="onRangeStart($event)"
+              aria-label="From date"
+            />
+            <input
+              matEndDate
+              [ngModel]="rangeEnd()"
+              (ngModelChange)="onRangeEnd($event)"
+              aria-label="To date"
+            />
+          </mat-date-range-input>
+          <mat-date-range-picker #picker />
+        </mat-form-field>
       </div>
     </trishul-page-header>
 
@@ -327,10 +336,14 @@
                 <th class="name-col">Employee</th>
                 <th>Department</th>
                 <th>Shift</th>
+                @if (multiDay()) {
+                  <th>Date</th>
+                }
                 <th class="clock">In Time</th>
                 <th class="clock">Out Time</th>
                 <th class="hours">Worked Hours</th>
                 <th class="status-col">Status</th>
+                <th class="reg-col">Regularization</th>
                 <th class="mins">Late Arrival</th>
                 <th class="mins">Early Exit</th>
                 <th class="actions-col">Actions</th>
@@ -369,6 +382,9 @@
                       <span class="muted">—</span>
                     }
                   </td>
+                  @if (multiDay()) {
+                    <td>{{ rowDateLabel(row) }}</td>
+                  }
                   <td class="clock">
                     @if (row.firstIn) {
                       <span class="time" [class.late]="row.firstInLate">{{ row.firstIn }}</span>
@@ -389,6 +405,18 @@
                       <mat-icon>{{ statusIcon(row.status) }}</mat-icon>
                       {{ row.status }}
                     </span>
+                  </td>
+                  <td class="reg-col">
+                    @if (regFor(row.employeeId, row.dateIso); as reg) {
+                      <span class="status" [attr.data-status]="reg.status">
+                        @if (reg.status === 'Approved') {
+                          <mat-icon>check_circle</mat-icon>
+                        }
+                        {{ reg.status }}
+                      </span>
+                    } @else {
+                      <span class="muted">—</span>
+                    }
                   </td>
                   <td class="mins">{{ minuteLabel(row.lateArrivalMinutes) }}</td>
                   <td class="mins">{{ minuteLabel(row.earlyExitMinutes) }}</td>
@@ -415,7 +443,7 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="11">
+                  <td [attr.colspan]="multiDay() ? 13 : 12">
                     <div class="empty">
                       <mat-icon>event_busy</mat-icon>
                       No attendance records match your filters.
@@ -460,13 +488,27 @@
   } @else if (selected(); as row) {
     <trishul-attendance-daily-drawer
       [row]="row"
-      [selectedDate]="selectedDate()"
+      [selectedDate]="rowDate(row)"
+      [request]="regFor(row.employeeId, row.dateIso)"
+      [showRequestForm]="!regFor(row.employeeId, row.dateIso)"
       (closed)="closeDetails()"
       (regularize)="regularize($event)"
+      (submitted)="onDrawerSubmitted()"
       (shiftOpen)="openShift($event)"
     />
   }
 </div>
+
+@for (key of regDrawerKeys(); track key) {
+  <trishul-attendance-regularize-drawer
+    [onBehalf]="true"
+    [employees]="regEmployees()"
+    [forEmployeeId]="regEmployeeId()"
+    [initialDate]="regDate()"
+    (closed)="closeRegularize()"
+    (submitted)="onRegularized()"
+  />
+}
 
 <mat-menu #rowMenu="matMenu">
   <button mat-menu-item type="button" (click)="menuView()">

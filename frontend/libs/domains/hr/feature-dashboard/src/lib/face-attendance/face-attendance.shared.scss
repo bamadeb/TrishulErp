@@ -86,6 +86,13 @@
   }
 }
 
+.head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

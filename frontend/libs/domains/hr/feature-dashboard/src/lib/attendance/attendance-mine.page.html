@@ -16,23 +16,23 @@
 >
   <div class="filters">
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-select [ngModel]="monthIndex()" (ngModelChange)="onMonth($event)">
+      <mat-select [ngModel]="monthIndex()" (ngModelChange)="onMonth($event)" aria-label="Month">
         @for (label of months; track label; let i = $index) {
           <mat-option [value]="i">{{ label }}</mat-option>
         }
       </mat-select>
     </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-select [ngModel]="year()" (ngModelChange)="onYear($event)">
+      <mat-select [ngModel]="year()" (ngModelChange)="onYear($event)" aria-label="Year">
         @for (y of years; track y) {
           <mat-option [value]="y">{{ y }}</mat-option>
         }
       </mat-select>
     </mat-form-field>
     @if (canRegularize()) {
-      <button mat-stroked-button type="button" (click)="openRegularize()">
+      <button mat-flat-button type="button" class="request-btn" (click)="openRegularize()">
         <mat-icon>edit_calendar</mat-icon>
-        Request regularization
+        Request Regularization
       </button>
     }
     <button mat-icon-button type="button" aria-label="Refresh" (click)="reload()">
@@ -44,20 +44,20 @@
 @if (isFinalized()) {
   <p class="lock-banner" role="status">
     <mat-icon>lock</mat-icon>
-    This month is finalized for payroll. Attendance changes and new regularization requests are
-    locked.
+    This month is finalized for payroll. Attendance changes and new regularization requests are locked.
   </p>
 }
 
 <section class="kpis" aria-label="My attendance summary">
-  <article class="kpi"><span>Present</span><strong>{{ summary().present | number }}</strong></article>
-  <article class="kpi"><span>Late</span><strong>{{ summary().late | number }}</strong></article>
-  <article class="kpi"><span>Absent</span><strong>{{ summary().absent | number }}</strong></article>
-  <article class="kpi"><span>On Leave</span><strong>{{ summary().onLeave | number }}</strong></article>
-  <article class="kpi"><span>Missing Punch</span><strong>{{ summary().missingPunch | number }}</strong></article>
-  <article class="kpi"><span>Off / Holiday</span><strong>{{ (summary().offDay + summary().holiday) | number }}</strong></article>
+  <article class="kpi present"><mat-icon>check_circle</mat-icon><div><span>Present</span><strong>{{ summary().present | number }}</strong></div></article>
+  <article class="kpi late"><mat-icon>schedule</mat-icon><div><span>Late</span><strong>{{ summary().late | number }}</strong></div></article>
+  <article class="kpi absent"><mat-icon>person_off</mat-icon><div><span>Absent</span><strong>{{ summary().absent | number }}</strong></div></article>
+  <article class="kpi leave"><mat-icon>event_busy</mat-icon><div><span>On Leave</span><strong>{{ summary().onLeave | number }}</strong></div></article>
+  <article class="kpi missing"><mat-icon>fingerprint</mat-icon><div><span>Missing Punch</span><strong>{{ summary().missingPunch | number }}</strong></div></article>
+  <article class="kpi off"><mat-icon>beach_access</mat-icon><div><span>Off / Holiday</span><strong>{{ (summary().offDay + summary().holiday) | number }}</strong></div></article>
 </section>
 
+<div class="sheet" [class.open]="!!detailDay()">
 <section class="card">
   <div class="toolbar">
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
@@ -87,13 +87,12 @@
             <th>Out</th>
             <th>Hours</th>
             <th>Remarks</th>
-            <th>Request</th>
-            <th></th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           @for (row of filtered(); track row.date) {
-            <tr>
+            <tr [class.clickable]="canOpen(row)" (click)="openRow(row)">
               <td>{{ row.date }}</td>
               <td>
                 <span class="status-cell">
@@ -105,51 +104,63 @@
               <td>{{ row.firstIn || '—' }}</td>
               <td>{{ row.lastOut || '—' }}</td>
               <td>{{ row.workingHours || '—' }}</td>
-              <td>{{ row.remarks || '—' }}</td>
+              <td class="remarks" [title]="row.remarks || ''">{{ shortRemark(row.remarks) }}</td>
               <td>
-                @if (requestFor(row.date); as reg) {
-                  <trishul-status-badge [status]="reg.status" [severities]="severities" />
-                } @else {
-                  —
-                }
-              </td>
-              <td>
-                @if (
-                  canRegularize() &&
-                  (row.status === 'Missing Punch' ||
-                    row.status === 'Absent' ||
-                    row.status === 'Late') &&
-                  !requestFor(row.date)
-                ) {
-                  <button
-                    mat-icon-button
-                    type="button"
-                    aria-label="Request regularization"
-                    (click)="openRegularize(row)"
-                  >
-                    <mat-icon>edit_calendar</mat-icon>
-                  </button>
+                @switch (dayAction(row)) {
+                  @case ('request') {
+                    <button type="button" class="action request" (click)="$event.stopPropagation(); openRegularize(row)">
+                      <mat-icon>edit_calendar</mat-icon>
+                      Request
+                    </button>
+                  }
+                  @case ('compOff') {
+                    <button type="button" class="action comp-off" (click)="$event.stopPropagation(); openCompOff(row)">
+                      <mat-icon>event_available</mat-icon>
+                      Request Comp Off
+                    </button>
+                  }
+                  @case ('unavailable') {
+                    <span class="action muted"><mat-icon>block</mat-icon> Not Available</span>
+                  }
+                  @case ('submitted') {
+                    <trishul-status-badge [status]="requestFor(row.date)!.status" [severities]="severities" />
+                  }
+                  @case ('resolved') {
+                    <trishul-status-badge status="Resolved" [severities]="severities" />
+                  }
+                  @default {
+                    <span class="action muted"><mat-icon>remove_circle_outline</mat-icon> Not Applicable</span>
+                  }
                 }
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="9">
-                <div class="state">No attendance days for this month.</div>
-              </td>
+              <td colspan="8"><div class="state">No attendance days for this month.</div></td>
             </tr>
           }
         </tbody>
       </table>
     </div>
+    <p class="hint">
+      <mat-icon>info</mat-icon>
+      Regularization is allowed for dates with attendance exceptions (Late, Missing Punch, Absent or Incorrect Punch).
+    </p>
   }
 </section>
+@if (detailDay(); as day) {
+  <trishul-attendance-daily-drawer
+    [row]="detailAttendance()!"
+    [selectedDate]="detailDate()"
+    [request]="requestFor(day.date) ?? null"
+    (closed)="detailDay.set(null)"
+  />
+}
+</div>
 
 @if (regularizations().length) {
   <section class="card history">
-    <header class="toolbar">
-      <strong>Regularization history</strong>
-    </header>
+    <header class="toolbar"><strong>Regularization history</strong></header>
     <div class="table-wrap">
       <table>
         <thead>
@@ -170,9 +181,7 @@
               <td>{{ reg.requestType }}</td>
               <td>{{ reg.requestedIn || '—' }}</td>
               <td>{{ reg.requestedOut || '—' }}</td>
-              <td>
-                <trishul-status-badge [status]="reg.status" [severities]="severities" />
-              </td>
+              <td><trishul-status-badge [status]="reg.status" [severities]="severities" /></td>
               <td>{{ reg.submittedOn | date: 'mediumDate' }}</td>
               <td>{{ reg.rejectionReason || reg.reason || '—' }}</td>
             </tr>
@@ -181,4 +190,13 @@
       </table>
     </div>
   </section>
+}
+
+@for (key of drawerKeys(); track key) {
+  <trishul-attendance-regularize-drawer
+    [initialDate]="drawerDate()"
+    [mode]="drawerMode()"
+    (closed)="closeDrawer()"
+    (submitted)="onRegularized()"
+  />
 }

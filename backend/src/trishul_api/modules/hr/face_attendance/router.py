@@ -431,7 +431,9 @@ def create_offline_attendance_punch(
 
 # --- review queue and photos (HR / team lead) ----------------------------------------------
 
-CAN_SEE_PUNCHES = Depends(require_permission("hr.attendance.manage", "hr.attendance.view.team"))
+CAN_SEE_PUNCHES = Depends(
+    require_permission("hr.attendance.manage", "hr.attendance.view.team", "hr.attendance.mark")
+)
 
 
 def get_review_service(db: DbSession) -> PunchReviewService:

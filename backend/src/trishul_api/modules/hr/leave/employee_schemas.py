@@ -54,6 +54,7 @@ class EmployeeLeaveBalanceView(ApiModel):
     adjustments: Decimal = _ZERO
     expired: Decimal = _ZERO
     closing: Decimal = _ZERO
+    next_expiry: date | None = None
 
 
 class EmployeeLeaveRow(ApiModel):

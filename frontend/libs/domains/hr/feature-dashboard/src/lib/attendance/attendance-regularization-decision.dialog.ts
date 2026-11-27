@@ -25,7 +25,7 @@ export interface RegularizationDecisionResult {
   reason?: string;
 }
 
-/** Approve confirmation or Reject with mandatory reason. */
+/** Approve or Reject with mandatory manager remarks (backend requires them for managers). */
 @Component({
   selector: 'trishul-attendance-regularization-decision-dialog',
   imports: [
@@ -52,9 +52,10 @@ export class AttendanceRegularizationDecisionDialog {
   protected readonly reason = signal('');
   protected readonly reasonCount = computed(() => this.reason().length);
   protected readonly isReject = this.data.decision === 'reject';
+  protected readonly submitting = signal(false);
 
   protected readonly canConfirm = computed(() => {
-    if (!this.isReject) return true;
+    if (this.submitting()) return false;
     const value = this.reason().trim();
     return value.length > 0 && value.length <= 250;
   });
@@ -65,9 +66,10 @@ export class AttendanceRegularizationDecisionDialog {
 
   protected confirm(): void {
     if (!this.canConfirm()) return;
+    this.submitting.set(true);
     this.dialogRef.close({
       decision: this.data.decision,
-      reason: this.isReject ? this.reason().trim() : undefined,
+      reason: this.reason().trim(),
     });
   }
 }

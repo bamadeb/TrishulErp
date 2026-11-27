@@ -50,38 +50,158 @@
     </article>
   </section>
 
-  <section class="card">
-    <div class="panel-head">
-      <div>
-        <h2>{{ s.monthLabel }} reports</h2>
-        <p>
-          @if (s.isMonthFinalized) {
-            Finalized{{ s.finalizedAt ? ' at ' + s.finalizedAt : '' }}. Payroll can use LOP from
-            hr.attendance.
-          } @else {
-            Month is not finalized. Finalize attendance before payroll processing.
+  <div class="library-layout">
+    <section class="card library">
+      <header class="library-head">
+        <div class="library-title">
+          <span class="lib-mark"><mat-icon>grid_view</mat-icon></span>
+          <h2>Report Library</h2>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Report types">
+          @for (tab of reportTabs(); track tab.id) {
+            <button
+              type="button"
+              role="tab"
+              [class.on]="reportTab() === tab.id"
+              [attr.aria-selected]="reportTab() === tab.id"
+              (click)="reportTab.set(tab.id)"
+            >
+              {{ tab.label }} <span>{{ tab.count }}</span>
+            </button>
           }
-        </p>
-      </div>
-      <div class="actions">
-        <a mat-stroked-button routerLink="/hr/attendance/monthly-muster">Open Muster</a>
-        <a mat-stroked-button routerLink="/hr/attendance/finalization">Finalization</a>
-      </div>
-    </div>
+        </div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+          <mat-icon matPrefix>search</mat-icon>
+          <input
+            matInput
+            type="search"
+            placeholder="Search reports..."
+            aria-label="Search reports"
+            [ngModel]="reportSearch()"
+            (ngModelChange)="reportSearch.set($event)"
+          />
+        </mat-form-field>
+      </header>
 
-    <div class="exports">
-      <button mat-flat-button color="primary" type="button" [disabled]="exporting()" (click)="exportMuster()">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Report Name</th>
+              <th>Description</th>
+              <th>Type</th>
+              <th class="actions-col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (report of visibleReports(); track report.id) {
+              <tr>
+                <td>
+                  <div class="report-name">
+                    <span class="mark" [attr.data-tone]="report.tone"><mat-icon>{{ report.icon }}</mat-icon></span>
+                    <strong>{{ report.name }}</strong>
+                  </div>
+                </td>
+                <td class="desc">{{ report.description }}</td>
+                <td><span class="type" [attr.data-type]="report.type">{{ report.type }}</span></td>
+                <td class="actions-col">
+                  <a class="open" [routerLink]="report.route" [queryParams]="reportLink(report)">
+                    <mat-icon>open_in_new</mat-icon>
+                    Open
+                  </a>
+                  <button
+                    type="button"
+                    class="export"
+                    [matMenuTriggerFor]="exportMenu"
+                    [disabled]="exporting()"
+                  >
+                    <mat-icon>download</mat-icon>
+                    Export
+                    <mat-icon class="chev">expand_more</mat-icon>
+                  </button>
+                  <mat-menu #exportMenu="matMenu">
+                    <button mat-menu-item type="button" (click)="exportReport(report, 'xlsx')">
+                      <mat-icon>table_chart</mat-icon>
+                      Excel (.xlsx)
+                    </button>
+                    <button mat-menu-item type="button" (click)="exportReport(report, 'csv')">
+                      <mat-icon>description</mat-icon>
+                      CSV (.csv)
+                    </button>
+                  </mat-menu>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4"><div class="empty">No reports match your search.</div></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="help">
+        <h3><mat-icon>info</mat-icon> How it works?</h3>
+        <ol>
+          <li><span>1</span> Choose a report from the library</li>
+          <li><span>2</span> Click Open to view details</li>
+          <li><span>3</span> Export to Excel or CSV</li>
+        </ol>
+      </section>
+
+      <section class="links">
+        <h3><mat-icon>bolt</mat-icon> Quick Links</h3>
+        @for (link of quickLinks; track link.route) {
+          <a [routerLink]="link.route">
+            {{ link.label }}
+            <mat-icon>open_in_new</mat-icon>
+          </a>
+        }
+      </section>
+
+      <section class="formats">
+        <h3>Export Formats</h3>
+        <div>
+          <span class="chip xlsx"><mat-icon>table_chart</mat-icon> XLSX <small>Excel (.xlsx)</small></span>
+          <span class="chip csv"><mat-icon>description</mat-icon> CSV <small>CSV (.csv)</small></span>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="month-bar">
+    <span class="info"><mat-icon>info</mat-icon></span>
+    <div>
+      <strong>{{ s.monthLabel }} reports</strong>
+      <p>
+        @if (s.isMonthFinalized) {
+          Finalized{{ s.finalizedAt ? ' at ' + s.finalizedAt : '' }}. Payroll can use the locked attendance.
+        } @else {
+          Month is not finalized. Finalize attendance before payroll processing.
+        }
+      </p>
+    </div>
+    <div class="bar-actions">
+      <a class="ghost" routerLink="/hr/attendance/monthly-muster">
+        <mat-icon>calendar_month</mat-icon>
+        Open Muster
+      </a>
+      <a class="ghost ok" routerLink="/hr/attendance/finalization">
+        <mat-icon>check_circle</mat-icon>
+        Finalization
+      </a>
+      <button type="button" class="ghost" [matMenuTriggerFor]="barExport" [disabled]="exporting()">
         <mat-icon>download</mat-icon>
-        Export Monthly Muster CSV
+        Export
+        <mat-icon class="chev">expand_more</mat-icon>
       </button>
-      <button mat-stroked-button type="button" [disabled]="exporting()" (click)="exportExceptions()">
-        <mat-icon>download</mat-icon>
-        Export Exceptions CSV
-      </button>
-      <button mat-stroked-button type="button" [disabled]="exporting()" (click)="exportBoth()">
-        <mat-icon>folder_zip</mat-icon>
-        Export Both
-      </button>
+      <mat-menu #barExport="matMenu">
+        <button mat-menu-item type="button" (click)="exportMuster()">Muster CSV</button>
+        <button mat-menu-item type="button" (click)="exportExceptions()">Exceptions CSV</button>
+        <button mat-menu-item type="button" (click)="exportBoth()">Muster and exceptions</button>
+      </mat-menu>
     </div>
   </section>
 }

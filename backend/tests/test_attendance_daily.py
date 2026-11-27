@@ -170,6 +170,7 @@ def test_persist_status_policy_alignment():
     from trishul_api.modules.hr.attendance.service import _persist_status
 
     assert _persist_status("Missing Punch", None) is None
+    assert _persist_status("In Progress", None) is None
     assert _persist_status("Late", None) == "Half day"
     assert _persist_status("Present", None) == "Present"
     assert _persist_status("Absent", None) == "Absent"
@@ -179,10 +180,84 @@ def test_persist_status_policy_alignment():
     )
 
 
+def test_open_shift_stays_in_progress_and_grace_ignores_early_arrival(monkeypatch):
+    """TTPL General shift: 9:30–5:30, 15 minutes grace. An open IN is not a missing punch."""
+    from trishul_api.modules.hr.attendance import service as attendance_service
+
+    day = date(2026, 11, 26)
+    clock = {"now": datetime(2026, 11, 26, 11, 0)}
+    monkeypatch.setattr(attendance_service, "ist_now", lambda: clock["now"])
+    service = AttendanceService.__new__(AttendanceService)
+    shift = ShiftAssignment(
+        shift_id=None,
+        shift_name="General",
+        start_time=time(9, 30),
+        end_time=time(17, 30),
+        grace_minutes=15,
+        weekly_off_days="SUN",
+    )
+
+    early = service._from_punches(day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 20), "IN", "Gate")])
+    assert early[4] == "In Progress"
+    assert early[2] is False
+    assert service._day_variance == (0, None)
+    assert "Shift in progress" in early[5]
+
+    on_time = service._from_punches(day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 30), "IN", "Gate")])
+    assert on_time[4] == "In Progress"
+    assert on_time[2] is False
+
+    present = service._from_punches(
+        day,
+        shift,
+        [
+            PunchSource(1, datetime(2026, 11, 26, 9, 20), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 26, 17, 30), "OUT", "Gate"),
+        ],
+    )
+    assert present[4] == "Present"
+    assert present[2] is False
+
+    within_grace = service._from_punches(
+        day,
+        shift,
+        [
+            PunchSource(1, datetime(2026, 11, 26, 9, 40), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 26, 17, 30), "OUT", "Gate"),
+        ],
+        grace_used=0,
+        grace_days=3,
+    )
+    assert within_grace[4] == "Present"
+    assert "Grace day 1 of 3" in within_grace[5]
+
+    past_grace = service._from_punches(
+        day,
+        shift,
+        [
+            PunchSource(1, datetime(2026, 11, 26, 9, 50), "IN", "Gate"),
+            PunchSource(1, datetime(2026, 11, 26, 17, 30), "OUT", "Gate"),
+        ],
+        grace_used=0,
+        grace_days=3,
+    )
+    assert past_grace[4] == "Late"
+    assert past_grace[2] is True
+
+    clock["now"] = datetime(2026, 11, 26, 18, 0)
+    missing_out = service._from_punches(day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 20), "IN", "Gate")])
+    assert missing_out[4] == "Missing Punch"
+    assert "Missing OUT punch" in missing_out[5]
+
+    absent = service._from_punches(day, shift, [])
+    assert absent[4] == "Absent"
+
+
 def test_muster_status_codes_and_hours_parse():
     from trishul_api.modules.hr.attendance.service import _status_to_muster_code
 
     assert _status_to_muster_code("Present") == "P"
+    assert _status_to_muster_code("In Progress") == "P"
     assert _status_to_muster_code("Late") == "L"
     assert _status_to_muster_code("Missing Punch") == "P"
     assert _status_to_muster_code("Absent") == "A"
