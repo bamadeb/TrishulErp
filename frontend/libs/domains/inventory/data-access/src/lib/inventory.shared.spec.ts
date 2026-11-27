@@ -1,4 +1,11 @@
-import { ageClass, fromIso, isoDate, n0, num } from './inventory.shared';
+import {
+  ageClass,
+  ageText,
+  fromIso,
+  isoDate,
+  n0,
+  num,
+} from './inventory.shared';
 
 describe('inventory helpers', () => {
   it('colours ages in the same buckets as the ageing report', () => {
@@ -30,5 +37,22 @@ describe('inventory helpers', () => {
     expect(day?.getDate()).toBe(9);
     expect(isoDate(day as Date)).toBe('2026-03-09');
     expect(fromIso(null)).toBeNull();
+  });
+});
+
+describe('ageText', () => {
+  it('counts whole years, then months, then days from the GRN date', () => {
+    expect(ageText('2025-10-15', new Date(2026, 10, 27))).toBe(
+      '1 year 1 month 12 days',
+    );
+    expect(ageText('2024-11-27', new Date(2026, 10, 27))).toBe('2 years');
+    expect(ageText('2026-11-10', new Date(2026, 10, 27))).toBe('17 days');
+    expect(ageText('2026-11-27', new Date(2026, 10, 27))).toBe('0 days');
+  });
+
+  it('caps the day at the end of a shorter month', () => {
+    expect(ageText('2025-01-31', new Date(2025, 1, 28))).toBe('1 month');
+    expect(ageText('2025-01-31', new Date(2025, 2, 1))).toBe('1 month 1 day');
+    expect(ageText('2024-02-29', new Date(2025, 1, 28))).toBe('1 year');
   });
 });

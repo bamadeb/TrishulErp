@@ -81,6 +81,7 @@ from trishul_api.modules.sal.order_schemas import (
     OutstandingOrderQuery,
 )
 from trishul_api.modules.sal.order_service import SalesOrderService
+from trishul_api.modules.sal.pick_list import PickList
 from trishul_api.modules.sal.quotation_schemas import (
     ConvertQuotation,
     QuotationCreate,
@@ -418,6 +419,17 @@ def list_outstanding_order_lines(
 )  # fmt: skip
 def get_sales_order(order_id: OrderId, orders: Orders) -> OrderDetail:
     return orders.get(order_id)
+
+
+@router.get(
+    "/sales-orders/{orderId}/pick-list",
+    summary="Where to pick an order's outstanding lines: bin by bin, oldest GRN batch first (blocked bins left out)",
+    dependencies=[CAN_DELIVER], responses=NOT_FOUND_RESPONSE,
+)  # fmt: skip
+def get_sales_order_pick_list(
+    order_id: OrderId, location_id: Annotated[int, Query(alias="locationId", gt=0)], orders: Orders
+) -> PickList:
+    return orders.pick_list(order_id, location_id)
 
 
 @router.post("/sales-orders", summary="Create a sales order (draft)", status_code=201, dependencies=[CAN_MANAGE_ORDERS])

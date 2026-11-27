@@ -37,7 +37,11 @@ import {
   distinctUntilChanged,
   of,
 } from 'rxjs';
-import { INV_ITEM_MANAGE } from '@trishul/inventory-data-access';
+import {
+  INV_ITEM_IMPORT_PERMISSIONS,
+  INV_ITEM_MANAGE,
+  INV_PRICE_IMPORT_PERMISSIONS,
+} from '@trishul/inventory-data-access';
 import { n0, pagedList } from '@trishul/inventory-data-access';
 
 const ACTIVE: Record<string, StatusSeverity> = {
@@ -79,8 +83,17 @@ const ACTIVE: Record<string, StatusSeverity> = {
       <a mat-stroked-button routerLink="../setup"
         ><mat-icon>tune</mat-icon>Categories, units & prices</a
       >
-      <a mat-stroked-button routerLink="import" *trishulHasPermission="manage"
-        ><mat-icon>upload_file</mat-icon>Import prices</a
+      <a
+        mat-stroked-button
+        routerLink="../item-imports"
+        *trishulHasPermission="itemImport"
+        ><mat-icon>upload_file</mat-icon>Item import</a
+      >
+      <a
+        mat-stroked-button
+        routerLink="import"
+        *trishulHasPermission="priceImport"
+        ><mat-icon>price_change</mat-icon>Price import</a
       >
       <a mat-flat-button routerLink="new" *trishulHasPermission="manage">
         <mat-icon>add</mat-icon>Add item
@@ -260,6 +273,8 @@ const ACTIVE: Record<string, StatusSeverity> = {
 export class ItemListPage {
   private readonly api = inject(ApiClient);
   protected readonly manage = INV_ITEM_MANAGE;
+  protected readonly itemImport = INV_ITEM_IMPORT_PERMISSIONS;
+  protected readonly priceImport = INV_PRICE_IMPORT_PERMISSIONS;
   protected readonly active = ACTIVE;
   protected readonly columns = [
     'itemCode',

@@ -18,6 +18,8 @@ audited = [
     "core.customer",
     "core.supplier",
     "core.item",
+    "inv.item_barcode",
+    "inv.bin",
     "core.lookup_value",
     "core.number_series",
     # Documents and money

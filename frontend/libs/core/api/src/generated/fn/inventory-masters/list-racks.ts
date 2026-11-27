@@ -12,6 +12,16 @@ import { RackOut } from '../../models/rack-out';
 export interface ListRacks$Params {
   locationId: number;
   status?: 'active' | 'inactive' | 'all';
+
+/**
+ * Only the bins of this rack.
+ */
+  storageRackId?: (number | null);
+
+/**
+ * Only bins that belong to no rack (loose bins, yard spots).
+ */
+  loose?: boolean;
 }
 
 export function listRacks(http: HttpClient, rootUrl: string, params: ListRacks$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<RackOut>>> {
@@ -19,6 +29,8 @@ export function listRacks(http: HttpClient, rootUrl: string, params: ListRacks$P
   if (params) {
     rb.path('locationId', params.locationId, {});
     rb.query('status', params.status, {});
+    rb.query('storageRackId', params.storageRackId, {});
+    rb.query('loose', params.loose, {});
   }
 
   return http.request(

@@ -45,7 +45,14 @@ import {
   listUninvoicedDeliveryLines,
 } from '@trishul/core-api';
 import { AuthStore } from '@trishul/core-auth';
-import { ItemPicker, isoDate, num } from '@trishul/inventory-data-access';
+import {
+  ItemPicker,
+  ScanBox,
+  ScanHit,
+  isoDate,
+  num,
+  placeScan,
+} from '@trishul/inventory-data-access';
 import {
   CustomerPicker,
   NO_SALES_OPTIONS,
@@ -143,6 +150,7 @@ type DirectLine = ReturnType<typeof directLine>;
     MatTooltip,
     CustomerPicker,
     ItemPicker,
+    ScanBox,
     PageHeader,
   ],
   providers: [provideNativeDateAdapter()],
@@ -207,7 +215,15 @@ type DirectLine = ReturnType<typeof directLine>;
             <mat-select formControlName="principalId">
               <mat-option [value]="null">The deliveries' brand</mat-option>
               @for (b of options().brands; track b.id) {
-                <mat-option [value]="b.id"><span class="brand-option"><span class="brand-name">{{ b.name }}</span>@if (b.companyName) {<span class="brand-sep"> – </span><span class="brand-company">{{ b.companyName }}</span>}</span></mat-option>
+                <mat-option [value]="b.id"
+                  ><span class="brand-option"
+                    ><span class="brand-name">{{ b.name }}</span>
+                    @if (b.companyName) {
+                      <span class="brand-sep"> – </span
+                      ><span class="brand-company">{{ b.companyName }}</span>
+                    }
+                  </span></mat-option
+                >
               }
             </mat-select>
           </mat-form-field>
@@ -351,6 +367,13 @@ type DirectLine = ReturnType<typeof directLine>;
             Services, freight, or a counter sale. A stock item on a direct line
             leaves stock from the location below, oldest GRN batch first.
           </p>
+          <trishul-scan-box
+            screen="invoice"
+            label="Scan items"
+            [bins]="false"
+            [stockOnly]="false"
+            (scanned)="onScan($event)"
+          />
           @if (direct().length) {
             <mat-form-field appearance="outline" style="max-width: 24rem">
               <mat-label>Take stock from</mat-label>
@@ -566,9 +589,28 @@ export class SalesInvoiceFormPage {
   }
 
   protected addDirect(): void {
+    this.direct.update((lines) => [...lines, this.newDirect()]);
+  }
+
+  private newDirect(): DirectLine {
     const line = directLine();
     line.valueChanges.subscribe(() => this.changes.update((n) => n + 1));
-    this.direct.update((lines) => [...lines, line]);
+    return line;
+  }
+
+  /** A scanned item: one more on its direct line, or a new line (enter the price). */
+  protected onScan(hit: ScanHit): void {
+    const added = placeScan(
+      this.direct(),
+      hit,
+      (d) => ({
+        item: d.controls.item,
+        quantity: d.controls.quantity,
+        bin: null,
+      }),
+      () => this.newDirect(),
+    );
+    if (added) this.direct.set(added);
   }
 
   protected removeDirect(index: number): void {

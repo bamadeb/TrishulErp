@@ -28,6 +28,7 @@ from trishul_api.modules.inv.masters_schemas import (
     PriceListUpdate,
     RackCreate,
     RackOut,
+    RackQuery,
     RackUpdate,
     StatusQuery,
     UomCreate,
@@ -186,21 +187,21 @@ def update_location(
 
 @router.get(
     "/locations/{locationId}/racks",
-    summary="Racks of a location",
+    summary="Bins of a location: of one rack, the loose bins and yard spots, or all",
     dependencies=[CAN_READ],
     responses=NOT_FOUND_RESPONSE,
 )
 def list_racks(
     location_id: Annotated[int, Path(alias="locationId", gt=0)],
-    query: Annotated[StatusQuery, Query()],
+    query: Annotated[RackQuery, Query()],
     masters: Masters,
 ) -> list[RackOut]:
-    return masters.racks(location_id, query.status)
+    return masters.racks(location_id, query)
 
 
 @router.post(
     "/locations/{locationId}/racks",
-    summary="Add a rack (its code must be unique across all locations)",
+    summary="Add a loose bin or yard spot (no rack); its code must be unique across all locations",
     dependencies=[CAN_MANAGE_LOCATIONS],
     responses=NOT_FOUND_RESPONSE,
 )
@@ -212,7 +213,7 @@ def create_rack(
 
 @router.patch(
     "/racks/{rackId}",
-    summary="Change or deactivate a rack",
+    summary="Change, block or deactivate a bin",
     dependencies=[CAN_MANAGE_LOCATIONS],
     responses=UPDATE_RESPONSES,
 )

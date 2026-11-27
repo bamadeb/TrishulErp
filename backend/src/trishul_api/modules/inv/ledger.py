@@ -16,24 +16,29 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.orm import Session
 
 from trishul_api.common.errors import ApiError
 from trishul_api.db.models import (
     Bin,
     Item,
+    Location,
     LotBalance,
     MovementType,
     StockBalance,
     StockLot,
     StockLotSourceType,
     StockMove,
+    StorageRack,
 )
 from trishul_api.modules.inv.common import ZERO
 
 _QTY = Decimal("0.001")
+# Cancellations put stock back where it was taken from, even if that bin was blocked or filled since.
+_RETURNS_TO_ORIGIN = frozenset({"SALES_RETURN"})
 _VALUE = Decimal("0.01")
 
 
@@ -47,6 +52,22 @@ class Source:
     line_id: int | None = None
 
 
+def not_blocked() -> Any:
+    """LotBalance rows kept without a bin, or in a bin that is not blocked and not on a blocked rack: the stock a
+    take without a named bin (and a pick list) may use."""
+    free_bin = (
+        select(Bin.id)
+        .outerjoin(StorageRack, StorageRack.id == Bin.storage_rack_id)
+        .where(
+            Bin.id == LotBalance.bin_id,
+            Bin.is_blocked == false(),
+            or_(StorageRack.id.is_(None), StorageRack.is_blocked == false()),
+        )
+        .exists()
+    )
+    return or_(LotBalance.bin_id.is_(None), free_bin)
+
+
 @dataclass(frozen=True)
 class Taken:
     """Quantity of one batch taken from one place."""
@@ -57,8 +78,11 @@ class Taken:
 
 
 class StockLedger:
-    def __init__(self, db: Session, *, company_id: int, user_id: int, at: datetime) -> None:
+    def __init__(self, db: Session, *, company_id: int, user_id: int, at: datetime, as_found: bool = False) -> None:
+        """as_found: a physical count records stock where it was found, so the bin rules (blocked, single item,
+        capacity) are not applied to what it adds."""
         self._db = db
+        self._as_found = as_found
         self._company_id = company_id
         self._user_id = user_id
         self._at = at
@@ -115,6 +139,8 @@ class StockLedger:
         """Quantity of an existing batch arriving at a place."""
         if quantity <= 0:
             raise ApiError("Quantity must be more than zero.")
+        if movement not in _RETURNS_TO_ORIGIN and not self._as_found:
+            self._check_place(lot.item_id, location_id, bin_id, quantity)
         balance = self._lot_balance(lot, location_id, bin_id)
         balance.qty_on_hand = balance.qty_on_hand + quantity
         balance.last_movement_at = self._at
@@ -136,10 +162,13 @@ class StockLedger:
         source: Source,
         lot_id: int | None = None,
         location_label: str = "this location",
+        unbinned_only: bool = False,
     ) -> list[Taken]:
         """Takes quantity from a place, oldest GRN date first (or only from lot_id).
 
-        bin_id None takes from any rack of the location. Fails, changing nothing, if there is not enough.
+        bin_id None takes from any rack of the location except blocked bins and racks (their stock leaves only
+        when the bin is named), or with unbinned_only only stock kept without a bin.
+        Fails, changing nothing, if there is not enough.
         """
         if quantity <= 0:
             raise ApiError("Quantity must be more than zero.")
@@ -157,6 +186,10 @@ class StockLedger:
         )
         if bin_id is not None:
             statement = statement.where(LotBalance.bin_id == bin_id)
+        elif unbinned_only:
+            statement = statement.where(LotBalance.bin_id.is_(None))
+        else:
+            statement = statement.where(not_blocked())
         if lot_id is not None:
             statement = statement.where(LotBalance.stock_lot_id == lot_id)
         rows = self._db.execute(statement).all()
@@ -167,6 +200,10 @@ class StockLedger:
             if bin_id is not None:
                 rack = self._db.get(Bin, bin_id)
                 where += f", rack {rack.code if rack else bin_id}"
+            elif unbinned_only:
+                where += " without a bin"
+            elif self._blocked_qty(item.id, location_id, lot_id) > 0:
+                where += " outside blocked bins"
             batch = " in that batch" if lot_id is not None else ""
             raise ApiError(
                 f"Only {_qty(available)} of {item.item_code} in stock at {where}{batch}; {_qty(quantity)} needed.",
@@ -190,6 +227,59 @@ class StockLedger:
         return taken
 
     # ------------------------------------------------------------------ helpers
+
+    def _blocked_qty(self, item_id: int, location_id: int, lot_id: int | None) -> Decimal:
+        statement = select(func.coalesce(func.sum(LotBalance.qty_on_hand), 0)).where(
+            LotBalance.item_id == item_id,
+            LotBalance.location_id == location_id,
+            LotBalance.qty_on_hand > 0,
+            and_(LotBalance.bin_id.is_not(None), ~not_blocked()),
+        )
+        if lot_id is not None:
+            statement = statement.where(LotBalance.stock_lot_id == lot_id)
+        return Decimal(self._db.scalar(statement) or 0)
+
+    def _check_place(self, item_id: int, location_id: int, bin_id: int | None, quantity: Decimal) -> None:
+        """Stock may arrive here: a bin when the location requires one; the bin (and its rack) not blocked;
+        a single-item bin holding no other item; the bin's maximum quantity not exceeded."""
+        if bin_id is None:
+            location = self._db.get(Location, location_id)
+            if location is not None and location.requires_bin:
+                raise ApiError(
+                    f"Location {location.code} keeps all stock in bins; choose a bin.",
+                    errors={"binId": ["Required at this location."]},
+                )
+            return
+        place = self._db.get(Bin, bin_id)
+        if place is None:
+            return
+        rack = self._db.get(StorageRack, place.storage_rack_id) if place.storage_rack_id is not None else None
+        if place.is_blocked or (rack is not None and rack.is_blocked):
+            reason = place.blocked_reason if place.is_blocked else (rack.blocked_reason if rack else None)
+            raise ApiError(
+                f"Bin {place.code} is blocked{f' ({reason})' if reason else ''}; nothing can be put into it.",
+                errors={"binId": ["Blocked."]},
+            )
+        if place.bin_type != "Single item" and place.max_qty is None:
+            return
+        held = self._db.execute(
+            select(StockBalance.item_id, StockBalance.qty_on_hand).where(
+                StockBalance.bin_id == bin_id, StockBalance.qty_on_hand > 0
+            )
+        ).all()
+        if place.bin_type == "Single item" and any(other != item_id for other, _ in held):
+            raise ApiError(
+                f"Bin {place.code} holds only one item and already has another one.",
+                errors={"binId": ["Single-item bin in use by another item."]},
+            )
+        if place.max_qty is not None:
+            total = sum((qty for _, qty in held), ZERO) + quantity
+            if total > place.max_qty:
+                free = max(place.max_qty - (total - quantity), ZERO)
+                raise ApiError(
+                    f"Bin {place.code} holds at most {_qty(place.max_qty)}; only {_qty(free)} more fits.",
+                    errors={"binId": ["Over its capacity."]},
+                )
 
     def _lot_balance(self, lot: StockLot, location_id: int, bin_id: int | None) -> LotBalance:
         statement = select(LotBalance).where(

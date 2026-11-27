@@ -51,6 +51,17 @@ from trishul_api.db.models.salary_template import (
     SalaryTemplateGrade,
     SalaryTemplateLine,
 )
+from trishul_api.db.models.storage import (
+    BinMove,
+    BinMoveLine,
+    BinMoveType,
+    ItemStorageRule,
+    ScanLog,
+    ScanResolvedType,
+    StockCountBin,
+    StorageRack,
+    StorageRackType,
+)
 from trishul_api.db.models.trk import (
     TrackableActivity,
     TrackableActivityModule,
@@ -101,6 +112,15 @@ __all__ = [
     "PriceImportLine",
     "ReportingAssignment",
     "SalaryTemplate",
+    "BinMove",
+    "BinMoveLine",
+    "StockCountBin",
+    "BinMoveType",
+    "ItemStorageRule",
+    "ScanLog",
+    "ScanResolvedType",
+    "StorageRack",
+    "StorageRackType",
     "SalaryTemplateAssignment",
     "SalaryTemplateDesignation",
     "SalaryTemplateGrade",

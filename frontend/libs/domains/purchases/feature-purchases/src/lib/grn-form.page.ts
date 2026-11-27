@@ -49,6 +49,8 @@ import {
 import {
   InventoryLookups,
   ItemPicker,
+  ScanBox,
+  ScanHit,
   isoDate,
   locationLabel,
   num,
@@ -112,6 +114,7 @@ type GrnLineForm = ReturnType<typeof grnLine>;
     MatIcon,
     MatTooltip,
     ItemPicker,
+    ScanBox,
     PageHeader,
   ],
   providers: [provideNativeDateAdapter()],
@@ -213,6 +216,12 @@ type GrnLineForm = ReturnType<typeof grnLine>;
 
       <section class="card">
         <h2>Items received</h2>
+        <trishul-scan-box
+          screen="grn"
+          label="Scan what arrived"
+          [locationId]="locationId()"
+          (scanned)="onScan($event)"
+        />
         <div class="lines">
           @for (line of lines(); track line; let i = $index) {
             <div class="line" [formGroup]="line">
@@ -359,6 +368,12 @@ export class GrnFormPage {
     remarks: new FormControl<string | null>(null, Validators.maxLength(300)),
   });
   protected readonly lines = signal<GrnLineForm[]>([this.watched(grnLine())]);
+  protected readonly locationId = toSignal(
+    this.form.controls.locationId.valueChanges,
+    { initialValue: null },
+  );
+  /** Order lines scanned at least once: their first scan replaces the pending quantity filled in from the order. */
+  private readonly scannedLines = new WeakSet<GrnLineForm>();
   protected readonly total = computed(() => {
     this.changes();
     return this.lines().reduce(
@@ -372,8 +387,16 @@ export class GrnFormPage {
   constructor() {
     this.form.controls.locationId.valueChanges.subscribe((id) => {
       this.racks.set([]);
-      this.lookups.racks(id).subscribe((racks) => this.racks.set(racks));
       for (const line of this.lines()) line.controls.binId.setValue(null);
+      this.lookups.putAwayRacks(id).subscribe((racks) => {
+        this.racks.set(racks);
+        // A location with a receiving bin takes stock there first, to be put away into racks later.
+        const receiving = this.receivingBin();
+        if (receiving)
+          for (const line of this.lines())
+            if (line.controls.binId.value === null)
+              line.controls.binId.setValue(receiving);
+      });
     });
     queueMicrotask(() => {
       const id = Number(this.poId());
@@ -392,8 +415,16 @@ export class GrnFormPage {
   }
 
   private watched(line: GrnLineForm): GrnLineForm {
+    if (line.controls.binId.value === null) {
+      line.controls.binId.setValue(this.receivingBin());
+    }
     line.valueChanges.subscribe(() => this.changes.update((n) => n + 1));
     return line;
+  }
+
+  /** The location's receiving bin, where new GRN lines go by default (none = the user picks a bin, or none). */
+  private receivingBin(): number | null {
+    return this.racks().find((r) => r.isReceiving)?.id ?? null;
   }
 
   protected supplierChanged(supplierId: number): void {
@@ -457,6 +488,41 @@ export class GrnFormPage {
 
   protected addLine(): void {
     this.lines.update((lines) => [...lines, this.watched(grnLine())]);
+  }
+
+  /**
+   * A scanned item: onto its line (same item, and the scanned bin when one was scanned), or a new line. Lines
+   * filled from the order start counting from the first scan, so the scans say what really arrived.
+   */
+  protected onScan(hit: ScanHit): void {
+    const lines = this.lines();
+    const same = lines.find(
+      (l) =>
+        l.controls.item.value?.id === hit.item.id &&
+        (hit.binId === null || l.controls.binId.value === hit.binId),
+    );
+    if (same) {
+      const fresh =
+        same.controls.purchaseOrderLineId.value !== null &&
+        !this.scannedLines.has(same);
+      const before = fresh ? 0 : (same.controls.quantity.value ?? 0);
+      same.controls.quantity.setValue(
+        Math.round((before + hit.quantity) * 1000) / 1000,
+      );
+      this.scannedLines.add(same);
+      return;
+    }
+    const empty = lines.find((l) => !l.controls.item.value);
+    const line = empty ?? this.watched(grnLine());
+    const cost = hit.item.standardCost;
+    line.patchValue({
+      item: hit.item,
+      quantity: hit.quantity,
+      unitCost: line.controls.unitCost.value ?? num(cost),
+    });
+    if (hit.binId !== null) line.controls.binId.setValue(hit.binId);
+    this.scannedLines.add(line);
+    if (!empty) this.lines.set([...lines, line]);
   }
 
   protected removeLine(index: number): void {

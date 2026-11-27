@@ -7138,7 +7138,8 @@
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "x-access": "Any signed-in user"
       }
     },
     "/core/complaints": {
@@ -7214,7 +7215,8 @@
               }
             }
           }
-        }
+        },
+        "x-access": "Any signed-in user"
       },
       "get": {
         "tags": [
@@ -7611,7 +7613,8 @@
               }
             }
           }
-        }
+        },
+        "x-access": "Any signed-in user"
       }
     },
     "/core/complaints/{complaintId}": {
@@ -21428,6 +21431,82 @@
         }
       }
     },
+    "/hr/attendance/shift-assignments/bulk": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Assign one shift to selected employees or every active employee",
+        "operationId": "create_shift_assignments",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftAssignmentBulkWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftAssignmentBulkResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/hr/attendance/shift-assignments/{assignmentId}": {
       "patch": {
         "tags": [
@@ -21777,6 +21856,158 @@
             }
           }
         }
+      }
+    },
+    "/hr/attendance/finalization/follow-up": {
+      "put": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Assign an owner, due date and comment on a finalization checklist item",
+        "operationId": "save_finalization_followup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizationFollowupWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizationChecklistItemOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/hr/attendance/finalization/reminders": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Record reminders for open finalization checklist items without resolving them",
+        "operationId": "remind_finalization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizationRemindWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizationRemindResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/hr/attendance/me/today": {
@@ -39915,7 +40146,7 @@
         "tags": [
           "inventory masters"
         ],
-        "summary": "Racks of a location",
+        "summary": "Bins of a location: of one rack, the loose bins and yard spots, or all",
         "operationId": "list_racks",
         "security": [
           {
@@ -39947,6 +40178,36 @@
               "default": "active",
               "title": "Status"
             }
+          },
+          {
+            "name": "storageRackId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the bins of this rack.",
+              "title": "Storagerackid"
+            },
+            "description": "Only the bins of this rack."
+          },
+          {
+            "name": "loose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only bins that belong to no rack (loose bins, yard spots).",
+              "default": false,
+              "title": "Loose"
+            },
+            "description": "Only bins that belong to no rack (loose bins, yard spots)."
           }
         ],
         "responses": {
@@ -40020,7 +40281,7 @@
         "tags": [
           "inventory masters"
         ],
-        "summary": "Add a rack (its code must be unique across all locations)",
+        "summary": "Add a loose bin or yard spot (no rack); its code must be unique across all locations",
         "operationId": "create_rack",
         "security": [
           {
@@ -40118,7 +40379,7 @@
         "tags": [
           "inventory masters"
         ],
-        "summary": "Change or deactivate a rack",
+        "summary": "Change, block or deactivate a bin",
         "operationId": "update_rack",
         "security": [
           {
@@ -44043,6 +44304,2801 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Page_ItemPriceChange_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/storage-racks": {
+      "get": {
+        "tags": [
+          "storage"
+        ],
+        "summary": "Racks of your locations, with bins in use and blocked",
+        "operationId": "list_storage_racks",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Racks of this location; all your locations when empty.",
+              "title": "Locationid"
+            },
+            "description": "Racks of this location; all your locations when empty."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StorageRackOut"
+                  },
+                  "title": "Response List Storage Racks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/storage-racks/{storageRackId}": {
+      "get": {
+        "tags": [
+          "storage"
+        ],
+        "summary": "One rack",
+        "operationId": "get_storage_rack",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "storageRackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Storagerackid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageRackOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "storage"
+        ],
+        "summary": "Change, resize, block or deactivate a rack",
+        "operationId": "update_storage_rack",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "storageRackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Storagerackid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageRackUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageRackOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/locations/{locationId}/storage-racks": {
+      "post": {
+        "tags": [
+          "storage"
+        ],
+        "summary": "Add a rack: its levels x positions of bins are created with their codes",
+        "operationId": "create_storage_rack",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Locationid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageRackCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageRackOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/reports/bin-stock": {
+      "get": {
+        "tags": [
+          "storage"
+        ],
+        "summary": "Stock by location, rack, bin and item (or kept without a bin), with value and oldest GRN date",
+        "operationId": "list_bin_stock",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locationid"
+            }
+          },
+          {
+            "name": "storageRackId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Storagerackid"
+            }
+          },
+          {
+            "name": "binId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Binid"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Itemid"
+            }
+          },
+          {
+            "name": "withoutBin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only stock kept at a location without a bin.",
+              "default": false,
+              "title": "Withoutbin"
+            },
+            "description": "Only stock kept at a location without a bin."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_BinStockRow_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/items/{itemId}/barcodes": {
+      "get": {
+        "tags": [
+          "barcodes"
+        ],
+        "summary": "Barcodes of an item (optional; its item code always works too)",
+        "operationId": "list_item_barcodes",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Itemid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemBarcodeOut"
+                  },
+                  "title": "Response List Item Barcodes"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "barcodes"
+        ],
+        "summary": "Register a manufacturer or supplier barcode of an item",
+        "operationId": "add_item_barcode",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Itemid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemBarcodeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemBarcodeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/items/{itemId}/generate-barcode": {
+      "post": {
+        "tags": [
+          "barcodes"
+        ],
+        "summary": "Generate an internal barcode for an item that has none",
+        "operationId": "generate_item_barcode",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Itemid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemBarcodeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/item-barcodes": {
+      "post": {
+        "tags": [
+          "barcodes"
+        ],
+        "summary": "Link an unknown scanned barcode to an item (from the scan screen)",
+        "operationId": "create_item_barcode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemBarcodeLink"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemBarcodeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/inv/item-barcodes/{barcodeId}": {
+      "patch": {
+        "tags": [
+          "barcodes"
+        ],
+        "summary": "Change a barcode's type or pack quantity, make it primary, or deactivate it",
+        "operationId": "update_item_barcode",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "barcodeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Barcodeid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemBarcodeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemBarcodeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/scan": {
+      "get": {
+        "tags": [
+          "barcodes"
+        ],
+        "summary": "What a scanned or typed code is (bin, rack, location or item) and the stock behind it",
+        "operationId": "get_scan_result",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Code"
+            }
+          },
+          {
+            "name": "screen",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Screen"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/labels": {
+      "get": {
+        "tags": [
+          "barcodes"
+        ],
+        "summary": "Labels as a PDF: bins (all of a rack, or the loose bins of a location), racks, items or GRN batches",
+        "operationId": "get_labels",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "Bin",
+                "Rack",
+                "Item",
+                "Lot"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 500,
+              "description": "Bins, racks, items or GRN batches (stock lots) to label.",
+              "title": "Ids"
+            },
+            "description": "Bins, racks, items or GRN batches (stock lots) to label."
+          },
+          {
+            "name": "grnId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Batch labels: every batch received on this GRN.",
+              "title": "Grnid"
+            },
+            "description": "Batch labels: every batch received on this GRN."
+          },
+          {
+            "name": "onePerUnit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Batch labels: one label for each unit received (up to 500 a batch), times copies.",
+              "default": false,
+              "title": "Oneperunit"
+            },
+            "description": "Batch labels: one label for each unit received (up to 500 a batch), times copies."
+          },
+          {
+            "name": "storageRackIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 100,
+              "description": "Bin labels: every active bin of these racks, rack by rack.",
+              "title": "Storagerackids"
+            },
+            "description": "Bin labels: every active bin of these racks, rack by rack."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bin labels: the loose bins and yard spots of this location.",
+              "title": "Locationid"
+            },
+            "description": "Bin labels: the loose bins and yard spots of this location."
+          },
+          {
+            "name": "layout",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "roll",
+                "sheet"
+              ],
+              "type": "string",
+              "description": "roll = one 50 x 25 mm label per page; sheet = A4, 3 x 8.",
+              "default": "roll",
+              "title": "Layout"
+            },
+            "description": "roll = one 50 x 25 mm label per page; sheet = A4, 3 x 8."
+          },
+          {
+            "name": "copies",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 1,
+              "title": "Copies"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/putaway": {
+      "get": {
+        "tags": [
+          "bin-moves"
+        ],
+        "summary": "Stock waiting in receiving bins or kept without a bin, with a suggested bin for each",
+        "operationId": "list_putaway",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Locationid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PutAwayRow"
+                  },
+                  "title": "Response List Putaway"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/bin-moves": {
+      "post": {
+        "tags": [
+          "bin-moves"
+        ],
+        "summary": "Move stock between bins of one location (put-away or rack to rack); posted at once",
+        "operationId": "create_bin_move",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinMoveCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BinMoveOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "bin-moves"
+        ],
+        "summary": "Bin moves, newest first",
+        "operationId": "list_bin_moves",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locationid"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Itemid"
+            }
+          },
+          {
+            "name": "moveType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Put-away",
+                    "Bin move"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Movetype"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_BinMoveOut_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/bin-moves/{moveId}": {
+      "get": {
+        "tags": [
+          "bin-moves"
+        ],
+        "summary": "One bin move with its lines",
+        "operationId": "get_bin_move",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "moveId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Moveid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BinMoveOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/items/{itemId}/storage": {
+      "get": {
+        "tags": [
+          "bin-moves"
+        ],
+        "summary": "An item's storage type and home bins",
+        "operationId": "get_item_storage",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Itemid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemStorageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "bin-moves"
+        ],
+        "summary": "Set an item's storage type and home bins (replaces them)",
+        "operationId": "update_item_storage",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Itemid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemStorageUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemStorageOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another user changed the record since it was loaded; reload and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "The If-Match header with the record's rowVersion is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/stock-counts": {
+      "get": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "Stock counts, newest first",
+        "operationId": "list_stock_counts",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Pagesize"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field name; prefix with '-' for descending.",
+              "title": "Sort"
+            },
+            "description": "Field name; prefix with '-' for descending."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locationid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Open",
+                    "Counted",
+                    "Adjusted",
+                    "Cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_StockCountOut_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "Start a count of a location, a rack or a list of bins (lines for the stock there now)",
+        "operationId": "create_stock_count",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockCountCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/stock-counts/{countId}": {
+      "get": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "One count with its lines (system quantities hidden while a blind count is open)",
+        "operationId": "get_stock_count",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "countId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Countid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/stock-counts/{countId}/lines": {
+      "post": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "Record a counted quantity of an item in a bin (set it, or add to it when scanning)",
+        "operationId": "record_stock_count_line",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "countId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Countid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockCountEntry"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountLineOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/stock-counts/{countId}/close": {
+      "post": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "Finish counting; the differences can then be reviewed and posted",
+        "operationId": "close_stock_count",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "countId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Countid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockCountClose"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/stock-counts/{countId}/reopen": {
+      "post": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "Go back to counting",
+        "operationId": "reopen_stock_count",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "countId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Countid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/stock-counts/{countId}/cancel": {
+      "post": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "Cancel a count that was not posted",
+        "operationId": "cancel_stock_count",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "countId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Countid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inv/stock-counts/{countId}/post": {
+      "post": {
+        "tags": [
+          "stock-counts"
+        ],
+        "summary": "Post the differences as one stock adjustment (reason Count difference)",
+        "operationId": "post_stock_count",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "countId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Countid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountOut"
                 }
               }
             }
@@ -53019,6 +56075,104 @@
         }
       }
     },
+    "/sal/sales-orders/{orderId}/pick-list": {
+      "get": {
+        "tags": [
+          "sales"
+        ],
+        "summary": "Where to pick an order's outstanding lines: bin by bin, oldest GRN batch first (blocked bins left out)",
+        "operationId": "get_sales_order_pick_list",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Orderid"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Locationid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No permission for this action, or outside the user's branches / brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input; `errors` lists the messages per field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error; quote `traceId` when reporting it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or the user may not see it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sal/sales-orders/{orderId}/submit": {
       "post": {
         "tags": [
@@ -59967,6 +63121,13 @@
             "minimum": 0.0,
             "title": "Earlyexitgraceminutes"
           },
+          "graceDaysPerMonth": {
+            "type": "integer",
+            "maximum": 31.0,
+            "minimum": 0.0,
+            "title": "Gracedayspermonth",
+            "default": 3
+          },
           "otAfterHours": {
             "type": "number",
             "maximum": 24.0,
@@ -60568,6 +63729,122 @@
         ],
         "title": "BalanceTypeDetail"
       },
+      "BatchAge": {
+        "properties": {
+          "stockLotId": {
+            "type": "integer",
+            "title": "Stocklotid"
+          },
+          "lotNo": {
+            "type": "string",
+            "title": "Lotno"
+          },
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "itemDescription": {
+            "type": "string",
+            "title": "Itemdescription"
+          },
+          "uomCode": {
+            "type": "string",
+            "title": "Uomcode"
+          },
+          "sourceType": {
+            "type": "string",
+            "title": "Sourcetype",
+            "description": "GRN, Opening, Adjustment ..."
+          },
+          "grnNo": {
+            "type": "string",
+            "title": "Grnno"
+          },
+          "grnDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Grndate"
+          },
+          "supplierName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suppliername"
+          },
+          "qtyReceived": {
+            "type": "string",
+            "title": "Qtyreceived"
+          },
+          "qtyAvailable": {
+            "type": "string",
+            "title": "Qtyavailable",
+            "description": "Still in stock, at the locations you may see."
+          },
+          "places": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Places",
+            "description": "Where it is: 'BBSR-MAIN · A1: 4'."
+          },
+          "ageDays": {
+            "type": "integer",
+            "title": "Agedays"
+          },
+          "ageYears": {
+            "type": "integer",
+            "title": "Ageyears"
+          },
+          "ageMonths": {
+            "type": "integer",
+            "title": "Agemonths",
+            "description": "Months after the whole years."
+          },
+          "ageRestDays": {
+            "type": "integer",
+            "title": "Agerestdays",
+            "description": "Days after the whole months."
+          },
+          "ageText": {
+            "type": "string",
+            "title": "Agetext",
+            "description": "e.g. '1 year 2 months 5 days'."
+          }
+        },
+        "type": "object",
+        "required": [
+          "stockLotId",
+          "lotNo",
+          "itemId",
+          "itemCode",
+          "itemDescription",
+          "uomCode",
+          "sourceType",
+          "grnNo",
+          "grnDate",
+          "supplierName",
+          "qtyReceived",
+          "qtyAvailable",
+          "places",
+          "ageDays",
+          "ageYears",
+          "ageMonths",
+          "ageRestDays",
+          "ageText"
+        ],
+        "title": "BatchAge",
+        "description": "One receipt batch (GRN line, opening stock or adjustment) of an item, aged from its own GRN date."
+      },
       "BatchMoved": {
         "properties": {
           "lineId": {
@@ -60629,6 +63906,398 @@
         ],
         "title": "BatchMoved",
         "description": "Quantity of one GRN batch a document line moved; the GRN date is the batch's original receipt."
+      },
+      "BinMoveCreate": {
+        "properties": {
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "moveType": {
+            "type": "string",
+            "enum": [
+              "Put-away",
+              "Bin move"
+            ],
+            "title": "Movetype",
+            "default": "Bin move"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/BinMoveLineIn"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "locationId",
+          "lines"
+        ],
+        "title": "BinMoveCreate"
+      },
+      "BinMoveLineIn": {
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "stockLotId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stocklotid",
+            "description": "Move this GRN batch; empty = oldest batches first."
+          },
+          "fromBinId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frombinid",
+            "description": "Empty = stock kept at the location without a bin."
+          },
+          "toBinId": {
+            "type": "integer",
+            "title": "Tobinid"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "itemId",
+          "toBinId",
+          "quantity"
+        ],
+        "title": "BinMoveLineIn"
+      },
+      "BinMoveLineOut": {
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "itemDescription": {
+            "type": "string",
+            "title": "Itemdescription"
+          },
+          "lotNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lotno"
+          },
+          "fromBinCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frombincode"
+          },
+          "toBinCode": {
+            "type": "string",
+            "title": "Tobincode"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itemId",
+          "itemCode",
+          "itemDescription",
+          "lotNo",
+          "fromBinCode",
+          "toBinCode",
+          "quantity"
+        ],
+        "title": "BinMoveLineOut"
+      },
+      "BinMoveOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "moveNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moveno"
+          },
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "locationCode": {
+            "type": "string",
+            "title": "Locationcode"
+          },
+          "moveType": {
+            "type": "string",
+            "enum": [
+              "Put-away",
+              "Bin move"
+            ],
+            "title": "Movetype"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "movedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Movedbyname"
+          },
+          "movedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Movedat"
+          },
+          "lineCount": {
+            "type": "integer",
+            "title": "Linecount"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/BinMoveLineOut"
+            },
+            "type": "array",
+            "title": "Lines",
+            "description": "Filled for one move, empty in lists."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "moveNo",
+          "locationId",
+          "locationCode",
+          "moveType",
+          "note",
+          "movedByName",
+          "movedAt",
+          "lineCount",
+          "lines"
+        ],
+        "title": "BinMoveOut"
+      },
+      "BinStockRow": {
+        "properties": {
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "locationCode": {
+            "type": "string",
+            "title": "Locationcode"
+          },
+          "branchName": {
+            "type": "string",
+            "title": "Branchname"
+          },
+          "storageRackId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagerackid"
+          },
+          "storageRackCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagerackcode"
+          },
+          "binId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binid"
+          },
+          "binCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bincode"
+          },
+          "binType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Single item",
+                  "Mixed",
+                  "Shared",
+                  "Area spot"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bintype"
+          },
+          "binBlocked": {
+            "type": "boolean",
+            "title": "Binblocked"
+          },
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "itemDescription": {
+            "type": "string",
+            "title": "Itemdescription"
+          },
+          "uomCode": {
+            "type": "string",
+            "title": "Uomcode"
+          },
+          "qtyOnHand": {
+            "type": "string",
+            "title": "Qtyonhand"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "At GRN batch cost; empty for users who may not see costs."
+          },
+          "oldestGrnDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldestgrndate",
+            "description": "GRN date of the oldest batch in this place."
+          }
+        },
+        "type": "object",
+        "required": [
+          "locationId",
+          "locationCode",
+          "branchName",
+          "storageRackId",
+          "storageRackCode",
+          "binId",
+          "binCode",
+          "binType",
+          "binBlocked",
+          "itemId",
+          "itemCode",
+          "itemDescription",
+          "uomCode",
+          "qtyOnHand",
+          "value",
+          "oldestGrnDate"
+        ],
+        "title": "BinStockRow"
       },
       "BiometricDashboardOut": {
         "properties": {
@@ -66359,7 +70028,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "contentMediaType": "application/octet-stream"
+                "description": "rowVersion as received (base64)"
               },
               {
                 "type": "null"
@@ -69855,6 +73524,28 @@
             "title": "Remarks",
             "default": ""
           },
+          "lateArrivalMinutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latearrivalminutes"
+          },
+          "earlyExitMinutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earlyexitminutes"
+          },
           "punches": {
             "items": {
               "$ref": "#/components/schemas/AttendancePunchOut"
@@ -69887,6 +73578,8 @@
           "workingHours",
           "status",
           "remarks",
+          "lateArrivalMinutes",
+          "earlyExitMinutes",
           "punches",
           "history"
         ],
@@ -75488,6 +79181,24 @@
         ],
         "title": "FilterOption"
       },
+      "FinalizationAssigneeOut": {
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "userId",
+          "name"
+        ],
+        "title": "FinalizationAssigneeOut"
+      },
       "FinalizationChecklistItemOut": {
         "properties": {
           "id": {
@@ -75506,6 +79217,71 @@
             "type": "string",
             "title": "Detail",
             "default": ""
+          },
+          "route": {
+            "type": "string",
+            "title": "Route",
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "In Progress",
+              "Completed",
+              "Overdue"
+            ],
+            "title": "Status",
+            "default": "Pending"
+          },
+          "ownerUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owneruserid"
+          },
+          "ownerName": {
+            "type": "string",
+            "title": "Ownername",
+            "default": ""
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "default": ""
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/FinalizationTargetOut"
+            },
+            "type": "array",
+            "title": "Targets",
+            "default": []
+          },
+          "reminders": {
+            "items": {
+              "$ref": "#/components/schemas/FinalizationReminderOut"
+            },
+            "type": "array",
+            "title": "Reminders",
+            "default": []
           }
         },
         "type": "object",
@@ -75513,9 +79289,76 @@
           "id",
           "label",
           "done",
-          "detail"
+          "detail",
+          "route",
+          "status",
+          "ownerUserId",
+          "ownerName",
+          "dueDate",
+          "comment",
+          "targets",
+          "reminders"
         ],
         "title": "FinalizationChecklistItemOut"
+      },
+      "FinalizationFollowupWrite": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "maximum": 2100.0,
+            "minimum": 2000.0,
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Month"
+          },
+          "checklistId": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Checklistid"
+          },
+          "ownerUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owneruserid"
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Comment",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "checklistId"
+        ],
+        "title": "FinalizationFollowupWrite"
       },
       "FinalizationGroupRowOut": {
         "properties": {
@@ -75720,6 +79563,14 @@
             "type": "array",
             "title": "Groups"
           },
+          "assignees": {
+            "items": {
+              "$ref": "#/components/schemas/FinalizationAssigneeOut"
+            },
+            "type": "array",
+            "title": "Assignees",
+            "default": []
+          },
           "canFinalize": {
             "type": "boolean",
             "title": "Canfinalize"
@@ -75738,10 +79589,128 @@
           "summary",
           "checklist",
           "groups",
+          "assignees",
           "canFinalize",
           "isFinalized"
         ],
         "title": "FinalizationPageOut"
+      },
+      "FinalizationRemindResult": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent",
+          "skipped",
+          "failed",
+          "message"
+        ],
+        "title": "FinalizationRemindResult"
+      },
+      "FinalizationRemindWrite": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "maximum": 2100.0,
+            "minimum": 2000.0,
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Month"
+          },
+          "checklistId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checklistid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "year",
+          "month"
+        ],
+        "title": "FinalizationRemindWrite"
+      },
+      "FinalizationReminderOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentat"
+          },
+          "recipientName": {
+            "type": "string",
+            "title": "Recipientname"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errormessage"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sentAt",
+          "recipientName",
+          "status",
+          "errorMessage",
+          "message"
+        ],
+        "title": "FinalizationReminderOut"
       },
       "FinalizationSummaryOut": {
         "properties": {
@@ -75830,6 +79799,53 @@
           "finalizedByUserId"
         ],
         "title": "FinalizationSummaryOut"
+      },
+      "FinalizationTargetOut": {
+        "properties": {
+          "employeeId": {
+            "type": "integer",
+            "title": "Employeeid"
+          },
+          "employeeCode": {
+            "type": "string",
+            "title": "Employeecode"
+          },
+          "employeeName": {
+            "type": "string",
+            "title": "Employeename"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "recipientUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipientuserid"
+          },
+          "recipientName": {
+            "type": "string",
+            "title": "Recipientname",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "employeeCode",
+          "employeeName",
+          "detail",
+          "recipientUserId",
+          "recipientName"
+        ],
+        "title": "FinalizationTargetOut",
+        "description": "One employee still blocking a checklist item, with the person who should be reminded."
       },
       "GpsBatchInput": {
         "properties": {
@@ -79043,6 +83059,256 @@
         ],
         "title": "InvoiceListItem"
       },
+      "ItemBarcodeCreate": {
+        "properties": {
+          "barcode": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Barcode"
+          },
+          "barcodeType": {
+            "type": "string",
+            "enum": [
+              "EAN13",
+              "EAN8",
+              "UPCA",
+              "Code128",
+              "QR",
+              "Other"
+            ],
+            "title": "Barcodetype",
+            "default": "Code128"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "Manufacturer",
+              "Supplier"
+            ],
+            "title": "Source",
+            "default": "Manufacturer"
+          },
+          "packQty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Packqty",
+            "default": "1"
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "title": "Isprimary",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "barcode"
+        ],
+        "title": "ItemBarcodeCreate"
+      },
+      "ItemBarcodeLink": {
+        "properties": {
+          "barcode": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Barcode"
+          },
+          "barcodeType": {
+            "type": "string",
+            "enum": [
+              "EAN13",
+              "EAN8",
+              "UPCA",
+              "Code128",
+              "QR",
+              "Other"
+            ],
+            "title": "Barcodetype",
+            "default": "Code128"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "Manufacturer",
+              "Supplier"
+            ],
+            "title": "Source",
+            "default": "Manufacturer"
+          },
+          "packQty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Packqty",
+            "default": "1"
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "title": "Isprimary",
+            "default": false
+          },
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "barcode",
+          "itemId"
+        ],
+        "title": "ItemBarcodeLink",
+        "description": "An unknown barcode scanned on the scan screen, linked to an item there."
+      },
+      "ItemBarcodeOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "barcode": {
+            "type": "string",
+            "title": "Barcode"
+          },
+          "barcodeType": {
+            "type": "string",
+            "enum": [
+              "EAN13",
+              "EAN8",
+              "UPCA",
+              "Code128",
+              "QR",
+              "Other"
+            ],
+            "title": "Barcodetype"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "Manufacturer",
+              "Internal",
+              "Supplier"
+            ],
+            "title": "Source"
+          },
+          "packQty": {
+            "type": "string",
+            "title": "Packqty",
+            "description": "Units one scan counts (1, or e.g. 100 for a box)."
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "title": "Isprimary",
+            "description": "Printed on the item's labels."
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "itemId",
+          "barcode",
+          "barcodeType",
+          "source",
+          "packQty",
+          "isPrimary",
+          "isActive",
+          "rowVersion"
+        ],
+        "title": "ItemBarcodeOut"
+      },
+      "ItemBarcodeUpdate": {
+        "properties": {
+          "barcodeType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "EAN13",
+                  "EAN8",
+                  "UPCA",
+                  "Code128",
+                  "QR",
+                  "Other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcodetype"
+          },
+          "packQty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packqty"
+          },
+          "isPrimary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isprimary"
+          },
+          "isActive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isactive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ItemBarcodeUpdate",
+        "description": "The barcode itself never changes: deactivate it and add the right one."
+      },
       "ItemCreate": {
         "properties": {
           "itemCode": {
@@ -80425,6 +84691,80 @@
           "stock"
         ],
         "title": "ItemSaleInfo"
+      },
+      "ItemStorageOut": {
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "storageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Individual",
+                  "Grouped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagetype"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/StorageRuleOut"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion",
+            "description": "The item's; send it in If-Match to change the storage."
+          }
+        },
+        "type": "object",
+        "required": [
+          "itemId",
+          "storageType",
+          "rules",
+          "rowVersion"
+        ],
+        "title": "ItemStorageOut"
+      },
+      "ItemStorageUpdate": {
+        "properties": {
+          "storageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Individual",
+                  "Grouped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagetype"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/StorageRuleIn"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Rules"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ItemStorageUpdate",
+        "description": "Replaces the item's storage type and its home bins."
       },
       "ItemUpdate": {
         "properties": {
@@ -82592,7 +86932,9 @@
               "Main store",
               "Transit",
               "Quarantine",
-              "Scrap"
+              "Scrap",
+              "Receiving",
+              "Open area"
             ],
             "title": "Locationtype",
             "default": "Main store"
@@ -82613,6 +86955,11 @@
             "type": "boolean",
             "title": "Isstocklocation",
             "default": true
+          },
+          "requiresBin": {
+            "type": "boolean",
+            "title": "Requiresbin",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -82666,7 +87013,9 @@
               "Main store",
               "Transit",
               "Quarantine",
-              "Scrap"
+              "Scrap",
+              "Receiving",
+              "Open area"
             ],
             "title": "Locationtype"
           },
@@ -82685,9 +87034,21 @@
             "type": "boolean",
             "title": "Isstocklocation"
           },
+          "requiresBin": {
+            "type": "boolean",
+            "title": "Requiresbin",
+            "description": "Every movement here must name a bin; off = a bin is optional."
+          },
           "rackCount": {
             "type": "integer",
-            "title": "Rackcount"
+            "title": "Rackcount",
+            "description": "Active bins (rack bins, loose bins and spots)."
+          },
+          "storageRackCount": {
+            "type": "integer",
+            "title": "Storagerackcount",
+            "description": "Active racks.",
+            "default": 0
           },
           "isActive": {
             "type": "boolean",
@@ -82710,7 +87071,9 @@
           "locationType",
           "address",
           "isStockLocation",
+          "requiresBin",
           "rackCount",
+          "storageRackCount",
           "isActive",
           "rowVersion"
         ],
@@ -82739,7 +87102,9 @@
                   "Main store",
                   "Transit",
                   "Quarantine",
-                  "Scrap"
+                  "Scrap",
+                  "Receiving",
+                  "Open area"
                 ]
               },
               {
@@ -82770,6 +87135,17 @@
               }
             ],
             "title": "Isstocklocation"
+          },
+          "requiresBin": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiresbin"
           },
           "isActive": {
             "anyOf": [
@@ -88259,6 +92635,68 @@
         ],
         "title": "Page[AssignedServiceCallListItem]"
       },
+      "Page_BinMoveOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BinMoveOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[BinMoveOut]"
+      },
+      "Page_BinStockRow_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BinStockRow"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[BinStockRow]"
+      },
       "Page_BiometricPunchOut_": {
         "properties": {
           "items": {
@@ -89746,6 +94184,37 @@
           "pageSize"
         ],
         "title": "Page[StatutoryContribution]"
+      },
+      "Page_StockCountOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StockCountOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "Page[StockCountOut]"
       },
       "Page_StockRow_": {
         "properties": {
@@ -91784,6 +96253,169 @@
           "description"
         ],
         "title": "PermissionItem"
+      },
+      "PickList": {
+        "properties": {
+          "orderId": {
+            "type": "integer",
+            "title": "Orderid"
+          },
+          "orderNo": {
+            "type": "string",
+            "title": "Orderno"
+          },
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "locationCode": {
+            "type": "string",
+            "title": "Locationcode"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PickRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "short": {
+            "items": {
+              "$ref": "#/components/schemas/PickShort"
+            },
+            "type": "array",
+            "title": "Short"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orderId",
+          "orderNo",
+          "locationId",
+          "locationCode",
+          "rows",
+          "short"
+        ],
+        "title": "PickList"
+      },
+      "PickRow": {
+        "properties": {
+          "orderLineId": {
+            "type": "integer",
+            "title": "Orderlineid"
+          },
+          "lineNo": {
+            "type": "integer",
+            "title": "Lineno"
+          },
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "itemDescription": {
+            "type": "string",
+            "title": "Itemdescription"
+          },
+          "uomCode": {
+            "type": "string",
+            "title": "Uomcode"
+          },
+          "binId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binid"
+          },
+          "binCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bincode",
+            "description": "Empty = stock kept at the location without a bin."
+          },
+          "stockLotId": {
+            "type": "integer",
+            "title": "Stocklotid"
+          },
+          "lotNo": {
+            "type": "string",
+            "title": "Lotno"
+          },
+          "grnNo": {
+            "type": "string",
+            "title": "Grnno"
+          },
+          "grnDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Grndate"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity",
+            "description": "To pick from this bin and batch."
+          }
+        },
+        "type": "object",
+        "required": [
+          "orderLineId",
+          "lineNo",
+          "itemId",
+          "itemCode",
+          "itemDescription",
+          "uomCode",
+          "binId",
+          "binCode",
+          "stockLotId",
+          "lotNo",
+          "grnNo",
+          "grnDate",
+          "quantity"
+        ],
+        "title": "PickRow"
+      },
+      "PickShort": {
+        "properties": {
+          "orderLineId": {
+            "type": "integer",
+            "title": "Orderlineid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "itemDescription": {
+            "type": "string",
+            "title": "Itemdescription"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity",
+            "description": "Still to deliver but not in stock here (outside blocked bins)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "orderLineId",
+          "itemCode",
+          "itemDescription",
+          "quantity"
+        ],
+        "title": "PickShort"
       },
       "PoCreate": {
         "properties": {
@@ -94762,6 +99394,139 @@
         "type": "object",
         "title": "PurchasePriceUpdate"
       },
+      "PutAwayRow": {
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "itemDescription": {
+            "type": "string",
+            "title": "Itemdescription"
+          },
+          "uomCode": {
+            "type": "string",
+            "title": "Uomcode"
+          },
+          "storageType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Individual",
+                  "Grouped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagetype"
+          },
+          "stockLotId": {
+            "type": "integer",
+            "title": "Stocklotid"
+          },
+          "lotNo": {
+            "type": "string",
+            "title": "Lotno"
+          },
+          "grnNo": {
+            "type": "string",
+            "title": "Grnno"
+          },
+          "grnDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Grndate"
+          },
+          "fromBinId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frombinid"
+          },
+          "fromBinCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frombincode",
+            "description": "The receiving bin; empty = kept without a bin."
+          },
+          "qtyOnHand": {
+            "type": "string",
+            "title": "Qtyonhand"
+          },
+          "suggestedBinId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestedbinid"
+          },
+          "suggestedBinCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestedbincode"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion",
+            "description": "Why: Home bin, Already stored here, Empty bin."
+          }
+        },
+        "type": "object",
+        "required": [
+          "itemId",
+          "itemCode",
+          "itemDescription",
+          "uomCode",
+          "storageType",
+          "stockLotId",
+          "lotNo",
+          "grnNo",
+          "grnDate",
+          "fromBinId",
+          "fromBinCode",
+          "qtyOnHand",
+          "suggestedBinId",
+          "suggestedBinCode",
+          "suggestion"
+        ],
+        "title": "PutAwayRow",
+        "description": "Stock of one GRN batch waiting in a receiving bin, or kept at the location without a bin."
+      },
       "QuotationCreate": {
         "properties": {
           "principalId": {
@@ -95679,7 +100444,7 @@
         "properties": {
           "code": {
             "type": "string",
-            "maxLength": 20,
+            "maxLength": 30,
             "minLength": 1,
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_./-]*$",
             "title": "Code"
@@ -95719,6 +100484,37 @@
               }
             ],
             "title": "Description"
+          },
+          "binType": {
+            "type": "string",
+            "enum": [
+              "Single item",
+              "Mixed",
+              "Shared",
+              "Area spot"
+            ],
+            "title": "Bintype",
+            "default": "Mixed"
+          },
+          "maxQty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxqty"
+          },
+          "isReceiving": {
+            "type": "boolean",
+            "title": "Isreceiving",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -95726,7 +100522,8 @@
         "required": [
           "code"
         ],
-        "title": "RackCreate"
+        "title": "RackCreate",
+        "description": "A loose bin or yard spot (rack bins are generated by their rack)."
       },
       "RackOut": {
         "properties": {
@@ -95780,6 +100577,104 @@
             ],
             "title": "Description"
           },
+          "storageRackId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagerackid"
+          },
+          "storageRackCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagerackcode"
+          },
+          "levelNo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Levelno"
+          },
+          "positionNo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positionno"
+          },
+          "binType": {
+            "type": "string",
+            "enum": [
+              "Single item",
+              "Mixed",
+              "Shared",
+              "Area spot"
+            ],
+            "title": "Bintype"
+          },
+          "maxQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxqty"
+          },
+          "isBlocked": {
+            "type": "boolean",
+            "title": "Isblocked"
+          },
+          "blockedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blockedreason"
+          },
+          "isReceiving": {
+            "type": "boolean",
+            "title": "Isreceiving",
+            "description": "GRNs put stock here before put-away.",
+            "default": false
+          },
+          "itemCount": {
+            "type": "integer",
+            "title": "Itemcount",
+            "description": "Items with stock in the bin.",
+            "default": 0
+          },
+          "qtyOnHand": {
+            "type": "string",
+            "title": "Qtyonhand",
+            "description": "Total quantity in the bin, all items.",
+            "default": "0"
+          },
           "isActive": {
             "type": "boolean",
             "title": "Isactive"
@@ -95798,10 +100693,22 @@
           "rack",
           "shelf",
           "description",
+          "storageRackId",
+          "storageRackCode",
+          "levelNo",
+          "positionNo",
+          "binType",
+          "maxQty",
+          "isBlocked",
+          "blockedReason",
+          "isReceiving",
+          "itemCount",
+          "qtyOnHand",
           "isActive",
           "rowVersion"
         ],
-        "title": "RackOut"
+        "title": "RackOut",
+        "description": "A bin: a position in a rack, or a loose bin / yard spot of the location (no rack)."
       },
       "RackUpdate": {
         "properties": {
@@ -95809,7 +100716,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 20,
+                "maxLength": 30,
                 "minLength": 1,
                 "pattern": "^[A-Za-z0-9][A-Za-z0-9_./-]*$"
               },
@@ -95854,6 +100761,72 @@
               }
             ],
             "title": "Description"
+          },
+          "binType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Single item",
+                  "Mixed",
+                  "Shared",
+                  "Area spot"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bintype"
+          },
+          "maxQty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxqty"
+          },
+          "isBlocked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isblocked"
+          },
+          "blockedReason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blockedreason"
+          },
+          "isReceiving": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isreceiving"
           },
           "isActive": {
             "anyOf": [
@@ -101496,6 +106469,139 @@
         "type": "object",
         "title": "SalesPriceUpdate"
       },
+      "ScanMatch": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Item",
+              "Lot",
+              "Bin",
+              "Rack",
+              "Location"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "via": {
+            "type": "string",
+            "title": "Via",
+            "description": "How the code matched, e.g. Barcode, Item code, Part number, Bin code."
+          },
+          "packQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packqty",
+            "description": "Units one scan of this barcode counts (items)."
+          },
+          "locationId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locationid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "code",
+          "name",
+          "via",
+          "packQty",
+          "locationId"
+        ],
+        "title": "ScanMatch"
+      },
+      "ScanResult": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The value as scanned or typed."
+          },
+          "resolvedType": {
+            "type": "string",
+            "enum": [
+              "Item",
+              "Lot",
+              "Bin",
+              "Rack",
+              "Location",
+              "Many",
+              "Unknown"
+            ],
+            "title": "Resolvedtype"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/ScanMatch"
+            },
+            "type": "array",
+            "title": "Matches"
+          },
+          "stock": {
+            "items": {
+              "$ref": "#/components/schemas/BinStockRow"
+            },
+            "type": "array",
+            "title": "Stock",
+            "description": "Stock of the one match: by bin for an item, items for a place."
+          },
+          "stockTotal": {
+            "type": "integer",
+            "title": "Stocktotal",
+            "description": "Stock rows in all (the list shows at most 200)."
+          },
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/BatchAge"
+            },
+            "type": "array",
+            "title": "Batches",
+            "description": "An item or batch scanned: its receipt batches still in stock, oldest GRN first, with their age."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "resolvedType",
+          "matches",
+          "stock",
+          "stockTotal",
+          "batches"
+        ],
+        "title": "ScanResult"
+      },
       "ServiceCallCreate": {
         "properties": {
           "customerId": {
@@ -104234,6 +109340,88 @@
         ],
         "title": "ServiceSettingsUpdate"
       },
+      "ShiftAssignmentBulkResult": {
+        "properties": {
+          "assigned": {
+            "type": "integer",
+            "title": "Assigned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assigned"
+        ],
+        "title": "ShiftAssignmentBulkResult"
+      },
+      "ShiftAssignmentBulkWrite": {
+        "properties": {
+          "shiftId": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Shiftid"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Fromdate"
+          },
+          "toDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todate"
+          },
+          "weeklyOffDays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "MON",
+                    "TUE",
+                    "WED",
+                    "THU",
+                    "FRI",
+                    "SAT",
+                    "SUN"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weeklyoffdays"
+          },
+          "allEmployees": {
+            "type": "boolean",
+            "title": "Allemployees",
+            "default": false
+          },
+          "employeeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Employeeids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shiftId",
+          "fromDate"
+        ],
+        "title": "ShiftAssignmentBulkWrite",
+        "description": "Same shift for one employee, a chosen list, or every active employee."
+      },
       "ShiftAssignmentEmployeeOption": {
         "properties": {
           "id": {
@@ -105478,6 +110666,603 @@
         ],
         "title": "StatutorySummary"
       },
+      "StockCountClose": {
+        "properties": {
+          "uncountedAsZero": {
+            "type": "boolean",
+            "title": "Uncountedaszero",
+            "description": "Lines nobody counted were counted as 0 (the stock is missing); else they are left out.",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "StockCountClose"
+      },
+      "StockCountCreate": {
+        "properties": {
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "Location",
+              "Rack",
+              "Bins"
+            ],
+            "title": "Scope",
+            "description": "Location = every bin and the stock kept without a bin (a full count).",
+            "default": "Location"
+          },
+          "storageRackId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagerackid",
+            "description": "Scope Rack: the rack to count."
+          },
+          "binIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Binids",
+            "description": "Scope Bins: the bins to count."
+          },
+          "isBlind": {
+            "type": "boolean",
+            "title": "Isblind",
+            "description": "Hide the system quantity from counters until counting is finished.",
+            "default": true
+          },
+          "countDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Countdate",
+            "description": "Empty = today."
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "locationId"
+        ],
+        "title": "StockCountCreate"
+      },
+      "StockCountEntry": {
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "binId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binid",
+            "description": "Empty = stock kept at the location without a bin."
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "set",
+              "add"
+            ],
+            "title": "Mode",
+            "description": "set = this is the count; add = add to what was counted (scanning).",
+            "default": "set"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "itemId",
+          "quantity"
+        ],
+        "title": "StockCountEntry",
+        "description": "A counted quantity of one item in one bin (or kept without a bin)."
+      },
+      "StockCountLineOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "itemId": {
+            "type": "integer",
+            "title": "Itemid"
+          },
+          "itemCode": {
+            "type": "string",
+            "title": "Itemcode"
+          },
+          "itemDescription": {
+            "type": "string",
+            "title": "Itemdescription"
+          },
+          "uomCode": {
+            "type": "string",
+            "title": "Uomcode"
+          },
+          "binId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binid"
+          },
+          "binCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bincode"
+          },
+          "systemQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Systemqty",
+            "description": "Hidden (empty) while a blind count is open."
+          },
+          "countedQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Countedqty",
+            "description": "Empty = not counted yet."
+          },
+          "variance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variance",
+            "description": "Counted - system; empty until counted (or while blind)."
+          },
+          "unitCost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitcost",
+            "description": "Average cost of the item at the location; for the value."
+          },
+          "varianceValue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variancevalue"
+          },
+          "isExpected": {
+            "type": "boolean",
+            "title": "Isexpected",
+            "description": "False = found during the count, not in the system when it started."
+          },
+          "countedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Countedbyname"
+          },
+          "countedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Countedat"
+          },
+          "movedSinceCount": {
+            "type": "boolean",
+            "title": "Movedsincecount",
+            "description": "Stock of this item moved in or out of the bin after it was counted."
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "itemId",
+          "itemCode",
+          "itemDescription",
+          "uomCode",
+          "binId",
+          "binCode",
+          "systemQty",
+          "countedQty",
+          "variance",
+          "unitCost",
+          "varianceValue",
+          "isExpected",
+          "countedByName",
+          "countedAt",
+          "movedSinceCount",
+          "remarks"
+        ],
+        "title": "StockCountLineOut"
+      },
+      "StockCountOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "countNo": {
+            "type": "string",
+            "title": "Countno"
+          },
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "locationCode": {
+            "type": "string",
+            "title": "Locationcode"
+          },
+          "locationName": {
+            "type": "string",
+            "title": "Locationname"
+          },
+          "countDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Countdate"
+          },
+          "countType": {
+            "type": "string",
+            "title": "Counttype"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "Location",
+              "Rack",
+              "Bins"
+            ],
+            "title": "Scope"
+          },
+          "storageRackId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagerackid"
+          },
+          "storageRackCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagerackcode"
+          },
+          "binCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bincodes",
+            "description": "Scope Bins: the bins counted."
+          },
+          "isBlind": {
+            "type": "boolean",
+            "title": "Isblind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "Counted",
+              "Adjusted",
+              "Cancelled"
+            ],
+            "title": "Status"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "createdByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdbyname"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "closedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closedbyname"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closedat"
+          },
+          "postedByName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postedbyname"
+          },
+          "postedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postedat"
+          },
+          "adjustmentId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjustmentid"
+          },
+          "adjustmentNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjustmentno"
+          },
+          "lineCount": {
+            "type": "integer",
+            "title": "Linecount"
+          },
+          "countedCount": {
+            "type": "integer",
+            "title": "Countedcount"
+          },
+          "shortQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortqty",
+            "description": "Less found than the system says (hidden while blind)."
+          },
+          "excessQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excessqty"
+          },
+          "shortValue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortvalue"
+          },
+          "excessValue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excessvalue"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/StockCountLineOut"
+            },
+            "type": "array",
+            "title": "Lines",
+            "description": "Filled for one count, empty in lists."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "countNo",
+          "locationId",
+          "locationCode",
+          "locationName",
+          "countDate",
+          "countType",
+          "scope",
+          "storageRackId",
+          "storageRackCode",
+          "binCodes",
+          "isBlind",
+          "status",
+          "remarks",
+          "createdByName",
+          "createdAt",
+          "closedByName",
+          "closedAt",
+          "postedByName",
+          "postedAt",
+          "adjustmentId",
+          "adjustmentNo",
+          "lineCount",
+          "countedCount",
+          "shortQty",
+          "excessQty",
+          "shortValue",
+          "excessValue",
+          "lines"
+        ],
+        "title": "StockCountOut"
+      },
       "StockRow": {
         "properties": {
           "lotBalanceId": {
@@ -105692,6 +111477,443 @@
           "endLongitude"
         ],
         "title": "StopTripInput"
+      },
+      "StorageRackCreate": {
+        "properties": {
+          "shortCode": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9]+$",
+            "title": "Shortcode",
+            "description": "e.g. R01; letters and digits."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "rackType": {
+            "type": "string",
+            "enum": [
+              "Rack",
+              "Shelf",
+              "Bin cabinet",
+              "Floor"
+            ],
+            "title": "Racktype",
+            "default": "Rack"
+          },
+          "levels": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Levels"
+          },
+          "positions": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Positions",
+            "description": "Bins per level."
+          },
+          "binType": {
+            "type": "string",
+            "enum": [
+              "Single item",
+              "Mixed",
+              "Shared",
+              "Area spot"
+            ],
+            "title": "Bintype",
+            "description": "Type of the generated bins; each can be changed later.",
+            "default": "Mixed"
+          },
+          "maxWeightKg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxweightkg"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shortCode",
+          "levels",
+          "positions"
+        ],
+        "title": "StorageRackCreate"
+      },
+      "StorageRackOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "locationCode": {
+            "type": "string",
+            "title": "Locationcode"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "<location>-<rack>, e.g. BBSR-MAIN-R01; unique across every location."
+          },
+          "shortCode": {
+            "type": "string",
+            "title": "Shortcode"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "rackType": {
+            "type": "string",
+            "enum": [
+              "Rack",
+              "Shelf",
+              "Bin cabinet",
+              "Floor"
+            ],
+            "title": "Racktype"
+          },
+          "levels": {
+            "type": "integer",
+            "title": "Levels"
+          },
+          "positions": {
+            "type": "integer",
+            "title": "Positions",
+            "description": "Bins per level."
+          },
+          "maxWeightKg": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxweightkg"
+          },
+          "isBlocked": {
+            "type": "boolean",
+            "title": "Isblocked"
+          },
+          "blockedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blockedreason"
+          },
+          "binCount": {
+            "type": "integer",
+            "title": "Bincount",
+            "description": "Active bins."
+          },
+          "occupiedBins": {
+            "type": "integer",
+            "title": "Occupiedbins",
+            "description": "Active bins holding stock."
+          },
+          "blockedBins": {
+            "type": "integer",
+            "title": "Blockedbins"
+          },
+          "qtyOnHand": {
+            "type": "string",
+            "title": "Qtyonhand",
+            "description": "Total quantity in the rack, all items."
+          },
+          "isActive": {
+            "type": "boolean",
+            "title": "Isactive"
+          },
+          "rowVersion": {
+            "type": "string",
+            "title": "Rowversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "locationId",
+          "locationCode",
+          "code",
+          "shortCode",
+          "name",
+          "rackType",
+          "levels",
+          "positions",
+          "maxWeightKg",
+          "isBlocked",
+          "blockedReason",
+          "binCount",
+          "occupiedBins",
+          "blockedBins",
+          "qtyOnHand",
+          "isActive",
+          "rowVersion"
+        ],
+        "title": "StorageRackOut"
+      },
+      "StorageRackUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "rackType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Rack",
+                  "Shelf",
+                  "Bin cabinet",
+                  "Floor"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Racktype"
+          },
+          "levels": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Levels"
+          },
+          "positions": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positions"
+          },
+          "maxWeightKg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxweightkg"
+          },
+          "isBlocked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isblocked"
+          },
+          "blockedReason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blockedreason"
+          },
+          "isActive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isactive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "StorageRackUpdate",
+        "description": "Levels and positions may grow (new bins) or shrink (bins beyond them are deactivated, only if empty)."
+      },
+      "StorageRuleIn": {
+        "properties": {
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "binId": {
+            "type": "integer",
+            "title": "Binid"
+          },
+          "minQty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minqty"
+          },
+          "maxQty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxqty"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "locationId",
+          "binId"
+        ],
+        "title": "StorageRuleIn"
+      },
+      "StorageRuleOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "locationId": {
+            "type": "integer",
+            "title": "Locationid"
+          },
+          "locationCode": {
+            "type": "string",
+            "title": "Locationcode"
+          },
+          "binId": {
+            "type": "integer",
+            "title": "Binid"
+          },
+          "binCode": {
+            "type": "string",
+            "title": "Bincode"
+          },
+          "minQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minqty"
+          },
+          "maxQty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxqty"
+          },
+          "qtyOnHand": {
+            "type": "string",
+            "title": "Qtyonhand",
+            "description": "Now in that bin."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "locationId",
+          "locationCode",
+          "binId",
+          "binCode",
+          "minQty",
+          "maxQty",
+          "qtyOnHand"
+        ],
+        "title": "StorageRuleOut"
       },
       "SupplierCreate": {
         "properties": {

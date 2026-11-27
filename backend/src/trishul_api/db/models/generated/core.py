@@ -15,7 +15,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from trishul_api.db.models.base import Audited, Base
 
 BranchBranchType = Literal["Head office", "Warehouse", "Branch", "Service point"]
-LocationLocationType = Literal["Main store", "Transit", "Quarantine", "Scrap"]
+ItemStorageType = Literal["Individual", "Grouped"]
+LocationLocationType = Literal["Main store", "Transit", "Quarantine", "Scrap", "Receiving", "Open area"]
 TeamTeamType = Literal["Service", "Sales", "Back office"]
 CustomerCustomerType = Literal["Individual", "Contractor", "Company", "Government", "Rental", "Dealer"]
 CustomerGstRegistrationType = Literal["Regular", "Composition", "Unregistered", "SEZ"]
@@ -217,6 +218,7 @@ class Location(Base):
     location_type: Mapped[LocationLocationType] = mapped_column(sa.NVARCHAR(30), doc="Type")
     address: Mapped[str | None] = mapped_column(sa.NVARCHAR(500), doc="Address")
     is_stock_location: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.FetchedValue(), doc="Holds inventory")
+    requires_bin: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.text("0"), doc="Every movement here must name a bin (migration 0051; default off)")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
@@ -649,6 +651,7 @@ class Item(Audited, Base):
     reorder_qty: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 3), doc="Reorder quantity")
     lead_time_days: Mapped[int | None] = mapped_column(sa.SmallInteger(), doc="Supplier lead time")
     movement_class_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.movement_class.id"), doc="FSN/ABC class (Phase 2)")
+    storage_type: Mapped[ItemStorageType | None] = mapped_column(sa.NVARCHAR(12), doc="Individual (a bin each) or Grouped (shared bins); migration 0053")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))

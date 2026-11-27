@@ -4,3 +4,7 @@ export * from './lib/item-picker';
 export * from './lib/fields.dialog';
 export * from './lib/price-import.api';
 export * from './lib/item-list-import.api';
+export * from './lib/barcode.api';
+export * from './lib/binmove.api';
+export * from './lib/scan-box';
+export * from './lib/count.api';

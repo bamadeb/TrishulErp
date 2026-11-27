@@ -33,6 +33,7 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -42,16 +43,21 @@ import {
   ItemListItem,
   OrderDetail,
   OrderLineOut,
+  PickList,
   RackOut,
   createDelivery,
   getSalesOrder,
+  getSalesOrderPickList,
   listCustomerBranches,
 } from '@trishul/core-api';
 import { AuthStore } from '@trishul/core-auth';
 import {
   InventoryLookups,
   ItemPicker,
+  ScanBox,
+  ScanHit,
   isoDate,
+  placeScan,
   n0,
   num,
 } from '@trishul/inventory-data-access';
@@ -123,12 +129,30 @@ type DirectLine = ReturnType<typeof directLine>;
     MatTooltip,
     CustomerPicker,
     ItemPicker,
+    ScanBox,
     PageHeader,
   ],
   providers: [provideNativeDateAdapter()],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: '../../../../inventory/data-access/src/lib/inventory.scss',
   styles: `
+    .pick-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .pick-list {
+      margin-bottom: 1rem;
+    }
+    .pick-list tr.done td {
+      color: var(--mat-sys-on-surface-variant);
+      text-decoration: line-through;
+    }
+    .warn {
+      color: var(--mat-sys-error);
+    }
     input.cell {
       width: 6rem;
       padding: 0.3rem 0.4rem;
@@ -169,7 +193,15 @@ type DirectLine = ReturnType<typeof directLine>;
               <mat-label>Brand</mat-label>
               <mat-select formControlName="principalId">
                 @for (b of options().brands; track b.id) {
-                  <mat-option [value]="b.id"><span class="brand-option"><span class="brand-name">{{ b.name }}</span>@if (b.companyName) {<span class="brand-sep"> – </span><span class="brand-company">{{ b.companyName }}</span>}</span></mat-option>
+                  <mat-option [value]="b.id"
+                    ><span class="brand-option"
+                      ><span class="brand-name">{{ b.name }}</span>
+                      @if (b.companyName) {
+                        <span class="brand-sep"> – </span
+                        ><span class="brand-company">{{ b.companyName }}</span>
+                      }
+                    </span></mat-option
+                  >
                 }
               </mat-select>
               <mat-error>Choose the brand.</mat-error>
@@ -264,7 +296,84 @@ type DirectLine = ReturnType<typeof directLine>;
 
       <section class="card">
         <h2>Items</h2>
+        <trishul-scan-box
+          screen="delivery"
+          [label]="order() ? 'Pick by scan' : 'Scan'"
+          [locationId]="locationId()"
+          (scanned)="onScan($event)"
+        />
         @if (order(); as o) {
+          <div class="pick-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="!locationId()"
+              (click)="loadPickList()"
+            >
+              <mat-icon>checklist</mat-icon>Pick list
+            </button>
+            @if (pickList()) {
+              <button mat-button type="button" (click)="printPickList()">
+                <mat-icon>print</mat-icon>Print
+              </button>
+              <button mat-button type="button" (click)="pickList.set(null)">
+                Hide
+              </button>
+            }
+            <span class="muted"
+              >Scan the bin, then each item taken from it. The first scan of a
+              line replaces its quantity.</span
+            >
+          </div>
+          @if (pickList(); as p) {
+            <table class="plain pick-list">
+              <thead>
+                <tr>
+                  <th>Bin</th>
+                  <th>Item</th>
+                  <th>GRN batch</th>
+                  <th class="num">To pick</th>
+                  <th class="num">Picked</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of p.rows; track $index) {
+                  <tr
+                    [class.done]="
+                      pickedAt(r.orderLineId, r.binId) >= +r.quantity
+                    "
+                  >
+                    <td>
+                      <strong>{{ r.binCode ?? 'No bin' }}</strong>
+                    </td>
+                    <td>
+                      {{ r.itemCode }}
+                      <div class="muted">{{ r.itemDescription }}</div>
+                    </td>
+                    <td>{{ r.grnNo }} · {{ r.grnDate }}</td>
+                    <td class="num">
+                      {{ r.quantity | number: '1.0-3' }} {{ r.uomCode }}
+                    </td>
+                    <td class="num">
+                      {{ pickedAt(r.orderLineId, r.binId) | number: '1.0-3' }}
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="empty">
+                      Nothing of this order is in stock here.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            @for (s of p.short; track s.orderLineId) {
+              <p class="warn">
+                Short: {{ s.itemCode }} – {{ s.quantity | number: '1.0-3' }}
+                not in stock here (outside blocked bins).
+              </p>
+            }
+          }
           <table class="plain">
             <thead>
               <tr>
@@ -416,6 +525,7 @@ export class DeliveryFormPage {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthStore);
   private readonly inventory = inject(InventoryLookups);
+  private readonly snackBar = inject(MatSnackBar);
   protected readonly canOver = this.auth.hasPermission(SAL_DELIVERY_OVER_ORDER);
 
   /** ?orderId=… from an order or the outstanding list. */
@@ -434,6 +544,10 @@ export class DeliveryFormPage {
   protected readonly overDeliver = new FormControl(false, {
     nonNullable: true,
   });
+
+  protected readonly pickList = signal<PickList | null>(null);
+  /** Scanned quantities per order line and bin ("lineId:binId"). */
+  private readonly picked = signal<Record<string, number>>({});
 
   protected readonly form = new FormGroup({
     customer: new FormControl<PickedCustomer | null>(null),
@@ -467,7 +581,16 @@ export class DeliveryFormPage {
     remarks: new FormControl<string | null>(null, Validators.maxLength(500)),
   });
 
+  protected readonly locationId = toSignal(
+    this.form.controls.locationId.valueChanges,
+    { initialValue: null },
+  );
+
   constructor() {
+    this.form.controls.locationId.valueChanges.subscribe(() => {
+      this.pickList.set(null);
+      this.picked.set({});
+    });
     this.form.controls.customer.valueChanges.subscribe((c) =>
       this.loadSites(c?.id ?? null),
     );
@@ -518,6 +641,109 @@ export class DeliveryFormPage {
     this.inventory
       .racks(locationId)
       .subscribe((racks) => this.racks.set(racks));
+  }
+
+  protected loadPickList(): void {
+    const o = this.order();
+    const locationId = this.locationId();
+    if (!o || !locationId) return;
+    this.api
+      .call(getSalesOrderPickList, { orderId: o.id, locationId })
+      .pipe(catchError(() => EMPTY))
+      .subscribe((p) => this.pickList.set(p));
+  }
+
+  protected pickedAt(lineId: number, binId: number | null): number {
+    return this.picked()[`${lineId}:${binId ?? 0}`] ?? 0;
+  }
+
+  /** Scanned quantity of an order line, all bins together. */
+  private pickedFor(line: OrderLineForm): number {
+    return Object.entries(this.picked())
+      .filter(([k]) => k.startsWith(`${line.source.id}:`))
+      .reduce((sum, [, q]) => sum + q, 0);
+  }
+
+  /**
+   * A scanned item. Direct: onto its line. Against an order: picks it for the order line of that item; the line's
+   * quantity becomes what was scanned, and its rack the bin it was scanned in (any rack when picked from several).
+   */
+  protected onScan(hit: ScanHit): void {
+    if (!this.order()) {
+      const added = placeScan(
+        this.direct(),
+        hit,
+        (d) => ({
+          item: d.controls.item,
+          quantity: d.controls.quantity,
+          bin: d.controls.binId,
+        }),
+        () => directLine(),
+      );
+      if (added) this.direct.set(added);
+      return;
+    }
+    const candidates = this.orderLines().filter(
+      (l) => l.source.itemId === hit.item.id,
+    );
+    if (!candidates.length) {
+      this.snackBar.open(`${hit.item.itemCode} is not on this order.`, 'OK', {
+        duration: 4000,
+      });
+      return;
+    }
+    const line =
+      candidates.find((l) => this.pickedFor(l) < n0(l.source.qtyToDeliver)) ??
+      candidates[candidates.length - 1];
+    const key = `${line.source.id}:${hit.binId ?? 0}`;
+    this.picked.update((p) => ({
+      ...p,
+      [key]: Math.round(((p[key] ?? 0) + hit.quantity) * 1000) / 1000,
+    }));
+    const bins = Object.keys(this.picked())
+      .filter((k) => k.startsWith(`${line.source.id}:`))
+      .map((k) => Number(k.split(':')[1]));
+    const picked = this.pickedFor(line);
+    line.form.patchValue({
+      selected: true,
+      quantity: picked,
+      binId: bins.length === 1 && bins[0] ? bins[0] : null,
+    });
+    if (picked > n0(line.source.qtyToDeliver)) {
+      this.snackBar.open(
+        `${hit.item.itemCode}: ${picked} picked, only ${n0(line.source.qtyToDeliver)} to deliver.`,
+        'OK',
+        { duration: 5000 },
+      );
+    }
+  }
+
+  protected printPickList(): void {
+    const p = this.pickList();
+    const o = this.order();
+    if (!p || !o) return;
+    const esc = (v: unknown) =>
+      String(v ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+    const rows = p.rows
+      .map(
+        (r) =>
+          `<tr><td><b>${esc(r.binCode ?? 'No bin')}</b></td><td>${esc(r.itemCode)}<br><small>${esc(r.itemDescription)}</small></td><td>${esc(r.grnNo)} · ${esc(r.grnDate)}</td><td style="text-align:right">${esc(Number(r.quantity))} ${esc(r.uomCode)}</td><td style="width:4em"></td></tr>`,
+      )
+      .join('');
+    const short = p.short
+      .map(
+        (s) =>
+          `<p>Short: ${esc(s.itemCode)} – ${esc(Number(s.quantity))} not in stock here</p>`,
+      )
+      .join('');
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) return;
+    win.document.write(
+      `<html><head><title>Pick list ${esc(o.orderNo)}</title><style>body{font-family:sans-serif;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px;text-align:left}</style></head><body><h2>Pick list · order ${esc(o.orderNo)} · ${esc(p.locationCode)}</h2><p>${esc(o.customerName)}</p><table><thead><tr><th>Bin</th><th>Item</th><th>GRN batch</th><th>Qty</th><th>Picked</th></tr></thead><tbody>${rows}</tbody></table>${short}</body></html>`,
+    );
+    win.document.close();
+    win.focus();
+    win.print();
   }
 
   protected addDirect(): void {

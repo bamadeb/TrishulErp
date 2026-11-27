@@ -169,6 +169,13 @@ export class InventoryLookups {
     return racks;
   }
 
+  /** Bins stock may be put into: the active bins of the location that are not blocked. */
+  putAwayRacks(locationId: number | null | undefined): Observable<RackOut[]> {
+    return this.racks(locationId).pipe(
+      map((rows) => rows.filter((r) => !r.isBlocked)),
+    );
+  }
+
   uoms(): Observable<UomOut[]> {
     this.uoms$ ??= this.cached(this.api.call(listUoms, { status: 'active' }));
     return this.uoms$;
@@ -206,4 +213,38 @@ export function locationLabel(
   location: Pick<LocationOut, 'branchName' | 'name'>,
 ): string {
   return `${location.branchName} · ${location.name}`;
+}
+
+/**
+ * Calendar age from a GRN date ('YYYY-MM-DD') to today: '1 year 2 months 5 days', '0 days' on the day itself.
+ * The same rule as the backend (modules/inv/common.py age_text): whole years, then months, then days.
+ */
+export function ageText(grnDate: string, today: Date = new Date()): string {
+  const [y, m, d] = grnDate.split('-').map(Number);
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const start = new Date(y, m - 1, d);
+  if (end <= start) return '0 days';
+  const addMonths = (count: number): Date => {
+    const month = m - 1 + count;
+    const year = y + Math.floor(month / 12);
+    const monthOfYear = ((month % 12) + 12) % 12;
+    const last = new Date(year, monthOfYear + 1, 0).getDate();
+    return new Date(year, monthOfYear, Math.min(d, last));
+  };
+  let months = (end.getFullYear() - y) * 12 + end.getMonth() - (m - 1);
+  if (addMonths(months) > end) months -= 1;
+  const days = Math.round(
+    (end.getTime() - addMonths(months).getTime()) / 86_400_000,
+  );
+  const parts = [
+    [Math.floor(months / 12), 'year'],
+    [months % 12, 'month'],
+    [days, 'day'],
+  ] as const;
+  return (
+    parts
+      .filter(([n]) => n > 0)
+      .map(([n, unit]) => `${n} ${unit}${n === 1 ? '' : 's'}`)
+      .join(' ') || '0 days'
+  );
 }

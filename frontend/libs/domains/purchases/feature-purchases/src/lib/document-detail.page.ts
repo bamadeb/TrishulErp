@@ -13,6 +13,7 @@ import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
+import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import {
   AllocationOut,
@@ -28,7 +29,14 @@ import {
   reverseAllocation,
 } from '@trishul/core-api';
 import { AuthStore } from '@trishul/core-auth';
-import { n0, openFieldsDialog } from '@trishul/inventory-data-access';
+import {
+  BarcodeApi,
+  INV_BARCODE_MANAGE,
+  INV_GRN_MANAGE,
+  INV_LOCATION_MANAGE,
+  n0,
+  openFieldsDialog,
+} from '@trishul/inventory-data-access';
 import {
   PUR_ALLOCATION_REVERSE,
   PUR_CREDIT_NOTE_MANAGE,
@@ -54,6 +62,7 @@ type Detail = GrnDetail | InvoiceDetail | PaymentDetail | CreditNoteDetail;
     MatProgressBar,
     PageHeader,
     StatusBadge,
+    MatTooltip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: '../../../../inventory/data-access/src/lib/inventory.scss',
@@ -73,6 +82,24 @@ type Detail = GrnDetail | InvoiceDetail | PaymentDetail | CreditNoteDetail;
             <a mat-stroked-button routerLink=".."
               ><mat-icon>arrow_back</mat-icon>All GRNs</a
             >
+            @if (canPrintBatches) {
+              <button
+                mat-stroked-button
+                type="button"
+                matTooltip="A label for each batch received; scanning one shows its GRN and age"
+                (click)="printBatchLabels(g.id, false)"
+              >
+                <mat-icon>qr_code_2</mat-icon>Batch labels
+              </button>
+              <button
+                mat-button
+                type="button"
+                matTooltip="One label for every unit received"
+                (click)="printBatchLabels(g.id, true)"
+              >
+                One a unit
+              </button>
+            }
             @if (canInvoice && hasUninvoiced(g)) {
               <a
                 mat-flat-button
@@ -701,6 +728,13 @@ export class DocumentDetailPage {
   protected readonly canCredit = this.auth.hasPermission(
     PUR_CREDIT_NOTE_MANAGE,
   );
+  /** GRN batch labels: storekeepers who post GRNs, or barcode / location managers. */
+  protected readonly canPrintBatches = this.auth.hasAnyPermission([
+    INV_GRN_MANAGE,
+    INV_BARCODE_MANAGE,
+    INV_LOCATION_MANAGE,
+  ]);
+  private readonly barcodes = inject(BarcodeApi);
   protected readonly invoiceState = INVOICE_STATE;
   protected readonly money = rupees;
   protected readonly n0 = n0;
@@ -739,6 +773,10 @@ export class DocumentDetailPage {
     requests[kind]()
       .pipe(catchError(() => EMPTY))
       .subscribe((d) => this.detail.set(d));
+  }
+
+  protected printBatchLabels(grnId: number, onePerUnit: boolean): void {
+    this.barcodes.printLabels({ kind: 'Lot', grnId, onePerUnit });
   }
 
   protected hasUninvoiced(grn: GrnDetail): boolean {

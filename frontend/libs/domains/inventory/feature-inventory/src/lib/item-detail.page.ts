@@ -9,9 +9,13 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
+import { MatInput } from '@angular/material/input';
+import { MatOption, MatSelect } from '@angular/material/select';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
@@ -28,6 +32,7 @@ import {
   PurchasePriceCreate,
   PurchasePriceOut,
   PurchasePriceUpdate,
+  RackOut,
   SalesPriceCreate,
   SalesPriceOut,
   SalesPriceUpdate,
@@ -59,7 +64,16 @@ import {
   of,
   switchMap,
 } from 'rxjs';
-import { openFieldsDialog } from '@trishul/inventory-data-access';
+import {
+  BARCODE_TYPES,
+  BarcodeApi,
+  BinMoveApi,
+  INV_BARCODE_MANAGE,
+  InventoryLookups as StorageLookups,
+  ItemStorageOut,
+  ItemBarcodeOut,
+  openFieldsDialog,
+} from '@trishul/inventory-data-access';
 import {
   INV_ITEM_MANAGE,
   INV_ITEM_VIEW_PERMISSIONS,
@@ -69,6 +83,7 @@ import {
 import {
   InventoryLookups,
   ageClass,
+  ageText,
   n0,
   num,
 } from '@trishul/inventory-data-access';
@@ -83,6 +98,11 @@ import {
     MatButton,
     MatIconButton,
     MatIcon,
+    MatFormField,
+    MatLabel,
+    MatInput,
+    MatSelect,
+    MatOption,
     MatTooltip,
     MatProgressBar,
     MatPaginator,
@@ -229,6 +249,9 @@ import {
                             [class]="'age ' + ageClass(s.ageDays)"
                             >{{ s.ageDays }} days</span
                           >
+                          @if (s.ageDays >= 30) {
+                            <div class="muted">{{ ageText(s.grnDate) }}</div>
+                          }
                         </td>
                         <td>{{ s.branchName }}</td>
                         <td>{{ s.locationName }}</td>
@@ -513,6 +536,228 @@ import {
               </table>
             </section>
           </mat-tab>
+          <mat-tab label="Barcodes">
+            <section class="card">
+              <h2>
+                Barcodes
+                @if (canBarcodes) {
+                  <span>
+                    <button mat-button (click)="printLabel(i.id)">
+                      <mat-icon>print</mat-icon>Label
+                    </button>
+                    @if (!hasActiveBarcode()) {
+                      <button mat-button (click)="generateBarcode(i.id)">
+                        <mat-icon>qr_code_2</mat-icon>Generate internal
+                      </button>
+                    }
+                    <button mat-button (click)="addBarcode(i.id)">
+                      <mat-icon>add</mat-icon>Add
+                    </button>
+                  </span>
+                }
+              </h2>
+              <p class="muted">
+                Optional. The item code {{ i.itemCode }} always finds this item
+                and prints as its barcode when it has none.
+              </p>
+              <table class="plain">
+                <thead>
+                  <tr>
+                    <th>Barcode</th>
+                    <th>Type</th>
+                    <th>Source</th>
+                    <th class="num">Units per scan</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (b of barcodes(); track b.id) {
+                    <tr>
+                      <td>
+                        {{ b.barcode }}
+                        @if (b.isPrimary) {
+                          <div class="muted">Printed on labels</div>
+                        }
+                      </td>
+                      <td>{{ b.barcodeType }}</td>
+                      <td>{{ b.source }}</td>
+                      <td class="num">{{ b.packQty | number: '1.0-3' }}</td>
+                      <td>{{ b.isActive ? 'Active' : 'Inactive' }}</td>
+                      <td class="actions">
+                        @if (canBarcodes) {
+                          @if (b.isActive && !b.isPrimary) {
+                            <button
+                              mat-icon-button
+                              matTooltip="Print this one on labels"
+                              (click)="changeBarcode(b, { isPrimary: true })"
+                            >
+                              <mat-icon>star_outline</mat-icon>
+                            </button>
+                          }
+                          <button
+                            mat-icon-button
+                            [matTooltip]="
+                              b.isActive ? 'Deactivate' : 'Activate'
+                            "
+                            (click)="
+                              changeBarcode(b, { isActive: !b.isActive })
+                            "
+                          >
+                            <mat-icon>{{
+                              b.isActive ? 'block' : 'check_circle'
+                            }}</mat-icon>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6" class="empty">
+                        No barcodes. Scanning or typing {{ i.itemCode }} finds
+                        this item.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+          </mat-tab>
+          <mat-tab label="Storage">
+            <section class="card">
+              <h2>
+                Storage
+                @if (canManage) {
+                  <button
+                    mat-flat-button
+                    type="button"
+                    [disabled]="!storageDirty()"
+                    (click)="saveStorage()"
+                  >
+                    Save
+                  </button>
+                }
+              </h2>
+              <p class="muted">
+                Optional. Put-away suggests the home bin first. Individual items
+                go to single-item bins; grouped items share bins.
+              </p>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Storage type</mat-label>
+                <mat-select
+                  [value]="storageType()"
+                  [disabled]="!canManage"
+                  (valueChange)="
+                    storageType.set($event); storageDirty.set(true)
+                  "
+                >
+                  <mat-option [value]="null">Not set</mat-option>
+                  <mat-option value="Individual"
+                    >Individual (large items, a bin each)</mat-option
+                  >
+                  <mat-option value="Grouped"
+                    >Grouped (small parts sharing bins)</mat-option
+                  >
+                </mat-select>
+              </mat-form-field>
+              <h3>Home bins</h3>
+              <table class="plain">
+                <thead>
+                  <tr>
+                    <th>Location</th>
+                    <th>Bin</th>
+                    <th class="num">Min</th>
+                    <th class="num">Max</th>
+                    <th class="num">Now</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of homeBins(); track $index; let n = $index) {
+                    <tr>
+                      <td>
+                        <mat-select
+                          [value]="r.locationId"
+                          [disabled]="!canManage"
+                          (valueChange)="
+                            setHome(n, { locationId: $event, binId: null })
+                          "
+                          aria-label="Location"
+                        >
+                          @for (l of storageLocations(); track l.id) {
+                            <mat-option [value]="l.id">{{ l.code }}</mat-option>
+                          }
+                        </mat-select>
+                      </td>
+                      <td>
+                        <mat-select
+                          [value]="r.binId"
+                          [disabled]="!canManage"
+                          (valueChange)="setHome(n, { binId: $event })"
+                          aria-label="Bin"
+                        >
+                          @for (b of binsOf(r.locationId); track b.id) {
+                            <mat-option [value]="b.id">{{ b.code }}</mat-option>
+                          }
+                        </mat-select>
+                      </td>
+                      <td class="num">
+                        <input
+                          matInput
+                          type="number"
+                          min="0"
+                          [value]="r.minQty ?? ''"
+                          [readOnly]="!canManage"
+                          (input)="
+                            setHome(n, {
+                              minQty: $any($event.target).value || null,
+                            })
+                          "
+                          aria-label="Minimum"
+                        />
+                      </td>
+                      <td class="num">
+                        <input
+                          matInput
+                          type="number"
+                          min="0"
+                          [value]="r.maxQty ?? ''"
+                          [readOnly]="!canManage"
+                          (input)="
+                            setHome(n, {
+                              maxQty: $any($event.target).value || null,
+                            })
+                          "
+                          aria-label="Maximum"
+                        />
+                      </td>
+                      <td class="num">{{ r.qtyOnHand | number: '1.0-3' }}</td>
+                      <td class="actions">
+                        @if (canManage) {
+                          <button
+                            mat-icon-button
+                            matTooltip="Remove"
+                            (click)="removeHome(n)"
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6" class="empty">No home bins.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              @if (canManage) {
+                <button mat-button type="button" (click)="addHome()">
+                  <mat-icon>add</mat-icon>Add home bin
+                </button>
+              }
+            </section>
+          </mat-tab>
           <mat-tab label="Unit conversions">
             <section class="card">
               <h2>
@@ -576,6 +821,30 @@ export class ItemDetailPage {
   private readonly dialog = inject(MatDialog);
   private readonly lookups = inject(InventoryLookups);
   private readonly auth = inject(AuthStore);
+  private readonly barcodeApi = inject(BarcodeApi);
+  private readonly binMoveApi = inject(BinMoveApi);
+  private readonly storageLookups = inject(StorageLookups);
+  protected readonly storageLocations = toSignal(
+    this.storageLookups.locations(),
+    {
+      initialValue: [],
+    },
+  );
+  private storageState: ItemStorageOut | null = null;
+  protected readonly storageType = signal<'Individual' | 'Grouped' | null>(
+    null,
+  );
+  protected readonly homeBins = signal<
+    {
+      locationId: number | null;
+      binId: number | null;
+      minQty: string | null;
+      maxQty: string | null;
+      qtyOnHand: string;
+    }[]
+  >([]);
+  protected readonly storageDirty = signal(false);
+  private readonly binsByLocation = signal<Record<number, RackOut[]>>({});
 
   readonly itemId = input.required<string>();
 
@@ -589,6 +858,7 @@ export class ItemDetailPage {
     INV_ITEM_VIEW_PERMISSIONS,
   );
   protected readonly ageClass = ageClass;
+  protected readonly ageText = ageText;
   protected readonly n0 = n0;
 
   protected readonly item = signal<ItemDetail | null>(null);
@@ -596,6 +866,11 @@ export class ItemDetailPage {
   protected readonly prices = signal<ItemPrices | null>(null);
   /** The latest price changes (import or by hand), newest first. */
   protected readonly priceHistory = signal<ItemPriceChange[]>([]);
+  protected readonly canBarcodes = this.auth.hasPermission(INV_BARCODE_MANAGE);
+  protected readonly barcodes = signal<ItemBarcodeOut[]>([]);
+  protected readonly hasActiveBarcode = computed(() =>
+    this.barcodes().some((b) => b.isActive),
+  );
   protected readonly conversions = signal<ConversionOut[]>([]);
   protected readonly movements = signal<MovementRow[]>([]);
   protected readonly movementTotal = signal(0);
@@ -635,6 +910,8 @@ export class ItemDetailPage {
       this.loadPrices();
       this.loadConversions();
     }
+    this.loadBarcodes(id);
+    this.loadStorage(id);
     if (this.canSeeMovements) this.loadMovements();
   }
 
@@ -999,5 +1276,180 @@ export class ItemDetailPage {
     })
       .pipe(filter((saved) => !!saved))
       .subscribe(() => this.loadConversions());
+  }
+
+  // ------------------------------------------------------------------ barcodes
+
+  private loadBarcodes(id = this.id): void {
+    this.barcodeApi
+      .list(id)
+      .pipe(catchError(() => EMPTY))
+      .subscribe((rows) => this.barcodes.set(rows));
+  }
+
+  protected addBarcode(itemId: number): void {
+    openFieldsDialog(this.dialog, {
+      title: 'Add a barcode',
+      submitText: 'Add',
+      fields: [
+        {
+          key: 'barcode',
+          label: 'Barcode (scan it into this box)',
+          required: true,
+          maxLength: 60,
+          wide: true,
+        },
+        {
+          key: 'barcodeType',
+          label: 'Type',
+          type: 'select' as const,
+          required: true,
+          options: BARCODE_TYPES,
+        },
+        {
+          key: 'source',
+          label: 'From',
+          type: 'select' as const,
+          required: true,
+          options: [
+            { value: 'Manufacturer', label: 'Manufacturer' },
+            { value: 'Supplier', label: 'Supplier' },
+          ],
+        },
+        {
+          key: 'packQty',
+          label: 'Units per scan',
+          type: 'number' as const,
+          required: true,
+          min: 0.001,
+          hint: 'e.g. 100 for a box of 100',
+        },
+        {
+          key: 'isPrimary',
+          label: 'Print this one on labels',
+          type: 'checkbox' as const,
+        },
+      ],
+      value: { barcodeType: 'EAN13', source: 'Manufacturer', packQty: 1 },
+      save: (v) =>
+        this.barcodeApi.add(itemId, {
+          barcode: String(v['barcode'] ?? ''),
+          barcodeType: v['barcodeType'] as ItemBarcodeOut['barcodeType'],
+          source: v['source'] as 'Manufacturer' | 'Supplier',
+          packQty: String(v['packQty'] ?? 1),
+          isPrimary: !!v['isPrimary'],
+        }),
+    })
+      .pipe(filter((saved) => !!saved))
+      .subscribe(() => this.loadBarcodes(itemId));
+  }
+
+  protected generateBarcode(itemId: number): void {
+    this.barcodeApi
+      .generate(itemId)
+      .pipe(catchError(() => EMPTY))
+      .subscribe(() => this.loadBarcodes(itemId));
+  }
+
+  protected changeBarcode(
+    barcode: ItemBarcodeOut,
+    change: { isPrimary?: boolean; isActive?: boolean },
+  ): void {
+    this.barcodeApi
+      .update(barcode, change)
+      .pipe(catchError(() => EMPTY))
+      .subscribe(() => this.loadBarcodes(barcode.itemId));
+  }
+
+  protected printLabel(itemId: number): void {
+    this.barcodeApi.printLabels({ kind: 'Item', ids: [itemId] });
+  }
+
+  // ------------------------------------------------------------------ storage type and home bins
+
+  private loadStorage(id = this.id): void {
+    this.binMoveApi
+      .storage(id)
+      .pipe(catchError(() => EMPTY))
+      .subscribe((storage) => {
+        this.storageState = storage;
+        this.storageType.set(storage.storageType);
+        this.homeBins.set(
+          storage.rules.map((r) => ({
+            locationId: r.locationId,
+            binId: r.binId,
+            minQty: r.minQty,
+            maxQty: r.maxQty,
+            qtyOnHand: r.qtyOnHand,
+          })),
+        );
+        for (const r of storage.rules) this.loadBins(r.locationId);
+        this.storageDirty.set(false);
+      });
+  }
+
+  private loadBins(locationId: number | null): void {
+    if (!locationId || this.binsByLocation()[locationId]) return;
+    this.storageLookups.putAwayRacks(locationId).subscribe((bins) =>
+      this.binsByLocation.update((all) => ({
+        ...all,
+        [locationId]: bins.filter((b) => !b.isReceiving),
+      })),
+    );
+  }
+
+  protected binsOf(locationId: number | null): RackOut[] {
+    return locationId ? (this.binsByLocation()[locationId] ?? []) : [];
+  }
+
+  protected setHome(
+    index: number,
+    change: Partial<{
+      locationId: number | null;
+      binId: number | null;
+      minQty: string | null;
+      maxQty: string | null;
+    }>,
+  ): void {
+    if (change.locationId) this.loadBins(change.locationId);
+    this.homeBins.update((rows) =>
+      rows.map((r, i) => (i === index ? { ...r, ...change } : r)),
+    );
+    this.storageDirty.set(true);
+  }
+
+  protected addHome(): void {
+    this.homeBins.update((rows) => [
+      ...rows,
+      {
+        locationId: null,
+        binId: null,
+        minQty: null,
+        maxQty: null,
+        qtyOnHand: '0',
+      },
+    ]);
+  }
+
+  protected removeHome(index: number): void {
+    this.homeBins.update((rows) => rows.filter((_, i) => i !== index));
+    this.storageDirty.set(true);
+  }
+
+  protected saveStorage(): void {
+    const current = this.storageState;
+    if (!current) return;
+    const rules = this.homeBins()
+      .filter((r) => r.locationId && r.binId)
+      .map((r) => ({
+        locationId: r.locationId as number,
+        binId: r.binId as number,
+        minQty: r.minQty,
+        maxQty: r.maxQty,
+      }));
+    this.binMoveApi
+      .setStorage(current, { storageType: this.storageType(), rules })
+      .pipe(catchError(() => EMPTY)) // the error toast has been shown
+      .subscribe(() => this.loadStorage(current.itemId));
   }
 }

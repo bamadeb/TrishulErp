@@ -4,10 +4,11 @@ Prices (see prices.py): Selling Price -> the chosen price list, Purchase Price -
 Items are never created here.
 
 Files:
-  * the template: Item Code, Item Name (not read), Selling Price, Purchase Price, MRP, Reason. A blank price
+  * the SAP S/4HANA price file -- also the downloadable sample (Sl No., External ID (S4H), Material,
+    Description, HSN Code, ZAmount): matched within the selected brand by OEM part number or item code
+    (0000534 = 534); ZAmount updates the price chosen on upload.
+  * the older layout: Item Code, Item Name (not read), Selling Price, Purchase Price, MRP, Reason. A blank price
     cell leaves that price as it is; a row needs at least one price.
-  * the SAP S/4HANA price file (External ID, Material, Description, HSN Code, ZAmount): matched within the
-    selected brand by OEM part number or item code (0000534 = 534); ZAmount updates the price chosen on upload.
 
 Flow:
   1. upload()   stores the file (with its SHA-256), checks every row against the item master and saves the
@@ -91,7 +92,8 @@ _PLACES = {"selling": 4, "purchase": 4, "mrp": 2}
 _LABELS = {"selling": "Selling Price", "purchase": "Purchase Price", "mrp": "MRP"}
 _SAP_TARGET = {"Selling": "selling", "Purchase": "purchase", "MRP": "mrp"}
 
-TEMPLATE_COLUMNS = ("Item Code *", "Item Name", "Selling Price", "Purchase Price", "MRP", "Reason")
+# The sample file is the SAP S/4HANA layout; the older Item Code / Selling / Purchase / MRP layout is still read.
+TEMPLATE_COLUMNS = ("Sl No.", "External ID (S4H)", "Material", "Description", "HSN Code", "ZAmount")
 _TEMPLATE_HEADERS = {
     "itemcode": "item_code", "code": "item_code",
     "itemname": "name", "description": "name", "name": "name",
@@ -695,7 +697,7 @@ class PriceImportService:
         sort: SortColumns = {
             "uploadedAt": PriceImport.uploaded_at,
             "fileName": PriceImport.file_name,
-            "batchNo": PriceImport.id,
+            "batchNo": PriceImport.batch_no,  # zero-padded, so it sorts like the id
             "totalRows": PriceImport.total_rows,
             "updatedCount": PriceImport.updated_count,
             "status": PriceImport.status,
@@ -798,36 +800,58 @@ class PriceImportService:
         return f"{batch.batch_no or batch.id}-errors.xlsx", _save(book)
 
     def template(self) -> bytes:
+        """The sample price file, in the SAP S/4HANA layout (External ID ... ZAmount)."""
         book = Workbook()
         sheet = book.active
         assert sheet is not None
         sheet.title = "Prices"
         sheet.append(list(TEMPLATE_COLUMNS))
-        _style_header(sheet, len(TEMPLATE_COLUMNS), {1})
-        sheet.column_dimensions["B"].width = 40
-        sheet.column_dimensions["F"].width = 40
+        _style_header(sheet, len(TEMPLATE_COLUMNS), {2, 6})
+        for column, width in zip("ABCDEF", (8, 20, 20, 40, 14, 14), strict=True):
+            sheet.column_dimensions[column].width = width
+        for column in "BCE":  # keep leading zeros (0000534) as typed
+            for row in range(2, 1002):
+                sheet[f"{column}{row}"].number_format = "@"
         rule = DataValidation(type="decimal", operator="greaterThanOrEqual", formula1="0", allow_blank=True)
         rule.error = "Enter a price of 0 or more."
         sheet.add_data_validation(rule)
-        rule.add(f"C2:E{MAX_ROWS + 1}")
+        rule.add(f"F2:F{MAX_ROWS + 1}")
+        sheet.auto_filter.ref = f"A1:F{MAX_ROWS + 1}"
         guide = book.create_sheet("Instructions")
         guide.append(["Column", "What to enter"])
         for row in (
-            ("Item Code *", "The code of an existing item. Items are never created by a price import."),
-            ("Item Name", "Optional, for your reference only; it is not imported."),
-            ("Selling Price", "Price on the price list chosen on the upload screen. Blank = leave as it is."),
-            ("Purchase Price", "The item's standard (purchase) cost. Blank = leave as it is."),
-            ("MRP", "Maximum retail price. Blank = leave as it is."),
-            ("Reason", "Optional reason for this item; the reason given on the upload screen is used otherwise."),
+            ("Sl No.", "Optional running number; not imported."),
+            (
+                "External ID (S4H) *",
+                "The SAP part number, e.g. 0000534 or 0001310050J. It is matched within the "
+                "brand chosen on the upload screen by OEM part number or item code; leading zeros do not matter "
+                "(0000534 = 534).",
+            ),
+            ("Material", "Optional, for your reference only; not imported."),
+            ("Description", "Optional, for your reference only; not imported."),
+            ("HSN Code", "Optional, for your reference only; not imported."),
+            (
+                "ZAmount *",
+                "The new price. On the upload screen choose which price it updates: MRP, Selling price "
+                "(on the chosen price list) or Purchase price (standard cost). 0 or blank = leave as it is.",
+            ),
             ("", ""),
-            ("Rules", "Each item once per file. Prices are numbers of 0 or more. At least one price per row."),
+            ("Rules", "Each part once per file. Items are never created by a price import."),
             ("", "A change bigger than the allowed percentage needs approval before it is applied."),
             ("", "Nothing changes until you check the comparison and confirm the update."),
+            ("", ""),
+            (
+                "Example",
+                "Sl No. 1 | External ID 0000534 | Material 534 | Description CASE;T.MISSION | "
+                "HSN Code 84314930 | ZAmount 102358",
+            ),
         ):
             guide.append(list(row))
         _style_header(guide, 2)
-        guide.column_dimensions["A"].width = 18
-        guide.column_dimensions["B"].width = 100
+        guide.column_dimensions["A"].width = 20
+        guide.column_dimensions["B"].width = 110
+        for cell in guide["B"][1:]:
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
         return _save(book)
 
     def item_history(self, item_id: int, page: int, page_size: int) -> Page[ItemPriceChange]:

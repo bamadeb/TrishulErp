@@ -12,12 +12,14 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import mssql  # noqa: F401
 from sqlalchemy.orm import Mapped, mapped_column
 
-from trishul_api.db.models.base import Base
+from trishul_api.db.models.base import Audited, Base
 
+BinBinType = Literal["Single item", "Mixed", "Shared", "Area spot"]
 MovementTypeDirection = Literal["In", "Out"]
 SerialBatchTrackingType = Literal["Serial", "Batch"]
 SerialBatchStatus = Literal["In stock", "Reserved", "Issued", "Sold", "Returned", "Scrapped"]
-ItemBarcodeBarcodeType = Literal["EAN13", "Code128", "QR"]
+ItemBarcodeBarcodeType = Literal["EAN13", "EAN8", "UPCA", "Code128", "QR", "Other"]
+ItemBarcodeSource = Literal["Manufacturer", "Internal", "Supplier"]
 StockReservationReservedForType = Literal["Service call", "Sales order"]
 StockReservationStatus = Literal["Active", "Consumed", "Released"]
 StockIssueIssueType = Literal["Service", "Internal", "Sample"]
@@ -28,6 +30,7 @@ StockTransferStatus = Literal["Draft", "Dispatched", "Received", "Cancelled"]
 StockAdjustmentStatus = Literal["Draft", "Pending approval", "Posted", "Rejected"]
 StockCountCountType = Literal["Full", "Cycle"]
 StockCountStatus = Literal["Open", "Counted", "Adjusted", "Cancelled"]
+StockCountScope = Literal["Location", "Rack", "Bins"]
 StockLotSourceType = Literal["GRN", "Opening", "Adjustment"]
 
 
@@ -52,7 +55,7 @@ class MovementClass(Base):
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
 
-class Bin(Base):
+class Bin(Audited, Base):
     """Rack/shelf position inside a location."""
 
     __tablename__ = "bin"
@@ -60,10 +63,19 @@ class Bin(Base):
 
     id: Mapped[int] = mapped_column(sa.BigInteger(), primary_key=True)
     location_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.location.id"), doc="Location")
-    code: Mapped[str] = mapped_column(sa.NVARCHAR(20), doc="Bin code")
+    code: Mapped[str] = mapped_column(sa.NVARCHAR(30), doc="Bin code")
     rack: Mapped[str | None] = mapped_column(sa.NVARCHAR(10), doc="Rack")
     shelf: Mapped[str | None] = mapped_column(sa.NVARCHAR(10), doc="Shelf")
     description: Mapped[str | None] = mapped_column(sa.NVARCHAR(100), doc="Notes")
+    # Migration 0051: racks with levels x positions; a bin with no rack is a loose bin or a yard spot.
+    storage_rack_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.storage_rack.id"), doc="Rack")
+    level_no: Mapped[int | None] = mapped_column(sa.SmallInteger(), doc="Level from the floor")
+    position_no: Mapped[int | None] = mapped_column(sa.SmallInteger(), doc="Position from the left")
+    bin_type: Mapped[BinBinType] = mapped_column(sa.NVARCHAR(20), server_default=sa.text("'Mixed'"), doc="What it may hold")
+    max_qty: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 3), doc="Most it may hold, all items together")
+    is_blocked: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.text("0"), doc="No put-away or picking")
+    blocked_reason: Mapped[str | None] = mapped_column(sa.NVARCHAR(200), doc="Why it is blocked")
+    is_receiving: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.text("0"), doc="GRNs put stock here before put-away (migration 0053)")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
@@ -194,7 +206,7 @@ class CostLayer(Base):
     __mapper_args__ = {"version_id_col": row_version, "version_id_generator": False}
 
 
-class ItemBarcode(Base):
+class ItemBarcode(Audited, Base):
     """Barcodes for an item, incl. pack barcodes."""
 
     __tablename__ = "item_barcode"
@@ -204,7 +216,10 @@ class ItemBarcode(Base):
     item_id: Mapped[int] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.item.id"), doc="Item")
     barcode: Mapped[str] = mapped_column(sa.NVARCHAR(60), doc="Barcode")
     barcode_type: Mapped[ItemBarcodeBarcodeType] = mapped_column(sa.NVARCHAR(30), doc="Symbology")
-    pack_qty: Mapped[Decimal] = mapped_column(sa.Numeric(18, 3), server_default=sa.FetchedValue(), doc="Units per scan")
+    pack_qty: Mapped[Decimal] = mapped_column(sa.Numeric(18, 3), server_default=sa.text("1"), doc="Units per scan")
+    # Migration 0052: where the barcode comes from, and the one printed on item labels.
+    source: Mapped[ItemBarcodeSource] = mapped_column(sa.NVARCHAR(20), server_default=sa.text("'Manufacturer'"), doc="Origin")
+    is_primary: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.text("0"), doc="Printed on item labels")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
@@ -439,6 +454,14 @@ class StockCount(Base):
     count_date: Mapped[dt.date] = mapped_column(sa.Date(), doc="Date")
     count_type: Mapped[StockCountCountType] = mapped_column(sa.NVARCHAR(30), doc="Type")
     status: Mapped[StockCountStatus] = mapped_column(sa.NVARCHAR(30), doc="Status")
+    scope: Mapped[StockCountScope] = mapped_column(sa.NVARCHAR(10), server_default=sa.text("'Location'"), doc="What is counted (migration 0054)")
+    storage_rack_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("inv.storage_rack.id"), doc="Rack counted")
+    is_blind: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.text("1"), doc="System quantity hidden while counting")
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(300), doc="Remarks")
+    closed_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0), doc="Counting finished")
+    closed_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
+    posted_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0), doc="Adjustment posted")
+    posted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"))
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))
@@ -462,6 +485,9 @@ class StockCountLine(Base):
     system_qty: Mapped[Decimal] = mapped_column(sa.Numeric(18, 3), doc="System qty")
     counted_qty: Mapped[Decimal | None] = mapped_column(sa.Numeric(18, 3), doc="Counted qty")
     counted_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger(), sa.ForeignKey("core.app_user.id"), doc="Counted by")
+    counted_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0), doc="When counted (migration 0054)")
+    is_expected: Mapped[bool] = mapped_column(sa.Boolean(), server_default=sa.text("1"), doc="In the system when the count started")
+    remarks: Mapped[str | None] = mapped_column(sa.NVARCHAR(200), doc="Remarks")
     created_at: Mapped[dt.datetime] = mapped_column(mssql.DATETIME2(0), server_default=sa.FetchedValue())
     created_by_user_id: Mapped[int | None] = mapped_column(sa.BigInteger())
     updated_at: Mapped[dt.datetime | None] = mapped_column(mssql.DATETIME2(0))

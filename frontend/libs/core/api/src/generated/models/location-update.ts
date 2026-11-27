@@ -5,6 +5,7 @@ export interface LocationUpdate {
   address?: (string | null);
   isActive?: (boolean | null);
   isStockLocation?: (boolean | null);
-  locationType?: ('Main store' | 'Transit' | 'Quarantine' | 'Scrap' | null);
+  locationType?: ('Main store' | 'Transit' | 'Quarantine' | 'Scrap' | 'Receiving' | 'Open area' | null);
   name?: (string | null);
+  requiresBin?: (boolean | null);
 }

@@ -353,7 +353,9 @@ def test_error_report_template_and_permissions(settings: Settings, db: Engine, c
     assert [r[0] for r in rows[1:]] == [2, 3, 5, 6, 7, 8, 9]
 
     template = load_workbook(BytesIO(client.get(f"{API}/template").content))
-    assert [c.value for c in template["Prices"][1]] == HEADER
+    assert [c.value for c in template["Prices"][1]] == [
+        "Sl No.", "External ID (S4H)", "Material", "Description", "HSN Code", "ZAmount",
+    ]  # fmt: skip
 
     page = ok(client.get(f"{API}?search={batch['batchNo']}"))
     assert page["total"] == 1 and page["items"][0]["uploadedByName"] == "store.keeper"

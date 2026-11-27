@@ -41,7 +41,12 @@ import {
 } from '@trishul/core-api';
 import { PageHeader, confirmAction } from '@trishul/shared-ui';
 import { EMPTY, catchError, filter, finalize, switchMap } from 'rxjs';
-import { ItemPicker } from '@trishul/inventory-data-access';
+import {
+  ItemPicker,
+  ScanBox,
+  ScanHit,
+  placeScan,
+} from '@trishul/inventory-data-access';
 import {
   InventoryLookups,
   isoDate,
@@ -72,6 +77,7 @@ import { StockLine, batchLabel } from './stock-line';
     MatIcon,
     MatTooltip,
     ItemPicker,
+    ScanBox,
     PageHeader,
   ],
   providers: [provideNativeDateAdapter()],
@@ -125,6 +131,12 @@ import { StockLine, batchLabel } from './stock-line';
 
       <section class="card">
         <h2>Items</h2>
+        <trishul-scan-box
+          screen="transfer"
+          label="Scan what is sent"
+          [locationId]="fromLocationId()"
+          (scanned)="onScan($event)"
+        />
         <div class="lines">
           @for (line of lines(); track line; let i = $index) {
             <div class="line" [formGroup]="line.form">
@@ -227,6 +239,10 @@ export class TransferFormPage {
     remarks: new FormControl<string | null>(null, Validators.maxLength(300)),
   });
   protected readonly lines = signal([this.newLine()]);
+  protected readonly fromLocationId = toSignal(
+    this.form.controls.fromLocationId.valueChanges,
+    { initialValue: null },
+  );
 
   constructor() {
     this.form.controls.fromLocationId.valueChanges.subscribe((id) => {
@@ -237,7 +253,9 @@ export class TransferFormPage {
       }
     });
     this.form.controls.toLocationId.valueChanges.subscribe((id) => {
-      this.lookups.racks(id).subscribe((racks) => this.toRacks.set(racks));
+      this.lookups
+        .putAwayRacks(id)
+        .subscribe((racks) => this.toRacks.set(racks));
       for (const line of this.lines())
         line.form.controls.toBinId.setValue(null);
     });
@@ -250,6 +268,21 @@ export class TransferFormPage {
       line.loadBatches(this.api, this.form.controls.fromLocationId.value),
     );
     return line;
+  }
+
+  /** A scanned item: onto its line (same item and from-rack), or a new one. */
+  protected onScan(hit: ScanHit): void {
+    const added = placeScan(
+      this.lines(),
+      hit,
+      (l) => ({
+        item: l.form.controls.item,
+        quantity: l.form.controls.quantity,
+        bin: l.form.controls.fromBinId,
+      }),
+      () => this.newLine(),
+    );
+    if (added) this.lines.set(added);
   }
 
   protected addLine(): void {

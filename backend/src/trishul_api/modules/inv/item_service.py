@@ -23,6 +23,7 @@ from trishul_api.common.schemas import Page
 from trishul_api.db.models import (
     HsnSac,
     Item,
+    ItemBarcode,
     ItemCategory,
     Location,
     LotBalance,
@@ -154,6 +155,8 @@ class ItemService:
                     Item.item_code.contains(term, autoescape=True),
                     Item.description.contains(term, autoescape=True),
                     Item.oem_part_number.contains(term, autoescape=True),
+                    # A scanned barcode finds its item too (exact match: barcodes are not searched by part).
+                    Item.id.in_(select(ItemBarcode.item_id).where(ItemBarcode.barcode == term, ItemBarcode.is_active)),
                 )
             )
         sort: SortColumns = {

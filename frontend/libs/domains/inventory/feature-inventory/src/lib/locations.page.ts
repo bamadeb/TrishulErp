@@ -12,21 +12,14 @@ import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatTooltip } from '@angular/material/tooltip';
-import { RouterLink } from '@angular/router';
 import {
   ApiClient,
   LocationCreate,
   LocationOut,
   LocationUpdate,
-  RackCreate,
-  RackOut,
-  RackUpdate,
   createLocation,
-  createRack,
   listLocations,
-  listRacks,
   updateLocation,
-  updateRack,
   withRowVersion,
 } from '@trishul/core-api';
 import { AuthStore } from '@trishul/core-auth';
@@ -35,11 +28,14 @@ import { EMPTY, catchError, filter } from 'rxjs';
 import { openFieldsDialog } from '@trishul/inventory-data-access';
 import { INV_LOCATION_MANAGE } from '@trishul/inventory-data-access';
 import { InventoryLookups } from '@trishul/inventory-data-access';
+import { StoragePanel } from './storage-panel';
 
 type LocationLocationType = NonNullable<LocationCreate['locationType']>;
 
 const LOCATION_TYPES: LocationLocationType[] = [
   'Main store',
+  'Receiving',
+  'Open area',
   'Transit',
   'Quarantine',
   'Scrap',
@@ -58,8 +54,8 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
     MatLabel,
     MatSelect,
     MatOption,
-    RouterLink,
     PageHeader,
+    StoragePanel,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: '../../../data-access/src/lib/inventory.scss',
@@ -90,8 +86,8 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
   `,
   template: `
     <trishul-page-header
-      title="Locations & racks"
-      subtitle="Where stock is kept in each branch and warehouse; rack codes are unique everywhere"
+      title="Storage locations"
+      subtitle="Where stock is kept: locations, their racks and bins, and yard spots. Racks and bins are optional everywhere."
     >
       @if (canManage) {
         <button mat-flat-button (click)="editLocation(null)">
@@ -125,6 +121,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
               <th>Name</th>
               <th>Type</th>
               <th class="num">Racks</th>
+              <th class="num">Bins</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -146,7 +143,13 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
                     <div class="muted">Holds no stock</div>
                   }
                 </td>
-                <td>{{ l.locationType }}</td>
+                <td>
+                  {{ l.locationType }}
+                  @if (l.requiresBin) {
+                    <div class="muted">Bin required</div>
+                  }
+                </td>
+                <td class="num">{{ l.storageRackCount }}</td>
                 <td class="num">{{ l.rackCount }}</td>
                 <td>{{ l.isActive ? 'Active' : 'Inactive' }}</td>
                 <td class="actions">
@@ -163,7 +166,7 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
               </tr>
             } @empty {
               <tr>
-                <td colspan="7" class="empty">
+                <td colspan="8" class="empty">
                   No locations yet. Add one for each store in a branch or
                   warehouse.
                 </td>
@@ -175,59 +178,15 @@ const CODE = '^[A-Za-z0-9][A-Za-z0-9_./-]*$';
 
       <section class="card">
         @if (selected(); as l) {
-          <h2>
-            Racks in {{ l.code }}
-            @if (canManage) {
-              <button mat-button (click)="editRack(null)">
-                <mat-icon>add</mat-icon>Add rack
-              </button>
-            }
-          </h2>
-          <table class="plain">
-            <thead>
-              <tr>
-                <th>Rack no</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (r of racks(); track r.id) {
-                <tr>
-                  <td>
-                    <a
-                      class="name"
-                      routerLink="../stock"
-                      [queryParams]="{ locationId: l.id, binId: r.id }"
-                      >{{ r.code }}</a
-                    >
-                  </td>
-                  <td>{{ r.description ?? '' }}</td>
-                  <td>{{ r.isActive ? 'Active' : 'Inactive' }}</td>
-                  <td class="actions">
-                    @if (canManage) {
-                      <button
-                        mat-icon-button
-                        matTooltip="Change"
-                        (click)="editRack(r)"
-                      >
-                        <mat-icon>edit</mat-icon>
-                      </button>
-                    }
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="4" class="empty">
-                    No racks. Stock here is kept without a rack.
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <trishul-storage-panel
+            [location]="l"
+            [canManage]="canManage"
+            (changed)="changed()"
+          />
         } @else {
-          <p class="empty">Choose a location to see its racks.</p>
+          <p class="empty">
+            Choose a location to see its racks, bins and spots.
+          </p>
         }
       </section>
     </div>
@@ -246,7 +205,6 @@ export class LocationsPage {
   protected readonly branchId = signal<number | null>(null);
   protected readonly locations = signal<LocationOut[]>([]);
   protected readonly selected = signal<LocationOut | null>(null);
-  protected readonly racks = signal<RackOut[]>([]);
   protected readonly shown = computed(() => {
     const branch = this.branchId();
     return this.locations().filter(
@@ -272,19 +230,9 @@ export class LocationsPage {
 
   protected select(location: LocationOut): void {
     this.selected.set(location);
-    this.loadRacks();
   }
 
-  private loadRacks(): void {
-    const location = this.selected();
-    if (!location) return;
-    this.api
-      .call(listRacks, { locationId: location.id, status: 'all' })
-      .pipe(catchError(() => EMPTY))
-      .subscribe((rows) => this.racks.set(rows));
-  }
-
-  private changed(): void {
+  protected changed(): void {
     this.lookups.reset();
     this.load();
   }
@@ -332,6 +280,11 @@ export class LocationsPage {
           label: 'Holds stock',
           type: 'checkbox' as const,
         },
+        {
+          key: 'requiresBin',
+          label: 'Every movement needs a bin',
+          type: 'checkbox' as const,
+        },
         ...(location
           ? [{ key: 'isActive', label: 'Active', type: 'checkbox' as const }]
           : []),
@@ -356,51 +309,5 @@ export class LocationsPage {
     })
       .pipe(filter((saved) => !!saved))
       .subscribe(() => this.changed());
-  }
-
-  protected editRack(rack: RackOut | null): void {
-    const location = this.selected();
-    if (!location) return;
-    openFieldsDialog(this.dialog, {
-      title: rack ? `Change rack ${rack.code}` : `Add rack in ${location.code}`,
-      submitText: rack ? 'Save' : 'Add',
-      fields: [
-        {
-          key: 'code',
-          label: 'Rack no',
-          required: true,
-          maxLength: 20,
-          pattern: CODE,
-          hint: 'Unique across all locations, e.g. A1',
-          wide: true,
-        },
-        {
-          key: 'description',
-          label: 'Description',
-          maxLength: 100,
-          wide: true,
-        },
-        ...(rack
-          ? [{ key: 'isActive', label: 'Active', type: 'checkbox' as const }]
-          : []),
-      ],
-      value: rack ? { ...rack } : {},
-      save: (v) =>
-        rack
-          ? this.api.call(
-              updateRack,
-              { rackId: rack.id, body: v as RackUpdate },
-              withRowVersion(rack.rowVersion),
-            )
-          : this.api.call(createRack, {
-              locationId: location.id,
-              body: v as unknown as RackCreate,
-            }),
-    })
-      .pipe(filter((saved) => !!saved))
-      .subscribe(() => {
-        this.changed();
-        this.loadRacks();
-      });
   }
 }

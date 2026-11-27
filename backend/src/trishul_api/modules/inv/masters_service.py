@@ -31,6 +31,8 @@ from trishul_api.db.models import (
     PriceList,
     PriceListItem,
     Principal,
+    StockBalance,
+    StorageRack,
     Uom,
     UomConversion,
 )
@@ -57,6 +59,7 @@ from trishul_api.modules.inv.masters_schemas import (
     PriceListUpdate,
     RackCreate,
     RackOut,
+    RackQuery,
     RackUpdate,
     StatusFilter,
     UomCreate,
@@ -377,6 +380,12 @@ class MastersService:
             .group_by(Bin.location_id)
             .subquery()
         )
+        storage_racks = (
+            select(StorageRack.location_id, func.count(StorageRack.id).label("storage_rack_count"))
+            .where(StorageRack.is_active)
+            .group_by(StorageRack.location_id)
+            .subquery()
+        )
         statement = (
             select(
                 Location.id,
@@ -389,12 +398,15 @@ class MastersService:
                 Location.location_type,
                 Location.address,
                 Location.is_stock_location,
+                Location.requires_bin,
                 func.coalesce(racks.c.rack_count, 0).label("rack_count"),
+                func.coalesce(storage_racks.c.storage_rack_count, 0).label("storage_rack_count"),
                 Location.is_active,
                 Location.row_version,
             )
             .join(Branch, Branch.id == Location.branch_id)
             .outerjoin(racks, racks.c.location_id == Location.id)
+            .outerjoin(storage_racks, storage_racks.c.location_id == Location.id)
             .where(visible_location(self._actor))
         )
         statement = _status(statement, Location.is_active, query.status)
@@ -417,6 +429,7 @@ class MastersService:
             location_type=data.location_type,
             address=data.address,
             is_stock_location=data.is_stock_location,
+            requires_bin=data.requires_bin,
             created_by_user_id=self._actor.id,
         )
         self._save(row, f"Location code '{code}' is already used.")
@@ -425,7 +438,7 @@ class MastersService:
     def update_location(self, location_id: int, expected: bytes, data: LocationUpdate) -> LocationOut:
         row = self._visible_location(location_id)
         check_row_version(row.row_version, expected)
-        self._apply(row, data, ("name", "location_type", "address", "is_stock_location", "is_active"))
+        self._apply(row, data, ("name", "location_type", "address", "is_stock_location", "requires_bin", "is_active"))
         self._save(row, "The location could not be saved.")
         return self._location(row.id)
 
@@ -438,51 +451,128 @@ class MastersService:
             raise NotFound("Location not found.")
         return row
 
-    def racks(self, location_id: int, status: StatusFilter) -> list[RackOut]:
+    def racks(self, location_id: int, query: RackQuery) -> list[RackOut]:
+        """Bins of a location: of one rack, only loose ones (no rack), or all."""
         location = self._visible_location(location_id)
-        statement = _status(select(Bin).where(Bin.location_id == location.id), Bin.is_active, status)
-        return [self._rack_out(row, location) for row in self._db.scalars(statement.order_by(Bin.code)).all()]
+        statement = _status(select(Bin).where(Bin.location_id == location.id), Bin.is_active, query.status)
+        if query.storage_rack_id is not None:
+            statement = statement.where(Bin.storage_rack_id == query.storage_rack_id)
+        elif query.loose:
+            statement = statement.where(Bin.storage_rack_id.is_(None))
+        statement = statement.order_by(Bin.storage_rack_id, Bin.level_no, Bin.position_no, Bin.code)
+        return self._bins_out(self._db.scalars(statement).all(), location)
 
     def create_rack(self, location_id: int, data: RackCreate) -> RackOut:
+        """A loose bin or yard spot: a bin that belongs to no rack."""
         location = self._visible_location(location_id)
         code = data.code.upper()
-        self._unique(Bin, Bin.code, code, None, f"Rack code '{code}' is already used.")
+        self._unique(Bin, Bin.code, code, None, f"Bin code '{code}' is already used.")
         row = Bin(
             location_id=location.id,
             code=code,
             rack=data.rack,
             shelf=data.shelf,
             description=data.description,
+            bin_type=data.bin_type,
+            max_qty=data.max_qty,
+            is_receiving=data.is_receiving,
             created_by_user_id=self._actor.id,
         )
-        self._save(row, f"Rack code '{code}' is already used.")
-        return self._rack_out(row, location)
+        self._save(row, f"Bin code '{code}' is already used.")
+        return self._bins_out([row], location)[0]
 
     def update_rack(self, rack_id: int, expected: bytes, data: RackUpdate) -> RackOut:
-        row = self._get(Bin, rack_id, "Rack not found.")
+        row = self._get(Bin, rack_id, "Bin not found.")
         location = self._visible_location(row.location_id)
         check_row_version(row.row_version, expected)
+        changed = data.model_fields_set
         if data.code is not None and data.code.upper() != row.code:
+            if row.storage_rack_id is not None:
+                raise ApiError(
+                    "A rack's bin keeps the code its rack gave it.", errors={"code": ["Set by the rack and position."]}
+                )
             code = data.code.upper()
-            self._unique(Bin, Bin.code, code, row.id, f"Rack code '{code}' is already used.")
+            self._unique(Bin, Bin.code, code, row.id, f"Bin code '{code}' is already used.")
             row.code = code
-        self._apply(row, data, ("rack", "shelf", "description", "is_active"))
-        self._save(row, "The rack code is already used.")
-        return self._rack_out(row, location)
+        items, quantity = self._bin_stock(row.id)
+        if data.bin_type == "Single item" and items > 1:
+            raise ApiError(
+                f"Bin {row.code} holds {items} different items; a single-item bin may hold one.",
+                errors={"binType": ["Holds more than one item."]},
+            )
+        if "max_qty" in changed and data.max_qty is not None and quantity > data.max_qty:
+            raise ApiError(
+                f"Bin {row.code} already holds {quantity.normalize():f}.",
+                errors={"maxQty": [f"At least {quantity.normalize():f}."]},
+            )
+        if data.is_active is False and row.is_active and quantity > 0:
+            raise ApiError(
+                f"Bin {row.code} still holds stock; move it out first, or block the bin instead.",
+                errors={"isActive": ["Holds stock."]},
+            )
+        self._apply(row, data, ("rack", "shelf", "description", "bin_type", "is_active", "is_blocked", "is_receiving"))
+        if "max_qty" in changed:
+            row.max_qty = data.max_qty
+        if "blocked_reason" in changed or "is_blocked" in changed:
+            row.blocked_reason = data.blocked_reason if row.is_blocked else None
+        row.updated_at = now()
+        row.updated_by_user_id = self._actor.id
+        self._save(row, "The bin code is already used.")
+        return self._bins_out([row], location)[0]
 
-    @staticmethod
-    def _rack_out(row: Bin, location: Location) -> RackOut:
-        return RackOut(
-            id=row.id,
-            location_id=location.id,
-            location_code=location.code,
-            code=row.code,
-            rack=row.rack,
-            shelf=row.shelf,
-            description=row.description,
-            is_active=row.is_active,
-            row_version=row.row_version,
-        )
+    def _bin_stock(self, bin_id: int) -> tuple[int, Decimal]:
+        """(items with stock, total quantity) in a bin."""
+        row = self._db.execute(
+            select(func.count(StockBalance.id), func.coalesce(func.sum(StockBalance.qty_on_hand), 0)).where(
+                StockBalance.bin_id == bin_id, StockBalance.qty_on_hand > 0
+            )
+        ).one()
+        return int(row[0]), Decimal(row[1])
+
+    def _bins_out(self, rows: Any, location: Location) -> list[RackOut]:
+        ids = [b.id for b in rows]
+        stock: dict[int, tuple[int, Decimal]] = {}
+        rack_codes: dict[int, str] = {}
+        if ids:
+            for bin_id, items, quantity in self._db.execute(
+                select(StockBalance.bin_id, func.count(StockBalance.id), func.sum(StockBalance.qty_on_hand))
+                .where(StockBalance.bin_id.in_(ids), StockBalance.qty_on_hand > 0)
+                .group_by(StockBalance.bin_id)
+            ).all():
+                if bin_id is not None:
+                    stock[bin_id] = (int(items), Decimal(quantity))
+            rack_ids = {b.storage_rack_id for b in rows if b.storage_rack_id is not None}
+            if rack_ids:
+                found = self._db.execute(select(StorageRack.id, StorageRack.code).where(StorageRack.id.in_(rack_ids)))
+                rack_codes = {rack_id: code for rack_id, code in found.all()}
+        out = []
+        for row in rows:
+            items, quantity = stock.get(row.id, (0, Decimal(0)))
+            out.append(
+                RackOut(
+                    id=row.id,
+                    location_id=location.id,
+                    location_code=location.code,
+                    code=row.code,
+                    rack=row.rack,
+                    shelf=row.shelf,
+                    description=row.description,
+                    storage_rack_id=row.storage_rack_id,
+                    storage_rack_code=rack_codes.get(row.storage_rack_id) if row.storage_rack_id else None,
+                    level_no=row.level_no,
+                    position_no=row.position_no,
+                    bin_type=row.bin_type,
+                    max_qty=row.max_qty,
+                    is_blocked=bool(row.is_blocked),
+                    blocked_reason=row.blocked_reason,
+                    is_receiving=bool(row.is_receiving),
+                    item_count=items,
+                    qty_on_hand=quantity,
+                    is_active=row.is_active,
+                    row_version=row.row_version,
+                )
+            )
+        return out
 
     # ================================================================ price lists
 

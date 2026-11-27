@@ -45,6 +45,7 @@ import {
 import {
   InventoryLookups,
   ageClass,
+  ageText,
   downloadCsv,
   n0,
   pagedList,
@@ -214,6 +215,9 @@ import {
               <span [class]="'age ' + ageClass(s.ageDays)"
                 >{{ s.ageDays }} days</span
               >
+              @if (s.ageDays >= 30) {
+                <div class="muted">{{ ageText(s.grnDate) }}</div>
+              }
             </td>
           </ng-container>
           <ng-container matColumnDef="locationCode">
@@ -277,6 +281,7 @@ export class StockPage {
   protected readonly report = INV_STOCK_VIEW;
   protected readonly transfer = INV_TRANSFER_MANAGE;
   protected readonly ageClass = ageClass;
+  protected readonly ageText = ageText;
   protected readonly columns = [
     'itemCode',
     'grnDate',
@@ -378,6 +383,7 @@ export class StockPage {
         'GRN no',
         'GRN date',
         'Age (days)',
+        'Age',
         'Batch',
         'Branch',
         'Location',
@@ -395,6 +401,7 @@ export class StockPage {
           s.grnNo,
           s.grnDate,
           s.ageDays,
+          ageText(s.grnDate),
           s.lotNo,
           s.branchName,
           s.locationName,

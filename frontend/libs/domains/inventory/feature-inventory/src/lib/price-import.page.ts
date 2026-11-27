@@ -120,9 +120,10 @@ const STATUSES: PriceImportStatus[] = [
         <mat-tab label="Bulk price import">
           <div class="toolbar">
             <span class="muted">
-              Fill the template with item codes and the new Selling Price (price
-              list), Purchase Price (standard cost) and/or MRP. A blank price
-              stays as it is; items are never created here.
+              Fill the template with the SAP part number (External ID) and the
+              new price (ZAmount); choose below whether ZAmount is the MRP,
+              selling price or purchase price. A zero or blank price stays as
+              it is; items are never created here.
               @if (options(); as o) {
                 Changes over {{ o.maxChangePct }}% need approval.
               }
@@ -170,7 +171,7 @@ const STATUSES: PriceImportStatus[] = [
                   >Drop the price file here, or click to choose it</span
                 >
                 <span class="muted"
-                  >The template, or the SAP price file (External ID, ZAmount) ·
+                  >The template / SAP price file (External ID, ZAmount) ·
                   Excel (.xlsx, .xls) or CSV · up to {{ maxMb }} MB</span
                 >
               }

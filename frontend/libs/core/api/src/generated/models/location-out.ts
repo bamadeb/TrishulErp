@@ -11,8 +11,22 @@ export interface LocationOut {
   id: number;
   isActive: boolean;
   isStockLocation: boolean;
-  locationType: 'Main store' | 'Transit' | 'Quarantine' | 'Scrap';
+  locationType: 'Main store' | 'Transit' | 'Quarantine' | 'Scrap' | 'Receiving' | 'Open area';
   name: string;
+
+  /**
+   * Active bins (rack bins, loose bins and spots).
+   */
   rackCount: number;
+
+  /**
+   * Every movement here must name a bin; off = a bin is optional.
+   */
+  requiresBin: boolean;
   rowVersion: string;
+
+  /**
+   * Active racks.
+   */
+  storageRackCount: number;
 }

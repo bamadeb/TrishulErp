@@ -753,7 +753,7 @@ class ItemListImportService:
         sort: SortColumns = {
             "uploadedAt": ItemImport.uploaded_at,
             "fileName": ItemImport.file_name,
-            "batchNo": ItemImport.id,
+            "batchNo": ItemImport.batch_no,  # zero-padded, so it sorts like the id
             "totalRows": ItemImport.total_rows,
             "status": ItemImport.status,
         }

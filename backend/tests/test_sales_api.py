@@ -24,7 +24,8 @@ TABLES = [
     "core.item_category", "core.item", "core.customer", "core.customer_site", "core.number_series",
     "core.payment_terms", "core.app_user", "core.audit_log", "core.employee", "core.contact", "core.customer_principal",
     "acc.gstin_registration", "acc.gst_rate",
-    "inv.bin", "inv.movement_type", "inv.stock_lot", "inv.lot_balance", "inv.stock_balance", "inv.stock_move",
+    "inv.bin", "inv.storage_rack", "inv.movement_type", "inv.stock_lot", "inv.lot_balance", "inv.stock_balance",
+    "inv.stock_move",
     "sal.credit_status", "sal.credit_limit_change", "sal.price_list", "sal.price_list_item", "sal.quotation",
     "sal.quotation_version", "sal.quotation_line", "sal.sales_order", "sal.sales_order_line", "sal.delivery_note",
     "sal.delivery_note_line", "sal.sales_invoice", "sal.sales_invoice_line", "sal.receipt",
@@ -458,3 +459,20 @@ def test_quotation_download_link_expires(client: TestClient, settings: Settings)
     assert client.get(f"{API}/quotation-downloads/{link.token}").status_code == 404
     live = quotation_download.create(b"%PDF-1.4 test", "Quotation-X.pdf", settings.download_signing_key, 60)
     assert client.get(f"{API}/quotation-downloads/{live.token}").content == b"%PDF-1.4 test"
+
+
+def test_pick_list_follows_the_oldest_batches_of_what_is_left(
+    client: TestClient, settings: Settings, db: Engine
+) -> None:
+    so = approved(client)
+    picks = ok(client.get(f"{API}/sales-orders/{so['id']}/pick-list", params={"locationId": STORE}))
+    rows = [(r["itemCode"], r["grnNo"], d(r["quantity"])) for r in picks["rows"]]
+    assert rows == [("KF70500", "GRN/A", 6), ("KF70500", "GRN/B", 4), ("TL07110", "GRN/C", 5)]
+    assert picks["short"] == []
+    deliver(client, so, {FILTER_ITEM: "8"})
+    left = ok(client.get(f"{API}/sales-orders/{so['id']}/pick-list", params={"locationId": STORE}))
+    assert [(r["itemCode"], r["grnNo"], d(r["quantity"])) for r in left["rows"]] == [
+        ("KF70500", "GRN/B", 2), ("TL07110", "GRN/C", 5),
+    ]  # fmt: skip
+    viewer = make_client(settings, db, {"sal.order.view"})
+    assert viewer.get(f"{API}/sales-orders/{so['id']}/pick-list", params={"locationId": STORE}).status_code == 403

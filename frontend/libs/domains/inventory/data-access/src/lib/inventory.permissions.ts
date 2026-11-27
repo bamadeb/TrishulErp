@@ -14,6 +14,13 @@ export const INV_ITEM_IMPORT_OVERWRITE = 'inv.item.import.overwrite';
 export const INV_PRICE_IMPORT = 'inv.price.import';
 export const INV_PRICE_IMPORT_VIEW = 'inv.price.import.view';
 export const INV_PRICE_APPROVE = 'inv.price.approve';
+/** Barcodes and labels (backend: modules/inv/barcode_service.py). */
+export const INV_BARCODE_MANAGE = 'inv.barcode.manage';
+export const INV_BARCODE_LINK = 'inv.barcode.link';
+/** Put-away and bin moves (backend: modules/inv/binmove_service.py). */
+export const INV_BINMOVE_MANAGE = 'inv.binmove.manage';
+export const INV_COUNT_MANAGE = 'inv.count.manage';
+export const INV_COUNT_APPROVE = 'inv.count.approve';
 
 export const INV_ITEM_VIEW_PERMISSIONS = [
   INV_ITEM_VIEW,

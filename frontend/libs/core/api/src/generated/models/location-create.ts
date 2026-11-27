@@ -10,6 +10,7 @@ export interface LocationCreate {
   branchId: number;
   code: string;
   isStockLocation?: boolean;
-  locationType?: 'Main store' | 'Transit' | 'Quarantine' | 'Scrap';
+  locationType?: 'Main store' | 'Transit' | 'Quarantine' | 'Scrap' | 'Receiving' | 'Open area';
   name: string;
+  requiresBin?: boolean;
 }

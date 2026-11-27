@@ -39,8 +39,15 @@ TABLES = [
     "core.lookup_type",
     "core.lookup_value",
     "core.app_user",
+    "core.employee",  # names of who moved stock
     "core.audit_log",
     "inv.bin",
+    "inv.storage_rack",
+    "inv.item_barcode",
+    "inv.scan_log",
+    "inv.item_storage_rule",
+    "inv.bin_move",
+    "inv.bin_move_line",
     "inv.movement_type",
     "inv.uom_conversion",
     "inv.stock_lot",
@@ -51,6 +58,9 @@ TABLES = [
     "inv.stock_transfer_line",
     "inv.stock_adjustment",
     "inv.stock_adjustment_line",
+    "inv.stock_count",
+    "inv.stock_count_line",
+    "inv.stock_count_bin",
     "pur.grn",
     "pur.grn_line",
     "pur.purchase_order",
@@ -68,7 +78,7 @@ NOS, BOX = 1, 2
 SPARES, FILTERS = 31, 32  # category, subcategory
 FILTER_ITEM, OIL_ITEM = 41, 42
 SUPPLIER = 51
-DAMAGE, FOUND = 61, 62  # adjustment reasons
+DAMAGE, FOUND, COUNT_DIFFERENCE = 61, 62, 63  # adjustment reasons
 ACTOR_ID = 1
 ALL_PERMISSIONS = {
     "inv.item.view",
@@ -126,12 +136,14 @@ def db() -> Engine:
         series = {"document_type": document_type, "prefix": prefix, "next_number": 1, "padding": 4}
         insert_row(engine, "core.number_series", company_id=COMPANY, **series)
     movements = {"GRN": "In", "OPENING": "In", "TRANSFER_OUT": "Out", "TRANSFER_IN": "In"}
-    movements |= {"ADJUST_IN": "In", "ADJUST_OUT": "Out"}
+    movements |= {"ADJUST_IN": "In", "ADJUST_OUT": "Out", "BIN_OUT": "Out", "BIN_IN": "In"}
     for code, direction in movements.items():
         insert_row(engine, "inv.movement_type", code=code, name=code.title(), direction=direction)
     insert_row(engine, "core.lookup_type", id=8, code="ADJUSTMENT_REASON", name="Adjustment Reason")
     insert_row(engine, "core.lookup_value", id=DAMAGE, lookup_type_id=8, code="DAMAGE", label="Damage")
     insert_row(engine, "core.lookup_value", id=FOUND, lookup_type_id=8, code="FOUND", label="Found")
+    count_reason = {"code": "COUNT_DIFFERENCE", "label": "Count difference"}
+    insert_row(engine, "core.lookup_value", id=COUNT_DIFFERENCE, lookup_type_id=8, **count_reason)
     return engine
 
 

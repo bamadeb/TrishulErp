@@ -44,7 +44,12 @@ import {
 import { AuthStore } from '@trishul/core-auth';
 import { PageHeader, confirmAction } from '@trishul/shared-ui';
 import { EMPTY, catchError, filter, finalize, switchMap } from 'rxjs';
-import { ItemPicker } from '@trishul/inventory-data-access';
+import {
+  ItemPicker,
+  ScanBox,
+  ScanHit,
+  placeScan,
+} from '@trishul/inventory-data-access';
 import { INV_GRN_MANAGE } from '@trishul/inventory-data-access';
 import {
   InventoryLookups,
@@ -102,6 +107,7 @@ function openingLine() {
     MatTooltip,
     MatPaginator,
     ItemPicker,
+    ScanBox,
     PageHeader,
   ],
   providers: [provideNativeDateAdapter()],
@@ -128,6 +134,11 @@ function openingLine() {
               <mat-error>Choose the location.</mat-error>
             </mat-form-field>
           </div>
+          <trishul-scan-box
+            screen="opening-stock"
+            [locationId]="locationId()"
+            (scanned)="onScan($event)"
+          />
           <div class="lines">
             @for (line of lines(); track line; let i = $index) {
               <div class="line" [formGroup]="line">
@@ -283,6 +294,10 @@ export class OpeningStockPage {
     locationId: new FormControl<number | null>(null, Validators.required),
   });
   protected readonly lines = signal([openingLine()]);
+  protected readonly locationId = toSignal(
+    this.form.controls.locationId.valueChanges,
+    { initialValue: null },
+  );
 
   protected readonly lotQuery = signal<ListLots$Params>({
     sourceType: 'Opening',
@@ -295,13 +310,17 @@ export class OpeningStockPage {
 
   constructor() {
     this.form.controls.locationId.valueChanges.subscribe((id) => {
-      this.lookups.racks(id).subscribe((racks) => this.racks.set(racks));
+      this.lookups.putAwayRacks(id).subscribe((racks) => this.racks.set(racks));
       for (const line of this.lines()) line.controls.binId.setValue(null);
     });
   }
 
   protected addLine(): void {
-    // A new line repeats the previous GRN no and date: opening stock is usually entered GRN by GRN.
+    this.lines.update((lines) => [...lines, this.nextLine()]);
+  }
+
+  /** A new line repeats the previous GRN no and date: opening stock is usually entered GRN by GRN. */
+  private nextLine(): ReturnType<typeof openingLine> {
     const last = this.lines().at(-1)?.getRawValue();
     const line = openingLine();
     line.patchValue({
@@ -309,7 +328,22 @@ export class OpeningStockPage {
       grnDate: last?.grnDate ?? null,
       binId: last?.binId ?? null,
     });
-    this.lines.update((lines) => [...lines, line]);
+    return line;
+  }
+
+  /** A scanned item: onto its line (same item and rack), or a new line. */
+  protected onScan(hit: ScanHit): void {
+    const added = placeScan(
+      this.lines(),
+      hit,
+      (l) => ({
+        item: l.controls.item,
+        quantity: l.controls.quantity,
+        bin: l.controls.binId,
+      }),
+      () => this.nextLine(),
+    );
+    if (added) this.lines.set(added);
   }
 
   protected removeLine(index: number): void {

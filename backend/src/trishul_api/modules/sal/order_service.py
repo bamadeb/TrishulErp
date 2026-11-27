@@ -76,6 +76,7 @@ from trishul_api.modules.sal.order_schemas import (
     OutstandingOrderLine,
     OutstandingOrderQuery,
 )
+from trishul_api.modules.sal.pick_list import PickList, build_pick_list
 
 #: An order goods may still go out against.
 OPEN_FOR_DELIVERY = ("Approved", "Part delivered", "Part invoiced", "Delivered", "Invoiced")
@@ -619,6 +620,11 @@ class SalesOrderService:
         order.closed_by_user_id = self._actor.id
         order.close_reason = data.note
         return self._touch(order)
+
+    def pick_list(self, order_id: int, location_id: int) -> PickList:
+        order = self._visible(order_id)
+        self._expect(order, OPEN_FOR_DELIVERY, "picked")
+        return build_pick_list(self._db, self._actor, order.id, order.order_no, location_id)
 
     # ------------------------------------------------------------------ helpers
 

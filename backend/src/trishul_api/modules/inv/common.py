@@ -146,3 +146,32 @@ def default_company(db: Session, actor: CurrentUser, scope: RequestScope | None)
     if company_id is None:
         raise ApiError("No branch is set up yet, so there is no company to add this to.")
     return int(company_id)
+
+
+def _add_months(day: date, months: int) -> date:
+    month = day.month - 1 + months
+    year, month = day.year + month // 12, month % 12 + 1
+    # 31 Jan + 1 month = 28 / 29 Feb: the day is capped at the month's last day.
+    last = (date(year + month // 12, month % 12 + 1, 1) - date(year, month, 1)).days
+    return date(year, month, min(day.day, last))
+
+
+def age_parts(start: date, end: date | None = None) -> tuple[int, int, int]:
+    """Calendar age from start (the GRN date) to end (today): whole years, then months, then days."""
+    end = end or today()
+    if end <= start:
+        return 0, 0, 0
+    months = (end.year - start.year) * 12 + end.month - start.month
+    if _add_months(start, months) > end:
+        months -= 1
+    days = (end - _add_months(start, months)).days
+    return months // 12, months % 12, days
+
+
+def age_text(start: date, end: date | None = None) -> str:
+    """'1 year 2 months 5 days'; '0 days' on the GRN date itself."""
+    years, months, days = age_parts(start, end)
+    parts = [
+        f"{n} {unit}{'' if n == 1 else 's'}" for n, unit in ((years, "year"), (months, "month"), (days, "day")) if n
+    ]
+    return " ".join(parts) or "0 days"
