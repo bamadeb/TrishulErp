@@ -46,18 +46,37 @@ It does **not** certify the system as penetration-test proof. A tester will stil
 The tests are in `backend/tests/test_security_hardening.py`. They cover the limiter, the headers, download headers,
 upload limits, the zip-bomb and macro checks, defusedxml and the settings checks.
 
-## 3. Applied at the next deploy, not yet live
+## 3. Deployment and verification
 
-These only take effect on the server when someone deploys.
+The fixes went live on 2026-11-27: backend and web as deploy38, from commit 86eb0a4, then web-only as deploy39. The deploy now installs the `web.config` from the build and restores the previous one automatically if the IIS checks fail.
 
-1. **Web deploy:** copy the new `web.config` from the build into `C:\trishul\www`. Earlier deploys kept the server's own copy; the new file contains all of its rules.
-   - Afterwards, check that `/` loads and sign-in works.
-   - Check that `/api/v1/me` returns 401 and `/api/v1/docs` returns 404.
-   - Check that no response has a `Server` or `X-Powered-By` header.
-2. **Backend deploy:** run `uv sync --frozen`, which installs defusedxml and keeps httpx2.
-3. **Server `.env`:** set `TRISHUL_ENVIRONMENT=prod`.
-   - This also switches off `/docs` in the API itself and makes dev sign-in impossible.
-   - The existing 64-character signing key already meets the new check.
+Checked from outside against `http://13.204.203.158`:
+
+| Check | Result |
+|---|---|
+| Site and app routes (`/`, `/hr/leave/mine`) | 200 |
+| `/api/v1/me` without a token | 401 |
+| `/api/v1/docs` and `/api/v1/openapi.json` | 404 (were 200) |
+| `TRACE /` | 404 |
+| Web app headers | CSP, X-Frame-Options DENY, Referrer-Policy and Permissions-Policy all sent |
+| API headers | Strict CSP, X-Frame-Options, CORP same-origin |
+| `Server` header | Removed (was `Microsoft-IIS/10.0`) |
+| `X-Powered-By` header | Still sent, but empty (was `ARR/3.0`) |
+| Runtime packages | defusedxml installed, dnspython 2.9.2 and opentelemetry-api 1.45.2, httpx2 kept |
+
+Before release, the production web build was also loaded in headless Chrome under the exact CSP from `web.config`. It reported no CSP violations.
+
+Testing:
+
+- The 23 new security tests pass.
+- The 274 tests for the touched modules pass: documents, sales, TADA, the BYD, ASC, item and price imports, service reports and complaints.
+- The full backend suite was not run to completion on the merged code. Up to the point it was stopped, every failure was in API-convention and model checks that were already failing before this change.
+
+**Not done, by decision:** the server `.env` still says `TRISHUL_ENVIRONMENT=dev`.
+
+- Swagger is blocked from outside by IIS, but the API itself would still serve it locally.
+- Dev sign-in is not blocked by configuration. It is only off because `AUTH_MODE=cognito`.
+- Setting `prod` closes both. The existing 64-character signing key already meets the new prod check.
 
 ## 4. Remaining risks (need a decision or infrastructure work)
 
@@ -70,6 +89,7 @@ These only take effect on the server when someone deploys.
 | Medium | **Row-level security is not installed on RDS.** Branch and brand isolation relies only on the API's checks. `database/10_row_level_security.sql` exists but has not been applied. | Apply it in UAT first. It filters every query, so the jobs and imports need testing. |
 | Medium | The API service runs as **LocalSystem**, and the backend folder (including `.env`) is readable by `BUILTIN\Users`. | Run TrishulApi as a dedicated low-rights service account. Limit the ACL to that account and Administrators. |
 | Low | Web tokens are kept in `localStorage` (Amplify default), so an XSS could read them. | Mitigated by the strict CSP and Angular escaping. Moving to cookie storage would need a backend-for-frontend. |
+| Low | The server runs with `TRISHUL_ENVIRONMENT=dev`. Swagger is blocked only at IIS, and dev sign-in is off only because of `AUTH_MODE`. | Set `TRISHUL_ENVIRONMENT=prod` in the server `.env`. |
 | Low | RDS deletion protection is off, and there is one AZ. | Turn on deletion protection. |
 | Low | Old `src.bak-*`, `.env.bak-*` and `uv.lock.bak-*` copies pile up in `C:\trishul\app\backend`. | Keep the last few and delete the rest. The `.env` backups hold secret ids, not secrets. |
 | Low | Dev-only npm packages (vite dev server, nx / undici) have advisories. They are not shipped to browsers. | Upgrade Nx to 24 and Angular build tooling in a planned upgrade. |
