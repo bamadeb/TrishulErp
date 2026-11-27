@@ -29,6 +29,7 @@ from trishul_api.modules.hr.attendance.finalization_ops import require_day_writa
 from trishul_api.modules.hr.attendance.policy import (
     GRACE_DAYS_PER_MONTH,
     OfficialVisit,
+    _clock_minutes,
     classify_arrival,
     early_exit_minutes,
     expected_net_minutes,
@@ -36,8 +37,11 @@ from trishul_api.modules.hr.attendance.policy import (
     leaves_early,
     net_worked_minutes,
     ist_now,
+    punch_sessions,
     punches_for_shift_day,
+    session_worked_minutes,
     shift_bounds,
+    shift_gross_minutes,
 )
 from trishul_api.modules.hr.attendance.payload import (
     decode_reason,
@@ -1073,11 +1077,7 @@ class AttendanceService:
         shift = self._shift_for(employee_id, day)
         if first_in is None and last_out is None:
             return "Absent"
-        if first_in is None or (last_out is None or last_out == first_in):
-            _, end_at = shift_bounds(day, shift.start_time, shift.end_time)
-            now = ist_now()
-            if first_in is not None and day <= now.date() and now < end_at:
-                return "In Progress"
+        if first_in is None:
             return "Missing Punch"
         arrival = classify_arrival(
             first_in,
@@ -1086,6 +1086,13 @@ class AttendanceService:
             shift_start=shift.start_time,
             grace_minutes=shift.grace_minutes,
         )
+        if last_out is None or last_out == first_in:
+            _, end_at = shift_bounds(day, shift.start_time, shift.end_time)
+            now = ist_now()
+            if day <= now.date() and now < end_at:
+                # Still punched in: Present/Late from arrival; board Current Punch = In Progress.
+                return arrival.attendance_status
+            return "Missing Punch"
         return arrival.attendance_status
 
     def _prime_approved(self, start: date, end: date) -> None:
@@ -1391,6 +1398,7 @@ class AttendanceService:
         status, remarks, _ = self._apply_resolved(employee.id, day, status, remarks)
         if status == "Present":
             first_in_late = False
+        session = self._session_board(employee.id, day, shift, punches)
         return DailyAttendanceRowOut(
             id=employee.id,
             employee_id=employee.id,
@@ -1398,13 +1406,20 @@ class AttendanceService:
             employee_name=name,
             department=employee.department_name or "—",
             location=employee.branch_name or "—",
-            shift=shift.shift_name,
+            shift=_shift_label(shift),
             employee_type=employee.employee_type or "Permanent",
             reporting_manager=employee.reporting_manager_name or "—",
             first_in=first_in,
             last_out=last_out,
             first_in_late=first_in_late,
-            working_hours=working_hours,
+            working_hours=session["working_hours"] or working_hours,
+            working_hours_detail=session["working_hours_detail"],
+            current_punch=session["current_punch"],
+            current_punch_since=session["current_punch_since"],
+            required_hours=session["required_hours"],
+            shortfall=session["shortfall"],
+            open_in_at=session["open_in_at"],
+            closed_worked_minutes=session["closed_worked_minutes"],
             status=status,
             remarks=remarks,
             late_arrival_minutes=getattr(self, "_day_variance", (None, None))[0],
@@ -1639,6 +1654,19 @@ class AttendanceService:
             )
 
         if not punches:
+            now = ist_now()
+            _, shift_ended = shift_bounds(day, shift.start_time, shift.end_time)
+            # Finalize Absent only after the shift ends (or on a past day). Early exit ≠ Absent.
+            if day == now.date() and now < shift_ended:
+                remember(None, None)
+                return (
+                    None,
+                    None,
+                    False,
+                    None,
+                    "In Progress",
+                    _with_punch_context("No punch yet — awaiting first punch.", shift, None, None),
+                )
             remember(None, None)
             return (
                 None,
@@ -1660,10 +1688,15 @@ class AttendanceService:
             last_out = outs[-1].punched_at if outs else None
 
         typed = [(p.punched_at, (p.punch_type or "").upper()) for p in ordered]
+        closed_pairs, open_in = punch_sessions(typed)
+        # Display / live board: sum closed sessions + live open IN (breaks OUT→IN excluded).
+        now = ist_now()
+        display_minutes, _parts, _ = session_worked_minutes(typed, now=now if open_in else None)
+        # Payroll / short-hours still use net (lunch deducted) over closed pairs only.
         worked_minutes = net_worked_minutes(
             typed, day, visits, shift_start=shift.start_time, shift_end=shift.end_time
         )
-        working_hours = self._format_hours(worked_minutes)
+        working_hours = self._format_hours(display_minutes if display_minutes else worked_minutes)
 
         if not ins and outs:
             remember(None, early_minutes(last_out))
@@ -1687,13 +1720,17 @@ class AttendanceService:
         first_in_late = arrival.attendance_status == "Late"
         late_minutes: int | None = arrival.late_minutes if first_in_late else 0
 
-        has_out = last_out is not None and last_out != first_in
+        # Last OUT for the board is the latest closed session end (not cleared when they punch IN again).
+        closed_out = closed_pairs[-1][1] if closed_pairs else None
         _, shift_ended = shift_bounds(day, shift.start_time, shift.end_time)
-        if not has_out:
-            now = ist_now()
+
+        if open_in is not None and not closed_pairs:
+            # Only punched in — never checked out.
+            # Attendance status is Present/Late from first IN; Current Punch shows In Progress.
             if day <= now.date() and now < shift_ended:
-                status: AttendanceDisplayStatus = "In Progress"
-                remarks = "Punched in. Shift in progress."
+                status: AttendanceDisplayStatus = arrival.attendance_status  # type: ignore[assignment]
+                remarks = arrival.remarks or "Punched in. Shift in progress."
+                working_hours = self._format_hours(display_minutes)
             else:
                 status = "Missing Punch"
                 remarks = "Missing OUT punch."
@@ -1707,8 +1744,10 @@ class AttendanceService:
                 _with_punch_context(remarks, shift, first_in, None),
             )
 
+        # Has at least one closed session (and maybe a new open IN).
+        last_out = closed_out or last_out
         remarks = arrival.remarks
-        if leaves_early(
+        if open_in is None and leaves_early(
             last_out,
             day,
             visits,
@@ -1727,7 +1766,7 @@ class AttendanceService:
         ):
             remarks = f"Worked at or below half-day threshold ({half}h)."
         status = arrival.attendance_status  # type: ignore[assignment]
-        remember(late_minutes, early_minutes(last_out))
+        remember(late_minutes, None if open_in is not None else early_minutes(last_out))
         return (
             first_in,
             last_out,
@@ -1837,13 +1876,57 @@ class AttendanceService:
         hours, mins = divmod(minutes, 60)
         return f"{hours}h {mins:02d}m"
 
+    def _session_board(
+        self,
+        employee_id: int,
+        day: date,
+        shift: ShiftAssignment,
+        punches: list[PunchSource],
+    ) -> dict[str, Any]:
+        """Worked-hours board fields: sessions, current punch, required hours, shortfall."""
+        effective = self._effective_shift(shift)
+        scoped = self._punches_with_approval(employee_id, day, punches)
+        scoped = punches_for_shift_day(scoped, day, effective.start_time, effective.end_time)
+        typed = [(p.punched_at, (p.punch_type or "").upper()) for p in sorted(scoped, key=lambda p: p.punched_at)]
+        now = ist_now()
+        closed_pairs, open_in = punch_sessions(typed)
+        closed_minutes = sum(_clock_minutes(start, end) for start, end in closed_pairs)
+        total, parts, _ = session_worked_minutes(typed, now=now if open_in is not None else None)
+        detail = " + ".join(self._format_hours(part) or "0h 00m" for part in parts) if len(parts) > 1 else None
+        required = shift_gross_minutes(effective.start_time, effective.end_time)
+        required_label = self._format_hours(required) or "0h 00m"
+        shortfall = None
+        if typed and required > total:
+            # Mid-day and end-of-day: show how far they still are from the shift requirement.
+            shortfall = self._format_hours(required - total)
+        if open_in is not None:
+            current_punch: str | None = "IN"
+            current_since = open_in
+        elif closed_pairs:
+            current_punch = "OUT"
+            current_since = closed_pairs[-1][1]
+        else:
+            current_punch = None
+            current_since = None
+        return {
+            "working_hours": self._format_hours(total),
+            "working_hours_detail": detail,
+            "current_punch": current_punch,
+            "current_punch_since": current_since,
+            "required_hours": required_label if typed else None,
+            "shortfall": shortfall if typed else None,
+            "open_in_at": open_in,
+            "closed_worked_minutes": closed_minutes,
+        }
+
     @staticmethod
     def _summary(rows: Iterable[DailyAttendanceRowOut]) -> AttendanceSummaryOut:
         present = late = missing = absent = leave = off_day = holiday = 0
         total = 0
         for row in rows:
             total += 1
-            if row.status == "Present" or row.status == "In Progress":
+            # In Progress without a first punch means "awaiting punch" (before cutoff), not Present.
+            if row.status == "Present" or (row.status == "In Progress" and row.first_in is not None):
                 present += 1
             elif row.status == "Late":
                 late += 1
@@ -2390,6 +2473,9 @@ class AttendanceService:
         punches = self._repo.punches_between(start_dt, end_dt, employee_ids={employee.id})
         punches_by_day: dict[date, list[PunchSource]] = defaultdict(list)
         for punch in punches:
+            # Defense in depth: ESS month view must never mix another employee's punches into a day.
+            if punch.employee_id != employee.id:
+                continue
             punches_by_day[punch.punched_at.date()].append(punch)
         holidays_by_day = self._repo.holidays_between(start, end)
         leaves_by_day = self._repo.approved_leave_covering_range(start, end)
@@ -2406,16 +2492,21 @@ class AttendanceService:
         while day <= end:
             day_assignments = _assignments_for_day(overlapping, day)
             shift = resolve_shift(day_assignments.get(employee.id), shifts)
-            first_in, last_out, _, working_hours, status, remarks = self._evaluate(
+            day_punches = punches_by_day.get(day, []) + punches_by_day.get(day + timedelta(days=1), [])
+            first_in, last_out, first_in_late, working_hours, status, remarks = self._evaluate(
                 day=day,
                 employee=employee,
                 shift=shift,
                 holidays=holidays_by_day.get(day, []),
                 leave=leaves_by_day.get(day, {}).get(employee.id),
-                punches=punches_by_day.get(day, []) + punches_by_day.get(day + timedelta(days=1), []),
+                punches=day_punches,
             )
             status, remarks, resolved = self._apply_resolved(employee.id, day, status, remarks)
-            if status == "Present" or status == "In Progress":
+            if status == "Present":
+                first_in_late = False
+            session = self._session_board(employee.id, day, shift, day_punches)
+            # Same KPI rules as Daily: Present only when actually present; open awaiting-punch is not Present.
+            if status == "Present" or (status == "In Progress" and first_in is not None):
                 present += 1
             elif status == "Late":
                 late += 1
@@ -2429,16 +2520,37 @@ class AttendanceService:
                 holiday += 1
             elif status == "Missing Punch":
                 missing += 1
+            open_in = session["open_in_at"]
+            current_since = session["current_punch_since"]
+            effective = self._effective_shift(shift)
+            scoped_punches = self._punches_with_approval(employee.id, day, day_punches)
+            scoped_punches = punches_for_shift_day(
+                scoped_punches, day, effective.start_time, effective.end_time
+            )
             items.append(
                 MineAttendanceDayOut(
                     date=day,
                     status=status,
                     first_in=first_in.strftime("%H:%M") if first_in else None,
                     last_out=last_out.strftime("%H:%M") if last_out else None,
-                    working_hours=working_hours,
+                    first_in_late=first_in_late,
+                    working_hours=session["working_hours"] or working_hours,
+                    working_hours_detail=session["working_hours_detail"],
+                    current_punch=session["current_punch"],
+                    current_punch_since=current_since.strftime("%H:%M") if current_since else None,
+                    required_hours=session["required_hours"],
+                    shortfall=session["shortfall"],
+                    open_in_at=open_in.isoformat(timespec="seconds") if open_in else None,
+                    closed_worked_minutes=int(session["closed_worked_minutes"] or 0),
+                    late_arrival_minutes=getattr(self, "_day_variance", (None, None))[0],
+                    early_exit_minutes=getattr(self, "_day_variance", (None, None))[1],
                     shift=_shift_label(shift),
                     remarks=_merge_remarks(remarks, reasons.get((employee.id, day))),
                     resolved=resolved,
+                    punches=[
+                        self._punch_out(p)
+                        for p in sorted(scoped_punches, key=lambda punch: punch.punched_at)
+                    ],
                 )
             )
             day += timedelta(days=1)
@@ -2677,8 +2789,9 @@ def _merge_remarks(remarks: str, request_reason: str | None) -> str:
 
 
 def _shift_label(shift: ShiftAssignment) -> str:
-    start = shift.start_time.strftime("%H:%M")
-    end = shift.end_time.strftime("%H:%M")
+    """Name + assigned window only (not employee punch times). FE shows name / timing on two lines."""
+    start = shift.start_time.strftime("%I:%M %p")
+    end = shift.end_time.strftime("%I:%M %p")
     return f"{shift.shift_name} ({start} - {end})"
 
 

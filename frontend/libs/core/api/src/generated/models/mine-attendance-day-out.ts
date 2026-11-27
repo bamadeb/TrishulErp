@@ -5,8 +5,33 @@ export interface MineAttendanceDayOut {
   date: string;
   firstIn: (string | null);
   lastOut: (string | null);
+  firstInLate?: boolean;
   remarks: string;
   shift: string;
-  status: 'Present' | 'Late' | 'Missing Punch' | 'Absent' | 'On Leave' | 'Off Day' | 'Holiday';
+  status: 'Present' | 'Late' | 'In Progress' | 'Missing Punch' | 'Absent' | 'On Leave' | 'Off Day' | 'Holiday';
   workingHours: (string | null);
+  workingHoursDetail?: (string | null);
+  currentPunch?: ('IN' | 'OUT' | null);
+  currentPunchSince?: (string | null);
+  requiredHours?: (string | null);
+  shortfall?: (string | null);
+  openInAt?: (string | null);
+  closedWorkedMinutes?: number;
+  lateArrivalMinutes?: (number | null);
+  earlyExitMinutes?: (number | null);
+  resolved?: boolean;
+  punches?: Array<{
+    kind: 'IN' | 'OUT';
+    at: string;
+    device: string;
+    location?: {
+      latitude: number;
+      longitude: number;
+      accuracyM: number | null;
+      place: string | null;
+      insideOffice: boolean | null;
+      distanceM: number | null;
+      fakeGps: boolean;
+    } | null;
+  }>;
 }

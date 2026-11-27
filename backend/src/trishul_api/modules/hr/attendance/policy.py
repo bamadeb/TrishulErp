@@ -102,6 +102,20 @@ def expected_net_minutes(
 
 
 def punch_intervals(punches: list[tuple[datetime, str]]) -> list[tuple[datetime, datetime]]:
+    intervals, _open_in = punch_sessions(punches)
+    if not intervals and len(punches) >= 2:
+        ordered = sorted(punches, key=lambda item: item[0])
+        intervals.append((ordered[0][0], ordered[-1][0]))
+    return intervals
+
+
+def punch_sessions(
+    punches: list[tuple[datetime, str]],
+) -> tuple[list[tuple[datetime, datetime]], datetime | None]:
+    """Closed IN→OUT pairs and the unmatched open IN (if the employee is currently punched in).
+
+    Breaks between an OUT and the next IN are not counted. Duplicate INs before an OUT keep the first.
+    """
     ordered = sorted(punches, key=lambda item: item[0])
     intervals: list[tuple[datetime, datetime]] = []
     open_in: datetime | None = None
@@ -113,9 +127,38 @@ def punch_intervals(punches: list[tuple[datetime, str]]) -> list[tuple[datetime,
             if at > open_in:
                 intervals.append((open_in, at))
             open_in = None
-    if not intervals and len(ordered) >= 2:
-        intervals.append((ordered[0][0], ordered[-1][0]))
-    return intervals
+    return intervals, open_in
+
+
+def _clock_minutes(start: datetime, end: datetime) -> int:
+    """Minutes between displayed punch clocks (seconds dropped so 09:36→11:57 = 141)."""
+    a = start.replace(second=0, microsecond=0)
+    b = end.replace(second=0, microsecond=0)
+    return max(0, int((b - a).total_seconds() // 60))
+
+
+def session_worked_minutes(
+    punches: list[tuple[datetime, str]],
+    *,
+    now: datetime | None = None,
+) -> tuple[int, list[int], datetime | None]:
+    """Wall-clock minutes for each closed session, plus live elapsed when currently IN.
+
+    Returns (total_minutes, per_session_minutes including open segment, open_in_at).
+    Lunch is not deducted here — Daily Attendance / Punch Logs show actual punched time.
+    """
+    intervals, open_in = punch_sessions(punches)
+    parts = [_clock_minutes(start, end) for start, end in intervals]
+    if open_in is not None and now is not None and now > open_in:
+        parts.append(_clock_minutes(open_in, now))
+    return sum(parts), parts, open_in
+
+
+def shift_gross_minutes(start: time = OFFICE_START, end: time = OFFICE_END) -> int:
+    """Full shift length (start→end), used as Required Hours on the daily board."""
+    day = date(2000, 1, 1)
+    start_at, end_at = shift_bounds(day, start, end)
+    return _minutes(start_at, end_at)
 
 
 def net_worked_minutes(

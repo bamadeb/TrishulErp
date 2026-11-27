@@ -233,13 +233,32 @@ class AttendanceRepository:
             for row in rows
             if row[0] is not None
         ]
-        return sorted(biometric + self._face_punches_between(start, end), key=lambda p: p.punched_at)
+        return sorted(
+            biometric + self._face_punches_between(start, end, employee_ids=employee_ids),
+            key=lambda p: p.punched_at,
+        )
 
-    def _face_punches_between(self, start: datetime, end: datetime) -> list[PunchSource]:
+    def _face_punches_between(
+        self,
+        start: datetime,
+        end: datetime,
+        *,
+        employee_ids: Collection[int] | None = None,
+    ) -> list[PunchSource]:
         """Accepted mobile face punches (hr.attendance_punch, status Present) in the same terms as biometric
         punches: punched_at is Indian clock time, as the shift and day comparisons here expect, while
-        attendance_punch.effective_at holds UTC."""
-        rows = self._db.execute(
+        attendance_punch.effective_at holds UTC.
+
+        When employee_ids is set (ESS My Attendance), only those employees' face punches are returned —
+        never every face punch in the window.
+        """
+        if employee_ids is not None:
+            wanted = list(employee_ids)
+            if not wanted:
+                return []
+        else:
+            wanted = None
+        stmt = (
             select(
                 AttendancePunch.employee_id,
                 AttendancePunch.effective_at,
@@ -258,7 +277,10 @@ class AttendanceRepository:
             .where(AttendancePunch.status == ATTENDANCE_PUNCH_STATUS)
             .where(AttendancePunch.effective_at >= start - _IST_OFFSET)
             .where(AttendancePunch.effective_at <= end - _IST_OFFSET)
-        ).all()
+        )
+        if wanted is not None:
+            stmt = stmt.where(AttendancePunch.employee_id.in_(wanted))
+        rows = self._db.execute(stmt).all()
         return [
             PunchSource(
                 employee_id=int(row[0]),

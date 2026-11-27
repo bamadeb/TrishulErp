@@ -1,11 +1,23 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { RegularizationRow } from '@trishul/hr-data-access';
 import { StatusBadge, StatusSeverity } from '@trishul/shared-ui';
+import { interval } from 'rxjs';
 import { AttendanceRegularizeDrawer } from './attendance-regularize-drawer';
 import { DailyAttendanceRow } from './attendance.models';
+import { displayWorkingHours } from './live-working-hours';
 
 /** Lightweight details drawer for Daily Attendance UI mock. */
 @Component({
@@ -20,6 +32,9 @@ import { DailyAttendanceRow } from './attendance.models';
   },
 })
 export class AttendanceDailyDrawer {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly clockTick = signal(Date.now());
+
   readonly row = input.required<DailyAttendanceRow>();
   readonly selectedDate = input.required<Date>();
   /** Regularization for this employee on the selected date, when one exists. */
@@ -35,6 +50,25 @@ export class AttendanceDailyDrawer {
   /** Set when this drawer is opened from Attendance Exceptions. */
   readonly exceptionType = input<string | null>(null);
   readonly exceptionStatus = input<string | null>(null);
+
+  protected readonly workedHoursLabel = computed(() => {
+    this.clockTick();
+    const row = this.row();
+    return displayWorkingHours(
+      row.status,
+      row.dateIso ?? this.dateIso(),
+      row.firstIn,
+      row.workingHours,
+      undefined,
+      row.lastOut,
+    );
+  });
+
+  constructor() {
+    interval(60_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.clockTick.set(Date.now()));
+  }
 
   protected readonly severities: Partial<Record<string, StatusSeverity>> = {
     Present: 'success',

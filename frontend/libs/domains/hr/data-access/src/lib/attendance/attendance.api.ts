@@ -64,6 +64,14 @@ export interface DailyAttendanceRow {
   lastOut: string | null;
   firstInLate: boolean;
   workingHours: string | null;
+  /** e.g. "2h 21m + 0h 50m" when multiple IN–OUT sessions. */
+  workingHoursDetail?: string | null;
+  currentPunch?: 'IN' | 'OUT' | null;
+  currentPunchSince?: string | null;
+  requiredHours?: string | null;
+  shortfall?: string | null;
+  openInAt?: string | null;
+  closedWorkedMinutes?: number;
   status: AttendanceStatus;
   remarks: string;
   lateArrivalMinutes: number | null;
@@ -974,11 +982,26 @@ export interface MineAttendanceDay {
   status: AttendanceStatus;
   firstIn: string | null;
   lastOut: string | null;
+  firstInLate?: boolean;
   workingHours: string | null;
+  /** Multi-session breakdown, e.g. `2h 21m + 0h 50m`. */
+  workingHoursDetail?: string | null;
+  /** Latest punch state — independent of attendance status. */
+  currentPunch?: 'IN' | 'OUT' | null;
+  currentPunchSince?: string | null;
+  requiredHours?: string | null;
+  shortfall?: string | null;
+  /** Unmatched IN instant for live session ticking. */
+  openInAt?: string | null;
+  closedWorkedMinutes?: number;
+  lateArrivalMinutes?: number | null;
+  earlyExitMinutes?: number | null;
   shift: string;
   remarks: string;
   /** Exception for this day was resolved, so a new request is not offered. */
   resolved?: boolean;
+  /** Accepted punches for the Attendance Details drawer. */
+  punches?: AttendancePunch[];
 }
 
 export interface MineAttendanceSummary {

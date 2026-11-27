@@ -57,6 +57,8 @@ class PunchReviewService:
         to_date: date | None,
         employee_id: int | None,
         limit: int,
+        *,
+        mine_only: bool = False,
     ) -> list[PunchListItemOut]:
         query = select(AttendancePunch).where(AttendancePunch.is_active == True)  # noqa: E712
         if status is not None:
@@ -65,19 +67,25 @@ class PunchReviewService:
             query = query.where(AttendancePunch.attendance_date >= from_date)
         if to_date is not None:
             query = query.where(AttendancePunch.attendance_date <= to_date)
-        if employee_id is not None:
-            query = query.where(AttendancePunch.employee_id == employee_id)
-        if MANAGE not in actor.permissions and "*" not in actor.permissions:
-            if "hr.attendance.view.team" in actor.permissions:
-                team = select(Employee.id).where(
-                    or_(
-                        Employee.reporting_manager_id == (actor.employee_id or 0),
-                        Employee.id == (actor.employee_id or 0),
+        # ESS "My Punch Logs" always binds to the signed-in employee, even for Admin/HR.
+        if mine_only:
+            if actor.employee_id is None:
+                return []
+            query = query.where(AttendancePunch.employee_id == actor.employee_id)
+        else:
+            if employee_id is not None:
+                query = query.where(AttendancePunch.employee_id == employee_id)
+            if MANAGE not in actor.permissions and "*" not in actor.permissions:
+                if "hr.attendance.view.team" in actor.permissions:
+                    team = select(Employee.id).where(
+                        or_(
+                            Employee.reporting_manager_id == (actor.employee_id or 0),
+                            Employee.id == (actor.employee_id or 0),
+                        )
                     )
-                )
-                query = query.where(AttendancePunch.employee_id.in_(team))
-            else:
-                query = query.where(AttendancePunch.employee_id == (actor.employee_id or 0))
+                    query = query.where(AttendancePunch.employee_id.in_(team))
+                else:
+                    query = query.where(AttendancePunch.employee_id == (actor.employee_id or 0))
         rows = self._db.scalars(
             query.order_by(AttendancePunch.effective_at.desc(), AttendancePunch.id.desc()).limit(limit)
         ).all()

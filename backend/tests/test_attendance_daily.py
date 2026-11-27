@@ -180,8 +180,8 @@ def test_persist_status_policy_alignment():
     )
 
 
-def test_open_shift_stays_in_progress_and_grace_ignores_early_arrival(monkeypatch):
-    """TTPL General shift: 9:30–5:30, 15 minutes grace. An open IN is not a missing punch."""
+def test_open_shift_status_is_present_or_late_while_current_punch_is_in_progress(monkeypatch):
+    """Board status = Present/Late from first IN; open IN is Current Punch In Progress (not status)."""
     from trishul_api.modules.hr.attendance import service as attendance_service
 
     day = date(2026, 11, 26)
@@ -198,14 +198,40 @@ def test_open_shift_stays_in_progress_and_grace_ignores_early_arrival(monkeypatc
     )
 
     early = service._from_punches(day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 20), "IN", "Gate")])
-    assert early[4] == "In Progress"
+    assert early[4] == "Present"
     assert early[2] is False
     assert service._day_variance == (0, None)
-    assert "Shift in progress" in early[5]
+    # 09:20 → 11:00 = 1h 40m from punch-in, not from shift start 09:30.
+    assert early[3] == "1h 40m"
 
     on_time = service._from_punches(day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 30), "IN", "Gate")])
-    assert on_time[4] == "In Progress"
+    assert on_time[4] == "Present"
     assert on_time[2] is False
+    assert on_time[3] == "1h 30m"
+
+    # Grace ends at 09:45 inclusive → Present; 09:46 → Late. Still punched in.
+    at_grace = service._from_punches(day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 45), "IN", "Gate")])
+    assert at_grace[4] == "Present"
+    assert at_grace[2] is False
+
+    past_grace_open = service._from_punches(
+        day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 46), "IN", "Gate")]
+    )
+    assert past_grace_open[4] == "Late"
+    assert past_grace_open[2] is True
+
+    afternoon_late = service._from_punches(
+        day, shift, [PunchSource(1, datetime(2026, 11, 26, 12, 53), "IN", "Gate")]
+    )
+    assert afternoon_late[4] == "Late"
+    assert afternoon_late[2] is True
+
+    clock["now"] = datetime(2026, 11, 26, 11, 40)
+    punched_early = service._from_punches(
+        day, shift, [PunchSource(1, datetime(2026, 11, 26, 9, 26), "IN", "Gate")]
+    )
+    assert punched_early[4] == "Present"
+    assert punched_early[3] == "2h 14m"
 
     present = service._from_punches(
         day,

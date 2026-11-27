@@ -42,6 +42,7 @@ import {
   distinctUntilChanged,
   finalize,
   forkJoin,
+  interval,
   map,
   of,
   switchMap,
@@ -52,11 +53,13 @@ import { AttendanceShiftDrawer } from './attendance-shift.drawer';
 import { AttendanceRegularizeDrawer } from './attendance-regularize-drawer';
 import {
   AttendanceKpi,
+  AttendancePunch,
   AttendanceStatus,
   ContentTab,
   DailyAttendanceRow,
   RegularizationRequest,
 } from './attendance.models';
+import { displaySessionWorkingHours, displayWorkingHours, formatWorkedMinutes } from './live-working-hours';
 
 const STATUS_ICON: Record<AttendanceStatus, string> = {
   Present: 'check_circle',
@@ -138,6 +141,8 @@ export class AttendanceDailyPage implements OnInit {
   private readonly picker = viewChild(MatDateRangePicker);
   private readonly reload$ = new Subject<void>();
   private readonly search$ = new Subject<string>();
+  /** Bumps every minute so In Progress working hours stay live. */
+  private readonly clockTick = signal(Date.now());
 
   protected readonly severities: Partial<Record<string, StatusSeverity>> = {
     Present: 'success',
@@ -260,7 +265,56 @@ export class AttendanceDailyPage implements OnInit {
     return count > 0 && count < rows.length;
   });
 
+  /** Session sum + live open IN; frozen when checked out. */
+  protected hoursFor(row: DailyAttendanceRow): string {
+    this.clockTick();
+    if (row.openInAt || (row.closedWorkedMinutes ?? 0) > 0 || row.workingHoursDetail) {
+      return displaySessionWorkingHours({
+        closedWorkedMinutes: row.closedWorkedMinutes,
+        openInAt: row.openInAt,
+        frozenHours: row.workingHours,
+        workingHoursDetail: row.workingHoursDetail,
+      }).total;
+    }
+    return displayWorkingHours(row.status, row.dateIso, row.firstIn, row.workingHours);
+  }
+
+  protected hoursDetail(row: DailyAttendanceRow): string | null {
+    this.clockTick();
+    if (row.openInAt || row.workingHoursDetail) {
+      return displaySessionWorkingHours({
+        closedWorkedMinutes: row.closedWorkedMinutes,
+        openInAt: row.openInAt,
+        frozenHours: row.workingHours,
+        workingHoursDetail: row.workingHoursDetail,
+      }).detail;
+    }
+    return row.workingHoursDetail;
+  }
+
+  protected shortfallFor(row: DailyAttendanceRow): string | null {
+    this.clockTick();
+    const required = parseHoursLabel(row.requiredHours);
+    if (required == null) return row.shortfall;
+    const worked = parseHoursLabel(this.hoursFor(row));
+    if (worked == null) return row.shortfall;
+    const short = required - worked;
+    if (short <= 0) return null;
+    const hours = Math.floor(short / 60);
+    const mins = short % 60;
+    return `${hours}h ${String(mins).padStart(2, '0')}m`;
+  }
+
+  protected punchSinceLabel(row: DailyAttendanceRow): string {
+    if (!row.currentPunchSince) return '';
+    return `Since ${row.currentPunchSince}`;
+  }
+
   ngOnInit(): void {
+    interval(60_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.clockTick.set(Date.now()));
+
     this.reload$
       .pipe(
         tap(() => {
@@ -289,6 +343,12 @@ export class AttendanceDailyPage implements OnInit {
 
   protected minuteLabel(value: number | null | undefined): string {
     if (value == null) return '—';
+    return `${value} min`;
+  }
+
+  /** Reference board shows a dash when there is no early exit (including 0). */
+  protected earlyExitLabel(value: number | null | undefined): string {
+    if (value == null || value <= 0) return '—';
     return `${value} min`;
   }
 
@@ -426,6 +486,25 @@ export class AttendanceDailyPage implements OnInit {
     return shiftDisplayName(value) || '—';
   }
 
+  /** Shift name bold + assigned window muted — never employee punch times. */
+  protected shiftParts(value: string | null | undefined): { name: string; hours: string } | null {
+    const raw = (value ?? '').trim();
+    if (!raw || raw === '—' || raw === '-') return null;
+    const match = raw.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if (match) {
+      const name = match[1]!.trim();
+      const range = match[2]!
+        .split(/\s*[-–—]\s*/)
+        .map((part) => formatShiftClock(part.trim()));
+      return {
+        name,
+        hours: range.length >= 2 ? `${range[0]} – ${range[1]}` : range[0]!,
+      };
+    }
+    const name = shiftDisplayName(raw);
+    return name ? { name, hours: '' } : null;
+  }
+
   protected refresh(): void {
     if (this.contentTab() === 'punches') {
       this.loadPunches();
@@ -493,6 +572,13 @@ export class AttendanceDailyPage implements OnInit {
       lastOut: lastOut ? this.punchClock(lastOut) : null,
       firstInLate: false,
       workingHours: null,
+      workingHoursDetail: null,
+      currentPunch: null,
+      currentPunchSince: null,
+      requiredHours: null,
+      shortfall: null,
+      openInAt: null,
+      closedWorkedMinutes: 0,
       status: 'Present',
       remarks: this.punchVerified(row),
       lateArrivalMinutes: null,
@@ -863,6 +949,12 @@ function mapKpi(summary: AttendanceSummary): AttendanceKpi {
 
 function normalizeRow(row: ApiDailyAttendanceRow, dateIso: string): DailyAttendanceRow {
   const day = Number(dateIso.replaceAll('-', ''));
+  const punches = row.punches ?? [];
+  const derived = deriveSessionBoard(punches, dateIso);
+  const currentPunch = row.currentPunch ?? derived.currentPunch;
+  const openInAt = row.openInAt ?? derived.openInAt;
+  const closedWorkedMinutes = row.closedWorkedMinutes ?? derived.closedWorkedMinutes;
+  const currentPunchSince = formatTime(row.currentPunchSince ?? derived.currentPunchSince);
   return {
     id: row.employeeId * 100_000_000 + day,
     dateIso,
@@ -877,13 +969,20 @@ function normalizeRow(row: ApiDailyAttendanceRow, dateIso: string): DailyAttenda
     firstIn: formatTime(row.firstIn),
     lastOut: formatTime(row.lastOut),
     firstInLate: row.firstInLate,
-    workingHours: row.workingHours,
+    workingHours: row.workingHours ?? derived.workingHours,
+    workingHoursDetail: row.workingHoursDetail ?? derived.workingHoursDetail,
+    currentPunch,
+    currentPunchSince,
+    requiredHours: row.requiredHours ?? '8h 00m',
+    shortfall: row.shortfall ?? null,
+    openInAt,
+    closedWorkedMinutes,
     status: row.status,
     remarks: row.remarks,
     lateArrivalMinutes: row.lateArrivalMinutes ?? null,
     earlyExitMinutes: row.earlyExitMinutes ?? null,
     avatarTone: avatarTone(row.employeeId || row.id),
-    punches: row.punches ?? [],
+    punches,
     history: (row.history ?? []).map((item) => ({
       date: item.date,
       status: item.status,
@@ -892,6 +991,82 @@ function normalizeRow(row: ApiDailyAttendanceRow, dateIso: string): DailyAttenda
       workingHours: item.workingHours,
     })),
   };
+}
+
+/** Fallback when an older API payload omits session board fields — keeps UI aligned with punch logs. */
+function deriveSessionBoard(
+  punches: AttendancePunch[],
+  dateIso: string,
+): {
+  currentPunch: 'IN' | 'OUT' | null;
+  currentPunchSince: string | null;
+  openInAt: string | null;
+  closedWorkedMinutes: number;
+  workingHours: string | null;
+  workingHoursDetail: string | null;
+} {
+  const ordered = [...punches].sort((a, b) => a.at.localeCompare(b.at));
+  let openIn: string | null = null;
+  const closed: { start: string; end: string }[] = [];
+  for (const punch of ordered) {
+    const kind = punch.kind === 'IN' || punch.kind === 'OUT' ? punch.kind : null;
+    if (kind === 'IN') {
+      if (!openIn) openIn = punch.at;
+    } else if (kind === 'OUT' && openIn) {
+      closed.push({ start: openIn, end: punch.at });
+      openIn = null;
+    }
+  }
+  const closedMinutes = closed.reduce((sum, session) => sum + clockMinutes(session.start, session.end), 0);
+  if (openIn) {
+    return {
+      currentPunch: 'IN',
+      currentPunchSince: openIn,
+      openInAt: openIn,
+      closedWorkedMinutes: closedMinutes,
+      workingHours: null,
+      workingHoursDetail: null,
+    };
+  }
+  if (closed.length) {
+    const last = closed[closed.length - 1]!;
+    return {
+      currentPunch: 'OUT',
+      currentPunchSince: last.end,
+      openInAt: null,
+      closedWorkedMinutes: closedMinutes,
+      workingHours: formatWorkedMinutes(closedMinutes),
+      workingHoursDetail:
+        closed.length > 1
+          ? closed.map((s) => formatWorkedMinutes(clockMinutes(s.start, s.end)) ?? '0h 00m').join(' + ')
+          : null,
+    };
+  }
+  void dateIso;
+  return {
+    currentPunch: null,
+    currentPunchSince: null,
+    openInAt: null,
+    closedWorkedMinutes: 0,
+    workingHours: null,
+    workingHoursDetail: null,
+  };
+}
+
+function clockMinutes(startIso: string, endIso: string): number {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
+  start.setSeconds(0, 0);
+  end.setSeconds(0, 0);
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60_000));
+}
+
+function parseHoursLabel(value: string | null | undefined): number | null {
+  if (!value || value === '—') return null;
+  const match = value.trim().match(/^(\d+)\s*h\s*(\d{1,2})\s*m$/i);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
 }
 
 function formatTime(value: string | null | undefined): string | null {
@@ -908,6 +1083,22 @@ function formatTime(value: string | null | undefined): string | null {
 function shiftDisplayName(value: string | null | undefined): string {
   const name = (value ?? '').split('(')[0]?.trim() ?? '';
   return name === '—' || name === '-' ? '' : name;
+}
+
+/** Assigned shift window only (e.g. 09:30 AM) — not punch-in/out. */
+function formatShiftClock(value: string): string {
+  if (/am|pm/i.test(value)) {
+    const ampm = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!ampm) return value;
+    return `${ampm[1]!.padStart(2, '0')}:${ampm[2]} ${ampm[3]!.toUpperCase()}`;
+  }
+  const hm = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!hm) return value;
+  let hour = Number(hm[1]);
+  const minute = hm[2]!;
+  const meridiem = hour >= 12 ? 'PM' : 'AM';
+  const display = hour % 12 || 12;
+  return `${String(display).padStart(2, '0')}:${minute} ${meridiem}`;
 }
 
 function avatarTone(id: number): string {
@@ -943,11 +1134,13 @@ function downloadCsv(
     'Department',
     'Location',
     'Shift',
-    'In Time',
-    'Out Time',
+    'First IN',
+    'Last OUT',
     'Worked Hours',
-    'Status',
-    'Regularization',
+    'Current Punch',
+    'Required Hours',
+    'Shortfall',
+    'Attendance Status',
     'Late Arrival',
     'Early Exit',
     'Remarks',
@@ -962,8 +1155,10 @@ function downloadCsv(
       row.firstIn ?? '',
       row.lastOut ?? '',
       row.workingHours ?? '',
+      row.currentPunch ?? '',
+      row.requiredHours ?? '',
+      row.shortfall ?? '',
       row.status,
-      regularizationStatus(row),
       row.lateArrivalMinutes == null ? '' : String(row.lateArrivalMinutes),
       row.earlyExitMinutes == null ? '' : String(row.earlyExitMinutes),
       row.remarks,

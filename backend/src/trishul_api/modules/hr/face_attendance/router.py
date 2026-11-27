@@ -461,9 +461,12 @@ def list_attendance_punches(
     from_date: Annotated[date | None, Query(alias="fromDate")] = None,
     to_date: Annotated[date | None, Query(alias="toDate")] = None,
     employee_id: Annotated[int | None, Query(alias="employeeId", gt=0)] = None,
+    mine_only: Annotated[bool, Query(alias="mineOnly")] = False,
     limit: Annotated[int, Query(ge=1, le=1000)] = 200,
 ) -> list[PunchListItemOut]:
-    return reviews.list_punches(actor, status, from_date, to_date, employee_id, limit)
+    return reviews.list_punches(
+        actor, status, from_date, to_date, employee_id, limit, mine_only=mine_only
+    )
 
 
 @router.post(

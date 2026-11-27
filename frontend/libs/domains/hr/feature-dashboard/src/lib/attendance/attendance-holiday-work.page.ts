@@ -65,7 +65,8 @@ export class AttendanceHolidayWorkPage implements OnInit {
   protected readonly fileSize = signal<string | null>(null);
   protected readonly submitting = signal(false);
   protected readonly loadError = signal<string | null>(null);
-  private employeeId = 1;
+  /** Filled from GET /hr/attendance/mine for the signed-in employee — never a hardcoded id. */
+  private employeeId: number | null = null;
 
   protected readonly selected = computed(() => {
     const day = this.holidayDate();
@@ -223,12 +224,19 @@ export class AttendanceHolidayWorkPage implements OnInit {
 
   protected submit(): void {
     const day = this.holidayDate();
+    const employeeId = this.employeeId;
     if ((!this.selected() && !this.isEligibleDate(day)) || !day || !this.canSubmit()) return;
+    if (employeeId == null) {
+      this.snackBar.open('Your employee profile could not be resolved. Sign in again and retry.', 'OK', {
+        duration: 4000,
+      });
+      return;
+    }
     const reason = `Compensation: Compensatory Off (Comp Off)\n${this.reason().trim()}`.slice(0, 250);
     this.submitting.set(true);
     this.attendance
       .createMineRegularization({
-        employeeId: this.employeeId,
+        employeeId,
         attendanceDate: toIso(day),
         requestType: 'Holiday Work',
         requestedIn: clockLabel(this.punchIn()),

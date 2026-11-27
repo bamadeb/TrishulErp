@@ -471,19 +471,33 @@ def expire_due(db: Session, *, employee_id: int | None, as_of: date) -> int:
 
 
 def available_on(db: Session, employee_id: int, on: date) -> Decimal:
-    total = _ZERO
-    for credit in _credits(db, employee_id):
-        if credit.expires_on <= on or remaining(credit) <= 0:
-            continue
-        total += remaining(credit)
-    return _q(total)
+    credits = _credits(db, employee_id)
+    if credits:
+        total = _ZERO
+        for credit in credits:
+            if credit.expires_on <= on or remaining(credit) <= 0:
+                continue
+            total += remaining(credit)
+        return _q(total)
+    # Holiday Work may have credited CO on leave_balance before ledger rows existed.
+    return _balance_available(db, employee_id, _financial_year(on))
 
 
 def next_expiry(db: Session, employee_id: int, on: date) -> date | None:
+    credits = _credits(db, employee_id)
+    if credits:
+        dates = [
+            credit.expires_on
+            for credit in credits
+            if credit.expires_on > on and remaining(credit) > 0
+        ]
+        return min(dates) if dates else None
     dates = [
-        credit.expires_on
-        for credit in _credits(db, employee_id)
-        if credit.expires_on > on and remaining(credit) > 0
+        line["expires"]
+        for line in _balance_lines(db, employee_id, _financial_year(on))
+        if isinstance(line.get("expires"), date)
+        and line["expires"] > on
+        and line.get("status") == "Available"
     ]
     return min(dates) if dates else None
 
@@ -522,36 +536,52 @@ def sync_balance(db: Session, employee_id: int, user_id: int | None) -> None:
 
 def list_lines(db: Session, employee_id: int, financial_year: int) -> list[dict[str, object]]:
     start, end = _year_bounds(financial_year)
-    rows = [
-        credit
-        for credit in _credits(db, employee_id)
-        if start <= credit.credited_on <= end or (credit.expires_on > _today() and remaining(credit) > 0)
-    ]
-    return [_line(credit) for credit in rows]
+    credits = _credits(db, employee_id)
+    if credits:
+        rows = [
+            credit
+            for credit in credits
+            if start <= credit.credited_on <= end or (credit.expires_on > _today() and remaining(credit) > 0)
+        ]
+        return [_line(credit) for credit in rows]
+    return _balance_lines(db, employee_id, financial_year)
 
 
 def comp_off_totals(db: Session, employee_id: int, financial_year: int) -> dict[str, Decimal | None]:
     start, end = _year_bounds(financial_year)
-    credits = [
-        credit
-        for credit in _credits(db, employee_id)
-        if start <= credit.credited_on <= end or remaining(credit) > 0
-    ]
-    earned = _q(sum((credit.days for credit in credits if start <= credit.credited_on <= end), _ZERO))
-    used = _q(sum((credit.consumed_days or _ZERO for credit in credits if start <= credit.credited_on <= end), _ZERO))
-    expired = _q(sum((credit.expired_days or _ZERO for credit in credits if start <= credit.credited_on <= end), _ZERO))
-    horizon = _today() + timedelta(days=30)
-    expiring = _q(
-        sum(
-            (
-                remaining(credit)
-                for credit in _credits(db, employee_id)
-                if remaining(credit) > 0 and _today() < credit.expires_on <= horizon
-            ),
-            _ZERO,
+    all_credits = _credits(db, employee_id)
+    if all_credits:
+        credits = [
+            credit
+            for credit in all_credits
+            if start <= credit.credited_on <= end or remaining(credit) > 0
+        ]
+        earned = _q(sum((credit.days for credit in credits if start <= credit.credited_on <= end), _ZERO))
+        used = _q(
+            sum((credit.consumed_days or _ZERO for credit in credits if start <= credit.credited_on <= end), _ZERO)
         )
-    )
-    return {"earned": earned, "used": used, "expired": expired, "available": available_on(db, employee_id, _today()), "expiring": expiring}
+        expired = _q(
+            sum((credit.expired_days or _ZERO for credit in credits if start <= credit.credited_on <= end), _ZERO)
+        )
+        horizon = _today() + timedelta(days=30)
+        expiring = _q(
+            sum(
+                (
+                    remaining(credit)
+                    for credit in all_credits
+                    if remaining(credit) > 0 and _today() < credit.expires_on <= horizon
+                ),
+                _ZERO,
+            )
+        )
+        return {
+            "earned": earned,
+            "used": used,
+            "expired": expired,
+            "available": available_on(db, employee_id, _today()),
+            "expiring": expiring,
+        }
+    return _balance_totals(db, employee_id, financial_year)
 
 
 def list_authorizations(
@@ -687,6 +717,110 @@ def _credits(db: Session, employee_id: int) -> list[CompOffCredit]:
             .order_by(CompOffCredit.expires_on, CompOffCredit.id)
         ).all()
     )
+
+
+def _balance_available(db: Session, employee_id: int, financial_year: int) -> Decimal:
+    """CO days still on leave_balance when no CompOffCredit ledger rows exist for this employee."""
+    leave_type = db.scalar(select(LeaveType).where(LeaveType.code == "CO", LeaveType.is_active == True))  # noqa: E712
+    if leave_type is None:
+        return _ZERO
+    closing = db.scalar(
+        select(LeaveBalance.closing).where(
+            LeaveBalance.employee_id == employee_id,
+            LeaveBalance.leave_type_id == leave_type.id,
+            LeaveBalance.leave_year == financial_year,
+            LeaveBalance.is_active == True,  # noqa: E712
+        )
+    )
+    return _q(Decimal(closing or 0))
+
+
+def _balance_totals(db: Session, employee_id: int, financial_year: int) -> dict[str, Decimal | None]:
+    leave_type = db.scalar(select(LeaveType).where(LeaveType.code == "CO", LeaveType.is_active == True))  # noqa: E712
+    if leave_type is None:
+        return {"earned": _ZERO, "used": _ZERO, "expired": _ZERO, "available": _ZERO, "expiring": _ZERO}
+    row = db.scalar(
+        select(LeaveBalance).where(
+            LeaveBalance.employee_id == employee_id,
+            LeaveBalance.leave_type_id == leave_type.id,
+            LeaveBalance.leave_year == financial_year,
+            LeaveBalance.is_active == True,  # noqa: E712
+        )
+    )
+    available = _q(Decimal(row.closing if row else 0))
+    earned = _q(Decimal(row.accrued if row else 0))
+    used = _q(Decimal(row.availed if row else 0))
+    horizon = _today() + timedelta(days=30)
+    expiring = _ZERO
+    for line in _balance_lines(db, employee_id, financial_year):
+        expires = line.get("expires")
+        if line.get("status") == "Available" and isinstance(expires, date) and _today() < expires <= horizon:
+            expiring = _q(expiring + Decimal(str(line.get("days") or 0)))
+    return {
+        "earned": earned,
+        "used": used,
+        "expired": _ZERO,
+        "available": available,
+        "expiring": expiring,
+    }
+
+
+def _balance_lines(db: Session, employee_id: int, financial_year: int) -> list[dict[str, object]]:
+    """Build Comp Off lines from leave_balance_transaction for this employee only."""
+    leave_type = db.scalar(select(LeaveType).where(LeaveType.code == "CO", LeaveType.is_active == True))  # noqa: E712
+    if leave_type is None:
+        return []
+    rows = list(
+        db.scalars(
+            select(LeaveBalanceTransaction)
+            .where(
+                LeaveBalanceTransaction.employee_id == employee_id,
+                LeaveBalanceTransaction.leave_type_id == leave_type.id,
+                LeaveBalanceTransaction.leave_year == financial_year,
+                LeaveBalanceTransaction.kind == "Credit",
+                LeaveBalanceTransaction.is_active == True,  # noqa: E712
+                LeaveBalanceTransaction.days > 0,
+            )
+            .order_by(LeaveBalanceTransaction.created_at.desc(), LeaveBalanceTransaction.id.desc())
+        ).all()
+    )
+    available = _balance_available(db, employee_id, financial_year)
+    lines: list[dict[str, object]] = []
+    remaining_pool = available
+    for row in rows:
+        earned_on = row.created_at.date() if row.created_at else _today()
+        expires = _expiry_from_remarks(row.remarks, earned_on)
+        days = _q(Decimal(row.days or 0))
+        if expires <= _today():
+            status = "Expired"
+        elif remaining_pool > 0:
+            status = "Expiring" if expires <= _today() + timedelta(days=30) else "Available"
+            remaining_pool = _q(remaining_pool - min(remaining_pool, days))
+        else:
+            status = "Used"
+        lines.append(
+            {
+                "earned_on": earned_on,
+                "days": days,
+                "note": (row.remarks or "Compensatory off credit").strip(),
+                "expires": expires,
+                "status": status,
+            }
+        )
+    return lines
+
+
+def _expiry_from_remarks(remarks: str | None, earned_on: date) -> date:
+    import re
+
+    if remarks:
+        match = re.search(r"Expires\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})", remarks)
+        if match:
+            try:
+                return datetime.strptime(match.group(1), "%d %b %Y").date()
+            except ValueError:
+                pass
+    return earned_on + timedelta(days=EXPIRY_DAYS)
 
 
 def _lock_open(db: Session, employee_id: int, on: date) -> list[CompOffCredit]:

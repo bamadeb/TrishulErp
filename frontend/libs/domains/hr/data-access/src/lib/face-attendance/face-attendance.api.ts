@@ -76,6 +76,8 @@ export interface FacePunchQuery {
   fromDate?: string;
   toDate?: string;
   employeeId?: number;
+  /** ESS My Punch Logs — server forces the signed-in employee's punches. */
+  mineOnly?: boolean;
   limit?: number;
 }
 
@@ -202,6 +204,7 @@ export class FaceAttendanceApi {
       fromDate: query.fromDate || null,
       toDate: query.toDate || null,
       employeeId: query.employeeId ?? null,
+      mineOnly: query.mineOnly === true ? true : undefined,
       limit: query.limit,
     });
   }
